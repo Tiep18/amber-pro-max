@@ -44,7 +44,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 01-02: Implement locale routing, translated slugs, and localization tests
-- [ ] 01-04: Establish Supabase migrations, generated types, and RLS test harness
+- [x] 01-04: Establish Supabase migrations, generated types, and RLS test harness
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -219,7 +219,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Secure Bilingual Foundation | 2/8 | In Progress|  |
+| 1. Secure Bilingual Foundation | 3/8 | In Progress|  |
 | 2. Market-Aware Catalog | 0/5 | Not started | - |
 | 3. Mixed Cart and Checkout | 0/5 | Not started | - |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |

@@ -104,8 +104,8 @@
 ### Administration, Security, and Operations
 
 - [ ] **ADM-01**: Authorized admin can manage catalog, markets, inventory, shipping, orders, payments, fulfillment, customers, reviews, discounts, newsletter, blog, and site content.
-- [ ] **ADM-02**: Admin operations that affect payment, stock, access rights, or customer data require server-side authorization.
-- [ ] **SEC-01**: Every exposed customer or commerce table has Row Level Security policies matching anonymous, customer, and admin access.
+- [x] **ADM-02**: Admin operations that affect payment, stock, access rights, or customer data require server-side authorization.
+- [x] **SEC-01**: Every exposed customer or commerce table has Row Level Security policies matching anonymous, customer, and admin access.
 - [x] **SEC-02**: Privileged database and storage credentials are never exposed to the browser.
 - [ ] **SEC-03**: Sensitive admin actions and important state transitions are recorded in an audit log.
 - [ ] **OPS-01**: Transactional email requests are stored durably and retried safely after transient failures.
@@ -219,8 +219,8 @@
 | SEO-03 | Phase 7 | Pending |
 | SEO-04 | Phase 7 | Pending |
 | ADM-01 | Phase 7 | Pending |
-| ADM-02 | Phase 1 | Pending |
-| SEC-01 | Phase 1 | Pending |
+| ADM-02 | Phase 1 | Complete |
+| SEC-01 | Phase 1 | Complete |
 | SEC-02 | Phase 1 | Complete |
 | SEC-03 | Phase 4 | Pending |
 | OPS-01 | Phase 5 | Pending |
