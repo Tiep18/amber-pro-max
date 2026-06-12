@@ -1,7 +1,10 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
+import type {ProductDraftInput} from '@/catalog/schemas';
 
-const requireAdmin = vi.fn();
-const createSupabaseServerClient = vi.fn();
+const {requireAdmin, createSupabaseServerClient} = vi.hoisted(() => ({
+  requireAdmin: vi.fn(),
+  createSupabaseServerClient: vi.fn()
+}));
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/auth/guards', () => ({requireAdmin}));
@@ -17,7 +20,7 @@ import {productDraftSchema} from '@/catalog/schemas';
 
 const productId = '11111111-1111-4111-8111-111111111111';
 
-function validDraft() {
+function validDraft(): ProductDraftInput {
   return {
     productType: 'pdf_pattern' as const,
     translations: {
