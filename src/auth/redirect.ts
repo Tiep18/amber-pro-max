@@ -9,6 +9,15 @@ const allowedPaths = new Set(
   ]
 );
 
+function isAllowedAdminPath(pathname: string) {
+  return (
+    pathname === '/admin' ||
+    pathname === '/admin/catalog' ||
+    pathname === '/admin/catalog/new' ||
+    /^\/admin\/catalog\/[0-9a-f-]+$/i.test(pathname)
+  );
+}
+
 function fallbackFor(locale: Locale) {
   return getLocalizedPath('/', locale);
 }
@@ -19,7 +28,7 @@ function safeNestedNext(value: string | null) {
   }
 
   const normalized = value.replace(/\/$/, '') || '/';
-  return allowedPaths.has(normalized as `/${Locale}${string}`) ? normalized : null;
+  return allowedPaths.has(normalized as `/${Locale}${string}`) || isAllowedAdminPath(normalized) ? normalized : null;
 }
 
 export function safeRedirect(next: FormDataEntryValue | null | undefined, locale: Locale = 'vi') {
@@ -43,12 +52,12 @@ export function safeRedirect(next: FormDataEntryValue | null | undefined, locale
   }
 
   const [, routeLocale] = parsed.pathname.split('/');
-  if (!isLocale(routeLocale) && parsed.pathname !== '/admin') {
+  if (!isLocale(routeLocale) && !isAllowedAdminPath(parsed.pathname)) {
     return fallbackFor(locale);
   }
 
   const normalizedPath = parsed.pathname.replace(/\/$/, '') || `/${routeLocale}`;
-  if (!allowedPaths.has(normalizedPath as `/${Locale}${string}`)) {
+  if (!allowedPaths.has(normalizedPath as `/${Locale}${string}`) && !isAllowedAdminPath(normalizedPath)) {
     return fallbackFor(locale);
   }
 
