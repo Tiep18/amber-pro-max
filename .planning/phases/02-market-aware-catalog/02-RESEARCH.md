@@ -59,7 +59,7 @@ Public catalog pages should read an active market from an explicit customer choi
 
 Supabase Storage should be enabled locally in this phase because Phase 1 disabled it in `supabase/config.toml`, and Phase 2 includes PDF upload. [VERIFIED: codebase grep] PDFs must live in a private bucket with Storage RLS policies and admin-only upload paths; Phase 2 should not generate customer download links because signed URLs remain valid until expiry and entitlement-backed download belongs to Phase 5. [CITED: https://supabase.com/docs/guides/storage/buckets/fundamentals] [CITED: https://supabase.com/docs/guides/storage/serving/downloads]
 
-**Primary recommendation:** Implement the five roadmap plans as vertical slices: schema/RLS, admin publishing and private media, market resolution/query helpers, public localized discovery/detail pages, then adversarial verification of RLS, market cache isolation, variant validity, and metadata. [VERIFIED: codebase grep]
+**Primary recommendation:** Implement Phase 2 as focused execution slices for catalog schema/RLS, admin product basics, public image/private PDF media, physical variants/inventory, market resolution, market-aware queries, public listing/search, public detail/SEO, adversarial verification, and the final CI/security gate. [VERIFIED: codebase grep]
 
 <phase_requirements>
 ## Phase Requirements
@@ -305,11 +305,14 @@ export async function generateMetadata({params}: {params: Promise<{locale: Local
 
 | Roadmap Plan | Research Guidance |
 |--------------|-------------------|
-| 02-01 Model catalog | Create tables, constraints, RLS, pgTAP, and generated types first; include Storage bucket config only if needed for local reset. [VERIFIED: codebase grep] |
-| 02-02 Admin management | Build minimal protected admin CRUD and publish gate; use `requireAdmin()` at every server action. [VERIFIED: codebase grep] |
-| 02-03 Market-aware queries | Add market resolver, switcher, cookie persistence, query helpers, and tests before public catalog pages consume prices. [CITED: https://vercel.com/docs/headers/request-headers] |
-| 02-04 Public discovery | Add listing, search/filter/sort, category/collection, product detail, metadata, unavailable state, and disabled variant UI. [VERIFIED: codebase grep] |
-| 02-05 Verification | Run full CI plus focused Playwright and pgTAP for market isolation, RLS, Storage privacy, publish gate, and SEO metadata. [VERIFIED: codebase grep] |
+| 02-01 Catalog schema | Create tables, constraints, RLS, pgTAP, and generated types first. [VERIFIED: codebase grep] |
+| 02-02 Admin product basics | Build protected bilingual draft/edit/publish-blocker workflows; use `requireAdmin()` at every server action. [VERIFIED: codebase grep] |
+| 02-03 Media and private PDF | Probe local Storage with the installed CLI, then add public product media, private PDFs, metadata, RLS, and admin upload/association. [VERIFIED: codebase grep] |
+| 02-04 Variants and inventory | Add explicit physical variants, parent-price fallback, optional overrides, and inventory-at-one-level editing. [VERIFIED: codebase grep] |
+| 02-05 Market resolution | Add country suggestion, visible switcher, cookie persistence, and integer money formatting. [CITED: https://vercel.com/docs/headers/request-headers] |
+| 02-06 Market-aware queries | Add database projections/RPCs and typed helpers with locale+market isolation before public pages consume prices. [VERIFIED: codebase grep] |
+| 02-07 Public listing/search | Add localized listing, category, collection, search/filter/sort, and type-distinguishing cards. [VERIFIED: codebase grep] |
+| 02-08 Public detail/SEO and phase gate | Add product detail, unavailable-market state, variant selection, canonical URLs, alternates, social metadata, static fulfillment-boundary checks, and the full CI gate from a clean local state. Earlier plans own their focused pgTAP, unit, and Playwright coverage; 02-08 Task 3 owns the integrated security/CI sign-off. [VERIFIED: codebase grep] |
 
 ## Don't Hand-Roll
 
@@ -416,28 +419,28 @@ export async function uploadPatternPdf(productId: string, file: File) {
 
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
-| A1 | Product images should likely be public or signed separately from private PDFs for SEO/social sharing. | Open Questions | A private social image would not render in link previews. |
+| A1 | Product/gallery/variant/social images use public read access with database-owned metadata and admin-only writes; PDFs remain private. | Open Questions (RESOLVED) | A private social image would not render in link previews. |
 | A2 | Basic `ilike` search is adequate for MVP catalog size. | Standard Stack / Requirements | Large catalogs may need Postgres full-text indexes earlier. |
 | A3 | Variant/offer schema should use separate parent and override tables rather than nullable polymorphic columns. | Architecture Patterns | Planner may need a simpler schema if implementation time is constrained. |
 | A4 | Market-cookie-dependent public pages should be dynamic unless cache keys explicitly include market. | Pitfalls | Overly dynamic rendering may reduce cache efficiency. |
 | A5 | Product-level inventory for non-variant physical products can be stored in the same inventory table with nullable variant_id and a constraint. | Architecture Patterns | A stricter separate table may be easier to test. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Product image bucket visibility**
-   - What we know: PDFs must be private and product pages require social images before publish. [VERIFIED: codebase grep]
-   - What's unclear: The project has not locked whether product gallery/social images are public or private. [VERIFIED: codebase grep]
-   - Recommendation: Use a public product-media bucket for product/gallery/social images and a private `pattern-pdfs` bucket for PDFs unless the user selects stricter media privacy. [ASSUMED]
+1. **Product image bucket visibility - RESOLVED**
+   - Decision: Product, gallery, variant, and social-sharing images use a public `product-media` bucket so indexable pages and link previews can load them.
+   - Ownership and writes: Database rows own image metadata and associations; only server-authorized admin workflows may create, update, or delete media records or Storage objects. Public access is read-only.
+   - PDF boundary: Pattern files use the private `pattern-pdfs` bucket only. No PDF object path becomes a public URL, and Phase 2 creates no customer download route or signed fulfillment URL.
 
-2. **Supabase CLI upgrade timing**
-   - What we know: Local CLI is `2.53.6` and reports `2.106.0` available; Phase 1 summaries mention a different installed CLI during execution. [VERIFIED: environment probe]
-   - What's unclear: Whether Storage reset issue from Phase 1 is fixed by current local/remote CLI behavior. [ASSUMED]
-   - Recommendation: Plan a Wave 0 probe enabling Storage in local config before writing PDF upload tasks. [ASSUMED]
+2. **Supabase CLI upgrade timing - RESOLVED**
+   - Decision: Do not upgrade Supabase CLI during Phase 2 by default.
+   - Execution rule: First enable local Storage and run a focused reset/upload/RLS probe with the installed CLI. Upgrade is permitted only if that probe fails after configuration and policy errors are ruled out, and the failure evidence indicates CLI incompatibility.
+   - Verification rule: Database and Storage commands remain sequential on Windows.
 
-3. **Exact public route names for catalog**
-   - What we know: Products/categories/collections need separate Vietnamese and English slugs. [VERIFIED: codebase grep]
-   - What's unclear: Static route labels such as `/san-pham`, `/mau-moc`, `/bo-suu-tap` are not locked. [VERIFIED: codebase grep]
-   - Recommendation: Planner should choose concise route labels and add them to `src/i18n/routing.ts` before pages. [ASSUMED]
+3. **Exact public route names for catalog - RESOLVED**
+   - Decision: Route names follow the existing `next-intl` locale routing and translated-pathname patterns established in Phase 1.
+   - Ownership: The public catalog listing plan owns the final static route labels and adds them to `src/i18n/routing.ts`; product, category, and collection pages consume that route contract rather than inventing independent paths.
+   - Constraint: Separate Vietnamese and English content slugs remain database-owned and unique per locale per D-13.
 
 ## Environment Availability
 
@@ -445,7 +448,7 @@ export async function uploadPatternPdf(productId: string, file: File) {
 |------------|-------------|-----------|---------|----------|
 | Node.js | Next.js build/test | Yes | v24.16.0 | Project `.nvmrc`/CI can still pin Node 22 from Phase 1. [VERIFIED: environment probe] |
 | npm | Package scripts | Yes | 10.5.0 | None needed. [VERIFIED: environment probe] |
-| Supabase CLI | Migrations, db reset/lint/test/types, local Storage | Yes, but version drift | 2.53.6; CLI reports 2.106.0 available | Planner should add a Storage enablement probe before relying on upload tests. [VERIFIED: environment probe] |
+| Supabase CLI | Migrations, db reset/lint/test/types, local Storage | Yes, but version drift | 2.53.6; CLI reports 2.106.0 available | Keep the installed CLI unless the focused local Storage probe fails for a confirmed CLI compatibility reason. [VERIFIED: environment probe] |
 | Docker | Local Supabase | Yes | 24.0.7 | Hosted Supabase only would weaken pgTAP reproducibility. [VERIFIED: environment probe] |
 | Local Supabase Storage | DIG-01 private PDF upload | No, disabled in config | `[storage].enabled = false` | Enable and test in Plan 02-01/02-02 before PDF upload UI. [VERIFIED: codebase grep] |
 | Vercel country header | MKT-05 deployed market suggestion | Available only on Vercel deployment | `x-vercel-ip-country` | Local/dev tests can inject headers or use a test-only country override. [CITED: https://vercel.com/docs/headers/request-headers] |

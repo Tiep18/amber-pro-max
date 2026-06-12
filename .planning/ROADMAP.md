@@ -66,6 +66,7 @@ Plans:
 ### Phase 2: Market-Aware Catalog
 
 **Goal**: Let admin publish bilingual digital and physical products while customers browse the right assortment, price, currency, and variants for their market.
+**User Story:** As a store admin and shopper, I want bilingual products with market-specific availability, pricing, variants, and protected digital assets, so that Vietnam and international customers can browse the correct catalog before checkout.
 **Mode:** mvp
 **UI hint:** yes
 **Depends on**: Phase 1
@@ -78,15 +79,35 @@ Plans:
   4. Product pages clearly distinguish patterns from finished goods and prevent invalid or unavailable variant selection.
   5. Digital assets are stored privately and localized product metadata is ready for indexing and sharing.
 
-**Plans**: 5 plans
+**Plans**: 8 plans
 
 Plans:
 
-- [ ] 02-01: Model catalog, translations, taxonomy, market offers, variants, and inventory
-- [ ] 02-02: Build protected product/PDF media management and catalog administration
-- [ ] 02-03: Implement IP market suggestion, currency presentation, and market-aware queries
-- [ ] 02-04: Build localized catalog, discovery, collection, and product-detail experiences
-- [ ] 02-05: Verify catalog RLS, market isolation, variants, inventory editing, and product metadata
+**Wave 1**
+
+- [ ] 02-01: Model catalog, translations, taxonomy, market offers, variants, inventory, publish rules, and RLS
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 02-02: Build bilingual product basics, taxonomy, market offers, publish checks, and admin workflows
+- [ ] 02-05: Implement IP market suggestion, currency presentation, and explicit market switching
+
+**Wave 3** *(blocked on Wave 2 admin foundation)*
+
+- [ ] 02-03: Build protected image and private PDF media management
+- [ ] 02-04: Build physical variants, pricing overrides, and inventory administration
+
+**Wave 4** *(blocked on catalog schema and variants)*
+
+- [ ] 02-06: Implement market-isolated catalog queries and database verification
+
+**Wave 5** *(blocked on market resolution and catalog queries)*
+
+- [ ] 02-07: Build localized catalog discovery, category, collection, search, filter, and sort experiences
+
+**Wave 6** *(blocked on media, variants, queries, and discovery)*
+
+- [ ] 02-08: Build localized product detail, unavailable-market behavior, variant selection, and SEO metadata
 
 ### Phase 3: Mixed Cart and Checkout
 
@@ -220,7 +241,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
-| 2. Market-Aware Catalog | 0/5 | Not started | - |
+| 2. Market-Aware Catalog | 0/8 | Not started | - |
 | 3. Mixed Cart and Checkout | 0/5 | Not started | - |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |
