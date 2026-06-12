@@ -29,7 +29,48 @@
     "signInTitle": "Sign in",
     "registerTitle": "Create account",
     "forgotPasswordTitle": "Reset password",
-    "resetPasswordTitle": "Choose a new password"
+    "resetPasswordTitle": "Choose a new password",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "pending": "Please wait...",
+    "genericError": "We could not complete that request. Check the details and try again.",
+    "signIn": {
+      "title": "Sign in",
+      "intro": "Use your email and password to enter your account.",
+      "submit": "Sign in",
+      "successTitle": "Signed in",
+      "successBody": "You are being redirected.",
+      "registerPrompt": "New here?",
+      "registerLink": "Create an account",
+      "forgotLink": "Forgot password?"
+    },
+    "register": {
+      "title": "Create account",
+      "intro": "Create an account for future order history and secure access.",
+      "submit": "Create account",
+      "successTitle": "Check your email",
+      "successBody": "If confirmation is required, use the link we sent to finish setting up your account.",
+      "signInPrompt": "Already have an account?",
+      "signInLink": "Sign in"
+    },
+    "forgotPassword": {
+      "title": "Reset password",
+      "intro": "Enter your email and we will send reset instructions if the account exists.",
+      "submit": "Send reset link",
+      "successTitle": "Check your email",
+      "successBody": "If that email can receive account mail, reset instructions will arrive shortly.",
+      "signInLink": "Back to sign in"
+    },
+    "resetPassword": {
+      "title": "Choose a new password",
+      "intro": "Enter a new password after opening a valid recovery link.",
+      "submit": "Update password",
+      "successTitle": "Password updated",
+      "successBody": "Your password was updated. You can continue with your account.",
+      "signInLink": "Back to sign in",
+      "invalidRecovery": "This recovery link is no longer valid. Request a new password reset link."
+    }
   },
   "account": {
     "title": "Account"

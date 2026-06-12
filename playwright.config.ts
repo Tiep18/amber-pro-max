@@ -11,6 +11,12 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev -- --hostname 127.0.0.1 --port 3210',
     url: 'http://127.0.0.1:3210',
+    env: {
+      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://127.0.0.1:3210',
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:55431',
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH'
+    },
     reuseExistingServer: false,
     timeout: 120_000
   },

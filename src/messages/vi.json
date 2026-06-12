@@ -29,7 +29,48 @@
     "signInTitle": "Dang nhap",
     "registerTitle": "Tao tai khoan",
     "forgotPasswordTitle": "Dat lai mat khau",
-    "resetPasswordTitle": "Chon mat khau moi"
+    "resetPasswordTitle": "Chon mat khau moi",
+    "email": "Email",
+    "password": "Mat khau",
+    "confirmPassword": "Xac nhan mat khau",
+    "pending": "Vui long doi...",
+    "genericError": "Yeu cau chua hoan tat. Kiem tra thong tin va thu lai.",
+    "signIn": {
+      "title": "Dang nhap",
+      "intro": "Dung email va mat khau de vao tai khoan.",
+      "submit": "Dang nhap",
+      "successTitle": "Da dang nhap",
+      "successBody": "Ban dang duoc chuyen huong.",
+      "registerPrompt": "Ban moi den?",
+      "registerLink": "Tao tai khoan",
+      "forgotLink": "Quen mat khau?"
+    },
+    "register": {
+      "title": "Tao tai khoan",
+      "intro": "Tao tai khoan de xem lich su don hang va truy cap an toan sau nay.",
+      "submit": "Tao tai khoan",
+      "successTitle": "Kiem tra email",
+      "successBody": "Neu can xac nhan, hay dung lien ket chung toi gui de hoan tat tai khoan.",
+      "signInPrompt": "Da co tai khoan?",
+      "signInLink": "Dang nhap"
+    },
+    "forgotPassword": {
+      "title": "Dat lai mat khau",
+      "intro": "Nhap email va chung toi se gui huong dan dat lai neu tai khoan ton tai.",
+      "submit": "Gui lien ket dat lai",
+      "successTitle": "Kiem tra email",
+      "successBody": "Neu email nay co the nhan thu tai khoan, huong dan dat lai se den som.",
+      "signInLink": "Quay lai dang nhap"
+    },
+    "resetPassword": {
+      "title": "Chon mat khau moi",
+      "intro": "Nhap mat khau moi sau khi mo lien ket khoi phuc hop le.",
+      "submit": "Cap nhat mat khau",
+      "successTitle": "Mat khau da cap nhat",
+      "successBody": "Mat khau cua ban da duoc cap nhat. Ban co the tiep tuc voi tai khoan.",
+      "signInLink": "Quay lai dang nhap",
+      "invalidRecovery": "Lien ket khoi phuc nay khong con hop le. Hay yeu cau lien ket dat lai mat khau moi."
+    }
   },
   "account": {
     "title": "Tai khoan"

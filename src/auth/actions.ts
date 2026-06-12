@@ -39,6 +39,15 @@ function authCallbackUrl(locale: Locale, next?: string) {
   return url.toString();
 }
 
+async function settleWithoutEnumeration(operation: Promise<unknown>) {
+  await Promise.race([
+    operation.catch(() => undefined),
+    new Promise((resolve) => {
+      setTimeout(resolve, 2000);
+    })
+  ]);
+}
+
 export async function registerAction(_previousState: AuthActionState, formData: FormData) {
   const parsed = registerSchema.safeParse(
     parseForm<RegisterInput>(formData, ['email', 'password', 'confirmPassword', 'locale', 'next'])
@@ -101,9 +110,11 @@ export async function requestPasswordResetAction(_previousState: AuthActionState
 
   const supabase = await createSupabaseServerClient();
   const next = getLocalizedPath('/reset-password', parsed.data.locale);
-  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: authCallbackUrl(parsed.data.locale, next)
-  });
+  await settleWithoutEnumeration(
+    supabase.auth.resetPasswordForEmail(parsed.data.email, {
+      redirectTo: authCallbackUrl(parsed.data.locale, next)
+    })
+  );
 
   return {status: 'success', code: 'reset_requested'} satisfies AuthActionState;
 }

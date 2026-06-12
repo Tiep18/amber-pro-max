@@ -6,6 +6,16 @@ import {updateSession} from './lib/supabase/proxy';
 const intlMiddleware = createMiddleware(routing);
 
 const PUBLIC_FILE = /\.(.*)$/;
+const PHYSICAL_AUTH_SLUGS = new Set([
+  '/vi/dang-nhap',
+  '/vi/dang-ky',
+  '/vi/quen-mat-khau',
+  '/vi/dat-lai-mat-khau',
+  '/en/sign-in',
+  '/en/register',
+  '/en/forgot-password',
+  '/en/reset-password'
+]);
 
 function isUnprefixedCustomerPath(pathname: string) {
   const firstSegment = pathname.split('/')[1];
@@ -15,7 +25,7 @@ function isUnprefixedCustomerPath(pathname: string) {
 export default async function proxy(request: NextRequest) {
   const {pathname, search} = request.nextUrl;
 
-  if (pathname === '/vi/dang-nhap' || pathname === '/en/sign-in') {
+  if (PHYSICAL_AUTH_SLUGS.has(pathname)) {
     return updateSession(request, NextResponse.next());
   }
 
