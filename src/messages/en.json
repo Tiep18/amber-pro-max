@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "title": "Amigurumi Pattern & Handmade Store",
+    "description": "A secure bilingual foundation for handmade goods and crochet patterns."
+  },
+  "navigation": {
+    "home": "Home",
+    "signIn": "Sign in",
+    "register": "Register",
+    "account": "Account",
+    "admin": "Admin"
+  },
+  "home": {
+    "eyebrow": "English",
+    "title": "Handmade crochet patterns and keepsakes",
+    "intro": "A bilingual storefront foundation for Vietnam and international customers."
+  },
+  "auth": {
+    "signInTitle": "Sign in",
+    "registerTitle": "Create account",
+    "forgotPasswordTitle": "Reset password",
+    "resetPasswordTitle": "Choose a new password"
+  },
+  "account": {
+    "title": "Account"
+  },
+  "admin": {
+    "title": "Admin"
+  }
+}

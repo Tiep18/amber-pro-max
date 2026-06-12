@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "title": "Cua hang thu cong va mau moc amigurumi",
+    "description": "Nen tang song ngu an toan cho san pham thu cong va mau moc."
+  },
+  "navigation": {
+    "home": "Trang chu",
+    "signIn": "Dang nhap",
+    "register": "Dang ky",
+    "account": "Tai khoan",
+    "admin": "Quan tri"
+  },
+  "home": {
+    "eyebrow": "Vietnamese",
+    "title": "Mau moc va qua tang len thu cong",
+    "intro": "Nen tang cua hang song ngu cho khach hang Viet Nam va quoc te."
+  },
+  "auth": {
+    "signInTitle": "Dang nhap",
+    "registerTitle": "Tao tai khoan",
+    "forgotPasswordTitle": "Dat lai mat khau",
+    "resetPasswordTitle": "Chon mat khau moi"
+  },
+  "account": {
+    "title": "Tai khoan"
+  },
+  "admin": {
+    "title": "Quan tri"
+  }
+}
