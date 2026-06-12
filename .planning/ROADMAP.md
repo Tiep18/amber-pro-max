@@ -11,7 +11,7 @@ The project grows through seven vertical MVP phases. Each phase leaves a usable 
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions marked `INSERTED`
 
-- [ ] **Phase 1: Secure Bilingual Foundation** - Customers and admins can enter a localized application with correctly protected identities and data.
+- [x] **Phase 1: Secure Bilingual Foundation** - Customers and admins can enter a localized application with correctly protected identities and data. (completed 2026-06-12)
 - [ ] **Phase 2: Market-Aware Catalog** - Admin can publish products and customers can discover eligible products with correct market prices and variants.
 - [ ] **Phase 3: Mixed Cart and Checkout** - Customers can build a mixed order with authoritative pricing, shipping, discounts, inventory reservation, and exception handling.
 - [ ] **Phase 4: Trusted Payments and Orders** - PayPal and VietQR safely move orders through auditable, idempotent payment and inventory states.
@@ -61,7 +61,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 01-08: Verify role boundaries, secret handling, foundation UX, CI, and deployment readiness
+- [x] 01-08: Verify role boundaries, secret handling, foundation UX, CI, and deployment readiness
 
 ### Phase 2: Market-Aware Catalog
 
@@ -219,7 +219,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Secure Bilingual Foundation | 7/8 | In Progress|  |
+| 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
 | 2. Market-Aware Catalog | 0/5 | Not started | - |
 | 3. Mixed Cart and Checkout | 0/5 | Not started | - |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |
