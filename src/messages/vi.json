@@ -8,12 +8,22 @@
     "signIn": "Dang nhap",
     "register": "Dang ky",
     "account": "Tai khoan",
-    "admin": "Quan tri"
+    "admin": "Quan tri",
+    "primary": "Dieu huong chinh",
+    "openMenu": "Mo menu",
+    "menu": "Menu"
   },
   "home": {
     "eyebrow": "Vietnamese",
     "title": "Mau moc va qua tang len thu cong",
-    "intro": "Nen tang cua hang song ngu cho khach hang Viet Nam va quoc te."
+    "intro": "Nen tang song ngu am ap cho cua hang handmade phuc vu khach hang Viet Nam va quoc te.",
+    "readinessLabel": "Nen tang san sang",
+    "localizedTitle": "Ban dia hoa tu lan truy cap dau",
+    "localizedBody": "Trang cong khai dung duong dan tieng Viet va tieng Anh ro rang, voi chuyen ngon ngu tuong duong.",
+    "secureTitle": "Ranh gioi bao mat truoc tien",
+    "secureBody": "Tai khoan va quan tri se dua tren kiem tra phia server va vai tro do co so du lieu quan ly.",
+    "studioTitle": "Cam giac studio am ap",
+    "studioBody": "He thong hinh anh giu net thu cong vua du, de doc va dang tin cay."
   },
   "auth": {
     "signInTitle": "Dang nhap",
@@ -26,5 +36,8 @@
   },
   "admin": {
     "title": "Quan tri"
+  },
+  "footer": {
+    "copyright": "Nen tang studio handmade tam thoi"
   }
 }

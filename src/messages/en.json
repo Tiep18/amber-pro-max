@@ -8,12 +8,22 @@
     "signIn": "Sign in",
     "register": "Register",
     "account": "Account",
-    "admin": "Admin"
+    "admin": "Admin",
+    "primary": "Primary navigation",
+    "openMenu": "Open menu",
+    "menu": "Menu"
   },
   "home": {
     "eyebrow": "English",
     "title": "Handmade crochet patterns and keepsakes",
-    "intro": "A bilingual storefront foundation for Vietnam and international customers."
+    "intro": "A calm bilingual foundation for a future handmade storefront serving Vietnam and international customers.",
+    "readinessLabel": "Foundation readiness",
+    "localizedTitle": "Localized from the first visit",
+    "localizedBody": "Public pages use explicit Vietnamese and English routes with equivalent language switching.",
+    "secureTitle": "Security boundaries first",
+    "secureBody": "Account and admin access will build on server-side checks and database-owned roles.",
+    "studioTitle": "Warm studio tone",
+    "studioBody": "The visual system keeps handmade character restrained, readable, and trustworthy."
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -26,5 +36,8 @@
   },
   "admin": {
     "title": "Admin"
+  },
+  "footer": {
+    "copyright": "Provisional handmade studio foundation"
   }
 }
