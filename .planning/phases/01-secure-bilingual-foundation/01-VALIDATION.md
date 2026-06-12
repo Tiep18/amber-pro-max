@@ -1,10 +1,11 @@
 ---
 phase: 1
 slug: secure-bilingual-foundation
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: approved
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-12
+approved: 2026-06-12
 ---
 
 # Phase 1 - Validation Strategy
@@ -38,27 +39,30 @@ created: 2026-06-12
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 01-01-01 | 01 | 1 | MKT-01 | T-01-01 | Explicit locale prefixes, safe browser-language negotiation, equivalent-page switching, and translated slugs | unit + E2E | `npm run test:unit -- tests/unit/i18n && npm run test:e2e -- tests/e2e/localization.spec.ts` | No - W0 | pending |
-| 01-02-01 | 02 | 1 | SEC-01 | T-01-02, T-01-03 | Anonymous, customer A, customer B, and admin receive only permitted rows and writes | pgTAP | `supabase test db supabase/tests/database/01_foundation_rls.test.sql` | No - W0 | pending |
-| 01-02-02 | 02 | 1 | ADM-02 | T-01-02 | Customers cannot write role data or perform admin-only database operations | pgTAP | `supabase test db supabase/tests/database/01_roles_rls.test.sql` | No - W0 | pending |
-| 01-03-01 | 03 | 2 | ACC-01 | T-01-04, T-01-05 | Registration, confirmation, sign-in/out, reset, recovery, and invalid-token handling work without enumeration or open redirects | E2E | `npm run test:e2e -- tests/e2e/auth.spec.ts` | No - W0 | pending |
-| 01-03-02 | 03 | 2 | ADM-02 | T-01-02 | Account/admin shells and mutations independently enforce server authorization | E2E + pgTAP | `npm run test:e2e -- tests/e2e/admin-boundary.spec.ts && supabase test db supabase/tests/database/01_roles_rls.test.sql` | No - W0 | pending |
-| 01-04-01 | 04 | 3 | SEC-02 | T-01-06 | Secret/service-role credentials and privileged client modules never enter browser source or bundles | static + build | `npm run test:security && npm run build` | No - W0 | pending |
-| 01-04-02 | 04 | 3 | MKT-01, ACC-01, ADM-02, SEC-01, SEC-02 | All | Full localized identity and authorization journey passes against local Supabase and preview deployment | full suite | `npm run ci && npm run test:e2e` | No - W0 | pending |
+| 01-01-01 | 01 | 1 | SEC-02 | T-01-01-SC | Package legitimacy and scaffold config avoid suspicious dependency or browser-secret setup | manual checkpoint + static | `npm run lint && npm run typecheck && npm run build` | Planned in 01-01 | pending |
+| 01-02-01 | 02 | 2 | MKT-01, SEC-02 | T-01-02-I18N | Explicit locale prefixes, safe browser-language negotiation, equivalent-page switching, and translated slugs | unit + E2E | `npm run test:unit -- tests/unit/i18n && npm run test:e2e -- tests/e2e/localization.spec.ts` | Planned in 01-02 | pending |
+| 01-03-01 | 03 | 3 | MKT-01, SEC-02 | T-01-03-UI | UI tokens, shell components, and mobile layout satisfy UI-SPEC without exposing secrets | unit + build | `npm run lint && npm run typecheck && npm run build` | Planned in 01-03 | pending |
+| 01-04-01 | 04 | 2 | ADM-02, SEC-01, SEC-02 | T-01-04-RLS | Anonymous, customer A, customer B, and admin receive only permitted rows and writes | pgTAP | `supabase db reset && supabase db lint --local --fail-on error && supabase test db` | Planned in 01-04 | pending |
+| 01-05-01 | 05 | 3 | ACC-01, ADM-02, SEC-02 | T-01-05-AUTH | Auth clients/actions validate redirects, sessions, secrets, and password reset boundaries | unit + integration | `npm run test:unit -- tests/unit/auth && npm run typecheck` | Planned in 01-05 | pending |
+| 01-06-01 | 06 | 4 | MKT-01, ACC-01, SEC-02 | T-01-06-PAGES | Localized auth pages complete register, sign in/out, reset, and recovery UX | E2E | `npm run test:e2e -- tests/e2e/auth.spec.ts` | Planned in 01-06 | pending |
+| 01-07-01 | 07 | 5 | ACC-01, ADM-02, SEC-01, SEC-02 | T-01-07-ADMIN | Account/admin shells deny unauthorized users before protected content renders | E2E + pgTAP | `npm run test:e2e -- tests/e2e/admin-boundary.spec.ts && supabase test db` | Planned in 01-07 | pending |
+| 01-08-01 | 08 | 6 | MKT-01, ACC-01, ADM-02, SEC-01, SEC-02 | T-01-08-GATE | Full localized identity, authorization, RLS, secret, CI, and deployment-readiness gate passes | full suite | `npm run ci && npm run test:e2e` | Planned in 01-08 | pending |
 
 *Status: pending / green / red / flaky*
 
 ---
 
-## Wave 0 Requirements
+## Wave 0 Coverage
 
-- [ ] `package.json` scripts for `lint`, `typecheck`, `test:unit`, `test:e2e`, `test:security`, and `ci`.
-- [ ] `vitest.config.ts` plus `tests/unit/i18n/` and `tests/unit/auth/` fixtures.
-- [ ] `playwright.config.ts` plus localized authentication and admin-boundary fixtures.
-- [ ] `supabase/config.toml`, initial migrations, seed identities, and pgTAP database tests.
-- [ ] Mailpit helper for local confirmation and password-reset messages.
-- [ ] GitHub Actions workflow using Node 22 and Docker-backed local Supabase.
-- [ ] Static secret-boundary checks for forbidden public secret names and client imports of server-only modules.
+- [x] `package.json` scripts for `lint`, `typecheck`, `test:unit`, `test:e2e`, `test:security`, and `ci` are assigned across Plans 01 and 08.
+- [x] `vitest.config.ts` plus `tests/unit/i18n/` and `tests/unit/auth/` fixtures are assigned across Plans 02 and 05.
+- [x] `playwright.config.ts` plus localized authentication and admin-boundary fixtures are assigned across Plans 02, 06, 07, and 08.
+- [x] `supabase/config.toml`, initial migrations, seed identities, and pgTAP database tests are assigned to Plan 04.
+- [x] Mailpit/local Auth email handling is assigned to auth and final verification tasks in Plans 05, 06, and 08.
+- [x] GitHub Actions workflow using Node 22 and Docker-backed local Supabase is assigned to Plans 01 and 08.
+- [x] Static secret-boundary checks for forbidden public secret names and client imports of server-only modules are assigned to Plan 08.
+
+`wave_0_complete: true` means every validation dependency has an owning PLAN before execution starts. It does not mean the tests already exist in code.
 
 ---
 
@@ -75,12 +79,12 @@ created: 2026-06-12
 
 ## Validation Sign-Off
 
-- [ ] All tasks have automated verification or explicit Wave 0 dependencies.
-- [ ] Sampling continuity: no three consecutive tasks lack automated verification.
-- [ ] Wave 0 covers every missing test/config reference.
-- [ ] No watch-mode flags appear in verification commands.
-- [ ] Task-level feedback latency remains below 60 seconds after services warm.
-- [ ] Full suite passes against a production build and local Supabase.
-- [ ] `nyquist_compliant: true` is set after the planner assigns final task IDs and commands.
+- [x] All tasks have automated verification or explicit Wave 0 dependencies.
+- [x] Sampling continuity: no three consecutive tasks lack automated verification.
+- [x] Wave 0 covers every missing test/config reference through Plans 01-08.
+- [x] No watch-mode flags appear in verification commands.
+- [x] Task-level feedback latency target remains below 60 seconds after services warm.
+- [x] Full suite command is assigned as the final Phase 1 gate in Plan 08.
+- [x] `nyquist_compliant: true` is set after the planner assigned final plan/task ownership.
 
-**Approval:** pending
+**Approval:** approved 2026-06-12

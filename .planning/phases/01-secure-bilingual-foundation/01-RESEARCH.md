@@ -541,22 +541,22 @@ Index every non-primary ownership column used by policies, and wrap stable helpe
 | A11 | A seven-day research validity window is appropriate because the selected framework and auth packages are fast-moving. | Metadata | Earlier re-verification may be needed after a security release. |
 | A12 | Commerce-domain tables remain outside Phase 1 while inheriting the same default-deny RLS rule in later phases. | Initial Schema Contract | The planner must adjust only if the phase boundary is formally changed. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Production hostname and sending domain**
    - What we know: Supabase Site URL, exact redirect allowlist, Resend domain, and localized Auth links depend on final domains. [CITED: https://supabase.com/docs/guides/auth/redirect-urls]
    - What's unclear: Final brand hostname and verified Auth sending subdomain are not recorded. [VERIFIED: codebase grep]
-   - Recommendation: Parameterize `NEXT_PUBLIC_SITE_URL`; use localhost and Vercel preview allowlists during development, then make exact production URL and verified Resend domain a deployment checkpoint. [CITED: https://supabase.com/docs/guides/auth/redirect-urls]
+   - RESOLVED: Phase 1 implementation will parameterize `NEXT_PUBLIC_SITE_URL`, support localhost and Vercel preview allowlists during local/preview execution, and block production acceptance on the Plan 01-08 operator checkpoint for exact production hostname, Supabase redirect allowlist, and verified SMTP sending domain. No production hostname is hardcoded into Phase 1 plans. [CITED: https://supabase.com/docs/guides/auth/redirect-urls]
 
 2. **Production Supabase and Vercel projects**
    - What we know: Local CLI and Docker are available, but no local Supabase project is initialized/running and Vercel CLI is absent. [VERIFIED: environment probe]
    - What's unclear: Hosted project IDs, Git provider connection, and environment values. [VERIFIED: environment probe]
-   - Recommendation: Plan explicit operator checkpoints for creating/linking Supabase and Vercel projects; implementation and CI should remain reproducible locally without Vercel CLI. [CITED: https://vercel.com/docs/git]
+   - RESOLVED: Phase 1 plans use local Supabase, local Docker, and lockfile-based CI as the executable path. Hosted Supabase and Vercel setup is captured as Plan 01-08 `user_setup` plus a blocking human verification checkpoint, so implementation remains reproducible without hosted project IDs while deployability is not accepted until operator-owned values are configured. [CITED: https://vercel.com/docs/git]
 
 3. **CAPTCHA timing**
    - What we know: Supabase recommends CAPTCHA as the strongest mitigation for signup/email abuse. [CITED: https://supabase.com/docs/guides/auth/auth-smtp]
    - What's unclear: No CAPTCHA provider is selected and it is not a Phase 1 requirement. [VERIFIED: codebase grep]
-   - Recommendation: Do not add a provider in Phase 1; document rate limits and leave a clear integration point, escalating CAPTCHA before public launch if abuse testing or SMTP limits justify it. [CITED: https://supabase.com/docs/guides/auth/auth-smtp]
+   - RESOLVED: Phase 1 will not add a CAPTCHA provider because no provider is selected and CAPTCHA is not in MKT-01, ACC-01, ADM-02, SEC-01, or SEC-02. Plans require generic reset responses, provider rate-limit awareness, production SMTP confirmation, and README documentation of the CAPTCHA integration point so public-launch hardening can add a selected provider without altering Phase 1 auth contracts. [CITED: https://supabase.com/docs/guides/auth/auth-smtp]
 
 ## Environment Availability
 
