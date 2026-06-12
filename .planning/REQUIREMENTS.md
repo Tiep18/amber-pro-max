@@ -75,7 +75,7 @@
 
 ### Customer Accounts
 
-- [ ] **ACC-01**: Customer can register, sign in, sign out, and reset a password.
+- [x] **ACC-01**: Customer can register, sign in, sign out, and reset a password.
 - [ ] **ACC-02**: Signed-in customer can view only their own order history, order details, payments, downloads, and tracking.
 - [ ] **ACC-03**: Customer can save, edit, and delete shipping addresses.
 - [ ] **ACC-04**: Customer can add and remove products from a wishlist.
@@ -199,7 +199,7 @@
 | FUL-01 | Phase 5 | Pending |
 | FUL-02 | Phase 5 | Pending |
 | FUL-03 | Phase 5 | Pending |
-| ACC-01 | Phase 1 | Pending |
+| ACC-01 | Phase 1 | Complete |
 | ACC-02 | Phase 5 | Pending |
 | ACC-03 | Phase 6 | Pending |
 | ACC-04 | Phase 6 | Pending |
