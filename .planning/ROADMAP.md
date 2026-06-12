@@ -89,7 +89,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-02: Build bilingual product basics, taxonomy, market offers, publish checks, and admin workflows
+- [x] 02-02: Build bilingual product basics, taxonomy, market offers, publish checks, and admin workflows
 - [ ] 02-05: Implement IP market suggestion, currency presentation, and explicit market switching
 
 **Wave 3** *(blocked on Wave 2 admin foundation)*
@@ -241,7 +241,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
-| 2. Market-Aware Catalog | 1/8 | In Progress | - |
+| 2. Market-Aware Catalog | 2/8 | In Progress|  |
 | 3. Mixed Cart and Checkout | 0/5 | Not started | - |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |
