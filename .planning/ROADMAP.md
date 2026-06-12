@@ -53,7 +53,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 01-06: Build localized authentication pages and auth E2E coverage
+- [x] 01-06: Build localized authentication pages and auth E2E coverage
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -219,7 +219,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Secure Bilingual Foundation | 5/8 | In Progress|  |
+| 1. Secure Bilingual Foundation | 6/8 | In Progress|  |
 | 2. Market-Aware Catalog | 0/5 | Not started | - |
 | 3. Mixed Cart and Checkout | 0/5 | Not started | - |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |
