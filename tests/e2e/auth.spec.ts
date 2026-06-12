@@ -2,6 +2,8 @@ import {expect, test} from '@playwright/test';
 
 const commerceTerms = /cart|catalog|blog|wishlist|order|payment|download|shipping/i;
 
+test.describe.configure({mode: 'serial'});
+
 test('localized auth pages render complete accessible forms', async ({page}) => {
   await page.goto('/vi/dang-nhap?next=/vi/tai-khoan');
   await expect(page.getByRole('heading', {name: 'Dang nhap'})).toBeVisible();
@@ -26,6 +28,29 @@ test('forgot password shows generic localized success without account enumeratio
   await expect(page.getByText('Check your email')).toBeVisible();
   await expect(page.getByText('If that email can receive account mail')).toBeVisible();
   await expect(page.getByText(/not found|unknown|supabase|invalid login/i)).toHaveCount(0);
+});
+
+test('registration submission shows localized verification-pending copy', async ({page}) => {
+  const email = `buyer-${Date.now()}@example.com`;
+
+  await page.goto('/en/register?next=/en/account');
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password', {exact: true}).fill('secure-password-123');
+  await page.getByLabel('Confirm password').fill('secure-password-123');
+  await page.getByRole('button', {name: 'Create account'}).click();
+
+  await expect(page.getByText('Check your email')).toBeVisible();
+  await expect(page.getByText('If confirmation is required')).toBeVisible();
+});
+
+test('invalid sign in shows a localized generic error', async ({page}) => {
+  await page.goto('/vi/dang-nhap');
+  await page.getByLabel('Email').fill(`missing-${Date.now()}@example.com`);
+  await page.getByLabel('Mat khau').fill('secure-password-123');
+  await page.getByRole('button', {name: 'Dang nhap'}).click();
+
+  await expect(page.locator('#auth-form-error')).toContainText('Yeu cau chua hoan tat');
+  await expect(page.getByText(/invalid login|supabase|not found/i)).toHaveCount(0);
 });
 
 test('invalid recovery links show localized generic reset guidance', async ({page}) => {
