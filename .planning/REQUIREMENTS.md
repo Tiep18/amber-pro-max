@@ -147,17 +147,94 @@
 
 ## Traceability
 
-Roadmap phase mappings will be populated after requirements approval.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| All v1 requirements | Pending roadmap | Pending |
+| MKT-01 | Phase 1 | Pending |
+| MKT-02 | Phase 2 | Pending |
+| MKT-03 | Phase 2 | Pending |
+| MKT-04 | Phase 2 | Pending |
+| MKT-05 | Phase 2 | Pending |
+| MKT-06 | Phase 3 | Pending |
+| CAT-01 | Phase 2 | Pending |
+| CAT-02 | Phase 2 | Pending |
+| CAT-03 | Phase 2 | Pending |
+| CAT-04 | Phase 2 | Pending |
+| CAT-05 | Phase 2 | Pending |
+| CAT-06 | Phase 2 | Pending |
+| CAT-07 | Phase 2 | Pending |
+| CAT-08 | Phase 2 | Pending |
+| CART-01 | Phase 3 | Pending |
+| CART-02 | Phase 3 | Pending |
+| CART-03 | Phase 3 | Pending |
+| CART-04 | Phase 3 | Pending |
+| CART-05 | Phase 3 | Pending |
+| SHIP-01 | Phase 3 | Pending |
+| SHIP-02 | Phase 3 | Pending |
+| SHIP-03 | Phase 3 | Pending |
+| SHIP-04 | Phase 3 | Pending |
+| SHIP-05 | Phase 3 | Pending |
+| INV-01 | Phase 2 | Pending |
+| INV-02 | Phase 3 | Pending |
+| INV-03 | Phase 3 | Pending |
+| INV-04 | Phase 4 | Pending |
+| INV-05 | Phase 4 | Pending |
+| ORD-01 | Phase 4 | Pending |
+| ORD-02 | Phase 4 | Pending |
+| ORD-03 | Phase 4 | Pending |
+| PAY-01 | Phase 4 | Pending |
+| PAY-02 | Phase 4 | Pending |
+| PAY-03 | Phase 4 | Pending |
+| PAY-04 | Phase 4 | Pending |
+| PAY-05 | Phase 4 | Pending |
+| PAY-06 | Phase 4 | Pending |
+| PAY-07 | Phase 4 | Pending |
+| PAY-08 | Phase 4 | Pending |
+| DIG-01 | Phase 2 | Pending |
+| DIG-02 | Phase 5 | Pending |
+| DIG-03 | Phase 5 | Pending |
+| DIG-04 | Phase 5 | Pending |
+| DIG-05 | Phase 5 | Pending |
+| DIG-06 | Phase 5 | Pending |
+| DIG-07 | Phase 5 | Pending |
+| FUL-01 | Phase 5 | Pending |
+| FUL-02 | Phase 5 | Pending |
+| FUL-03 | Phase 5 | Pending |
+| ACC-01 | Phase 1 | Pending |
+| ACC-02 | Phase 5 | Pending |
+| ACC-03 | Phase 6 | Pending |
+| ACC-04 | Phase 6 | Pending |
+| ACC-05 | Phase 5 | Pending |
+| REV-01 | Phase 6 | Pending |
+| REV-02 | Phase 6 | Pending |
+| DISC-01 | Phase 3 | Pending |
+| DISC-02 | Phase 3 | Pending |
+| DISC-03 | Phase 3 | Pending |
+| NEWS-01 | Phase 6 | Pending |
+| NEWS-02 | Phase 6 | Pending |
+| NEWS-03 | Phase 6 | Pending |
+| BLOG-01 | Phase 7 | Pending |
+| BLOG-02 | Phase 7 | Pending |
+| SEO-01 | Phase 2 | Pending |
+| SEO-02 | Phase 7 | Pending |
+| SEO-03 | Phase 7 | Pending |
+| SEO-04 | Phase 7 | Pending |
+| ADM-01 | Phase 7 | Pending |
+| ADM-02 | Phase 1 | Pending |
+| SEC-01 | Phase 1 | Pending |
+| SEC-02 | Phase 1 | Pending |
+| SEC-03 | Phase 4 | Pending |
+| OPS-01 | Phase 5 | Pending |
+| OPS-02 | Phase 5 | Pending |
+| OPS-03 | Phase 7 | Pending |
+| OPS-04 | Phase 7 | Pending |
+| LEGAL-01 | Phase 7 | Pending |
+| LEGAL-02 | Phase 7 | Pending |
 
 **Coverage:**
 - v1 requirements: 80 total
-- Mapped to phases: 0
-- Unmapped: 80
+- Mapped to phases: 80
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-12*
-*Last updated: 2026-06-12 after initial definition*
+*Last updated: 2026-06-12 after roadmap creation*
