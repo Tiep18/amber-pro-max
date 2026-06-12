@@ -13,12 +13,12 @@
     "format:write": "prettier --write .",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
-    "test:security": "node --test tests/security/*.test.mjs",
+    "test:security": "node --test tests/security/secret-boundary.test.mjs",
     "db:reset": "supabase db reset",
     "db:lint": "supabase db lint --local --fail-on error",
     "db:test": "supabase test db",
     "db:types": "supabase gen types typescript --local > src/types/supabase.ts",
-    "ci": "npm run lint && npm run typecheck && npm run test:unit && npm run test:security && npm run build"
+    "ci": "npm run lint && npm run typecheck && npm run test:unit && npm run db:reset && npm run db:lint && npm run db:test && npm run db:types && git diff --exit-code src/types/supabase.ts && npm run build && npm run test:security && npm run test:e2e"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.0",

@@ -14,12 +14,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
+          node-version: 22
           cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
       - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run test:unit
-      - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e -- tests/e2e/localization.spec.ts
+      - run: supabase start
+      - run: npm run ci

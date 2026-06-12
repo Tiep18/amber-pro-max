@@ -7,6 +7,7 @@ const eslintConfig = [
       'node_modules/**',
       'next-env.d.ts',
       'coverage/**',
+      'test-results/**',
       'playwright-report/**',
       'eslint.config.mjs',
       'postcss.config.mjs',
