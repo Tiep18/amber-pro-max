@@ -1,9 +1,12 @@
 import {getLocalizedPath, isLocale, locales, pathnames, type InternalPathname, type Locale} from '@/i18n/routing';
 
 const allowedPaths = new Set(
-  (Object.keys(pathnames) as InternalPathname[]).flatMap((pathname) =>
-    locales.map((locale) => getLocalizedPath(pathname, locale))
-  )
+  [
+    ...(Object.keys(pathnames) as InternalPathname[]).flatMap((pathname) =>
+      locales.map((locale) => getLocalizedPath(pathname, locale))
+    ),
+    '/admin'
+  ]
 );
 
 function fallbackFor(locale: Locale) {
@@ -40,7 +43,7 @@ export function safeRedirect(next: FormDataEntryValue | null | undefined, locale
   }
 
   const [, routeLocale] = parsed.pathname.split('/');
-  if (!isLocale(routeLocale)) {
+  if (!isLocale(routeLocale) && parsed.pathname !== '/admin') {
     return fallbackFor(locale);
   }
 

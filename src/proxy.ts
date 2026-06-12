@@ -16,16 +16,26 @@ const PHYSICAL_AUTH_SLUGS = new Set([
   '/en/forgot-password',
   '/en/reset-password'
 ]);
+const PHYSICAL_PROTECTED_SLUGS = new Set(['/vi/tai-khoan', '/en/account']);
 
 function isUnprefixedCustomerPath(pathname: string) {
   const firstSegment = pathname.split('/')[1];
-  return !isLocale(firstSegment) && !pathname.startsWith('/api') && !PUBLIC_FILE.test(pathname);
+  return (
+    !isLocale(firstSegment) &&
+    !pathname.startsWith('/api') &&
+    !pathname.startsWith('/admin') &&
+    !PUBLIC_FILE.test(pathname)
+  );
 }
 
 export default async function proxy(request: NextRequest) {
   const {pathname, search} = request.nextUrl;
 
-  if (PHYSICAL_AUTH_SLUGS.has(pathname)) {
+  if (PHYSICAL_AUTH_SLUGS.has(pathname) || PHYSICAL_PROTECTED_SLUGS.has(pathname)) {
+    return updateSession(request, NextResponse.next());
+  }
+
+  if (pathname.startsWith('/admin')) {
     return updateSession(request, NextResponse.next());
   }
 

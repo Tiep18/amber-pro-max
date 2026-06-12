@@ -13,7 +13,6 @@ describe('safeRedirect', () => {
     '//example.com/en',
     'javascript:alert(1)',
     '::::',
-    '/admin',
     '/fr/sign-in',
     '/sign-in',
     '/en/unknown'
@@ -33,7 +32,8 @@ describe('safeRedirect', () => {
     ['/vi/dat-lai-mat-khau', '/vi/dat-lai-mat-khau'],
     ['/en/reset-password', '/en/reset-password'],
     ['/vi/tai-khoan', '/vi/tai-khoan'],
-    ['/en/account', '/en/account']
+    ['/en/account', '/en/account'],
+    ['/admin', '/admin']
   ])('allows known localized route %s', (next, expected) => {
     expect(safeRedirect(next, 'vi')).toBe(expected);
   });

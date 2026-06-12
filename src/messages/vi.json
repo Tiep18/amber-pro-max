@@ -73,7 +73,12 @@
     }
   },
   "account": {
-    "title": "Tai khoan"
+    "title": "Tai khoan",
+    "intro": "Ranh gioi tai khoan Phase 1 dang hoat dong.",
+    "email": "Email",
+    "locale": "Ngon ngu dang dung",
+    "passwordLink": "Dat lai mat khau",
+    "signOut": "Dang xuat"
   },
   "admin": {
     "title": "Quan tri"

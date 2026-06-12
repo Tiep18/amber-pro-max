@@ -73,7 +73,12 @@
     }
   },
   "account": {
-    "title": "Account"
+    "title": "Account",
+    "intro": "Your Phase 1 account boundary is active.",
+    "email": "Email",
+    "locale": "Active language",
+    "passwordLink": "Reset password",
+    "signOut": "Sign out"
   },
   "admin": {
     "title": "Admin"
