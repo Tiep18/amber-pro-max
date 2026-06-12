@@ -14,6 +14,10 @@
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test:security": "node --test tests/security/*.test.mjs",
+    "db:reset": "supabase db reset",
+    "db:lint": "supabase db lint --local --fail-on error",
+    "db:test": "supabase test db",
+    "db:types": "supabase gen types typescript --local > src/types/supabase.ts",
     "ci": "npm run lint && npm run typecheck && npm run test:unit && npm run test:security && npm run build"
   },
   "dependencies": {

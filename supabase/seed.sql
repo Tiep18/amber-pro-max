@@ -1,0 +1,2 @@
+-- Phase 1 seed intentionally empty.
+-- pgTAP tests create their own transactional auth fixtures.
