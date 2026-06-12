@@ -48,7 +48,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-03: Build public UI shell, design tokens, and route-preserving language switcher
+- [x] 01-03: Build public UI shell, design tokens, and route-preserving language switcher
 - [ ] 01-05: Implement Supabase SSR clients, auth actions, callbacks, and safe redirects
 
 **Wave 4** *(blocked on Wave 3 completion)*
@@ -219,7 +219,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Secure Bilingual Foundation | 3/8 | In Progress|  |
+| 1. Secure Bilingual Foundation | 4/8 | In Progress|  |
 | 2. Market-Aware Catalog | 0/5 | Not started | - |
 | 3. Mixed Cart and Checkout | 0/5 | Not started | - |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |
