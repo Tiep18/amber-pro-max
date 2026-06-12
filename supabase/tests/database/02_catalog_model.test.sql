@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(15);
+select plan(33);
 
 select has_table('public', 'products', 'products table exists');
 select has_table('public', 'product_translations', 'product translations table exists');
@@ -135,6 +135,242 @@ select throws_ok(
   '23505',
   null,
   'curated collection order is explicit and unique within a collection'
+);
+
+select has_table('public', 'product_variants', 'product variants table exists');
+select has_table('public', 'variant_market_offers', 'variant market overrides table exists');
+select has_table('public', 'inventory_records', 'inventory ownership table exists');
+select has_function(
+  'public',
+  'catalog_publish_issues',
+  array['uuid'],
+  'catalog publish issue function exists'
+);
+select has_function(
+  'public',
+  'publish_catalog_product',
+  array['uuid'],
+  'atomic catalog publish function exists'
+);
+
+select throws_ok(
+  $$insert into public.product_variants (product_id, sku, attributes)
+    values (
+      '20000000-0000-0000-0000-000000000001',
+      'DIGITAL-SKU',
+      '{"size":"small"}'::jsonb
+    )$$,
+  '23514',
+  null,
+  'digital products cannot own variants'
+);
+
+select lives_ok(
+  $$insert into public.product_variants (id, product_id, sku, attributes)
+    values (
+      '23000000-0000-0000-0000-000000000001',
+      '20000000-0000-0000-0000-000000000002',
+      'PHYSICAL-SMALL',
+      '{"size":"small","color":"brown"}'::jsonb
+    )$$,
+  'physical products accept explicit variants'
+);
+
+select throws_ok(
+  $$insert into public.product_variants (product_id, sku, attributes)
+    values (
+      '20000000-0000-0000-0000-000000000002',
+      'PHYSICAL-SMALL',
+      '{"size":"large"}'::jsonb
+    )$$,
+  '23505',
+  null,
+  'variant SKUs are globally unique'
+);
+
+select throws_ok(
+  $$insert into public.product_variants (product_id, sku, attributes)
+    values (
+      '20000000-0000-0000-0000-000000000002',
+      'PHYSICAL-EMPTY',
+      '{}'::jsonb
+    )$$,
+  '23514',
+  null,
+  'variant attributes must be a non-empty object'
+);
+
+select lives_ok(
+  $$insert into public.variant_market_offers (
+      variant_id, market_code, enabled, currency_code, price_minor
+    ) values (
+      '23000000-0000-0000-0000-000000000001',
+      'intl',
+      true,
+      'USD',
+      1200
+    )$$,
+  'variants accept optional market price overrides'
+);
+
+select throws_ok(
+  $$insert into public.variant_market_offers (
+      variant_id, market_code, enabled, currency_code, price_minor
+    ) values (
+      '23000000-0000-0000-0000-000000000001',
+      'vn',
+      true,
+      'USD',
+      1200
+    )$$,
+  '23514',
+  null,
+  'variant overrides enforce market currency'
+);
+
+select lives_ok(
+  $$insert into public.inventory_records (variant_id, quantity_on_hand)
+    values ('23000000-0000-0000-0000-000000000001', 3)$$,
+  'variant products store inventory on the variant'
+);
+
+select throws_ok(
+  $$insert into public.inventory_records (product_id, quantity_on_hand)
+    values ('20000000-0000-0000-0000-000000000002', 3)$$,
+  '23514',
+  null,
+  'a product with variants cannot also own product-level inventory'
+);
+
+insert into public.products (id, product_type)
+values ('20000000-0000-0000-0000-000000000003', 'physical_finished');
+
+insert into public.inventory_records (product_id, quantity_on_hand)
+values ('20000000-0000-0000-0000-000000000003', 1);
+
+select throws_ok(
+  $$insert into public.product_variants (product_id, sku, attributes)
+    values (
+      '20000000-0000-0000-0000-000000000003',
+      'LATE-VARIANT',
+      '{"size":"medium"}'::jsonb
+    )$$,
+  '23514',
+  null,
+  'a product with product-level inventory cannot add variants'
+);
+
+select throws_ok(
+  $$insert into public.inventory_records (product_id, quantity_on_hand)
+    values ('20000000-0000-0000-0000-000000000001', 1)$$,
+  '23514',
+  null,
+  'digital products cannot own inventory'
+);
+
+select results_eq(
+  $$select issue_code
+    from public.catalog_publish_issues(
+      '20000000-0000-0000-0000-000000000001'
+    )
+    order by issue_code$$,
+  $$values
+    ('missing_primary_image'::text),
+    ('missing_private_pdf'::text),
+    ('missing_seo_description'::text),
+    ('missing_seo_title'::text),
+    ('missing_social_image'::text),
+    ('missing_translation'::text)$$,
+  'publish issues enumerate missing bilingual, image, SEO, and PDF data'
+);
+
+insert into public.product_translations (
+  product_id,
+  locale,
+  slug,
+  title,
+  description,
+  seo_title,
+  seo_description,
+  social_image_bucket,
+  social_image_path
+)
+values (
+  '20000000-0000-0000-0000-000000000001',
+  'en',
+  'crochet-bear',
+  'Crochet bear',
+  'Crochet bear pattern.',
+  'Crochet bear pattern',
+  'Download the crochet bear PDF pattern.',
+  'product-images',
+  'products/bear/social-en.jpg'
+);
+
+update public.product_translations
+set
+  seo_title = 'Mau gau bong',
+  seo_description = 'Tai mau moc gau bong PDF.',
+  social_image_bucket = 'product-images',
+  social_image_path = 'products/bear/social-vi.jpg'
+where product_id = '20000000-0000-0000-0000-000000000001'
+  and locale = 'vi';
+
+insert into public.product_media (
+  product_id,
+  bucket_id,
+  object_path,
+  display_order,
+  is_primary
+)
+values (
+  '20000000-0000-0000-0000-000000000001',
+  'product-images',
+  'products/bear/primary.jpg',
+  0,
+  true
+);
+
+insert into public.product_digital_assets (
+  product_id,
+  bucket_id,
+  object_path,
+  file_name,
+  byte_size
+)
+values (
+  '20000000-0000-0000-0000-000000000001',
+  'product-pdfs',
+  'products/bear/pattern.pdf',
+  'pattern.pdf',
+  1024
+);
+
+select is_empty(
+  $$select *
+    from public.catalog_publish_issues(
+      '20000000-0000-0000-0000-000000000001'
+    )$$,
+  'a complete bilingual PDF product has no publish issues'
+);
+
+select results_eq(
+  $$select published
+    from public.publish_catalog_product(
+      '20000000-0000-0000-0000-000000000001'
+    )$$,
+  $$values (true)$$,
+  'the publish function atomically publishes a complete product'
+);
+
+select is(
+  (
+    select status
+    from public.products
+    where id = '20000000-0000-0000-0000-000000000001'
+  ),
+  'published',
+  'publishing updates the product status'
 );
 
 select finish();
