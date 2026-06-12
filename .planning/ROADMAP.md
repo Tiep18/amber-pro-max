@@ -57,7 +57,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 01-07: Implement protected account and admin shells with server authorization
+- [x] 01-07: Implement protected account and admin shells with server authorization
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
@@ -219,7 +219,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Secure Bilingual Foundation | 6/8 | In Progress|  |
+| 1. Secure Bilingual Foundation | 7/8 | In Progress|  |
 | 2. Market-Aware Catalog | 0/5 | Not started | - |
 | 3. Mixed Cart and Checkout | 0/5 | Not started | - |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |
