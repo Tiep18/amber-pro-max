@@ -192,11 +192,13 @@ select isnt_empty(
   'database-owned admins can inspect publish issues'
 );
 
-select results_eq(
-  $$select proconfig::text
+select is(
+  (
+    select proconfig::text
     from pg_proc
-    where oid = 'public.publish_catalog_product(uuid)'::regprocedure$$,
-  $$values ('{"search_path=public, private, pg_temp"}'::text)$$,
+    where oid = 'public.publish_catalog_product(uuid)'::regprocedure
+  ),
+  '{"search_path=public, private, pg_temp"}',
   'publish function fixes search_path'
 );
 
