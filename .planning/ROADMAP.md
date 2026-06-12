@@ -85,7 +85,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 02-01: Model catalog, translations, taxonomy, market offers, variants, inventory, publish rules, and RLS
+- [x] 02-01: Model catalog, translations, taxonomy, market offers, variants, inventory, publish rules, and RLS
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -241,7 +241,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
-| 2. Market-Aware Catalog | 0/8 | Not started | - |
+| 2. Market-Aware Catalog | 1/8 | In Progress | - |
 | 3. Mixed Cart and Checkout | 0/5 | Not started | - |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |

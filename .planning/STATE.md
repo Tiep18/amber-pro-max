@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-06-12T16:50:02.116Z"
-last_activity: 2026-06-12 - Vertical MVP roadmap drafted with 80 requirements mapped
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-06-12T17:18:39.633Z"
+last_activity: 2026-06-12 -- Completed Plan 02-01 catalog data contract
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 8
-  completed_plans: 8
-  percent: 14
+  total_plans: 16
+  completed_plans: 9
+  percent: 56
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** Customers in Vietnam and international markets can reliably discover, purchase, pay for, and receive eligible digital and physical products through one branded storefront.
-**Current focus:** Phase 1 - Secure Bilingual Foundation
+**Current focus:** Phase 02 — market-aware-catalog
 
 ## Current Position
 
-Phase: 1 of 7 (Secure Bilingual Foundation)
-Plan: 8 of 8 in current phase
+Phase: 02 (market-aware-catalog) — EXECUTING
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-06-12 - Vertical MVP roadmap drafted with 80 requirements mapped
+Last activity: 2026-06-12 -- Completed Plan 02-01 catalog data contract
 
-Progress: [#---------] 14%
+Progress: [######----] 56%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: 18 min
-- Total execution time: 2 hours 24 min
+- Total execution time: 2 hours 42 min
 
 **By Phase:**
 
@@ -48,8 +48,8 @@ Progress: [#---------] 14%
 
 **Recent Trend:**
 
-- Last 5 plans: none
-- Trend: not started
+- Last 5 plans: 24 min, 28 min, 24 min, 18 min, 18 min
+- Trend: stable
 
 | Phase 01 P01 | 10 min | 2 tasks | 15 files |
 | Phase 01 P02 | 12 min | 2 tasks | 17 files |
@@ -59,6 +59,7 @@ Progress: [#---------] 14%
 | Phase 01 P06 | 28 min | 2 tasks | 20 files |
 | Phase 01 P07 | 24 min | 2 tasks | 15 files |
 | Phase 01 P08 | 18 min | 3 tasks | 9 files |
+| Phase 02 P01 | 18 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,9 @@ Recent decisions affecting current work:
 - Architecture: Use a Next.js/Supabase modular monolith.
 - Commerce: Keep payment, digital fulfillment, and physical fulfillment states separate.
 - Payments: Use PayPal internationally and manually confirmed VietQR in Vietnam.
+- [Phase 02]: Catalog base tables remain private to admins; later plans expose market-safe public projections. — Prevents drafts, inventory, and private PDF metadata from leaking through direct Data API access.
+- [Phase 02]: Inventory uses XOR product-or-variant ownership with trigger-enforced cross-table rules. — Enforces physical inventory at exactly one ownership level for both variant and non-variant products.
+- [Phase 02]: Catalog publish functions are security invokers over private.is_admin-backed RLS. — Keeps database-owned admin authorization authoritative without exposed security-definer RPCs.
 
 ### Pending Todos
 
@@ -92,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-12T15:38:59.000Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-market-aware-catalog/02-CONTEXT.md
+Last session: 2026-06-12T17:17:33.196Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None

@@ -9,17 +9,17 @@
 
 - [x] **MKT-01**: Customer can browse storefront content in Vietnamese or English using localized URLs.
 - [ ] **MKT-02**: Customer sees VND prices in the Vietnam market and USD prices in the international market.
-- [ ] **MKT-03**: Admin can make each product available in Vietnam, internationally, or in both markets.
-- [ ] **MKT-04**: Admin can assign independent Vietnam and international prices to a product or variant.
+- [x] **MKT-03**: Admin can make each product available in Vietnam, internationally, or in both markets.
+- [x] **MKT-04**: Admin can assign independent Vietnam and international prices to a product or variant.
 - [ ] **MKT-05**: Store suggests a market from the customer's IP country and shows the active market to the customer.
 - [ ] **MKT-06**: Checkout validates physical-product eligibility against the shipping country and requires confirmation before applying any market-driven cart change.
 
 ### Catalog and Discovery
 
-- [ ] **CAT-01**: Admin can create digital PDF products and physical handmade products.
-- [ ] **CAT-02**: Admin can create physical variants with independent attributes, prices, SKUs, and inventory.
-- [ ] **CAT-03**: Admin can manage localized product titles, descriptions, specifications, and SEO content.
-- [ ] **CAT-04**: Admin can organize products by type, category, technique, tags, and collections independently.
+- [x] **CAT-01**: Admin can create digital PDF products and physical handmade products.
+- [x] **CAT-02**: Admin can create physical variants with independent attributes, prices, SKUs, and inventory.
+- [x] **CAT-03**: Admin can manage localized product titles, descriptions, specifications, and SEO content.
+- [x] **CAT-04**: Admin can organize products by type, category, technique, tags, and collections independently.
 - [ ] **CAT-05**: Customer can browse product, category, technique, tag, and collection pages.
 - [ ] **CAT-06**: Customer can search, filter, and sort eligible products.
 - [ ] **CAT-07**: Customer can clearly distinguish a PDF pattern from a physical finished product throughout browsing and checkout.
@@ -40,7 +40,7 @@
 
 ### Inventory and Orders
 
-- [ ] **INV-01**: Admin can set and adjust inventory for each physical product or variant.
+- [x] **INV-01**: Admin can set and adjust inventory for each physical product or variant.
 - [ ] **INV-02**: Checkout atomically reserves available physical inventory for a defined payment window.
 - [ ] **INV-03**: System prevents checkout when requested inventory is unavailable or the variant combination is invalid.
 - [ ] **INV-04**: System finalizes reserved inventory exactly once when payment is confirmed.
@@ -62,7 +62,7 @@
 
 ### Digital and Physical Fulfillment
 
-- [ ] **DIG-01**: Admin can upload a PDF pattern to private storage and associate it with a digital product.
+- [x] **DIG-01**: Admin can upload a PDF pattern to private storage and associate it with a digital product.
 - [ ] **DIG-02**: System creates a digital entitlement only after the containing order is confirmed paid.
 - [ ] **DIG-03**: Paid customer receives an email with an expiring link for each purchased PDF.
 - [ ] **DIG-04**: Every download request validates an active entitlement before generating a short-lived signed storage URL.
@@ -96,7 +96,7 @@
 
 - [ ] **BLOG-01**: Admin can create, edit, preview, publish, unpublish, and schedule bilingual blog posts.
 - [ ] **BLOG-02**: Admin can organize blog posts by categories and tags and link posts to related products.
-- [ ] **SEO-01**: Admin can manage localized slugs, titles, descriptions, canonical URLs, and social sharing images.
+- [x] **SEO-01**: Admin can manage localized slugs, titles, descriptions, canonical URLs, and social sharing images.
 - [ ] **SEO-02**: Public localized pages emit correct language alternates using `hreflang`.
 - [ ] **SEO-03**: Product and blog pages emit valid Product and Article structured data.
 - [ ] **SEO-04**: System publishes localized sitemaps and an appropriate robots file.
@@ -151,14 +151,14 @@
 |-------------|-------|--------|
 | MKT-01 | Phase 1 | Complete |
 | MKT-02 | Phase 2 | Pending |
-| MKT-03 | Phase 2 | Pending |
-| MKT-04 | Phase 2 | Pending |
+| MKT-03 | Phase 2 | Complete |
+| MKT-04 | Phase 2 | Complete |
 | MKT-05 | Phase 2 | Pending |
 | MKT-06 | Phase 3 | Pending |
-| CAT-01 | Phase 2 | Pending |
-| CAT-02 | Phase 2 | Pending |
-| CAT-03 | Phase 2 | Pending |
-| CAT-04 | Phase 2 | Pending |
+| CAT-01 | Phase 2 | Complete |
+| CAT-02 | Phase 2 | Complete |
+| CAT-03 | Phase 2 | Complete |
+| CAT-04 | Phase 2 | Complete |
 | CAT-05 | Phase 2 | Pending |
 | CAT-06 | Phase 2 | Pending |
 | CAT-07 | Phase 2 | Pending |
@@ -173,7 +173,7 @@
 | SHIP-03 | Phase 3 | Pending |
 | SHIP-04 | Phase 3 | Pending |
 | SHIP-05 | Phase 3 | Pending |
-| INV-01 | Phase 2 | Pending |
+| INV-01 | Phase 2 | Complete |
 | INV-02 | Phase 3 | Pending |
 | INV-03 | Phase 3 | Pending |
 | INV-04 | Phase 4 | Pending |
@@ -189,7 +189,7 @@
 | PAY-06 | Phase 4 | Pending |
 | PAY-07 | Phase 4 | Pending |
 | PAY-08 | Phase 4 | Pending |
-| DIG-01 | Phase 2 | Pending |
+| DIG-01 | Phase 2 | Complete |
 | DIG-02 | Phase 5 | Pending |
 | DIG-03 | Phase 5 | Pending |
 | DIG-04 | Phase 5 | Pending |
@@ -214,7 +214,7 @@
 | NEWS-03 | Phase 6 | Pending |
 | BLOG-01 | Phase 7 | Pending |
 | BLOG-02 | Phase 7 | Pending |
-| SEO-01 | Phase 2 | Pending |
+| SEO-01 | Phase 2 | Complete |
 | SEO-02 | Phase 7 | Pending |
 | SEO-03 | Phase 7 | Pending |
 | SEO-04 | Phase 7 | Pending |
