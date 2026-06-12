@@ -7,7 +7,7 @@
 
 ### Localization and Markets
 
-- [ ] **MKT-01**: Customer can browse storefront content in Vietnamese or English using localized URLs.
+- [x] **MKT-01**: Customer can browse storefront content in Vietnamese or English using localized URLs.
 - [ ] **MKT-02**: Customer sees VND prices in the Vietnam market and USD prices in the international market.
 - [ ] **MKT-03**: Admin can make each product available in Vietnam, internationally, or in both markets.
 - [ ] **MKT-04**: Admin can assign independent Vietnam and international prices to a product or variant.
@@ -149,7 +149,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MKT-01 | Phase 1 | Pending |
+| MKT-01 | Phase 1 | Complete |
 | MKT-02 | Phase 2 | Pending |
 | MKT-03 | Phase 2 | Pending |
 | MKT-04 | Phase 2 | Pending |
