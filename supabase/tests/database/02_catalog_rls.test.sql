@@ -75,7 +75,7 @@ insert into public.product_digital_assets (
 )
 values (
   '24000000-0000-0000-0000-000000000001',
-  'product-pdfs',
+  'pattern-pdfs',
   'private/catalog-test.pdf',
   'catalog-test.pdf',
   512

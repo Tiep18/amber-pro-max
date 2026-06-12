@@ -303,7 +303,7 @@ values (
   'Crochet bear pattern.',
   'Crochet bear pattern',
   'Download the crochet bear PDF pattern.',
-  'product-images',
+  'product-media',
   'products/bear/social-en.jpg'
 );
 
@@ -311,7 +311,7 @@ update public.product_translations
 set
   seo_title = 'Mau gau bong',
   seo_description = 'Tai mau moc gau bong PDF.',
-  social_image_bucket = 'product-images',
+  social_image_bucket = 'product-media',
   social_image_path = 'products/bear/social-vi.jpg'
 where product_id = '20000000-0000-0000-0000-000000000001'
   and locale = 'vi';
@@ -325,7 +325,7 @@ insert into public.product_media (
 )
 values (
   '20000000-0000-0000-0000-000000000001',
-  'product-images',
+  'product-media',
   'products/bear/primary.jpg',
   0,
   true
@@ -340,7 +340,7 @@ insert into public.product_digital_assets (
 )
 values (
   '20000000-0000-0000-0000-000000000001',
-  'product-pdfs',
+  'pattern-pdfs',
   'products/bear/pattern.pdf',
   'pattern.pdf',
   1024

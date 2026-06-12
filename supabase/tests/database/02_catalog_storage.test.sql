@@ -134,12 +134,10 @@ select lives_ok(
   'anonymous users can read public product media object metadata'
 );
 
-select throws_ok(
+select is_empty(
   $$select id
     from storage.objects
     where bucket_id = 'pattern-pdfs'$$,
-  '42501',
-  null,
   'anonymous users cannot read private PDF object metadata'
 );
 
@@ -175,12 +173,10 @@ select lives_ok(
   'customers can read public product media object metadata'
 );
 
-select throws_ok(
+select is_empty(
   $$select id
     from storage.objects
     where bucket_id = 'pattern-pdfs'$$,
-  '42501',
-  null,
   'customers cannot read private PDF object metadata'
 );
 
