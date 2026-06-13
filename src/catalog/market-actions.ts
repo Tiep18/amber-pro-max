@@ -2,6 +2,7 @@
 
 import {cookies} from 'next/headers';
 import {redirect} from 'next/navigation';
+import {revalidatePath} from 'next/cache';
 import {MARKET_COOKIE, isMarketCode, marketCookieOptions, safeMarketReturnPath} from './market';
 
 export async function setActiveMarketAction(formData: FormData) {
@@ -11,5 +12,6 @@ export async function setActiveMarketAction(formData: FormData) {
   const cookieStore = await cookies();
 
   cookieStore.set(MARKET_COOKIE, market, marketCookieOptions());
+  revalidatePath(returnTo);
   redirect(returnTo);
 }

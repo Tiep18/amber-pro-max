@@ -2,7 +2,7 @@ import {getTranslations} from 'next-intl/server';
 import {cookies, headers} from 'next/headers';
 import {Suspense} from 'react';
 import {MARKET_COOKIE, resolveActiveMarket} from '@/catalog/market';
-import {getLocalizedPath, type Locale} from '@/i18n/routing';
+import {getCatalogPath, getLocalizedPath, type Locale} from '@/i18n/routing';
 import {LocaleSwitcher} from './locale-switcher';
 import {MarketSwitcher} from './market-switcher';
 import {Sheet} from './ui/sheet';
@@ -37,6 +37,7 @@ export async function SiteHeader({locale}: {locale: Locale}) {
 
   const links = [
     {href: getLocalizedPath('/', locale), label: t('home')},
+    {href: getCatalogPath(locale), label: t('shop')},
     {href: getLocalizedPath('/sign-in', locale), label: t('signIn')}
   ];
 

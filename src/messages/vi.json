@@ -5,6 +5,7 @@
   },
   "navigation": {
     "home": "Trang chu",
+    "shop": "Cua hang",
     "signIn": "Dang nhap",
     "register": "Dang ky",
     "account": "Tai khoan",
@@ -12,6 +13,28 @@
     "primary": "Dieu huong chinh",
     "openMenu": "Mo menu",
     "menu": "Menu"
+  },
+  "catalog": {
+    "title": "Cua hang do moc",
+    "intro": "Kham pha mau PDF va san pham handmade co san tai thi truong cua ban.",
+    "search": "Tim san pham",
+    "productType": "Loai san pham",
+    "allTypes": "Tat ca",
+    "pdfPattern": "Mau PDF",
+    "finishedItem": "San pham hoan thien",
+    "sort": "Sap xep san pham",
+    "newest": "Moi nhat",
+    "priceAsc": "Gia tang dan",
+    "priceDesc": "Gia giam dan",
+    "titleSort": "Ten",
+    "apply": "Ap dung bo loc",
+    "emptyTitle": "Khong tim thay san pham",
+    "emptyBody": "Hay thay doi tu khoa hoac bo loc.",
+    "viewProduct": "Xem san pham",
+    "inStock": "Con hang",
+    "outOfStock": "Het hang",
+    "categoryLabel": "Danh muc",
+    "collectionLabel": "Bo suu tap"
   },
   "market": {
     "label": "Thi truong",

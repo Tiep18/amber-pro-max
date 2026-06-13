@@ -26,6 +26,22 @@ export const pathnames = {
   '/account': {
     vi: '/tai-khoan',
     en: '/account'
+  },
+  '/catalog': {
+    vi: '/cua-hang',
+    en: '/catalog'
+  },
+  '/category/[categorySlug]': {
+    vi: '/danh-muc/[categorySlug]',
+    en: '/category/[categorySlug]'
+  },
+  '/collection/[collectionSlug]': {
+    vi: '/bo-suu-tap/[collectionSlug]',
+    en: '/collection/[collectionSlug]'
+  },
+  '/product/[productSlug]': {
+    vi: '/san-pham/[productSlug]',
+    en: '/product/[productSlug]'
   }
 } as const;
 
@@ -55,6 +71,22 @@ export function getLocalizedPath(pathname: InternalPathname, locale: Locale): `/
   const localized = pathnames[pathname];
   const suffix = typeof localized === 'string' ? localized : localized[locale];
   return `/${locale}${suffix === '/' ? '' : suffix}`;
+}
+
+export function getCatalogPath(locale: Locale) {
+  return getLocalizedPath('/catalog', locale);
+}
+
+export function getCategoryPath(locale: Locale, categorySlug: string): `/${Locale}${string}` {
+  return `/${locale}/${locale === 'vi' ? 'danh-muc' : 'category'}/${categorySlug}`;
+}
+
+export function getCollectionPath(locale: Locale, collectionSlug: string): `/${Locale}${string}` {
+  return `/${locale}/${locale === 'vi' ? 'bo-suu-tap' : 'collection'}/${collectionSlug}`;
+}
+
+export function getProductPath(locale: Locale, productSlug: string): `/${Locale}${string}` {
+  return `/${locale}/${locale === 'vi' ? 'san-pham' : 'product'}/${productSlug}`;
 }
 
 export function getEquivalentLocalizedPath(

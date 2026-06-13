@@ -1,7 +1,8 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {cookies, redirect} = vi.hoisted(() => ({
+const {cookies, redirect, revalidatePath} = vi.hoisted(() => ({
   cookies: vi.fn(),
+  revalidatePath: vi.fn(),
   redirect: vi.fn((path: string) => {
     throw new Error(`redirect:${path}`);
   })
@@ -9,6 +10,7 @@ const {cookies, redirect} = vi.hoisted(() => ({
 
 vi.mock('next/headers', () => ({cookies}));
 vi.mock('next/navigation', () => ({redirect}));
+vi.mock('next/cache', () => ({revalidatePath}));
 
 import {setActiveMarketAction} from '@/catalog/market-actions';
 import {MARKET_COOKIE, resolveActiveMarket, suggestMarketFromCountry} from '@/catalog/market';
@@ -39,6 +41,7 @@ describe('market action', () => {
     set.mockReset();
     cookies.mockReset();
     redirect.mockClear();
+    revalidatePath.mockClear();
     cookies.mockResolvedValue({set});
     vi.stubEnv('NODE_ENV', 'development');
   });
@@ -57,6 +60,7 @@ describe('market action', () => {
       secure: false,
       maxAge: 60 * 60 * 24 * 180
     });
+    expect(revalidatePath).toHaveBeenCalledWith('/en');
   });
 
   it('rejects invalid markets and unsafe redirects', async () => {

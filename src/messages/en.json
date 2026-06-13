@@ -5,6 +5,7 @@
   },
   "navigation": {
     "home": "Home",
+    "shop": "Shop",
     "signIn": "Sign in",
     "register": "Register",
     "account": "Account",
@@ -12,6 +13,28 @@
     "primary": "Primary navigation",
     "openMenu": "Open menu",
     "menu": "Menu"
+  },
+  "catalog": {
+    "title": "Shop crochet goods",
+    "intro": "Browse downloadable patterns and finished handmade pieces available in your market.",
+    "search": "Search products",
+    "productType": "Product type",
+    "allTypes": "All types",
+    "pdfPattern": "PDF pattern",
+    "finishedItem": "Finished item",
+    "sort": "Sort products",
+    "newest": "Newest",
+    "priceAsc": "Price: low to high",
+    "priceDesc": "Price: high to low",
+    "titleSort": "Title",
+    "apply": "Apply filters",
+    "emptyTitle": "No products found",
+    "emptyBody": "Try changing your search or filters.",
+    "viewProduct": "View product",
+    "inStock": "In stock",
+    "outOfStock": "Out of stock",
+    "categoryLabel": "Category",
+    "collectionLabel": "Collection"
   },
   "market": {
     "label": "Market",
