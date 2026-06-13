@@ -12,7 +12,7 @@ The project grows through seven vertical MVP phases. Each phase leaves a usable 
 - Decimal phases (2.1, 2.2): Urgent insertions marked `INSERTED`
 
 - [x] **Phase 1: Secure Bilingual Foundation** - Customers and admins can enter a localized application with correctly protected identities and data. (completed 2026-06-12)
-- [ ] **Phase 2: Market-Aware Catalog** - Admin can publish products and customers can discover eligible products with correct market prices and variants.
+- [x] **Phase 2: Market-Aware Catalog** - Admin can publish products and customers can discover eligible products with correct market prices and variants. (completed 2026-06-13)
 - [ ] **Phase 3: Mixed Cart and Checkout** - Customers can build a mixed order with authoritative pricing, shipping, discounts, inventory reservation, and exception handling.
 - [ ] **Phase 4: Trusted Payments and Orders** - PayPal and VietQR safely move orders through auditable, idempotent payment and inventory states.
 - [ ] **Phase 5: Fulfillment and Purchase Access** - Paid customers receive secure PDFs and can follow physical fulfillment without conflating the two workflows.
@@ -107,7 +107,7 @@ Plans:
 
 **Wave 6** *(blocked on media, variants, queries, and discovery)*
 
-- [ ] 02-08: Build localized product detail, unavailable-market behavior, variant selection, and SEO metadata
+- [x] 02-08: Build localized product detail, unavailable-market behavior, variant selection, and SEO metadata
 
 ### Phase 3: Mixed Cart and Checkout
 
@@ -241,7 +241,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
-| 2. Market-Aware Catalog | 7/8 | In Progress|  |
+| 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
 | 3. Mixed Cart and Checkout | 0/5 | Not started | - |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |
