@@ -13,6 +13,16 @@
     "openMenu": "Mo menu",
     "menu": "Menu"
   },
+  "market": {
+    "label": "Thi truong",
+    "current": "Thi truong dang dung",
+    "vietnam": "Viet Nam",
+    "international": "Quoc te",
+    "shortVietnam": "VN",
+    "shortInternational": "QT",
+    "switchToVietnam": "Dung thi truong Viet Nam",
+    "switchToInternational": "Dung thi truong quoc te"
+  },
   "home": {
     "eyebrow": "Vietnamese",
     "title": "Mau moc va qua tang len thu cong",

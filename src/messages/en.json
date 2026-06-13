@@ -13,6 +13,16 @@
     "openMenu": "Open menu",
     "menu": "Menu"
   },
+  "market": {
+    "label": "Market",
+    "current": "Active market",
+    "vietnam": "Vietnam",
+    "international": "International",
+    "shortVietnam": "VN",
+    "shortInternational": "INTL",
+    "switchToVietnam": "Use Vietnam market",
+    "switchToInternational": "Use international market"
+  },
   "home": {
     "eyebrow": "English",
     "title": "Handmade crochet patterns and keepsakes",

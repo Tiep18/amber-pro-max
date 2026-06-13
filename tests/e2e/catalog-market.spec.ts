@@ -62,11 +62,20 @@ test('locale stays independent when market switches', async ({page}) => {
 
 test('switch action ignores unsafe return path', async ({page}) => {
   await page.goto('/en');
-  await page.locator('input[name="returnTo"]').first().evaluate((input) => {
-    (input as HTMLInputElement).value = '//evil.example';
-  });
 
-  await page.getByRole('banner').getByRole('button', {name: 'Use Vietnam market'}).click();
+  await page
+    .getByRole('banner')
+    .getByRole('button', {name: 'Use Vietnam market'})
+    .evaluate((button) => {
+      const form = button.closest('form');
+      const input = form?.querySelector('input[name="returnTo"]');
+      if (!(form instanceof HTMLFormElement) || !(input instanceof HTMLInputElement)) {
+        throw new Error('market form not found');
+      }
+      input.value = '//evil.example';
+      input.setAttribute('value', '//evil.example');
+      form.requestSubmit(button as HTMLButtonElement);
+    });
 
   await expect(page).toHaveURL(/\/vi$/);
   expect(new URL(page.url()).origin).not.toBe('https://evil.example');
