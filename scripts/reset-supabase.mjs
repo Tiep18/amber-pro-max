@@ -11,9 +11,7 @@ function delay(milliseconds) {
 
 function runReset() {
   return new Promise((resolve) => {
-    const command = process.platform === 'win32' ? (process.env.ComSpec ?? 'cmd.exe') : 'supabase';
-    const args = process.platform === 'win32' ? ['/d', '/s', '/c', 'call supabase db reset'] : ['db', 'reset'];
-    const child = spawn(command, args, {stdio: 'inherit'});
+    const child = spawn('supabase', ['db', 'reset'], {stdio: 'inherit'});
     child.on('error', () => resolve(false));
     child.on('close', (code) => resolve(code === 0));
   });
