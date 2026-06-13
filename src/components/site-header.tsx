@@ -62,6 +62,11 @@ export async function SiteHeader({locale}: {locale: Locale}) {
           <div className="hidden md:block">
             <MarketSwitcher activeMarket={activeMarket} labels={marketLabels} />
           </div>
+          <nav aria-label={marketLabels.label} className="md:hidden">
+            <span className="text-xs font-semibold text-[var(--accent)]">
+              {marketLabels.markets[activeMarket]}
+            </span>
+          </nav>
           <Suspense fallback={null}>
             <LocaleSwitcher locale={locale} />
           </Suspense>

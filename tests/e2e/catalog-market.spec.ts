@@ -27,8 +27,9 @@ test('visible active market control appears in desktop and mobile header', async
 
   await page.setViewportSize({width: 320, height: 720});
   await page.goto('/vi');
-  await expect(page.getByRole('banner').getByRole('navigation', {name: 'Thi truong'})).toBeVisible();
-  await expect(page.getByRole('banner').getByText(/Viet Nam|Quoc te/)).toBeVisible();
+  const mobileMarket = page.getByRole('banner').getByRole('navigation', {name: 'Thi truong'});
+  await expect(mobileMarket).toBeVisible();
+  await expect(mobileMarket.getByText(/Viet Nam|Quoc te/)).toBeVisible();
 });
 
 test('switch persists through refresh and navigation', async ({page}) => {
