@@ -798,6 +798,100 @@ export type Database = {
           market_code: string
         }[]
       }
+      catalog_valid_locale: { Args: { value: string }; Returns: boolean }
+      catalog_valid_market: { Args: { value: string }; Returns: boolean }
+      catalog_validate_locale_market: {
+        Args: { locale: string; market: string }
+        Returns: undefined
+      }
+      get_catalog_category_by_slug: {
+        Args: { p_locale: string; p_market: string; p_slug: string }
+        Returns: {
+          category_id: string
+          description: string
+          name: string
+          product_count: number
+          seo_description: string
+          seo_title: string
+          slug: string
+          social_image_bucket: string
+          social_image_path: string
+        }[]
+      }
+      get_catalog_collection_by_slug: {
+        Args: { p_locale: string; p_market: string; p_slug: string }
+        Returns: {
+          collection_id: string
+          description: string
+          name: string
+          product_count: number
+          seo_description: string
+          seo_title: string
+          slug: string
+          social_image_bucket: string
+          social_image_path: string
+        }[]
+      }
+      get_catalog_product_by_slug: {
+        Args: { p_locale: string; p_market: string; p_slug: string }
+        Returns: {
+          available: boolean
+          currency_code: string
+          description: string
+          in_stock: boolean
+          other_market_code: string
+          price_minor: number
+          primary_image_alt: string
+          primary_image_bucket: string
+          primary_image_path: string
+          product_id: string
+          product_type: string
+          seo_description: string
+          seo_title: string
+          slug: string
+          social_image_bucket: string
+          social_image_path: string
+          specifications: Json
+          title: string
+          variants: Json
+        }[]
+      }
+      list_catalog_facets: {
+        Args: { p_locale: string; p_market: string }
+        Returns: {
+          facet_type: string
+          id: string
+          label: string
+          product_count: number
+          slug: string
+        }[]
+      }
+      list_catalog_products: {
+        Args: {
+          p_category_slug?: string
+          p_locale: string
+          p_market: string
+          p_product_type?: string
+          p_search?: string
+          p_sort?: string
+          p_tag_id?: string
+          p_technique_id?: string
+        }
+        Returns: {
+          currency_code: string
+          description: string
+          in_stock: boolean
+          price_minor: number
+          primary_image_alt: string
+          primary_image_bucket: string
+          primary_image_path: string
+          product_id: string
+          product_type: string
+          published_at: string
+          slug: string
+          title: string
+        }[]
+      }
       publish_catalog_product: {
         Args: { target_product_id: string }
         Returns: {
@@ -939,3 +1033,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
