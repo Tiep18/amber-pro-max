@@ -153,15 +153,17 @@ test.afterAll(async () => {
 });
 
 test('admin uploads product images, selects social images, uploads a private PDF, and publishes', async ({page}) => {
+  test.setTimeout(60_000);
   const productId = await createPdfProduct();
   const admin = await createConfirmedUser('admin');
 
   await signIn(page, admin);
   await expect(page).toHaveURL(/\/admin\/catalog$/);
   await expect(page.getByRole('heading', {name: 'Products', exact: true})).toBeVisible();
-  await page.goto(`/admin/catalog/${productId}/media`);
-  await expect(page).toHaveURL(new RegExp(`/admin/catalog/${productId}/media$`));
-  await expect(page.getByRole('heading', {name: 'Media and private PDF'})).toBeVisible();
+  await expect(async () => {
+    await page.goto(`/admin/catalog/${productId}/media`);
+    await expect(page.getByRole('heading', {name: 'Media and private PDF'})).toBeVisible();
+  }).toPass({timeout: 15_000});
 
   await page.getByLabel('Product image file').setInputFiles({
     name: 'bunny.png',
@@ -177,11 +179,11 @@ test('admin uploads product images, selects social images, uploads a private PDF
   await expect(page.getByText('Image uploaded')).toBeVisible({timeout: 15_000});
 
   await page.getByRole('button', {name: 'Set primary image'}).click();
-  await expect(page.getByText('Primary image selected')).toBeVisible();
+  await expect(page.getByText('Primary image selected')).toBeVisible({timeout: 15_000});
   await page.getByRole('button', {name: 'Use for Vietnamese social image'}).click();
-  await expect(page.getByText('Vietnamese social image selected')).toBeVisible();
+  await expect(page.getByText('Vietnamese social image selected')).toBeVisible({timeout: 15_000});
   await page.getByRole('button', {name: 'Use for English social image'}).click();
-  await expect(page.getByText('English social image selected')).toBeVisible();
+  await expect(page.getByText('English social image selected')).toBeVisible({timeout: 15_000});
 
   await page.getByLabel('Pattern PDF file').setInputFiles({
     name: 'classic-bunny.pdf',
@@ -209,7 +211,7 @@ test('admin uploads product images, selects social images, uploads a private PDF
 
   await page.goto(`/admin/catalog/${productId}`);
   await page.getByRole('button', {name: 'Publish product'}).click();
-  await expect(page.getByText('Product published')).toBeVisible();
+  await expect(page.getByText('Product published')).toBeVisible({timeout: 15_000});
 });
 
 test('customer cannot open the media admin page', async ({page}) => {

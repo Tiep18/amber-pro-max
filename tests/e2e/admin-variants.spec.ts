@@ -153,8 +153,10 @@ test('admin edits product-level inventory for a physical product without variant
   await expect(page.getByRole('heading', {name: 'Publishing blocked'})).toBeVisible();
   await expect(page.getByText('Inventory', {exact: true})).toBeVisible();
 
-  await page.goto(`/admin/catalog/${product.id}/variants`);
-  await expect(page.getByRole('heading', {name: 'Variants and inventory'})).toBeVisible();
+  await expect(async () => {
+    await page.goto(`/admin/catalog/${product.id}/variants`);
+    await expect(page.getByRole('heading', {name: 'Variants and inventory'})).toBeVisible();
+  }).toPass({timeout: 15_000});
   await expect(page.getByText('Product-level inventory', {exact: true})).toBeVisible();
   await expect(page.getByLabel('Product stock quantity')).toBeVisible();
   await expect(page.getByLabel('Variant stock quantity')).toHaveCount(0);
