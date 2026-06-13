@@ -23,7 +23,7 @@
 - [ ] **CAT-05**: Customer can browse product, category, technique, tag, and collection pages.
 - [ ] **CAT-06**: Customer can search, filter, and sort eligible products.
 - [ ] **CAT-07**: Customer can clearly distinguish a PDF pattern from a physical finished product throughout browsing and checkout.
-- [ ] **CAT-08**: Customer can view valid variant combinations and current availability before adding a physical product to cart.
+- [x] **CAT-08**: Customer can view valid variant combinations and current availability before adding a physical product to cart.
 
 ### Cart, Pricing, and Shipping
 
@@ -162,7 +162,7 @@
 | CAT-05 | Phase 2 | Pending |
 | CAT-06 | Phase 2 | Pending |
 | CAT-07 | Phase 2 | Pending |
-| CAT-08 | Phase 2 | Pending |
+| CAT-08 | Phase 2 | Complete |
 | CART-01 | Phase 3 | Pending |
 | CART-02 | Phase 3 | Pending |
 | CART-03 | Phase 3 | Pending |

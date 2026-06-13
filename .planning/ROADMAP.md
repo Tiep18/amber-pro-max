@@ -95,7 +95,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 admin foundation)*
 
 - [x] 02-03: Build protected image and private PDF media management
-- [ ] 02-04: Build physical variants, pricing overrides, and inventory administration
+- [x] 02-04: Build physical variants, pricing overrides, and inventory administration
 
 **Wave 4** *(blocked on catalog schema and variants)*
 
@@ -241,7 +241,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
-| 2. Market-Aware Catalog | 3/8 | In Progress|  |
+| 2. Market-Aware Catalog | 4/8 | In Progress|  |
 | 3. Mixed Cart and Checkout | 0/5 | Not started | - |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |

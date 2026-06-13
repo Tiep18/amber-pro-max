@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-06-13T00:23:15.237Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-06-13T01:00:48.695Z"
 last_activity: 2026-06-12 -- Completed Plan 02-01 catalog data contract
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 16
-  completed_plans: 11
-  percent: 14
+  completed_plans: 12
+  percent: 75
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 02 (market-aware-catalog) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-06-12 -- Completed Plan 02-01 catalog data contract
 
-Progress: [######----] 56%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 9
+- Total plans completed: 12
 - Average duration: 18 min
 - Total execution time: 2 hours 42 min
 
@@ -60,6 +60,7 @@ Progress: [######----] 56%
 | Phase 01 P07 | 24 min | 2 tasks | 15 files |
 | Phase 01 P08 | 18 min | 3 tasks | 9 files |
 | Phase 02 P01 | 18 min | 2 tasks | 5 files |
+| Phase 02 P04 | 31 min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ Recent decisions affecting current work:
 - [Phase 02]: Catalog base tables remain private to admins; later plans expose market-safe public projections. — Prevents drafts, inventory, and private PDF metadata from leaking through direct Data API access.
 - [Phase 02]: Inventory uses XOR product-or-variant ownership with trigger-enforced cross-table rules. — Enforces physical inventory at exactly one ownership level for both variant and non-variant products.
 - [Phase 02]: Catalog publish functions are security invokers over private.is_admin-backed RLS. — Keeps database-owned admin authorization authoritative without exposed security-definer RPCs.
+- [Phase 02]: Variant creation requires explicit variant IDs, SKUs, attributes, display order, optional media, and admin-submitted stock; no hidden combinations are generated.
+- [Phase 02]: Variant price overrides are optional rows; missing override means parent offer fallback, and saved overrides must preserve market currency.
+- [Phase 02]: Inventory ownership remains mutually exclusive: non-variant physical products use product inventory and variant products use only variant inventory.
 
 ### Pending Todos
 
@@ -96,6 +100,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-13T00:23:15.215Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-06-13T00:59:53.848Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
