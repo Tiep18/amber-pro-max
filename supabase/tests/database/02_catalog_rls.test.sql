@@ -175,7 +175,11 @@ select set_config(
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select is(
-  (select count(*)::integer from public.products),
+  (
+    select count(*)::integer
+    from public.products
+    where id = '24000000-0000-0000-0000-000000000001'
+  ),
   1,
   'database-owned admins can inspect catalog rows'
 );

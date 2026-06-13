@@ -276,6 +276,7 @@ returns table (
   seo_description text,
   social_image_bucket text,
   social_image_path text,
+  localized_slugs jsonb,
   other_market_code text,
   variants jsonb
 )
@@ -325,6 +326,11 @@ begin
     pt.seo_description,
     pt.social_image_bucket,
     pt.social_image_path,
+    (
+      select jsonb_object_agg(all_translations.locale, all_translations.slug)
+      from public.product_translations all_translations
+      where all_translations.product_id = p.id
+    ) as localized_slugs,
     case
       when pmo.id is not null then null::text
       when exists (
@@ -400,6 +406,7 @@ returns table (
   seo_description text,
   social_image_bucket text,
   social_image_path text,
+  localized_slugs jsonb,
   product_count bigint
 )
 language plpgsql
@@ -420,6 +427,11 @@ begin
     ct.seo_description,
     ct.social_image_bucket,
     ct.social_image_path,
+    (
+      select jsonb_object_agg(all_translations.locale, all_translations.slug)
+      from public.category_translations all_translations
+      where all_translations.category_id = c.id
+    ),
     (
       select count(*)::bigint
       from public.list_catalog_products(p_locale, p_market, null, null, ct.slug, null, null, 'newest')
@@ -442,6 +454,7 @@ returns table (
   seo_description text,
   social_image_bucket text,
   social_image_path text,
+  localized_slugs jsonb,
   product_count bigint
 )
 language plpgsql
@@ -462,6 +475,11 @@ begin
     ct.seo_description,
     ct.social_image_bucket,
     ct.social_image_path,
+    (
+      select jsonb_object_agg(all_translations.locale, all_translations.slug)
+      from public.collection_translations all_translations
+      where all_translations.collection_id = c.id
+    ),
     (
       select count(*)::bigint
       from public.list_catalog_products(p_locale, p_market, null, null, null, null, null, 'collection:' || ct.slug)

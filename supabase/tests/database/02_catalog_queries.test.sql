@@ -35,6 +35,15 @@ select has_function(
   'catalog collection RPC exists'
 );
 
+delete from public.products
+where id in (
+  '50000000-0000-0000-0000-000000000001',
+  '50000000-0000-0000-0000-000000000002',
+  '50000000-0000-0000-0000-000000000003'
+);
+delete from public.categories where id = '51000000-0000-0000-0000-000000000001';
+delete from public.collections where id = '52000000-0000-0000-0000-000000000001';
+
 insert into public.categories (id)
 values ('41000000-0000-0000-0000-000000000001');
 

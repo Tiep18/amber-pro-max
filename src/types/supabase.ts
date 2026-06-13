@@ -809,6 +809,7 @@ export type Database = {
         Returns: {
           category_id: string
           description: string
+          localized_slugs: Json
           name: string
           product_count: number
           seo_description: string
@@ -823,6 +824,7 @@ export type Database = {
         Returns: {
           collection_id: string
           description: string
+          localized_slugs: Json
           name: string
           product_count: number
           seo_description: string
@@ -839,6 +841,7 @@ export type Database = {
           currency_code: string
           description: string
           in_stock: boolean
+          localized_slugs: Json
           other_market_code: string
           price_minor: number
           primary_image_alt: string

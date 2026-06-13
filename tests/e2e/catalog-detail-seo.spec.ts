@@ -4,10 +4,10 @@ test('PDF detail is useful but unavailable without leaking price or download act
   await page.goto('/en/product/vn-bear-pattern');
 
   await expect(page.getByRole('heading', {name: 'VN bear pattern'})).toBeVisible();
-  await expect(page.getByText('PDF pattern')).toBeVisible();
+  await expect(page.getByText('PDF pattern', {exact: true})).toBeVisible();
   await expect(page.getByText('Digital pattern, not a finished item')).toBeVisible();
   await expect(page.getByText('Not available in your market')).toBeVisible();
-  await expect(page.getByRole('button', {name: 'Use Vietnam market'})).toBeVisible();
+  await expect(page.getByRole('main').getByRole('button', {name: 'Use Vietnam market'})).toBeVisible();
   await expect(page.getByText('$')).not.toBeVisible();
   await expect(page.getByRole('link', {name: /download/i})).toHaveCount(0);
 });

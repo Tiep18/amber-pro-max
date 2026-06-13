@@ -36,6 +36,21 @@
     "categoryLabel": "Category",
     "collectionLabel": "Collection"
   },
+  "product": {
+    "pdfPattern": "PDF pattern",
+    "finishedItem": "Finished item",
+    "digitalWarning": "Digital pattern, not a finished item",
+    "shippingNote": "Shipping is arranged after purchase",
+    "unavailableTitle": "Not available in your market",
+    "unavailableBody": "This product is published, but it cannot be purchased in your active market.",
+    "difficulty": "Difficulty",
+    "file": "File",
+    "languages": "Languages",
+    "variants": "Options",
+    "inStock": "In stock",
+    "outOfStock": "Out of stock",
+    "selectVariant": "Select a product option"
+  },
   "market": {
     "label": "Market",
     "current": "Active market",

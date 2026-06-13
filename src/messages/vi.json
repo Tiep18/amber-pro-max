@@ -36,6 +36,21 @@
     "categoryLabel": "Danh muc",
     "collectionLabel": "Bo suu tap"
   },
+  "product": {
+    "pdfPattern": "Mau PDF",
+    "finishedItem": "San pham hoan thien",
+    "digitalWarning": "Day la mau ky thuat so, khong phai san pham hoan thien",
+    "shippingNote": "Van chuyen duoc sap xep sau khi mua",
+    "unavailableTitle": "Khong co san tai thi truong cua ban",
+    "unavailableBody": "San pham da duoc dang, nhung khong the mua tai thi truong dang chon.",
+    "difficulty": "Do kho",
+    "file": "Tep",
+    "languages": "Ngon ngu",
+    "variants": "Tuy chon",
+    "inStock": "Con hang",
+    "outOfStock": "Het hang",
+    "selectVariant": "Chon tuy chon san pham"
+  },
   "market": {
     "label": "Thi truong",
     "current": "Thi truong dang dung",

@@ -1,14 +1,49 @@
+import type {Metadata} from 'next';
 import {setRequestLocale} from 'next-intl/server';
 import {notFound} from 'next/navigation';
+import {localizedMetadata, publicStorageUrl} from '@/catalog/metadata';
 import {getRequestMarket} from '@/catalog/page-context';
 import {getCatalogCategoryBySlug, listCatalogProducts} from '@/catalog/queries';
 import {ProductCard} from '@/components/catalog/product-card';
-import type {Locale} from '@/i18n/routing';
+import {getCategoryPath, type Locale} from '@/i18n/routing';
+import type {Json} from '@/types/supabase';
+
+type Params = Promise<{locale: Locale; categorySlug: string}>;
+
+function slugs(value: Json) {
+  if (!value || Array.isArray(value) || typeof value !== 'object') {
+    return {};
+  }
+  return value as Record<string, string>;
+}
+
+export async function generateMetadata({params}: {params: Params}): Promise<Metadata> {
+  const {locale, categorySlug} = await params;
+  const market = await getRequestMarket();
+  const category = await getCatalogCategoryBySlug({locale, market, slug: categorySlug});
+  if (!category) {
+    return {};
+  }
+  const localized = slugs(category.localized_slugs);
+  if (!localized.vi || !localized.en) {
+    return {};
+  }
+  return localizedMetadata({
+    title: category.seo_title || category.name,
+    description: category.seo_description || category.description,
+    canonicalPath: getCategoryPath(locale, category.slug),
+    alternatePaths: {
+      vi: getCategoryPath('vi', localized.vi),
+      en: getCategoryPath('en', localized.en)
+    },
+    socialImage: publicStorageUrl(category.social_image_bucket, category.social_image_path)
+  });
+}
 
 export default async function CategoryPage({
   params
 }: {
-  params: Promise<{locale: Locale; categorySlug: string}>;
+  params: Params;
 }) {
   const {locale, categorySlug} = await params;
   setRequestLocale(locale);

@@ -1,1 +1,1 @@
-export {default} from '../../collection/[collectionSlug]/page';
+export {default, generateMetadata} from '../../collection/[collectionSlug]/page';

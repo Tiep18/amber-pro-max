@@ -1,14 +1,49 @@
+import type {Metadata} from 'next';
 import {setRequestLocale} from 'next-intl/server';
 import {notFound} from 'next/navigation';
+import {localizedMetadata, publicStorageUrl} from '@/catalog/metadata';
 import {getRequestMarket} from '@/catalog/page-context';
 import {getCatalogCollectionBySlug, listCatalogProducts} from '@/catalog/queries';
 import {ProductCard} from '@/components/catalog/product-card';
-import type {Locale} from '@/i18n/routing';
+import {getCollectionPath, type Locale} from '@/i18n/routing';
+import type {Json} from '@/types/supabase';
+
+type Params = Promise<{locale: Locale; collectionSlug: string}>;
+
+function slugs(value: Json) {
+  if (!value || Array.isArray(value) || typeof value !== 'object') {
+    return {};
+  }
+  return value as Record<string, string>;
+}
+
+export async function generateMetadata({params}: {params: Params}): Promise<Metadata> {
+  const {locale, collectionSlug} = await params;
+  const market = await getRequestMarket();
+  const collection = await getCatalogCollectionBySlug({locale, market, slug: collectionSlug});
+  if (!collection) {
+    return {};
+  }
+  const localized = slugs(collection.localized_slugs);
+  if (!localized.vi || !localized.en) {
+    return {};
+  }
+  return localizedMetadata({
+    title: collection.seo_title || collection.name,
+    description: collection.seo_description || collection.description,
+    canonicalPath: getCollectionPath(locale, collection.slug),
+    alternatePaths: {
+      vi: getCollectionPath('vi', localized.vi),
+      en: getCollectionPath('en', localized.en)
+    },
+    socialImage: publicStorageUrl(collection.social_image_bucket, collection.social_image_path)
+  });
+}
 
 export default async function CollectionPage({
   params
 }: {
-  params: Promise<{locale: Locale; collectionSlug: string}>;
+  params: Params;
 }) {
   const {locale, collectionSlug} = await params;
   setRequestLocale(locale);
