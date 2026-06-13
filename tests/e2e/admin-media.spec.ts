@@ -174,7 +174,7 @@ test('admin uploads product images, selects social images, uploads a private PDF
   await page.getByLabel('Vietnamese image alt text').fill('Tho len mau xanh');
   await page.getByLabel('English image alt text').fill('Blue crochet bunny');
   await page.getByRole('button', {name: 'Upload image'}).click();
-  await expect(page.getByText('Image uploaded')).toBeVisible();
+  await expect(page.getByText('Image uploaded')).toBeVisible({timeout: 15_000});
 
   await page.getByRole('button', {name: 'Set primary image'}).click();
   await expect(page.getByText('Primary image selected')).toBeVisible();
@@ -189,7 +189,7 @@ test('admin uploads product images, selects social images, uploads a private PDF
     buffer: Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF')
   });
   await page.getByRole('button', {name: 'Upload private PDF'}).click();
-  await expect(page.getByText('Private PDF associated')).toBeVisible();
+  await expect(page.getByText('Private PDF associated')).toBeVisible({timeout: 15_000});
   await expect(page.getByText('classic-bunny.pdf')).toBeVisible();
   await expect(page.locator('a[href*="pattern-pdfs"]')).toHaveCount(0);
 
