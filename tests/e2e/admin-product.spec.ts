@@ -119,6 +119,7 @@ test.afterAll(async () => {
 
 test('admin creates and edits bilingual product basics and sees publish blockers', async ({page}) => {
   const slugSuffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  const englishTitle = `Spring bunny pattern ${slugSuffix}`;
   const [category, technique, tag, collection] = await Promise.all([
     createTaxonomyFixture('categories', 'category_translations', 'category_id', 'Animals'),
     createTaxonomyFixture('techniques', 'technique_translations', 'technique_id', 'Amigurumi'),
@@ -139,7 +140,7 @@ test('admin creates and edits bilingual product basics and sees publish blockers
   await page.getByLabel('Vietnamese SEO title').fill('Mau tho mua xuan');
   await page.getByLabel('Vietnamese SEO description').fill('Tai mau moc tho mua xuan.');
 
-  await page.getByLabel('English title').fill('Spring bunny pattern');
+  await page.getByLabel('English title').fill(englishTitle);
   await page.getByLabel('English description').fill('Crochet a spring bunny.');
   await page.getByLabel('English specifications JSON').fill('{"difficulty":"easy"}');
   await page.getByLabel('English slug').fill(`spring-bunny-pattern-${slugSuffix}`);
@@ -185,8 +186,8 @@ test('admin creates and edits bilingual product basics and sees publish blockers
   );
 
   await page.goto('/admin/catalog');
-  await expect(page.getByText('Spring bunny pattern')).toBeVisible();
-  await expect(page.getByText('draft', {exact: true})).toBeVisible();
+  await expect(page.getByText(englishTitle)).toBeVisible();
+  await expect(page.getByRole('link', {name: new RegExp(`${englishTitle}.*draft`)})).toBeVisible();
 });
 
 test('customer cannot access the product editor', async ({page}) => {
