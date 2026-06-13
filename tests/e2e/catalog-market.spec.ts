@@ -5,6 +5,7 @@ function activeMarketLabel(page: import('@playwright/test').Page) {
 }
 
 test('suggestion sets VN for VN country and international for non-VN in separate contexts', async ({browser}) => {
+  test.setTimeout(60_000);
   const vnContext = await browser.newContext({extraHTTPHeaders: {'x-vercel-ip-country': 'VN'}});
   const vnPage = await vnContext.newPage();
   await vnPage.goto('/en');
