@@ -27,7 +27,15 @@ async function localizedOptions(
   idColumn: 'category_id' | 'technique_id' | 'tag_id' | 'collection_id'
 ): Promise<CatalogOption[]> {
   const supabase = await createSupabaseServerClient();
-  const {data, error} = await (supabase as any).from(table).select(`${idColumn}, name`).eq('locale', 'en').order('name');
+  const query =
+    table === 'category_translations'
+      ? supabase.from(table).select('category_id, name').eq('locale', 'en').order('name')
+      : table === 'technique_translations'
+        ? supabase.from(table).select('technique_id, name').eq('locale', 'en').order('name')
+        : table === 'tag_translations'
+          ? supabase.from(table).select('tag_id, name').eq('locale', 'en').order('name')
+          : supabase.from(table).select('collection_id, name').eq('locale', 'en').order('name');
+  const {data, error} = await query;
   if (error) {
     return [];
   }
