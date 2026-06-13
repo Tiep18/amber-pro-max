@@ -1,5 +1,6 @@
 import createMiddleware from 'next-intl/middleware';
 import {NextRequest, NextResponse} from 'next/server';
+import {applyMarketSuggestionCookie} from './catalog/market';
 import {isLocale, preferredLocale, routing} from './i18n/routing';
 import {updateSession} from './lib/supabase/proxy';
 
@@ -32,7 +33,7 @@ export default async function proxy(request: NextRequest) {
   const {pathname, search} = request.nextUrl;
 
   if (PHYSICAL_AUTH_SLUGS.has(pathname) || PHYSICAL_PROTECTED_SLUGS.has(pathname)) {
-    return updateSession(request, NextResponse.next());
+    return updateSession(request, applyMarketSuggestionCookie(request, NextResponse.next()));
   }
 
   if (pathname.startsWith('/admin')) {
@@ -47,10 +48,10 @@ export default async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = `/${locale}${pathname === '/' ? '' : pathname}`;
     url.search = search;
-    return updateSession(request, NextResponse.redirect(url));
+    return updateSession(request, applyMarketSuggestionCookie(request, NextResponse.redirect(url)));
   }
 
-  return updateSession(request, intlMiddleware(request));
+  return updateSession(request, applyMarketSuggestionCookie(request, intlMiddleware(request)));
 }
 
 export const config = {
