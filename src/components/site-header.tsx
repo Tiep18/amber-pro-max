@@ -59,7 +59,9 @@ export async function SiteHeader({locale}: {locale: Locale}) {
           ))}
           </nav>
         <div className="flex items-center gap-2">
-          <MarketSwitcher activeMarket={activeMarket} labels={marketLabels} />
+          <div className="hidden md:block">
+            <MarketSwitcher activeMarket={activeMarket} labels={marketLabels} />
+          </div>
           <Suspense fallback={null}>
             <LocaleSwitcher locale={locale} />
           </Suspense>
