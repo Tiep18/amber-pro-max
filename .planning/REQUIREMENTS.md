@@ -20,8 +20,8 @@
 - [x] **CAT-02**: Admin can create physical variants with independent attributes, prices, SKUs, and inventory.
 - [x] **CAT-03**: Admin can manage localized product titles, descriptions, specifications, and SEO content.
 - [x] **CAT-04**: Admin can organize products by type, category, technique, tags, and collections independently.
-- [ ] **CAT-05**: Customer can browse product, category, technique, tag, and collection pages.
-- [ ] **CAT-06**: Customer can search, filter, and sort eligible products.
+- [x] **CAT-05**: Customer can browse product, category, technique, tag, and collection pages.
+- [x] **CAT-06**: Customer can search, filter, and sort eligible products.
 - [ ] **CAT-07**: Customer can clearly distinguish a PDF pattern from a physical finished product throughout browsing and checkout.
 - [x] **CAT-08**: Customer can view valid variant combinations and current availability before adding a physical product to cart.
 
@@ -159,8 +159,8 @@
 | CAT-02 | Phase 2 | Complete |
 | CAT-03 | Phase 2 | Complete |
 | CAT-04 | Phase 2 | Complete |
-| CAT-05 | Phase 2 | Pending |
-| CAT-06 | Phase 2 | Pending |
+| CAT-05 | Phase 2 | Complete |
+| CAT-06 | Phase 2 | Complete |
 | CAT-07 | Phase 2 | Pending |
 | CAT-08 | Phase 2 | Complete |
 | CART-01 | Phase 3 | Pending |
