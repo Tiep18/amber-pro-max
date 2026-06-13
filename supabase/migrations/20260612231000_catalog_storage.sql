@@ -72,23 +72,7 @@ for insert
 to authenticated
 with check (
   private.is_admin()
-  and (
-    (
-      bucket_id = 'product-media'
-      and coalesce(metadata->>'mimetype', '') in (
-        'image/jpeg',
-        'image/png',
-        'image/webp',
-        'image/gif'
-      )
-      and coalesce((metadata->>'size')::bigint, 0) between 1 and 10485760
-    )
-    or (
-      bucket_id = 'pattern-pdfs'
-      and coalesce(metadata->>'mimetype', '') = 'application/pdf'
-      and coalesce((metadata->>'size')::bigint, 0) between 1 and 52428800
-    )
-  )
+  and bucket_id in ('product-media', 'pattern-pdfs')
 );
 
 create policy catalog_storage_admin_update

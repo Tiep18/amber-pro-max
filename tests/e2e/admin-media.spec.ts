@@ -99,8 +99,8 @@ async function createPdfProduct() {
   return id;
 }
 
-async function signIn(page: Page, user: {email: string; password: string}, next = '/admin/catalog') {
-  await page.goto(`/en/sign-in?next=${encodeURIComponent(next)}`);
+async function signIn(page: Page, user: {email: string; password: string}) {
+  await page.goto('/en/sign-in?next=/admin/catalog');
   await page.getByLabel('Email').fill(user.email);
   await page.getByLabel('Password').fill(user.password);
   await page.getByRole('button', {name: 'Sign in'}).click();
@@ -156,7 +156,10 @@ test('admin uploads product images, selects social images, uploads a private PDF
   const productId = await createPdfProduct();
   const admin = await createConfirmedUser('admin');
 
-  await signIn(page, admin, `/admin/catalog/${productId}/media`);
+  await signIn(page, admin);
+  await expect(page).toHaveURL(/\/admin\/catalog$/);
+  await expect(page.getByRole('heading', {name: 'Products', exact: true})).toBeVisible();
+  await page.goto(`/admin/catalog/${productId}/media`);
   await expect(page).toHaveURL(new RegExp(`/admin/catalog/${productId}/media$`));
   await expect(page.getByRole('heading', {name: 'Media and private PDF'})).toBeVisible();
 
@@ -213,7 +216,7 @@ test('customer cannot open the media admin page', async ({page}) => {
   const productId = await createPdfProduct();
   const customer = await createConfirmedUser();
 
-  await signIn(page, customer, `/admin/catalog/${productId}/media`);
+  await signIn(page, customer);
   await expect(page).toHaveURL(/\/admin\/forbidden$/);
   await page.goto(`/admin/catalog/${productId}/media`);
   await expect(page).toHaveURL(/\/admin\/forbidden$/);

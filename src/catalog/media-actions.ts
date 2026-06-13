@@ -1,0 +1,367 @@
+'use server';
+
+import {createHash} from 'node:crypto';
+import {revalidatePath} from 'next/cache';
+import {requireAdmin} from '@/auth/guards';
+import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {
+  MAX_PATTERN_PDF_BYTES,
+  MAX_PRODUCT_IMAGE_BYTES,
+  PATTERN_PDF_BUCKET,
+  PRODUCT_MEDIA_BUCKET,
+  mediaDetailsInputSchema,
+  mediaProductIdSchema,
+  patternPdfMimeType,
+  pdfAssetInputSchema,
+  primaryImageInputSchema,
+  productImageExtensions,
+  productImageMimeTypes,
+  removeMediaInputSchema,
+  socialImageInputSchema
+} from './media-schemas';
+
+type MediaActionCode =
+  | 'invalid_input'
+  | 'invalid_file'
+  | 'product_not_found'
+  | 'not_pdf_product'
+  | 'media_not_found'
+  | 'upload_failed'
+  | 'association_failed'
+  | 'update_failed'
+  | 'remove_failed';
+
+export type MediaActionResult =
+  | {status: 'success'; message: string}
+  | {status: 'invalid'; code: MediaActionCode}
+  | {status: 'error'; code: MediaActionCode};
+
+function fieldString(formData: FormData, name: string) {
+  const value = formData.get(name);
+  return typeof value === 'string' ? value : '';
+}
+
+function fieldNumber(formData: FormData, name: string) {
+  const value = Number(fieldString(formData, name));
+  return Number.isFinite(value) ? value : Number.NaN;
+}
+
+function formFile(formData: FormData, name: string) {
+  const value = formData.get(name);
+  return value instanceof File && value.size > 0 ? value : null;
+}
+
+function revalidateMedia(productId: string) {
+  revalidatePath(`/admin/catalog/${productId}`);
+  revalidatePath(`/admin/catalog/${productId}/media`);
+}
+
+async function productExists(productId: string) {
+  const supabase = await createSupabaseServerClient();
+  const {data, error} = await supabase.from('products').select('id, product_type').eq('id', productId).maybeSingle();
+  if (error || !data) {
+    return null;
+  }
+  return data;
+}
+
+async function nextDisplayOrder(productId: string) {
+  const supabase = await createSupabaseServerClient();
+  const {data} = await supabase
+    .from('product_media')
+    .select('display_order')
+    .eq('product_id', productId)
+    .order('display_order', {ascending: false})
+    .limit(1)
+    .maybeSingle();
+
+  return (data?.display_order ?? -1) + 1;
+}
+
+async function removeStorageObject(bucket: typeof PRODUCT_MEDIA_BUCKET | typeof PATTERN_PDF_BUCKET, objectPath: string) {
+  const supabase = await createSupabaseServerClient();
+  await supabase.storage.from(bucket).remove([objectPath]);
+}
+
+async function mediaForProduct(productId: string, mediaId: string) {
+  const supabase = await createSupabaseServerClient();
+  const {data, error} = await supabase
+    .from('product_media')
+    .select('id, product_id, object_path')
+    .eq('id', mediaId)
+    .eq('product_id', productId)
+    .maybeSingle();
+
+  return error ? null : data;
+}
+
+export async function uploadProductImageAction(formData: FormData): Promise<MediaActionResult> {
+  await requireAdmin();
+  const productId = fieldString(formData, 'productId');
+  const parsed = mediaProductIdSchema.safeParse(productId);
+  const file = formFile(formData, 'image');
+  if (!parsed.success || !file) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+  if (
+    !productImageMimeTypes.includes(file.type as (typeof productImageMimeTypes)[number]) ||
+    file.size > MAX_PRODUCT_IMAGE_BYTES
+  ) {
+    return {status: 'invalid', code: 'invalid_file'};
+  }
+  if (!(await productExists(parsed.data))) {
+    return {status: 'invalid', code: 'product_not_found'};
+  }
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const extension = productImageExtensions[file.type as keyof typeof productImageExtensions];
+  const objectPath = `products/${parsed.data}/${crypto.randomUUID()}.${extension}`;
+  const displayOrder = await nextDisplayOrder(parsed.data);
+  const supabase = await createSupabaseServerClient();
+  const upload = await supabase.storage.from(PRODUCT_MEDIA_BUCKET).upload(objectPath, bytes, {
+    contentType: file.type,
+    upsert: false
+  });
+  if (upload.error) {
+    return {status: 'error', code: 'upload_failed'};
+  }
+
+  const {error} = await supabase.from('product_media').insert({
+    product_id: parsed.data,
+    bucket_id: PRODUCT_MEDIA_BUCKET,
+    object_path: objectPath,
+    alt_text_vi: fieldString(formData, 'altTextVi'),
+    alt_text_en: fieldString(formData, 'altTextEn'),
+    display_order: displayOrder,
+    is_primary: false
+  });
+  if (error) {
+    await removeStorageObject(PRODUCT_MEDIA_BUCKET, objectPath);
+    return {status: 'error', code: 'association_failed'};
+  }
+
+  revalidateMedia(parsed.data);
+  return {status: 'success', message: 'Image uploaded'};
+}
+
+export async function updateProductMediaDetailsAction(formData: FormData): Promise<MediaActionResult> {
+  await requireAdmin();
+  const parsed = mediaDetailsInputSchema.safeParse({
+    productId: fieldString(formData, 'productId'),
+    mediaId: fieldString(formData, 'mediaId'),
+    altTextVi: fieldString(formData, 'altTextVi'),
+    altTextEn: fieldString(formData, 'altTextEn'),
+    displayOrder: fieldNumber(formData, 'displayOrder')
+  });
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {error} = await supabase
+    .from('product_media')
+    .update({
+      alt_text_vi: parsed.data.altTextVi,
+      alt_text_en: parsed.data.altTextEn,
+      display_order: parsed.data.displayOrder
+    })
+    .eq('id', parsed.data.mediaId)
+    .eq('product_id', parsed.data.productId);
+  if (error) {
+    return {status: 'error', code: 'update_failed'};
+  }
+
+  revalidateMedia(parsed.data.productId);
+  return {status: 'success', message: 'Image details saved'};
+}
+
+export async function setPrimaryProductImageAction(productId: string, mediaId: string): Promise<MediaActionResult> {
+  await requireAdmin();
+  const parsed = primaryImageInputSchema.safeParse({productId, mediaId});
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+  if (!(await mediaForProduct(parsed.data.productId, parsed.data.mediaId))) {
+    return {status: 'invalid', code: 'media_not_found'};
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const clearResult = await supabase
+    .from('product_media')
+    .update({is_primary: false})
+    .eq('product_id', parsed.data.productId)
+    .eq('is_primary', true);
+  if (clearResult.error) {
+    return {status: 'error', code: 'update_failed'};
+  }
+
+  const {error} = await supabase
+    .from('product_media')
+    .update({is_primary: true})
+    .eq('id', parsed.data.mediaId)
+    .eq('product_id', parsed.data.productId);
+  if (error) {
+    return {status: 'error', code: 'update_failed'};
+  }
+
+  revalidateMedia(parsed.data.productId);
+  return {status: 'success', message: 'Primary image selected'};
+}
+
+export async function setProductSocialImageAction(
+  productId: string,
+  mediaId: string,
+  locale: 'vi' | 'en'
+): Promise<MediaActionResult> {
+  await requireAdmin();
+  const parsed = socialImageInputSchema.safeParse({productId, mediaId, locale});
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+  const media = await mediaForProduct(parsed.data.productId, parsed.data.mediaId);
+  if (!media) {
+    return {status: 'invalid', code: 'media_not_found'};
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {error} = await supabase
+    .from('product_translations')
+    .update({
+      social_image_bucket: PRODUCT_MEDIA_BUCKET,
+      social_image_path: media.object_path,
+      updated_at: new Date().toISOString()
+    })
+    .eq('product_id', parsed.data.productId)
+    .eq('locale', parsed.data.locale);
+  if (error) {
+    return {status: 'error', code: 'update_failed'};
+  }
+
+  revalidateMedia(parsed.data.productId);
+  return {
+    status: 'success',
+    message: parsed.data.locale === 'vi' ? 'Vietnamese social image selected' : 'English social image selected'
+  };
+}
+
+export async function removeProductMediaAction(productId: string, mediaId: string): Promise<MediaActionResult> {
+  await requireAdmin();
+  const parsed = removeMediaInputSchema.safeParse({productId, mediaId});
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+  const media = await mediaForProduct(parsed.data.productId, parsed.data.mediaId);
+  if (!media) {
+    return {status: 'invalid', code: 'media_not_found'};
+  }
+
+  const supabase = await createSupabaseServerClient();
+  await supabase
+    .from('product_translations')
+    .update({social_image_bucket: null, social_image_path: null, updated_at: new Date().toISOString()})
+    .eq('product_id', parsed.data.productId)
+    .eq('social_image_path', media.object_path);
+  const {error} = await supabase
+    .from('product_media')
+    .delete()
+    .eq('id', parsed.data.mediaId)
+    .eq('product_id', parsed.data.productId);
+  if (error) {
+    return {status: 'error', code: 'remove_failed'};
+  }
+
+  await removeStorageObject(PRODUCT_MEDIA_BUCKET, media.object_path);
+  revalidateMedia(parsed.data.productId);
+  return {status: 'success', message: 'Image removed'};
+}
+
+export async function uploadPatternPdfAction(formData: FormData): Promise<MediaActionResult> {
+  await requireAdmin();
+  const parsed = pdfAssetInputSchema.safeParse({productId: fieldString(formData, 'productId')});
+  const file = formFile(formData, 'pdf');
+  if (!parsed.success || !file) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+  if (file.type !== patternPdfMimeType || !file.name.toLowerCase().endsWith('.pdf') || file.size > MAX_PATTERN_PDF_BYTES) {
+    return {status: 'invalid', code: 'invalid_file'};
+  }
+
+  const product = await productExists(parsed.data.productId);
+  if (!product) {
+    return {status: 'invalid', code: 'product_not_found'};
+  }
+  if (product.product_type !== 'pdf_pattern') {
+    return {status: 'invalid', code: 'not_pdf_product'};
+  }
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const checksum = createHash('sha256').update(bytes).digest('hex');
+  const objectPath = `patterns/${parsed.data.productId}/${crypto.randomUUID()}.pdf`;
+  const supabase = await createSupabaseServerClient();
+  const existing = await supabase
+    .from('product_digital_assets')
+    .select('object_path')
+    .eq('product_id', parsed.data.productId)
+    .maybeSingle();
+
+  const upload = await supabase.storage.from(PATTERN_PDF_BUCKET).upload(objectPath, bytes, {
+    contentType: patternPdfMimeType,
+    upsert: false
+  });
+  if (upload.error) {
+    return {status: 'error', code: 'upload_failed'};
+  }
+
+  const {error} = await supabase.from('product_digital_assets').upsert(
+    {
+      product_id: parsed.data.productId,
+      bucket_id: PATTERN_PDF_BUCKET,
+      object_path: objectPath,
+      file_name: file.name,
+      content_type: patternPdfMimeType,
+      byte_size: file.size,
+      checksum_sha256: checksum,
+      is_private: true,
+      updated_at: new Date().toISOString()
+    },
+    {onConflict: 'product_id'}
+  );
+  if (error) {
+    await removeStorageObject(PATTERN_PDF_BUCKET, objectPath);
+    return {status: 'error', code: 'association_failed'};
+  }
+
+  if (existing.data?.object_path && existing.data.object_path !== objectPath) {
+    await removeStorageObject(PATTERN_PDF_BUCKET, existing.data.object_path);
+  }
+
+  revalidateMedia(parsed.data.productId);
+  return {status: 'success', message: 'Private PDF associated'};
+}
+
+export async function removePatternPdfAction(productId: string): Promise<MediaActionResult> {
+  await requireAdmin();
+  const parsed = pdfAssetInputSchema.safeParse({productId});
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const existing = await supabase
+    .from('product_digital_assets')
+    .select('object_path')
+    .eq('product_id', parsed.data.productId)
+    .maybeSingle();
+  if (!existing.data) {
+    return {status: 'invalid', code: 'media_not_found'};
+  }
+
+  const {error} = await supabase.from('product_digital_assets').delete().eq('product_id', parsed.data.productId);
+  if (error) {
+    return {status: 'error', code: 'remove_failed'};
+  }
+
+  await removeStorageObject(PATTERN_PDF_BUCKET, existing.data.object_path);
+  revalidateMedia(parsed.data.productId);
+  return {status: 'success', message: 'Private PDF removed'};
+}
