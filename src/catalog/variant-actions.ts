@@ -1,0 +1,253 @@
+'use server';
+
+import {revalidatePath} from 'next/cache';
+import {requireAdmin} from '@/auth/guards';
+import {createSupabaseServerClient} from '@/lib/supabase/server';
+import type {Json} from '@/types/supabase';
+import {
+  inventoryAdjustmentSchema,
+  removeVariantPriceOverrideSchema,
+  removeVariantSchema,
+  variantDraftSchema,
+  variantPriceOverrideSchema,
+  type InventoryAdjustmentInput,
+  type RemoveVariantInput,
+  type RemoveVariantPriceOverrideInput,
+  type VariantDraftInput,
+  type VariantPriceOverrideInput
+} from './variant-schemas';
+
+type VariantActionCode =
+  | 'invalid_input'
+  | 'product_not_found'
+  | 'variant_not_found'
+  | 'not_physical_product'
+  | 'duplicate_sku'
+  | 'wrong_inventory_owner'
+  | 'save_failed'
+  | 'remove_failed';
+
+export type VariantActionResult =
+  | {status: 'success'; message: string}
+  | {status: 'invalid'; code: VariantActionCode}
+  | {status: 'error'; code: VariantActionCode};
+
+function revalidateVariants(productId: string) {
+  revalidatePath(`/admin/catalog/${productId}`);
+  revalidatePath(`/admin/catalog/${productId}/variants`);
+}
+
+function databaseCode(error: unknown) {
+  return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
+}
+
+function mapWriteError(error: unknown): VariantActionResult {
+  const code = databaseCode(error);
+  if (code === '23505') {
+    return {status: 'invalid', code: 'duplicate_sku'};
+  }
+  if (code === '23514') {
+    return {status: 'invalid', code: 'wrong_inventory_owner'};
+  }
+  return {status: 'error', code: 'save_failed'};
+}
+
+async function productType(productId: string) {
+  const supabase = await createSupabaseServerClient();
+  const {data, error} = await supabase.from('products').select('id, product_type').eq('id', productId).maybeSingle();
+  if (error || !data) {
+    return null;
+  }
+  return data.product_type;
+}
+
+async function variantProductId(variantId: string) {
+  const supabase = await createSupabaseServerClient();
+  const {data, error} = await supabase.from('product_variants').select('id, product_id').eq('id', variantId).maybeSingle();
+  if (error || !data) {
+    return null;
+  }
+  return data.product_id;
+}
+
+async function productHasVariants(productId: string) {
+  const supabase = await createSupabaseServerClient();
+  const {data, error} = await supabase
+    .from('product_variants')
+    .select('id')
+    .eq('product_id', productId)
+    .limit(1)
+    .maybeSingle();
+
+  return !error && Boolean(data);
+}
+
+export async function saveVariantAction(input: VariantDraftInput): Promise<VariantActionResult> {
+  await requireAdmin();
+  const parsed = variantDraftSchema.safeParse(input);
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+
+  const ownerType = await productType(parsed.data.productId);
+  if (!ownerType) {
+    return {status: 'invalid', code: 'product_not_found'};
+  }
+  if (ownerType !== 'physical_finished') {
+    return {status: 'invalid', code: 'not_physical_product'};
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {error} = await supabase.from('product_variants').upsert(
+    {
+      id: parsed.data.variantId,
+      product_id: parsed.data.productId,
+      sku: parsed.data.sku,
+      attributes: parsed.data.attributes as Json,
+      display_order: parsed.data.displayOrder,
+      media_id: parsed.data.mediaId,
+      updated_at: new Date().toISOString()
+    },
+    {onConflict: 'id'}
+  );
+  if (error) {
+    return mapWriteError(error);
+  }
+
+  revalidateVariants(parsed.data.productId);
+  return {status: 'success', message: 'Variant saved'};
+}
+
+export async function removeVariantAction(input: RemoveVariantInput): Promise<VariantActionResult> {
+  await requireAdmin();
+  const parsed = removeVariantSchema.safeParse(input);
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {error} = await supabase
+    .from('product_variants')
+    .delete()
+    .eq('id', parsed.data.variantId)
+    .eq('product_id', parsed.data.productId);
+  if (error) {
+    return {status: 'error', code: 'remove_failed'};
+  }
+
+  revalidateVariants(parsed.data.productId);
+  return {status: 'success', message: 'Variant removed'};
+}
+
+export async function saveVariantPriceOverrideAction(input: VariantPriceOverrideInput): Promise<VariantActionResult> {
+  await requireAdmin();
+  const parsed = variantPriceOverrideSchema.safeParse(input);
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+
+  const productId = await variantProductId(parsed.data.variantId);
+  if (!productId) {
+    return {status: 'invalid', code: 'variant_not_found'};
+  }
+  const ownerType = await productType(productId);
+  if (ownerType !== 'physical_finished') {
+    return {status: 'invalid', code: 'not_physical_product'};
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {error} = await supabase.from('variant_market_offers').upsert(
+    {
+      variant_id: parsed.data.variantId,
+      market_code: parsed.data.marketCode,
+      currency_code: parsed.data.currencyCode,
+      price_minor: parsed.data.priceMinor,
+      enabled: true,
+      updated_at: new Date().toISOString()
+    },
+    {onConflict: 'variant_id,market_code'}
+  );
+  if (error) {
+    return mapWriteError(error);
+  }
+
+  revalidateVariants(productId);
+  return {status: 'success', message: 'Price override saved'};
+}
+
+export async function removeVariantPriceOverrideAction(
+  input: RemoveVariantPriceOverrideInput
+): Promise<VariantActionResult> {
+  await requireAdmin();
+  const parsed = removeVariantPriceOverrideSchema.safeParse(input);
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+
+  const productId = await variantProductId(parsed.data.variantId);
+  if (!productId) {
+    return {status: 'invalid', code: 'variant_not_found'};
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {error} = await supabase
+    .from('variant_market_offers')
+    .delete()
+    .eq('variant_id', parsed.data.variantId)
+    .eq('market_code', parsed.data.marketCode);
+  if (error) {
+    return {status: 'error', code: 'remove_failed'};
+  }
+
+  revalidateVariants(productId);
+  return {status: 'success', message: 'Price override removed'};
+}
+
+export async function adjustInventoryAction(input: InventoryAdjustmentInput): Promise<VariantActionResult> {
+  await requireAdmin();
+  const parsed = inventoryAdjustmentSchema.safeParse(input);
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+
+  const ownerType = await productType(parsed.data.productId);
+  if (!ownerType) {
+    return {status: 'invalid', code: 'product_not_found'};
+  }
+  if (ownerType !== 'physical_finished') {
+    return {status: 'invalid', code: 'not_physical_product'};
+  }
+
+  if (parsed.data.ownerType === 'product' && (await productHasVariants(parsed.data.productId))) {
+    return {status: 'invalid', code: 'wrong_inventory_owner'};
+  }
+
+  if (parsed.data.ownerType === 'variant') {
+    const ownerProductId = await variantProductId(parsed.data.variantId);
+    if (ownerProductId !== parsed.data.productId) {
+      return {status: 'invalid', code: 'wrong_inventory_owner'};
+    }
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {error} = await supabase.from('inventory_records').upsert(
+    parsed.data.ownerType === 'product'
+      ? {
+          product_id: parsed.data.productId,
+          variant_id: null,
+          quantity_on_hand: parsed.data.quantityOnHand
+        }
+      : {
+          product_id: null,
+          variant_id: parsed.data.variantId,
+          quantity_on_hand: parsed.data.quantityOnHand
+        },
+    {onConflict: parsed.data.ownerType === 'product' ? 'product_id' : 'variant_id'}
+  );
+  if (error) {
+    return mapWriteError(error);
+  }
+
+  revalidateVariants(parsed.data.productId);
+  return {status: 'success', message: 'Inventory saved'};
+}

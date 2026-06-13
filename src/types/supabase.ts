@@ -524,6 +524,7 @@ export type Database = {
         Row: {
           attributes: Json
           created_at: string
+          display_order: number
           id: string
           media_id: string | null
           product_id: string
@@ -533,6 +534,7 @@ export type Database = {
         Insert: {
           attributes: Json
           created_at?: string
+          display_order?: number
           id?: string
           media_id?: string | null
           product_id: string
@@ -542,6 +544,7 @@ export type Database = {
         Update: {
           attributes?: Json
           created_at?: string
+          display_order?: number
           id?: string
           media_id?: string | null
           product_id?: string
@@ -936,4 +939,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
