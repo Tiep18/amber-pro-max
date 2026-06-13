@@ -8,10 +8,10 @@
 ### Localization and Markets
 
 - [x] **MKT-01**: Customer can browse storefront content in Vietnamese or English using localized URLs.
-- [ ] **MKT-02**: Customer sees VND prices in the Vietnam market and USD prices in the international market.
+- [x] **MKT-02**: Customer sees VND prices in the Vietnam market and USD prices in the international market.
 - [x] **MKT-03**: Admin can make each product available in Vietnam, internationally, or in both markets.
 - [x] **MKT-04**: Admin can assign independent Vietnam and international prices to a product or variant.
-- [ ] **MKT-05**: Store suggests a market from the customer's IP country and shows the active market to the customer.
+- [x] **MKT-05**: Store suggests a market from the customer's IP country and shows the active market to the customer.
 - [ ] **MKT-06**: Checkout validates physical-product eligibility against the shipping country and requires confirmation before applying any market-driven cart change.
 
 ### Catalog and Discovery
@@ -150,10 +150,10 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | MKT-01 | Phase 1 | Complete |
-| MKT-02 | Phase 2 | Pending |
+| MKT-02 | Phase 2 | Complete |
 | MKT-03 | Phase 2 | Complete |
 | MKT-04 | Phase 2 | Complete |
-| MKT-05 | Phase 2 | Pending |
+| MKT-05 | Phase 2 | Complete |
 | MKT-06 | Phase 3 | Pending |
 | CAT-01 | Phase 2 | Complete |
 | CAT-02 | Phase 2 | Complete |
