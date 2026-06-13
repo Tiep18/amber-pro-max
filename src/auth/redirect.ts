@@ -15,7 +15,8 @@ function isAllowedAdminPath(pathname: string) {
     pathname === '/admin/catalog' ||
     pathname === '/admin/catalog/new' ||
     /^\/admin\/catalog\/[0-9a-f-]+$/i.test(pathname) ||
-    /^\/admin\/catalog\/[0-9a-f-]+\/media$/i.test(pathname)
+    /^\/admin\/catalog\/[0-9a-f-]+\/media$/i.test(pathname) ||
+    /^\/admin\/catalog\/[0-9a-f-]+\/variants$/i.test(pathname)
   );
 }
 

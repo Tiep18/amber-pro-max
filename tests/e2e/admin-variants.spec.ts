@@ -119,6 +119,7 @@ async function signIn(page: Page, user: {email: string; password: string}) {
   await page.getByLabel('Password').fill(user.password);
   await page.getByRole('button', {name: 'Sign in'}).click();
   await expect(page).toHaveURL(/\/admin\/catalog$/);
+  await expect(page.getByRole('heading', {name: 'Products', exact: true})).toBeVisible();
 }
 
 async function rows<T>(path: string) {
@@ -146,9 +147,15 @@ test('admin edits product-level inventory for a physical product without variant
   const admin = await createConfirmedUser('admin');
   await signIn(page, admin);
 
+  await page.goto(`/admin/catalog/${product.id}`);
+  await expect(page.getByRole('heading', {name: 'Edit product'})).toBeVisible();
+  await page.getByRole('button', {name: 'Publish product'}).click();
+  await expect(page.getByRole('heading', {name: 'Publishing blocked'})).toBeVisible();
+  await expect(page.getByText('Inventory', {exact: true})).toBeVisible();
+
   await page.goto(`/admin/catalog/${product.id}/variants`);
   await expect(page.getByRole('heading', {name: 'Variants and inventory'})).toBeVisible();
-  await expect(page.getByText('Product-level inventory')).toBeVisible();
+  await expect(page.getByText('Product-level inventory', {exact: true})).toBeVisible();
   await expect(page.getByLabel('Product stock quantity')).toBeVisible();
   await expect(page.getByLabel('Variant stock quantity')).toHaveCount(0);
 
