@@ -103,7 +103,7 @@ Plans:
 
 **Wave 5** *(blocked on market resolution and catalog queries)*
 
-- [ ] 02-07: Build localized catalog discovery, category, collection, search, filter, and sort experiences
+- [x] 02-07: Build localized catalog discovery, category, collection, search, filter, and sort experiences
 
 **Wave 6** *(blocked on media, variants, queries, and discovery)*
 
@@ -241,7 +241,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
-| 2. Market-Aware Catalog | 6/8 | In Progress|  |
+| 2. Market-Aware Catalog | 7/8 | In Progress|  |
 | 3. Mixed Cart and Checkout | 0/5 | Not started | - |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |

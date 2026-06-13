@@ -22,7 +22,7 @@
 - [x] **CAT-04**: Admin can organize products by type, category, technique, tags, and collections independently.
 - [x] **CAT-05**: Customer can browse product, category, technique, tag, and collection pages.
 - [x] **CAT-06**: Customer can search, filter, and sort eligible products.
-- [ ] **CAT-07**: Customer can clearly distinguish a PDF pattern from a physical finished product throughout browsing and checkout.
+- [x] **CAT-07**: Customer can clearly distinguish a PDF pattern from a physical finished product throughout browsing and checkout.
 - [x] **CAT-08**: Customer can view valid variant combinations and current availability before adding a physical product to cart.
 
 ### Cart, Pricing, and Shipping
@@ -161,7 +161,7 @@
 | CAT-04 | Phase 2 | Complete |
 | CAT-05 | Phase 2 | Complete |
 | CAT-06 | Phase 2 | Complete |
-| CAT-07 | Phase 2 | Pending |
+| CAT-07 | Phase 2 | Complete |
 | CAT-08 | Phase 2 | Complete |
 | CART-01 | Phase 3 | Pending |
 | CART-02 | Phase 3 | Pending |
