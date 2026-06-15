@@ -1,6 +1,6 @@
 begin;
 
-select plan(32);
+select plan(30);
 
 select has_function('public', 'apply_payment_transition', array['jsonb'], 'shared transition command exists');
 select has_function('public', 'expire_due_payments', array['integer'], 'bounded expiry command exists');
