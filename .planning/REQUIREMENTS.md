@@ -12,7 +12,7 @@
 - [x] **MKT-03**: Admin can make each product available in Vietnam, internationally, or in both markets.
 - [x] **MKT-04**: Admin can assign independent Vietnam and international prices to a product or variant.
 - [x] **MKT-05**: Store suggests a market from the customer's IP country and shows the active market to the customer.
-- [ ] **MKT-06**: Checkout validates physical-product eligibility against the shipping country and requires confirmation before applying any market-driven cart change.
+- [x] **MKT-06**: Checkout validates physical-product eligibility against the shipping country and requires confirmation before applying any market-driven cart change.
 
 ### Catalog and Discovery
 
@@ -32,9 +32,9 @@
 - [x] **CART-03**: Server recalculates product prices, discounts, shipping fees, and order totals from authoritative records.
 - [ ] **CART-04**: Customer can check out as a guest or while signed in.
 - [ ] **CART-05**: System stores an immutable snapshot of product, variant, market, currency, price, discount, and shipping data on each order line.
-- [ ] **SHIP-01**: Admin can create reusable shipping profiles with destination-based rules.
-- [ ] **SHIP-02**: Shipping profiles can define first-item and additional-item fees for physical products.
-- [ ] **SHIP-03**: Checkout calculates shipping only for physical order lines using the selected destination and attached profiles.
+- [x] **SHIP-01**: Admin can create reusable shipping profiles with destination-based rules.
+- [x] **SHIP-02**: Shipping profiles can define first-item and additional-item fees for physical products.
+- [x] **SHIP-03**: Checkout calculates shipping only for physical order lines using the selected destination and attached profiles.
 - [ ] **SHIP-04**: Customer can submit a non-binding exception request when a physical product is unavailable for the destination market.
 - [ ] **SHIP-05**: Admin can approve or reject an exception request before the customer can place the exceptional order.
 
@@ -154,7 +154,7 @@
 | MKT-03 | Phase 2 | Complete |
 | MKT-04 | Phase 2 | Complete |
 | MKT-05 | Phase 2 | Complete |
-| MKT-06 | Phase 3 | Pending |
+| MKT-06 | Phase 3 | Complete |
 | CAT-01 | Phase 2 | Complete |
 | CAT-02 | Phase 2 | Complete |
 | CAT-03 | Phase 2 | Complete |
@@ -168,9 +168,9 @@
 | CART-03 | Phase 3 | Complete |
 | CART-04 | Phase 3 | Pending |
 | CART-05 | Phase 3 | Pending |
-| SHIP-01 | Phase 3 | Pending |
-| SHIP-02 | Phase 3 | Pending |
-| SHIP-03 | Phase 3 | Pending |
+| SHIP-01 | Phase 3 | Complete |
+| SHIP-02 | Phase 3 | Complete |
+| SHIP-03 | Phase 3 | Complete |
 | SHIP-04 | Phase 3 | Pending |
 | SHIP-05 | Phase 3 | Pending |
 | INV-01 | Phase 2 | Complete |

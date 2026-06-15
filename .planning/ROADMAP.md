@@ -132,7 +132,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03-02: Implement shipping profiles, destination quotes, and market revalidation
+- [x] 03-02: Implement shipping profiles, destination quotes, and market revalidation
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -254,7 +254,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 |-------|----------------|--------|-----------|
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
 | 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
-| 3. Mixed Cart and Checkout | 1/5 | In Progress|  |
+| 3. Mixed Cart and Checkout | 2/5 | In Progress|  |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |
 | 6. Customer Retention and Trust | 0/4 | Not started | - |
