@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute Phase 04
-stopped_at: Phase 4 planned
-last_updated: "2026-06-15T09:05:49.602Z"
-last_activity: 2026-06-15 -- Planned Phase 04 trusted payments and orders
+status: Executing Phase 04
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-06-15T09:26:54.834Z"
+last_activity: 2026-06-15 -- Completed Phase 04 Plan 01 Wave 0 payment test contracts
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 31
-  completed_plans: 21
-  percent: 43
+  completed_plans: 22
+  percent: 71
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 4
-Plan: Phase 04 planned (10 plans)
-Status: Ready to execute Phase 04
-Last activity: 2026-06-15 -- Completed Phase 03 Plan 05 market exception requests and grants
+Plan: 04-02 of 10
+Status: In Progress
+Last activity: 2026-06-15 -- Completed Phase 04 Plan 01 Wave 0 payment test contracts
 
-Progress: [██████████] 100%
+Progress: [#---------] 10%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 21
+- Total plans completed: 22
 - Average duration: 26 min
 - Total execution time: 5 hours 9 min
 
@@ -72,6 +72,7 @@ Progress: [██████████] 100%
 | Phase 03 P03 | 20 min | 2 tasks | 18 files |
 | Phase 03 P04 | 31 min | 3 tasks | 11 files |
 | Phase 03 P05 | 42 min | 3 tasks | 21 files |
+| Phase 04 P01 | 6 min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -84,18 +85,20 @@ Recent decisions affecting current work:
 - Architecture: Use a Next.js/Supabase modular monolith.
 - Commerce: Keep payment, digital fulfillment, and physical fulfillment states separate.
 - Payments: Use PayPal internationally and manually confirmed VietQR in Vietnam.
-- [Phase 02]: Catalog base tables remain private to admins; later plans expose market-safe public projections. â€” Prevents drafts, inventory, and private PDF metadata from leaking through direct Data API access.
-- [Phase 02]: Inventory uses XOR product-or-variant ownership with trigger-enforced cross-table rules. â€” Enforces physical inventory at exactly one ownership level for both variant and non-variant products.
-- [Phase 02]: Catalog publish functions are security invokers over private.is_admin-backed RLS. â€” Keeps database-owned admin authorization authoritative without exposed security-definer RPCs.
+- [Phase 02]: Catalog base tables remain private to admins; later plans expose market-safe public projections. Ã¢â‚¬â€ Prevents drafts, inventory, and private PDF metadata from leaking through direct Data API access.
+- [Phase 02]: Inventory uses XOR product-or-variant ownership with trigger-enforced cross-table rules. Ã¢â‚¬â€ Enforces physical inventory at exactly one ownership level for both variant and non-variant products.
+- [Phase 02]: Catalog publish functions are security invokers over private.is_admin-backed RLS. Ã¢â‚¬â€ Keeps database-owned admin authorization authoritative without exposed security-definer RPCs.
 - [Phase 02]: Variant creation requires explicit variant IDs, SKUs, attributes, display order, optional media, and admin-submitted stock; no hidden combinations are generated.
 - [Phase 02]: Variant price overrides are optional rows; missing override means parent offer fallback, and saved overrides must preserve market currency.
 - [Phase 02]: Inventory ownership remains mutually exclusive: non-variant physical products use product inventory and variant products use only variant inventory.
 - [Phase 03]: Guest cart storage remains intent-only; server quote hydration owns all display price, title, availability, and line status data.
 - [Phase 03]: Plan 03-01 intentionally stops before shipping, payment provider UI, payment confirmation, reservations, order creation, and fulfillment.
 - [Phase 03]: Market exceptions are non-binding until checkout submit; approved grants are hashed, scoped, expiring, and consumed inside the submit_checkout order/reservation transaction.
+- [Phase 04 Plan 01]: Wave 0 records Phase 4 requirement coverage as executable contracts only; payment, order, inventory, and fulfillment behavior remains owned by later implementation plans.
+- [Phase 04 Plan 01]: PayPal fixtures use sanitized deterministic IDs, merchant placeholders, amounts, and headers with no live seller identity or secrets.
+- [Phase 04 Plan 01]: Implementation-dependent payment UI journeys start as skipped Playwright contracts so later plans can turn them green without losing scenario ownership.
 
 ### Pending Todos
-
 None yet.
 
 ### Blockers/Concerns
@@ -114,6 +117,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-15T08:17:11.734Z
-Stopped at: Phase 4 planned
-Resume file: .planning/phases/04-trusted-payments-and-orders/04-01-PLAN.md
+Last session: 2026-06-15T09:26:28.436Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: None
