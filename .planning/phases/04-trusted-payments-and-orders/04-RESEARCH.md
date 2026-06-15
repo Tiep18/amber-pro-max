@@ -559,27 +559,27 @@ url.searchParams.set('accountName', accountName);
 |---|---|---|---|
 | — | Không có claim `[ASSUMED]`; recommendations được suy ra từ locked decisions, codebase hoặc official docs. | All | — |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **PayPal production identity and eligibility**
-   - What we know: merchant ID must be validated, and seller-specific eligibility remains a launch concern. [VERIFIED: D-11, `.planning/STATE.md`]
-   - What's unclear: live `PAYPAL_CLIENT_ID`, secret, webhook ID, expected merchant ID/email, approved currencies/countries and seller account readiness are not configured. [VERIFIED: environment audit]
-   - Recommendation: planner adds a human checkpoint before live-mode verification; sandbox implementation can proceed with env placeholders. [VERIFIED: risk synthesis]
+1. **PayPal production identity and eligibility — RESOLVED**
+   - Sandbox implementation proceeds with typed server-only placeholders for `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_EXPECTED_MERCHANT_ID`, approved receiver identity, enabled countries and USD eligibility.
+   - Production enablement is blocked by an explicit `autonomous: false` checkpoint. The seller must provide the real values and approve the receiver identity/country/currency configuration.
+   - Live mode cannot be enabled until a real PayPal Sandbox create/capture flow delivers a verified webhook to the deployed HTTPS endpoint and proves one paid transition plus one inventory finalization. No seller secret is invented or stored in planning artifacts. [VERIFIED: D-09, D-11, environment audit]
 
-2. **VietQR seller bank configuration**
-   - What we know: Phase 4 needs bank identifier, account number/name, template and exact transfer reference. [CITED: VietQR docs]
-   - What's unclear: seller-approved receiving account and whether to use Quick Link or authenticated `v2/generate`. [VERIFIED: environment audit]
-   - Recommendation: implement a typed server env contract and use Quick Link by default; keep generator adapter replaceable. [VERIFIED: no-package architecture]
+2. **VietQR seller bank configuration — RESOLVED**
+   - Phase 4 uses typed server-only configuration for approved bank ID, account number, account name and template.
+   - The default adapter is the official VietQR Quick Link because it requires no new package and only generates payment instructions; the adapter boundary remains replaceable without changing payment confirmation semantics.
+   - Production instructions remain blocked until the seller supplies and approves the real receiving-bank values. Deterministic fixture values are test-only and must never become production defaults. [VERIFIED: D-12, D-13; CITED: VietQR docs]
 
-3. **Late PayPal capture after local terminal expiry**
-   - What we know: locked decisions forbid reopening expired orders and forbid fulfillment without a valid paid transition. [VERIFIED: D-06, D-08]
-   - What's unclear: no Phase 4 refund initiation workflow exists. [VERIFIED: D-04]
-   - Recommendation: internal `review_required/late_payment_detected`, customer maps to “verifying payment,” paid gate stays closed, admin timeline exposes the anomaly for manual seller resolution. [VERIFIED: safety-first synthesis]
+3. **Late PayPal capture after local terminal expiry — RESOLVED**
+   - A verified completed capture received after local expiry/release transitions to internal `review_required` with reason `late_payment_detected`.
+   - The order does not reopen, inventory is not re-reserved or consumed, and paid/fulfillment gates remain closed. Customer UI maps this to the approved verifying/review state; admin detail exposes the anomaly and verified provider facts.
+   - Manual seller resolution is required. Phase 4 does not initiate a refund or add refund controls. [VERIFIED: D-04, D-06, D-08, D-15]
 
-4. **Scheduler deployment**
-   - What we know: Supabase Cron can call database functions; no cron migration/config exists yet. [CITED: Supabase Cron] [VERIFIED: repo grep]
-   - What's unclear: whether managed project has Cron enabled and desired interval.
-   - Recommendation: use `pg_cron` every minute or operationally acceptable short interval, plus deadline checks in every transition so cron timing is not correctness-critical. [VERIFIED: architecture synthesis]
+4. **Scheduler deployment — RESOLVED**
+   - The migration defines an idempotent bounded expiry function and schedules it through `pg_cron` every minute when the managed environment supports Cron.
+   - Every payment transition and order-status read path also checks the authoritative deadline, so Cron timing or temporary scheduler unavailability is never correctness-critical.
+   - The final managed-environment checkpoint verifies extension/job availability and records the deployed job. Local tests invoke the expiry function directly. [VERIFIED: D-06, D-15; CITED: Supabase Cron]
 
 ## Environment Availability
 

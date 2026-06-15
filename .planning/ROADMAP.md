@@ -161,15 +161,38 @@ Plans:
   4. Customer and admin can see accurate payment/order states, and digital or physical fulfillment cannot begin before full payment.
   5. Admin can inspect order history, payment evidence, state transitions, and audit records without exposing another customer's data.
 
-**Plans**: 5 plans
-
+**Plans**: 10 plans
 Plans:
+**Wave 1**
 
-- [ ] 04-01: Define order/payment state machines, audit events, and inventory finalization
-- [ ] 04-02: Integrate server-owned PayPal create/capture flow
-- [ ] 04-03: Verify PayPal webhooks, idempotency, reconciliation, and failure handling
-- [ ] 04-04: Implement VietQR instructions, deadlines, and audited admin confirmation
-- [ ] 04-05: Build customer/admin order views and payment lifecycle verification
+- [ ] 04-01: Create Wave 0 payment, database, security, concurrency, and browser test contracts
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-02: Define order/payment state machines, audit events, inventory finalization, and schema push
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 04-03: Build guest/customer/admin authorization, server-only config, and checkout handoff
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 04-04: Integrate server-owned PayPal create/capture/recheck flow
+- [ ] 04-07: Implement VietQR instructions, evidence, and audited admin confirmation
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 04-05: Build localized customer PayPal order and verifying-return experience
+- [ ] 04-06: Verify PayPal webhooks, idempotency, reconciliation, and failure handling
+- [ ] 04-08: Build customer VietQR instructions and responsive payment status journeys
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 04-09: Build admin order queue, detail, timeline, provider evidence, and VietQR decision UI
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 04-10: Run schema push, provider readiness checkpoints, CI, security, concurrency, and lifecycle verification
 
 ### Phase 5: Fulfillment and Purchase Access
 
@@ -255,7 +278,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
 | 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
-| 4. Trusted Payments and Orders | 0/5 | Not started | - |
+| 4. Trusted Payments and Orders | 0/10 | Planned | - |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |
 | 6. Customer Retention and Trust | 0/4 | Not started | - |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |
