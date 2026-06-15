@@ -140,4 +140,16 @@ describe('cart quote hydration', () => {
       expect.objectContaining({type: 'availability_changed', previousStatus: 'ready', currentStatus: 'unavailable'})
     ]);
   });
+
+  it('marks digital-only carts as not requiring shipping before checkout', async () => {
+    const quote = await quoteCartIntent({
+      locale: 'en',
+      market: 'intl',
+      lines: [intent({productId: pdf.productId, marketAtAdd: 'intl'})],
+      catalog: async () => [{...pdf, currencyCode: 'USD', priceMinor: 1000}]
+    });
+
+    expect(quote.shipping).toEqual({status: 'no_shipping_required', amountMinor: 0, countryCode: null});
+    expect(quote.status).toBe('ready');
+  });
 });

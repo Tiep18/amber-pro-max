@@ -10,6 +10,11 @@ export type CreateShippingProfileResult =
   | {status: 'invalid'; code: string}
   | {status: 'error'; code: 'create_failed'};
 
+export type DeactivateShippingProfileResult =
+  | {status: 'deactivated'}
+  | {status: 'invalid'; code: string}
+  | {status: 'error'; code: 'deactivate_failed'};
+
 const shippingProfileFormSchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(500).optional(),
@@ -17,6 +22,10 @@ const shippingProfileFormSchema = z.object({
   currencyCode: z.enum(['VND', 'USD']),
   firstItemFee: z.string().trim().min(1),
   additionalItemFee: z.string().trim().min(1)
+});
+
+const deactivateShippingProfileSchema = z.object({
+  profileId: z.guid()
 });
 
 function moneyToMinor(value: string, currencyCode: 'VND' | 'USD') {
@@ -71,4 +80,32 @@ export async function createShippingProfileAction(formData: FormData): Promise<C
 
   revalidatePath('/admin/shipping');
   return {status: 'created', profileId: profile.id};
+}
+
+export async function deactivateShippingProfileAction(profileId: string): Promise<DeactivateShippingProfileResult> {
+  await requireAdmin();
+  const parsed = deactivateShippingProfileSchema.safeParse({profileId});
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_shipping_profile'};
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {error: profileError} = await supabase
+    .from('shipping_profiles')
+    .update({active: false, updated_at: new Date().toISOString()})
+    .eq('id', parsed.data.profileId);
+  if (profileError) {
+    return {status: 'error', code: 'deactivate_failed'};
+  }
+
+  const {error: ruleError} = await supabase
+    .from('shipping_rules')
+    .update({active: false, updated_at: new Date().toISOString()})
+    .eq('profile_id', parsed.data.profileId);
+  if (ruleError) {
+    return {status: 'error', code: 'deactivate_failed'};
+  }
+
+  revalidatePath('/admin/shipping');
+  return {status: 'deactivated'};
 }

@@ -1,6 +1,6 @@
 begin;
 
-select plan(12);
+select plan(13);
 
 select has_table('public', 'shipping_profiles', 'shipping profiles table exists');
 select has_table('public', 'shipping_rules', 'shipping rules table exists');
@@ -35,6 +35,13 @@ select throws_ok(
   null,
   null,
   'negative additional item fee is rejected'
+);
+
+select has_function(
+  'public',
+  'get_checkout_shipping_rules',
+  array['uuid[]', 'uuid[]', 'text'],
+  'checkout quote can fetch rule data through a constrained RPC'
 );
 
 select * from finish();

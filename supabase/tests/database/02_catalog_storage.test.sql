@@ -237,18 +237,22 @@ select lives_ok(
   'admins can upload pattern PDFs'
 );
 
-select lives_ok(
+select throws_ok(
   $$delete from storage.objects
     where bucket_id = 'product-media'
       and name = 'products/admin/image.png'$$,
-  'admins can delete product media'
+  '42501',
+  null,
+  'direct SQL delete for product media is blocked; admins must use Storage API'
 );
 
-select lives_ok(
+select throws_ok(
   $$delete from storage.objects
     where bucket_id = 'pattern-pdfs'
       and name = 'patterns/admin/pattern.pdf'$$,
-  'admins can delete pattern PDFs'
+  '42501',
+  null,
+  'direct SQL delete for pattern PDFs is blocked; admins must use Storage API'
 );
 
 select finish();

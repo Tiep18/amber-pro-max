@@ -2,6 +2,7 @@ import {formatMoney, type CurrencyCode} from '@/catalog/money';
 import {requireAdmin} from '@/auth/guards';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {DeactivateShippingProfileButton} from '@/components/admin/commerce/deactivate-shipping-profile-button';
 import {ShippingProfileForm} from '@/components/admin/commerce/shipping-profile-form';
 
 export const dynamic = 'force-dynamic';
@@ -49,11 +50,15 @@ export default async function AdminShippingPage() {
                 <div className="grid gap-2">
                   {((profile.shipping_rules ?? []) as ShippingRuleRow[]).map((rule) => (
                     <p key={rule.id} className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-3 py-2 text-sm">
-                      {rule.country_code} · {rule.currency_code} · first{' '}
-                      {formatMoney({amountMinor: rule.first_item_fee_minor, currencyCode: rule.currency_code})} · additional{' '}
+                      {rule.country_code} / {rule.currency_code} / first{' '}
+                      {formatMoney({amountMinor: rule.first_item_fee_minor, currencyCode: rule.currency_code})} / additional{' '}
                       {formatMoney({amountMinor: rule.additional_item_fee_minor, currencyCode: rule.currency_code})}
+                      {rule.active ? '' : ' / inactive'}
                     </p>
                   ))}
+                </div>
+                <div className="mt-4">
+                  <DeactivateShippingProfileButton profileId={profile.id} profileName={profile.name} disabled={!profile.active} />
                 </div>
               </CardContent>
             </Card>

@@ -305,15 +305,9 @@ export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<Ca
   const subtotalMinor = payableLines.reduce((total, line) => total + line.lineSubtotalMinor, 0);
   const excludedSubtotalMinor = lines.reduce((total, line) => total + line.excludedSubtotalMinor, 0);
   const blocked = lines.some((line) => line.status === 'unavailable' || line.status === 'invalid_variant');
-  const quoteWithoutHash: Omit<CartQuote, 'hash'> = {
-    status: lines.length === 0 ? 'empty' : blocked ? 'blocked' : 'ready',
-    locale: input.locale,
-    market: input.market,
-    currencyCode: payableLines[0]?.currencyCode ?? lines[0]?.currencyCode ?? null,
-    lines,
-    subtotalMinor,
-    excludedSubtotalMinor,
-    shipping: input.destinationCountryCode
+  const hasPhysicalLines = payableLines.some((line) => line.fulfillmentType === 'physical');
+  const shipping = hasPhysicalLines
+    ? input.destinationCountryCode
       ? calculateShippingQuote({
           countryCode: input.destinationCountryCode,
           currencyCode: payableLines[0]?.currencyCode ?? lines[0]?.currencyCode ?? 'USD',
@@ -333,7 +327,18 @@ export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<Ca
               null
           }))
         })
-      : {status: 'not_calculated', amountMinor: 0},
+      : {status: 'not_calculated' as const, amountMinor: 0 as const}
+    : {status: 'no_shipping_required' as const, amountMinor: 0 as const, countryCode: input.destinationCountryCode ?? null};
+
+  const quoteWithoutHash: Omit<CartQuote, 'hash'> = {
+    status: lines.length === 0 ? 'empty' : blocked ? 'blocked' : 'ready',
+    locale: input.locale,
+    market: input.market,
+    currencyCode: payableLines[0]?.currencyCode ?? lines[0]?.currencyCode ?? null,
+    lines,
+    subtotalMinor,
+    excludedSubtotalMinor,
+    shipping,
     totalMinor: subtotalMinor,
     changes: lines.flatMap((line) => (line.change ? [line.change] : [])),
     quotedAt
