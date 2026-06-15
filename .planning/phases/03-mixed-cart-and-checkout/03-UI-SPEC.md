@@ -1,10 +1,11 @@
 ---
 phase: 03
 slug: mixed-cart-and-checkout
-status: draft
+status: approved
 shadcn_initialized: true
 preset: new-york
 created: 2026-06-15
+reviewed_at: 2026-06-15
 ---
 
 # Phase 03 - Hợp đồng thiết kế UI
@@ -812,4 +813,4 @@ Quy tắc:
 - [ ] Dimension 5 Spacing: PASS
 - [ ] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-06-15
