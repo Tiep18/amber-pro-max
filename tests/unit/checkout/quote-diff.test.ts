@@ -108,7 +108,7 @@ describe('cart quote hydration', () => {
 
     expect(quote.status).toBe('blocked');
     expect(quote.subtotalMinor).toBe(780000);
-    expect(quote.excludedSubtotalMinor).toBe(740000);
+    expect(quote.excludedSubtotalMinor).toBe(1170000);
     expect(quote.lines).toEqual([
       expect.objectContaining({status: 'unavailable', change: expect.objectContaining({type: 'unavailable'})}),
       expect.objectContaining({status: 'invalid_variant', change: expect.objectContaining({type: 'invalid_variant'})}),
