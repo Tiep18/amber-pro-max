@@ -35,8 +35,8 @@
 - [x] **SHIP-01**: Admin can create reusable shipping profiles with destination-based rules.
 - [x] **SHIP-02**: Shipping profiles can define first-item and additional-item fees for physical products.
 - [x] **SHIP-03**: Checkout calculates shipping only for physical order lines using the selected destination and attached profiles.
-- [ ] **SHIP-04**: Customer can submit a non-binding exception request when a physical product is unavailable for the destination market.
-- [ ] **SHIP-05**: Admin can approve or reject an exception request before the customer can place the exceptional order.
+- [x] **SHIP-04**: Customer can submit a non-binding exception request when a physical product is unavailable for the destination market.
+- [x] **SHIP-05**: Admin can approve or reject an exception request before the customer can place the exceptional order.
 
 ### Inventory and Orders
 
@@ -171,8 +171,8 @@
 | SHIP-01 | Phase 3 | Complete |
 | SHIP-02 | Phase 3 | Complete |
 | SHIP-03 | Phase 3 | Complete |
-| SHIP-04 | Phase 3 | Pending |
-| SHIP-05 | Phase 3 | Pending |
+| SHIP-04 | Phase 3 | Complete |
+| SHIP-05 | Phase 3 | Complete |
 | INV-01 | Phase 2 | Complete |
 | INV-02 | Phase 3 | Complete |
 | INV-03 | Phase 3 | Complete |

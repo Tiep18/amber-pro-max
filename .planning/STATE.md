@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-06-15T06:59:47.145Z"
-last_activity: 2026-06-15 -- Completed Phase 03 Plan 04 checkout order shell and inventory reservations
+stopped_at: Completed 03-05-PLAN.md
+last_updated: "2026-06-15T07:15:12.810Z"
+last_activity: 2026-06-15 -- Completed Phase 03 Plan 05 market exception requests and grants
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 21
-  completed_plans: 20
-  percent: 95
+  completed_plans: 21
+  percent: 100
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** Customers in Vietnam and international markets can reliably discover, purchase, pay for, and receive eligible digital and physical products through one branded storefront.
-**Current focus:** Phase 03 - mixed-cart-and-checkout
+**Current focus:** Phase 04 - trusted-payments-and-orders
 
 ## Current Position
 
 Phase: 3
-Plan: 03-05 next
-Status: Executing Phase 03
-Last activity: 2026-06-15 -- Completed Phase 03 Plan 04 checkout order shell and inventory reservations
+Plan: Phase 03 complete
+Status: Ready for Phase 04
+Last activity: 2026-06-15 -- Completed Phase 03 Plan 05 market exception requests and grants
 
-Progress: [██████████] 95%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 20
+- Total plans completed: 21
 - Average duration: 26 min
 - Total execution time: 5 hours 9 min
 
@@ -71,6 +71,7 @@ Progress: [██████████] 95%
 | Phase 03 P02 | 64 min | 3 tasks | 29 files |
 | Phase 03 P03 | 20 min | 2 tasks | 18 files |
 | Phase 03 P04 | 31 min | 3 tasks | 11 files |
+| Phase 03 P05 | 42 min | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,7 @@ Recent decisions affecting current work:
 - [Phase 02]: Inventory ownership remains mutually exclusive: non-variant physical products use product inventory and variant products use only variant inventory.
 - [Phase 03]: Guest cart storage remains intent-only; server quote hydration owns all display price, title, availability, and line status data.
 - [Phase 03]: Plan 03-01 intentionally stops before shipping, payment provider UI, payment confirmation, reservations, order creation, and fulfillment.
+- [Phase 03]: Market exceptions are non-binding until checkout submit; approved grants are hashed, scoped, expiring, and consumed inside the submit_checkout order/reservation transaction.
 
 ### Pending Todos
 
@@ -112,6 +114,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-15T06:59:46.887Z
-Stopped at: Completed 03-04-PLAN.md
+Last session: 2026-06-15T07:15:12.540Z
+Stopped at: Completed 03-05-PLAN.md
 Resume file: None

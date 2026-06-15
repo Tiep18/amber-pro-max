@@ -13,7 +13,7 @@ The project grows through seven vertical MVP phases. Each phase leaves a usable 
 
 - [x] **Phase 1: Secure Bilingual Foundation** - Customers and admins can enter a localized application with correctly protected identities and data. (completed 2026-06-12)
 - [x] **Phase 2: Market-Aware Catalog** - Admin can publish products and customers can discover eligible products with correct market prices and variants. (completed 2026-06-13)
-- [ ] **Phase 3: Mixed Cart and Checkout** - Customers can build a mixed order with authoritative pricing, shipping, discounts, inventory reservation, and exception handling.
+- [x] **Phase 3: Mixed Cart and Checkout** - Customers can build a mixed order with authoritative pricing, shipping, discounts, inventory reservation, and exception handling. (completed 2026-06-15)
 - [ ] **Phase 4: Trusted Payments and Orders** - PayPal and VietQR safely move orders through auditable, idempotent payment and inventory states.
 - [ ] **Phase 5: Fulfillment and Purchase Access** - Paid customers receive secure PDFs and can follow physical fulfillment without conflating the two workflows.
 - [ ] **Phase 6: Customer Retention and Trust** - Customers can manage repeat-purchase data, wishlists, reviews, and newsletter relationships.
@@ -144,7 +144,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 03-05: Add exception-request workflow and concurrent checkout verification
+- [x] 03-05: Add exception-request workflow and concurrent checkout verification
 
 ### Phase 4: Trusted Payments and Orders
 
@@ -254,7 +254,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 |-------|----------------|--------|-----------|
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
 | 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
-| 3. Mixed Cart and Checkout | 4/5 | In Progress|  |
+| 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |
 | 6. Customer Retention and Trust | 0/4 | Not started | - |
