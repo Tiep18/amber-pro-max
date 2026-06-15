@@ -103,33 +103,42 @@ export type Database = {
         Row: {
           created_at: string
           expires_at: string
+          finalized_at: string | null
           id: string
           inventory_record_id: string
           order_id: string
           order_line_id: string
+          payment_transition_id: string | null
           quantity_reserved: number
+          release_reason: string | null
           released_at: string | null
           status: string
         }
         Insert: {
           created_at?: string
           expires_at: string
+          finalized_at?: string | null
           id?: string
           inventory_record_id: string
           order_id: string
           order_line_id: string
+          payment_transition_id?: string | null
           quantity_reserved: number
+          release_reason?: string | null
           released_at?: string | null
           status?: string
         }
         Update: {
           created_at?: string
           expires_at?: string
+          finalized_at?: string | null
           id?: string
           inventory_record_id?: string
           order_id?: string
           order_line_id?: string
+          payment_transition_id?: string | null
           quantity_reserved?: number
+          release_reason?: string | null
           released_at?: string | null
           status?: string
         }
@@ -149,10 +158,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "checkout_inventory_reservations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["order_id"]
+          },
+          {
             foreignKeyName: "checkout_inventory_reservations_order_line_id_fkey"
             columns: ["order_line_id"]
             isOneToOne: false
             referencedRelation: "checkout_order_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_inventory_reservations_payment_transition_id_fkey"
+            columns: ["payment_transition_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transitions"
             referencedColumns: ["id"]
           },
         ]
@@ -227,6 +250,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "checkout_order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["order_id"]
+          },
+          {
             foreignKeyName: "checkout_order_lines_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -249,6 +279,7 @@ export type Database = {
           contact_email: string
           created_at: string
           currency_code: string
+          digital_fulfillment_status: string
           discount_minor: number
           guest_secret_hash: string | null
           id: string
@@ -257,10 +288,19 @@ export type Database = {
           locale: string
           market: string
           order_number: string
+          order_status: string
           owner_user_id: string | null
+          paid_at: string | null
+          paid_gate_status: string
           payment_intent: string
+          payment_status: string
+          payment_terminal_at: string | null
+          physical_fulfillment_status: string
           quote_snapshot: Json
+          refund_status: string
+          refunded_amount_minor: number
           reservation_expires_at: string
+          review_reason: string | null
           shipping_minor: number
           status: string
           subtotal_minor: number
@@ -273,6 +313,7 @@ export type Database = {
           contact_email: string
           created_at?: string
           currency_code: string
+          digital_fulfillment_status?: string
           discount_minor?: number
           guest_secret_hash?: string | null
           id?: string
@@ -281,10 +322,19 @@ export type Database = {
           locale: string
           market: string
           order_number?: string
+          order_status?: string
           owner_user_id?: string | null
+          paid_at?: string | null
+          paid_gate_status?: string
           payment_intent: string
+          payment_status?: string
+          payment_terminal_at?: string | null
+          physical_fulfillment_status?: string
           quote_snapshot: Json
+          refund_status?: string
+          refunded_amount_minor?: number
           reservation_expires_at: string
+          review_reason?: string | null
           shipping_minor?: number
           status?: string
           subtotal_minor: number
@@ -297,6 +347,7 @@ export type Database = {
           contact_email?: string
           created_at?: string
           currency_code?: string
+          digital_fulfillment_status?: string
           discount_minor?: number
           guest_secret_hash?: string | null
           id?: string
@@ -305,10 +356,19 @@ export type Database = {
           locale?: string
           market?: string
           order_number?: string
+          order_status?: string
           owner_user_id?: string | null
+          paid_at?: string | null
+          paid_gate_status?: string
           payment_intent?: string
+          payment_status?: string
+          payment_terminal_at?: string | null
+          physical_fulfillment_status?: string
           quote_snapshot?: Json
+          refund_status?: string
+          refunded_amount_minor?: number
           reservation_expires_at?: string
+          review_reason?: string | null
           shipping_minor?: number
           status?: string
           subtotal_minor?: number
@@ -414,6 +474,84 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      commerce_audit_events: {
+        Row: {
+          actor_id: string | null
+          actor_type: string
+          created_at: string
+          event_key: string
+          event_type: string
+          id: string
+          metadata: Json
+          order_id: string | null
+          payment_id: string | null
+          payment_transition_id: string | null
+          source: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_type: string
+          created_at?: string
+          event_key: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          payment_id?: string | null
+          payment_transition_id?: string | null
+          source: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string
+          event_key?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          payment_id?: string | null
+          payment_transition_id?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commerce_audit_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commerce_audit_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "commerce_audit_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "commerce_audit_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commerce_audit_events_payment_transition_id_fkey"
+            columns: ["payment_transition_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transitions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       discount_code_categories: {
         Row: {
@@ -753,6 +891,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "market_exception_grants_consumed_order_id_fkey"
+            columns: ["consumed_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["order_id"]
+          },
+          {
             foreignKeyName: "market_exception_grants_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -841,6 +986,226 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_variants"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_events: {
+        Row: {
+          event_type: string
+          id: string
+          payload_digest: string | null
+          payment_id: string
+          provider: string
+          provider_event_id: string | null
+          received_at: string
+          sanitized_facts: Json
+          source: string
+          verification_status: string
+        }
+        Insert: {
+          event_type: string
+          id?: string
+          payload_digest?: string | null
+          payment_id: string
+          provider: string
+          provider_event_id?: string | null
+          received_at?: string
+          sanitized_facts?: Json
+          source: string
+          verification_status: string
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          payload_digest?: string | null
+          payment_id?: string
+          provider?: string
+          provider_event_id?: string | null
+          received_at?: string
+          sanitized_facts?: Json
+          source?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_transitions: {
+        Row: {
+          actor_id: string | null
+          actor_type: string
+          created_at: string
+          from_status: string
+          id: string
+          inventory_effect: string
+          metadata: Json
+          payment_event_id: string | null
+          payment_id: string
+          reason: string | null
+          result: string
+          source: string
+          to_status: string
+          transition_key: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string
+          from_status: string
+          id?: string
+          inventory_effect?: string
+          metadata?: Json
+          payment_event_id?: string | null
+          payment_id: string
+          reason?: string | null
+          result: string
+          source: string
+          to_status: string
+          transition_key: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string
+          from_status?: string
+          id?: string
+          inventory_effect?: string
+          metadata?: Json
+          payment_event_id?: string | null
+          payment_id?: string
+          reason?: string | null
+          result?: string
+          source?: string
+          to_status?: string
+          transition_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transitions_payment_event_id_fkey"
+            columns: ["payment_event_id"]
+            isOneToOne: false
+            referencedRelation: "payment_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transitions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_transitions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount_minor: number
+          created_at: string
+          currency_code: string
+          digital_fulfillment_status: string
+          id: string
+          order_id: string
+          paid_at: string | null
+          paid_gate_opened_at: string | null
+          pending_deadline_at: string
+          physical_fulfillment_status: string
+          provider: string
+          provider_capture_id: string | null
+          provider_order_id: string | null
+          provider_reference: string | null
+          provider_request_id: string | null
+          refund_status: string
+          refunded_amount_minor: number
+          request_id: string | null
+          review_reason: string | null
+          sanitized_evidence: Json
+          status: string
+          terminal_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_minor: number
+          created_at?: string
+          currency_code: string
+          digital_fulfillment_status?: string
+          id?: string
+          order_id: string
+          paid_at?: string | null
+          paid_gate_opened_at?: string | null
+          pending_deadline_at: string
+          physical_fulfillment_status?: string
+          provider: string
+          provider_capture_id?: string | null
+          provider_order_id?: string | null
+          provider_reference?: string | null
+          provider_request_id?: string | null
+          refund_status?: string
+          refunded_amount_minor?: number
+          request_id?: string | null
+          review_reason?: string | null
+          sanitized_evidence?: Json
+          status?: string
+          terminal_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_minor?: number
+          created_at?: string
+          currency_code?: string
+          digital_fulfillment_status?: string
+          id?: string
+          order_id?: string
+          paid_at?: string | null
+          paid_gate_opened_at?: string | null
+          pending_deadline_at?: string
+          physical_fulfillment_status?: string
+          provider?: string
+          provider_capture_id?: string | null
+          provider_order_id?: string | null
+          provider_reference?: string | null
+          provider_request_id?: string | null
+          refund_status?: string
+          refunded_amount_minor?: number
+          request_id?: string | null
+          review_reason?: string | null
+          sanitized_evidence?: Json
+          status?: string
+          terminal_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["order_id"]
           },
         ]
       }
@@ -1528,9 +1893,108 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_order_timelines: {
+        Row: {
+          actor_id: string | null
+          actor_type: string | null
+          created_at: string | null
+          event_type: string | null
+          order_id: string | null
+          payment_id: string | null
+          payment_transition_id: string | null
+          sanitized_facts: Json | null
+          source: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_type?: string | null
+          created_at?: string | null
+          event_type?: string | null
+          order_id?: string | null
+          payment_id?: string | null
+          payment_transition_id?: string | null
+          sanitized_facts?: Json | null
+          source?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_type?: string | null
+          created_at?: string | null
+          event_type?: string | null
+          order_id?: string | null
+          payment_id?: string | null
+          payment_transition_id?: string | null
+          sanitized_facts?: Json | null
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commerce_audit_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commerce_audit_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "commerce_audit_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "commerce_audit_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commerce_audit_events_payment_transition_id_fkey"
+            columns: ["payment_transition_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_payment_statuses: {
+        Row: {
+          contact_email: string | null
+          created_at: string | null
+          currency_code: string | null
+          customer_payment_status: string | null
+          digital_fulfillment_status: string | null
+          fulfillment_gate_status: string | null
+          guest_secret_hash: string | null
+          locale: string | null
+          market: string | null
+          order_id: string | null
+          order_number: string | null
+          owner_user_id: string | null
+          payment_id: string | null
+          payment_status: string | null
+          physical_fulfillment_status: string | null
+          provider: string | null
+          refund_status: string | null
+          refunded_amount_minor: number | null
+          reservation_expires_at: string | null
+          review_reason: string | null
+          total_minor: number | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      apply_payment_transition: { Args: { p_payload: Json }; Returns: Json }
       catalog_publish_issues: {
         Args: { target_product_id: string }
         Returns: {
@@ -1557,6 +2021,27 @@ export type Database = {
       create_market_exception_request: {
         Args: { p_payload: Json }
         Returns: Json
+      }
+      expire_due_payments: { Args: { p_limit?: number }; Returns: Json }
+      get_admin_order_timeline: {
+        Args: { p_order_id: string }
+        Returns: {
+          actor_id: string | null
+          actor_type: string | null
+          created_at: string | null
+          event_type: string | null
+          order_id: string | null
+          payment_id: string | null
+          payment_transition_id: string | null
+          sanitized_facts: Json | null
+          source: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "admin_order_timelines"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_catalog_category_by_slug: {
         Args: { p_locale: string; p_market: string; p_slug: string }
@@ -1656,6 +2141,10 @@ export type Database = {
           product_id: string
           variant_id: string
         }[]
+      }
+      get_order_payment_status: {
+        Args: { p_guest_secret_hash?: string; p_order_number: string }
+        Returns: Json
       }
       list_catalog_facets: {
         Args: { p_locale: string; p_market: string }

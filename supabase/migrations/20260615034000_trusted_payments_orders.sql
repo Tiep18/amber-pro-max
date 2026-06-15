@@ -498,8 +498,8 @@ declare
   event_type text := coalesce(nullif(btrim(coalesce(p_payload->>'eventType', '')), ''), target_status);
   verification_status text := coalesce(nullif(btrim(coalesce(p_payload->>'verificationStatus', '')), ''), 'verified');
   payload_digest text := nullif(btrim(coalesce(p_payload->>'payloadDigest', '')), '');
-  release_reason text := nullif(btrim(coalesce(p_payload->>'releaseReason', '')), '');
-  review_reason text := coalesce(nullif(btrim(coalesce(p_payload->>'reviewReason', '')), ''), 'late_payment_detected');
+  release_reason_value text := nullif(btrim(coalesce(p_payload->>'releaseReason', '')), '');
+  review_reason_value text := coalesce(nullif(btrim(coalesce(p_payload->>'reviewReason', '')), ''), 'late_payment_detected');
   amount_minor_value bigint := nullif(p_payload->>'amountMinor', '')::bigint;
   currency_code_value text := nullif(btrim(coalesce(p_payload->>'CurrencyCode', p_payload->>'currencyCode', '')), '');
   actor_type text := case
@@ -527,8 +527,8 @@ declare
       'bankReference', nullif(p_payload->>'bankReference', ''),
       'receivedAmountMinor', nullif(p_payload->>'receivedAmountMinor', ''),
       'receivedAt', nullif(p_payload->>'receivedAt', ''),
-      'releaseReason', release_reason,
-      'reviewReason', review_reason
+      'releaseReason', release_reason_value,
+      'reviewReason', review_reason_value
     ));
 begin
   if jsonb_typeof(p_payload) <> 'object'
@@ -684,11 +684,11 @@ begin
   elsif payment_row.status in ('failed', 'cancelled', 'rejected', 'expired') and target_status = 'paid' then
     result_status := 'review_required';
     effective_status := 'review_required';
-    review_reason := 'late_payment_detected';
+    review_reason_value := 'late_payment_detected';
   elsif target_status = 'paid' and payment_row.pending_deadline_at <= now_ts then
     result_status := 'review_required';
     effective_status := 'review_required';
-    review_reason := 'late_payment_detected';
+    review_reason_value := 'late_payment_detected';
   elsif payment_row.status in ('failed', 'cancelled', 'rejected', 'expired', 'review_required') then
     result_status := 'stale';
     effective_status := payment_row.status;
@@ -745,7 +745,7 @@ begin
     payment_row.status,
     effective_status,
     result_status,
-    coalesce(release_reason, review_reason),
+    coalesce(release_reason_value, review_reason_value),
     actor_type,
     actor_id,
     inventory_effect,
@@ -764,7 +764,7 @@ begin
     update public.checkout_inventory_reservations
     set status = case when inventory_effect = 'expired' then 'expired' else 'released' end,
       released_at = now_ts,
-      release_reason = coalesce(release_reason, case when inventory_effect = 'expired' then 'reservation_deadline_expired' else 'payment_terminal' end),
+      release_reason = coalesce(release_reason_value, case when inventory_effect = 'expired' then 'reservation_deadline_expired' else 'payment_terminal' end),
       payment_transition_id = transition_id
     where order_id = order_row.id
       and status = 'active';
@@ -795,7 +795,7 @@ begin
       then 'not_required'
       else 'blocked'
     end,
-    review_reason = case when effective_status = 'review_required' then review_reason else review_reason end,
+    review_reason = case when effective_status = 'review_required' then review_reason_value else payments.review_reason end,
     updated_at = now_ts
   where id = payment_row.id;
 
@@ -828,7 +828,7 @@ begin
     physical_fulfillment_status = (
       select p.physical_fulfillment_status from public.payments p where p.id = payment_row.id
     ),
-    review_reason = case when effective_status = 'review_required' then review_reason else review_reason end,
+    review_reason = case when effective_status = 'review_required' then review_reason_value else checkout_orders.review_reason end,
     updated_at = now_ts
   where id = order_row.id;
 
