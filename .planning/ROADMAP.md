@@ -136,7 +136,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 03-03: Implement discount administration, validation, and order allocation
+- [x] 03-03: Implement discount administration, validation, and order allocation
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -254,7 +254,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 |-------|----------------|--------|-----------|
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
 | 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
-| 3. Mixed Cart and Checkout | 2/5 | In Progress|  |
+| 3. Mixed Cart and Checkout | 3/5 | In Progress|  |
 | 4. Trusted Payments and Orders | 0/5 | Not started | - |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |
 | 6. Customer Retention and Trust | 0/4 | Not started | - |
