@@ -27,9 +27,9 @@
 
 ### Cart, Pricing, and Shipping
 
-- [ ] **CART-01**: Customer can add digital and physical products to one cart.
-- [ ] **CART-02**: Customer can update quantities, variants, and remove cart items.
-- [ ] **CART-03**: Server recalculates product prices, discounts, shipping fees, and order totals from authoritative records.
+- [x] **CART-01**: Customer can add digital and physical products to one cart.
+- [x] **CART-02**: Customer can update quantities, variants, and remove cart items.
+- [x] **CART-03**: Server recalculates product prices, discounts, shipping fees, and order totals from authoritative records.
 - [ ] **CART-04**: Customer can check out as a guest or while signed in.
 - [ ] **CART-05**: System stores an immutable snapshot of product, variant, market, currency, price, discount, and shipping data on each order line.
 - [ ] **SHIP-01**: Admin can create reusable shipping profiles with destination-based rules.
@@ -163,9 +163,9 @@
 | CAT-06 | Phase 2 | Complete |
 | CAT-07 | Phase 2 | Complete |
 | CAT-08 | Phase 2 | Complete |
-| CART-01 | Phase 3 | Pending |
-| CART-02 | Phase 3 | Pending |
-| CART-03 | Phase 3 | Pending |
+| CART-01 | Phase 3 | Complete |
+| CART-02 | Phase 3 | Complete |
+| CART-03 | Phase 3 | Complete |
 | CART-04 | Phase 3 | Pending |
 | CART-05 | Phase 3 | Pending |
 | SHIP-01 | Phase 3 | Pending |

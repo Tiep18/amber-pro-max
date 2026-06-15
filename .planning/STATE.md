@@ -1,17 +1,17 @@
----
+﻿---
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 03 planning complete
-last_updated: "2026-06-15T03:48:30.622Z"
-last_activity: 2026-06-15 -- Phase 03 planning complete
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-06-15T04:21:15.839Z"
+last_activity: 2026-06-15 -- Completed Phase 03 Plan 01 mixed cart and server-owned pricing pipeline
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 16
-  completed_plans: 16
-  percent: 29
+  total_plans: 21
+  completed_plans: 17
+  percent: 81
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** Customers in Vietnam and international markets can reliably discover, purchase, pay for, and receive eligible digital and physical products through one branded storefront.
-**Current focus:** Phase 02 — market-aware-catalog
+**Current focus:** Phase 03 - mixed-cart-and-checkout
 
 ## Current Position
 
 Phase: 3
-Plan: 5 plans ready
-Status: Ready to execute
-Last activity: 2026-06-15 -- Phase 03 planning complete
+Plan: 03-02 next
+Status: Executing Phase 03
+Last activity: 2026-06-15 -- Completed Phase 03 Plan 01 mixed cart and server-owned pricing pipeline
 
-Progress: [████████░░] 75%
+Progress: [########--] 81%
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Progress: [████████░░] 75%
 | Phase 02 P06 | 52 min | 2 tasks | 5 files |
 | Phase 02 P07 | 41 min | 2 tasks | 17 files |
 | Phase 02 P08 | 96 min | 3 tasks | 18 files |
+| Phase 03 P01 | 24 min | 3 tasks | 23 files |
 
 ## Accumulated Context
 
@@ -79,12 +80,14 @@ Recent decisions affecting current work:
 - Architecture: Use a Next.js/Supabase modular monolith.
 - Commerce: Keep payment, digital fulfillment, and physical fulfillment states separate.
 - Payments: Use PayPal internationally and manually confirmed VietQR in Vietnam.
-- [Phase 02]: Catalog base tables remain private to admins; later plans expose market-safe public projections. — Prevents drafts, inventory, and private PDF metadata from leaking through direct Data API access.
-- [Phase 02]: Inventory uses XOR product-or-variant ownership with trigger-enforced cross-table rules. — Enforces physical inventory at exactly one ownership level for both variant and non-variant products.
-- [Phase 02]: Catalog publish functions are security invokers over private.is_admin-backed RLS. — Keeps database-owned admin authorization authoritative without exposed security-definer RPCs.
+- [Phase 02]: Catalog base tables remain private to admins; later plans expose market-safe public projections. â€” Prevents drafts, inventory, and private PDF metadata from leaking through direct Data API access.
+- [Phase 02]: Inventory uses XOR product-or-variant ownership with trigger-enforced cross-table rules. â€” Enforces physical inventory at exactly one ownership level for both variant and non-variant products.
+- [Phase 02]: Catalog publish functions are security invokers over private.is_admin-backed RLS. â€” Keeps database-owned admin authorization authoritative without exposed security-definer RPCs.
 - [Phase 02]: Variant creation requires explicit variant IDs, SKUs, attributes, display order, optional media, and admin-submitted stock; no hidden combinations are generated.
 - [Phase 02]: Variant price overrides are optional rows; missing override means parent offer fallback, and saved overrides must preserve market currency.
 - [Phase 02]: Inventory ownership remains mutually exclusive: non-variant physical products use product inventory and variant products use only variant inventory.
+- [Phase 03]: Guest cart storage remains intent-only; server quote hydration owns all display price, title, availability, and line status data.
+- [Phase 03]: Plan 03-01 intentionally stops before shipping, payment provider UI, payment confirmation, reservations, order creation, and fulfillment.
 
 ### Pending Todos
 
@@ -106,6 +109,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-15T03:37:43.937Z
-Stopped at: Phase 3 paused before planning; handoff saved
-Resume file: .planning/phases/03-mixed-cart-and-checkout/.continue-here.md
+Last session: 2026-06-15T04:21:15.832Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: None
+
