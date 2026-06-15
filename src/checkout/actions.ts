@@ -24,9 +24,12 @@ export async function refreshCheckoutQuoteAction(input: unknown): Promise<Checko
 
   try {
     const client = await createSupabaseServerClient();
+    const {
+      data: {user}
+    } = await client.auth.getUser();
     const destinationCountryCode = parsed.data.destinationCountryCode?.trim().toUpperCase() || null;
     const market = destinationCountryCode ? suggestMarketFromCountry(destinationCountryCode) : parsed.data.market;
-    const quote = await quoteCartIntent({...parsed.data, market, destinationCountryCode, client});
+    const quote = await quoteCartIntent({...parsed.data, market, destinationCountryCode, userId: user?.id ?? null, client});
     return {
       status: 'success',
       quote,

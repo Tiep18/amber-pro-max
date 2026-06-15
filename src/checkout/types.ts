@@ -13,6 +13,7 @@ export const quoteCartInputSchema = z.object({
   market: z.enum(['vn', 'intl']),
   lines: z.array(z.unknown()).max(100),
   destinationCountryCode: z.string().trim().max(2).optional().nullable(),
+  discountCode: z.string().trim().max(40).optional().nullable(),
   priorAcceptedQuoteHash: z.string().max(256).optional().nullable()
 });
 
@@ -23,7 +24,9 @@ export type QuoteCartInput = {
   market: MarketCode;
   lines: unknown[];
   destinationCountryCode?: string | null;
+  discountCode?: string | null;
   priorAcceptedQuoteHash?: string | null;
+  userId?: string | null;
   client?: CheckoutCatalogClient;
 };
 
@@ -53,6 +56,9 @@ export type CartQuoteLine = {
   excludedSubtotalMinor: number;
   variantLabel: string | null;
   imageUrl: string | null;
+  categoryIds: string[];
+  collectionIds: string[];
+  discountAllocationMinor: number;
   change: CartQuoteLineChange | null;
 };
 
@@ -64,6 +70,10 @@ export type CartQuote = {
   lines: CartQuoteLine[];
   subtotalMinor: number;
   excludedSubtotalMinor: number;
+  discount:
+    | {status: 'not_applied'; amountMinor: 0; code?: null}
+    | {status: 'applied'; code: string; amountMinor: number; allocations: {lineId: string; amountMinor: number}[]}
+    | {status: 'not_eligible'; code: string; amountMinor: 0; reason: string};
   shipping:
     | {status: 'not_calculated'; amountMinor: 0; countryCode?: null}
     | {status: 'no_shipping_required'; amountMinor: 0; countryCode: string | null}

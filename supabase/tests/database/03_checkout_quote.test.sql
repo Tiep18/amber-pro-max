@@ -1,6 +1,6 @@
 begin;
 
-select plan(13);
+select plan(25);
 
 select has_table('public', 'shipping_profiles', 'shipping profiles table exists');
 select has_table('public', 'shipping_rules', 'shipping rules table exists');
@@ -42,6 +42,45 @@ select has_function(
   'get_checkout_shipping_rules',
   array['uuid[]', 'uuid[]', 'text'],
   'checkout quote can fetch rule data through a constrained RPC'
+);
+
+select has_table('public', 'discount_codes', 'discount codes table exists');
+select has_table('public', 'discount_code_customers', 'discount customer restrictions table exists');
+select has_table('public', 'discount_code_products', 'discount product restrictions table exists');
+select has_table('public', 'discount_code_categories', 'discount category restrictions table exists');
+select has_table('public', 'discount_code_collections', 'discount collection restrictions table exists');
+select has_table('public', 'discount_redemptions', 'discount redemption tracking table exists');
+
+select col_type_is('public', 'discount_codes', 'discount_type', 'text', 'discount type is constrained text');
+select col_type_is('public', 'discount_codes', 'minimum_subtotal_minor', 'integer', 'discount minimum spend uses integer minor units');
+
+select policies_are(
+  'public',
+  'discount_codes',
+  array['discount codes are admin managed'],
+  'discount codes expose only admin management policy'
+);
+
+select throws_ok(
+  $$insert into public.discount_codes (code, discount_type, percentage_bps, amount_minor, currency_code, market)
+    values ('BAD', 'fixed', null, 1000, 'VND', 'intl')$$,
+  null,
+  null,
+  'fixed discounts reject currency and market mismatches'
+);
+
+select has_function(
+  'public',
+  'get_checkout_discount_code',
+  array['text'],
+  'checkout quote can fetch one discount code through a constrained RPC'
+);
+
+select has_function(
+  'public',
+  'get_checkout_product_discount_scopes',
+  array['uuid[]'],
+  'checkout quote can fetch product discount category and collection scopes through a constrained RPC'
 );
 
 select * from finish();

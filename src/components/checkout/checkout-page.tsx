@@ -8,12 +8,14 @@ import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {useCart} from '@/components/cart/cart-provider';
 import {DestinationForm} from './destination-form';
+import {DiscountCodeForm} from './discount-code-form';
 import {OrderSummary} from './order-summary';
 
 const copy = {
   en: {
     title: 'Checkout',
     contact: 'Contact',
+    discount: 'Discount',
     destination: 'Destination',
     handoff: 'Continue to payment',
     pendingBoundary: 'Payment confirmation happens after this step. Digital files remain locked until the full order is confirmed paid.',
@@ -22,6 +24,7 @@ const copy = {
   vi: {
     title: 'Thanh toan',
     contact: 'Lien he',
+    discount: 'Giam gia',
     destination: 'Dia diem',
     handoff: 'Tiep tuc den thanh toan',
     pendingBoundary: 'Xac nhan thanh toan dien ra sau buoc nay. File so van bi khoa cho den khi don hang duoc xac nhan da thanh toan day du.',
@@ -59,6 +62,14 @@ export function CheckoutPage({locale}: {locale: Locale}) {
               <span className="font-semibold">Email</span>
               <input className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3" inputMode="email" />
             </label>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>{t.discount}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DiscountCodeForm locale={locale} acceptedQuote={acceptedQuote} onAcceptedQuote={setAcceptedQuote} />
           </CardContent>
         </Card>
         {physicalCount > 0 ? (

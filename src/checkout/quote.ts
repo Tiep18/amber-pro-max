@@ -3,6 +3,14 @@ import type {CurrencyCode} from '@/catalog/money';
 import {getCatalogProductBySlug, listCatalogProducts} from '@/catalog/queries';
 import type {Json} from '@/types/supabase';
 import {cartIntentLineSchema, cartLineKey, type CartIntentLine} from '@/cart/types';
+import {
+  allocateDiscount,
+  validateDiscountCode,
+  type DiscountAllocation,
+  type DiscountFailureReason,
+  type DiscountQuoteLine,
+  type DiscountRule
+} from './discounts';
 import {calculateShippingQuote, type ShippingRuleQuote} from './shipping';
 import {
   type CartQuote,
@@ -35,6 +43,8 @@ export type QuoteCatalogProduct = {
   currencyCode: CurrencyCode;
   priceMinor: number;
   imageUrl: string | null;
+  categoryIds?: string[];
+  collectionIds?: string[];
   variants: QuoteCatalogVariant[];
   shippingRule?: ShippingRuleQuote | null;
 };
@@ -127,8 +137,66 @@ function mapDetailProduct(product: Awaited<ReturnType<typeof getCatalogProductBy
     currencyCode,
     priceMinor: product.price_minor,
     imageUrl: product.primary_image_path ? product.primary_image_path : null,
+    categoryIds: [],
+    collectionIds: [],
     variants: publicVariants(product.variants)
   };
+}
+
+async function loadDiscountRule(input: QuoteCartInput): Promise<DiscountRule | null> {
+  const code = input.discountCode?.trim();
+  if (!code || !input.client) {
+    return null;
+  }
+  const {data, error} = await input.client.rpc('get_checkout_discount_code', {p_code: code});
+  if (error || !data || data.length === 0) {
+    return null;
+  }
+  const row = data[0];
+  return {
+    id: row.id,
+    code: row.code,
+    discountType: row.discount_type === 'fixed' ? 'fixed' : 'percentage',
+    percentageBps: row.percentage_bps,
+    amountMinor: row.amount_minor,
+    currencyCode: row.currency_code === 'VND' || row.currency_code === 'USD' ? row.currency_code : null,
+    market: row.market === 'vn' || row.market === 'intl' ? row.market : null,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    active: row.active,
+    usageLimit: row.usage_limit,
+    usedCount: row.used_count,
+    minimumSubtotalMinor: row.minimum_subtotal_minor,
+    eligibleCustomerIds: row.eligible_customer_ids ?? [],
+    eligibleProductIds: row.eligible_product_ids ?? [],
+    eligibleCategoryIds: row.eligible_category_ids ?? [],
+    eligibleCollectionIds: row.eligible_collection_ids ?? []
+  };
+}
+
+async function attachDiscountScopes(products: QuoteCatalogProduct[], input: QuoteCartInput) {
+  if (!input.client || products.length === 0) {
+    return products;
+  }
+  const {data, error} = await input.client.rpc('get_checkout_product_discount_scopes', {
+    p_product_ids: products.map((product) => product.productId)
+  });
+  if (error) {
+    return products;
+  }
+  const scopesByProduct = new Map(
+    (data ?? []).map((row) => [
+      row.product_id,
+      {
+        categoryIds: row.category_ids ?? [],
+        collectionIds: row.collection_ids ?? []
+      }
+    ])
+  );
+  return products.map((product) => {
+    const scopes = scopesByProduct.get(product.productId);
+    return scopes ? {...product, categoryIds: scopes.categoryIds, collectionIds: scopes.collectionIds} : product;
+  });
 }
 
 async function loadCatalogProducts(productIds: string[], input: QuoteCartInput) {
@@ -148,20 +216,21 @@ async function loadCatalogProducts(productIds: string[], input: QuoteCartInput) 
     const mapped = mapDetailProduct(detail);
     return mapped ? [mapped] : [];
   });
+  const scopedProducts = await attachDiscountScopes(products, input);
   if (!input.destinationCountryCode || !input.client || products.length === 0) {
-    return products;
+    return scopedProducts;
   }
 
   const countryCode = input.destinationCountryCode.trim().toUpperCase();
-  const variantIds = products.flatMap((product) => product.variants.map((variant) => variant.variantId));
+  const variantIds = scopedProducts.flatMap((product) => product.variants.map((variant) => variant.variantId));
   const {data: ruleRows, error: rulesError} = await input.client.rpc('get_checkout_shipping_rules', {
-    p_product_ids: products.map((product) => product.productId),
+    p_product_ids: scopedProducts.map((product) => product.productId),
     p_variant_ids: variantIds,
     p_country_code: countryCode
   });
 
   if (rulesError) {
-    return products;
+    return scopedProducts;
   }
 
   const productRules = new Map<string, ShippingRuleQuote>();
@@ -179,7 +248,7 @@ async function loadCatalogProducts(productIds: string[], input: QuoteCartInput) 
     }
   }
 
-  return products.map((product) => ({
+  return scopedProducts.map((product) => ({
     ...product,
     shippingRule: productRules.get(product.productId) ?? null,
     variants: product.variants.map((variant) => ({
@@ -211,6 +280,7 @@ function quoteHash(quote: Omit<CartQuote, 'hash'>) {
           lineSubtotalMinor: line.lineSubtotalMinor
         })),
         subtotalMinor: quote.subtotalMinor,
+        discount: quote.discount,
         totalMinor: quote.totalMinor
       })
     )
@@ -236,6 +306,9 @@ function unavailableLine(line: CartIntentLine, change: CartQuoteLineChange): Car
     excludedSubtotalMinor,
     variantLabel: null,
     imageUrl: null,
+    categoryIds: [],
+    collectionIds: [],
+    discountAllocationMinor: 0,
     change
   };
 }
@@ -287,8 +360,81 @@ function quoteLine(line: CartIntentLine, product: QuoteCatalogProduct): CartQuot
     excludedSubtotalMinor: unitPriceMinor * (line.quantity - finalQuantity),
     variantLabel: variant?.label ?? null,
     imageUrl: product.imageUrl,
+    categoryIds: product.categoryIds ?? [],
+    collectionIds: product.collectionIds ?? [],
+    discountAllocationMinor: 0,
     change: capped ? {type: 'quantity_capped', previousQuantity: line.quantity, currentQuantity: finalQuantity} : null
   };
+}
+
+function discountLines(lines: CartQuoteLine[]): DiscountQuoteLine[] {
+  return lines
+    .filter((line) => line.status === 'ready' || line.status === 'quantity_capped')
+    .map((line) => ({
+      lineId: line.lineId,
+      productId: line.productId,
+      variantId: line.variantId,
+      categoryIds: line.categoryIds,
+      collectionIds: line.collectionIds,
+      fulfillmentType: line.fulfillmentType,
+      quantity: line.quantity,
+      currencyCode: line.currencyCode,
+      lineSubtotalMinor: line.lineSubtotalMinor
+    }));
+}
+
+function discountState({
+  rule,
+  code,
+  market,
+  currencyCode,
+  subtotalMinor,
+  now,
+  userId,
+  lines
+}: {
+  rule: DiscountRule | null;
+  code: string | null;
+  market: QuoteCartInput['market'];
+  currencyCode: CurrencyCode | null;
+  subtotalMinor: number;
+  now: Date;
+  userId: string | null | undefined;
+  lines: CartQuoteLine[];
+}): CartQuote['discount'] {
+  const normalizedCode = code?.trim().toUpperCase() || null;
+  if (!normalizedCode) {
+    return {status: 'not_applied', amountMinor: 0, code: null};
+  }
+  if (!currencyCode) {
+    return {status: 'not_eligible', code: normalizedCode, amountMinor: 0, reason: 'no_eligible_lines'};
+  }
+  const validation = validateDiscountCode(rule, {
+    code: normalizedCode,
+    market,
+    currencyCode,
+    subtotalMinor,
+    now,
+    userId: userId ?? null,
+    lines: discountLines(lines)
+  });
+  if (validation.status === 'not_eligible') {
+    return {status: 'not_eligible', code: normalizedCode, amountMinor: 0, reason: validation.reason};
+  }
+  return {
+    status: 'applied',
+    code: validation.rule.code,
+    amountMinor: validation.allocation.discountMinor,
+    allocations: validation.allocation.allocations
+  };
+}
+
+function applyDiscountAllocations(lines: CartQuoteLine[], allocation: DiscountAllocation | null) {
+  const allocationByLine = new Map((allocation?.allocations ?? []).map((item) => [item.lineId, item.amountMinor]));
+  return lines.map((line) => ({
+    ...line,
+    discountAllocationMinor: allocationByLine.get(line.lineId) ?? 0
+  }));
 }
 
 export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<CartQuote> {
@@ -297,10 +443,27 @@ export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<Ca
   const products = await loader([...new Set(intentLines.map((line) => line.productId))], input);
   const productById = new Map(products.map((product) => [product.productId, product]));
   const quotedAt = (input.now ?? new Date()).toISOString();
-  const lines = intentLines.map((line) => {
+  const initialLines = intentLines.map((line) => {
     const product = productById.get(line.productId);
     return product ? quoteLine(line, product) : unavailableLine(line, {type: 'unavailable'});
   });
+  const discountRule = await loadDiscountRule(input);
+  const preDiscountPayableLines = initialLines.filter((line) => line.status === 'ready' || line.status === 'quantity_capped');
+  const preDiscountSubtotalMinor = preDiscountPayableLines.reduce((total, line) => total + line.lineSubtotalMinor, 0);
+  const discount = discountState({
+    rule: discountRule,
+    code: input.discountCode ?? null,
+    market: input.market,
+    currencyCode: preDiscountPayableLines[0]?.currencyCode ?? initialLines[0]?.currencyCode ?? null,
+    subtotalMinor: preDiscountSubtotalMinor,
+    now: input.now ?? new Date(),
+    userId: input.userId,
+    lines: initialLines
+  });
+  const lines = applyDiscountAllocations(
+    initialLines,
+    discount.status === 'applied' ? {status: 'applied', discountMinor: discount.amountMinor, allocations: discount.allocations} : null
+  );
   const payableLines = lines.filter((line) => line.status === 'ready' || line.status === 'quantity_capped');
   const subtotalMinor = payableLines.reduce((total, line) => total + line.lineSubtotalMinor, 0);
   const excludedSubtotalMinor = lines.reduce((total, line) => total + line.excludedSubtotalMinor, 0);
@@ -338,6 +501,7 @@ export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<Ca
     lines,
     subtotalMinor,
     excludedSubtotalMinor,
+    discount,
     shipping,
     totalMinor: subtotalMinor,
     changes: lines.flatMap((line) => (line.change ? [line.change] : [])),
@@ -351,7 +515,8 @@ export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<Ca
         ? 'blocked'
         : quoteWithoutHash.status,
     totalMinor:
-      quoteWithoutHash.subtotalMinor +
+      quoteWithoutHash.subtotalMinor -
+      (quoteWithoutHash.discount.status === 'applied' ? quoteWithoutHash.discount.amountMinor : 0) +
       (quoteWithoutHash.shipping.status === 'ready' ? quoteWithoutHash.shipping.amountMinor : 0)
   };
 

@@ -197,6 +197,241 @@ export type Database = {
         }
         Relationships: []
       }
+      discount_code_categories: {
+        Row: {
+          category_id: string
+          created_at: string
+          discount_code_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          discount_code_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          discount_code_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_code_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discount_code_categories_discount_code_id_fkey"
+            columns: ["discount_code_id"]
+            isOneToOne: false
+            referencedRelation: "discount_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discount_code_collections: {
+        Row: {
+          collection_id: string
+          created_at: string
+          discount_code_id: string
+        }
+        Insert: {
+          collection_id: string
+          created_at?: string
+          discount_code_id: string
+        }
+        Update: {
+          collection_id?: string
+          created_at?: string
+          discount_code_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_code_collections_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discount_code_collections_discount_code_id_fkey"
+            columns: ["discount_code_id"]
+            isOneToOne: false
+            referencedRelation: "discount_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discount_code_customers: {
+        Row: {
+          created_at: string
+          discount_code_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_code_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_code_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_code_customers_discount_code_id_fkey"
+            columns: ["discount_code_id"]
+            isOneToOne: false
+            referencedRelation: "discount_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discount_code_products: {
+        Row: {
+          created_at: string
+          discount_code_id: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_code_id: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_code_id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_code_products_discount_code_id_fkey"
+            columns: ["discount_code_id"]
+            isOneToOne: false
+            referencedRelation: "discount_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discount_code_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discount_codes: {
+        Row: {
+          active: boolean
+          amount_minor: number | null
+          code: string
+          created_at: string
+          currency_code: string | null
+          description: string
+          discount_type: string
+          ends_at: string | null
+          id: string
+          market: string | null
+          minimum_subtotal_minor: number
+          percentage_bps: number | null
+          starts_at: string | null
+          updated_at: string
+          usage_limit: number | null
+          used_count: number
+        }
+        Insert: {
+          active?: boolean
+          amount_minor?: number | null
+          code: string
+          created_at?: string
+          currency_code?: string | null
+          description?: string
+          discount_type: string
+          ends_at?: string | null
+          id?: string
+          market?: string | null
+          minimum_subtotal_minor?: number
+          percentage_bps?: number | null
+          starts_at?: string | null
+          updated_at?: string
+          usage_limit?: number | null
+          used_count?: number
+        }
+        Update: {
+          active?: boolean
+          amount_minor?: number | null
+          code?: string
+          created_at?: string
+          currency_code?: string | null
+          description?: string
+          discount_type?: string
+          ends_at?: string | null
+          id?: string
+          market?: string | null
+          minimum_subtotal_minor?: number
+          percentage_bps?: number | null
+          starts_at?: string | null
+          updated_at?: string
+          usage_limit?: number | null
+          used_count?: number
+        }
+        Relationships: []
+      }
+      discount_redemptions: {
+        Row: {
+          amount_minor: number
+          checkout_draft_id: string | null
+          committed_at: string | null
+          created_at: string
+          currency_code: string
+          discount_code_id: string
+          id: string
+          order_id: string | null
+          quote_hash: string
+          status: string
+          user_id: string | null
+          voided_at: string | null
+        }
+        Insert: {
+          amount_minor: number
+          checkout_draft_id?: string | null
+          committed_at?: string | null
+          created_at?: string
+          currency_code: string
+          discount_code_id: string
+          id?: string
+          order_id?: string | null
+          quote_hash: string
+          status?: string
+          user_id?: string | null
+          voided_at?: string | null
+        }
+        Update: {
+          amount_minor?: number
+          checkout_draft_id?: string | null
+          committed_at?: string | null
+          created_at?: string
+          currency_code?: string
+          discount_code_id?: string
+          id?: string
+          order_id?: string | null
+          quote_hash?: string
+          status?: string
+          user_id?: string | null
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_redemptions_discount_code_id_fkey"
+            columns: ["discount_code_id"]
+            isOneToOne: false
+            referencedRelation: "discount_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_records: {
         Row: {
           created_at: string
@@ -994,6 +1229,36 @@ export type Database = {
           specifications: Json
           title: string
           variants: Json
+        }[]
+      }
+      get_checkout_discount_code: {
+        Args: { p_code: string }
+        Returns: {
+          active: boolean
+          amount_minor: number
+          code: string
+          currency_code: string
+          discount_type: string
+          eligible_category_ids: string[]
+          eligible_collection_ids: string[]
+          eligible_customer_ids: string[]
+          eligible_product_ids: string[]
+          ends_at: string
+          id: string
+          market: string
+          minimum_subtotal_minor: number
+          percentage_bps: number
+          starts_at: string
+          usage_limit: number
+          used_count: number
+        }[]
+      }
+      get_checkout_product_discount_scopes: {
+        Args: { p_product_ids: string[] }
+        Returns: {
+          category_ids: string[]
+          collection_ids: string[]
+          product_id: string
         }[]
       }
       get_checkout_shipping_rules: {
