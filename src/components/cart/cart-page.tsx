@@ -1,7 +1,7 @@
 'use client';
 
 import {formatMoney} from '@/catalog/money';
-import type {Locale} from '@/i18n/routing';
+import {getCheckoutPath, type Locale} from '@/i18n/routing';
 import {Alert} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
@@ -118,7 +118,16 @@ export function CartPageContent({locale}: {locale: Locale}) {
             <span>{t.total}</span>
             <span>{money}</span>
           </div>
-          <Button className="w-full" disabled={hasBlocking || !quote?.lines.length}>{t.checkout}</Button>
+          {hasBlocking || !quote?.lines.length ? (
+            <Button className="w-full" disabled>{t.checkout}</Button>
+          ) : (
+            <a
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-base font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+              href={getCheckoutPath(locale)}
+            >
+              {t.checkout}
+            </a>
+          )}
         </CardContent>
       </Card>
     </main>

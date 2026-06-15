@@ -2,7 +2,7 @@
 
 import {ShoppingBag, X} from 'lucide-react';
 import {formatMoney} from '@/catalog/money';
-import {getCartPath, type Locale} from '@/i18n/routing';
+import {getCartPath, getCheckoutPath, type Locale} from '@/i18n/routing';
 import {useCart} from './cart-provider';
 import {CartLine} from './cart-line';
 import {Button} from '@/components/ui/button';
@@ -120,7 +120,17 @@ export function MiniCart({locale}: {locale: Locale}) {
               </div>
               <p className="text-sm text-[var(--muted-foreground)]">{t.shipping}</p>
               <Separator />
-              <Button disabled={hasBlocking || !quote?.lines.length}>{t.checkout}</Button>
+              {hasBlocking || !quote?.lines.length ? (
+                <Button disabled>{t.checkout}</Button>
+              ) : (
+                <a
+                  className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-base font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+                  href={getCheckoutPath(locale)}
+                  onClick={() => setOpen(false)}
+                >
+                  {t.checkout}
+                </a>
+              )}
               <a className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] px-4 font-semibold" href={getCartPath(locale)} onClick={() => setOpen(false)}>
                 {t.viewCart}
               </a>

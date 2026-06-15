@@ -3,6 +3,7 @@ import type {CurrencyCode} from '@/catalog/money';
 import {getCatalogProductBySlug, listCatalogProducts} from '@/catalog/queries';
 import type {Json} from '@/types/supabase';
 import {cartIntentLineSchema, cartLineKey, type CartIntentLine} from '@/cart/types';
+import {calculateShippingQuote, type ShippingRuleQuote} from './shipping';
 import {
   type CartQuote,
   type CartQuoteLine,
@@ -21,6 +22,7 @@ export type QuoteCatalogVariant = {
   availableQuantity?: number | null;
   currencyCode: CurrencyCode | null;
   priceMinor: number | null;
+  shippingRule?: ShippingRuleQuote | null;
 };
 
 export type QuoteCatalogProduct = {
@@ -34,12 +36,14 @@ export type QuoteCatalogProduct = {
   priceMinor: number;
   imageUrl: string | null;
   variants: QuoteCatalogVariant[];
+  shippingRule?: ShippingRuleQuote | null;
 };
 
 type CatalogLoader = (productIds: string[], input: QuoteCartInput) => Promise<QuoteCatalogProduct[]>;
 
 type QuoteCartInternalInput = QuoteCartInput & {
   catalog?: CatalogLoader;
+  shippingRules?: Map<string, ShippingRuleQuote>;
   now?: Date;
 };
 
@@ -140,10 +144,49 @@ async function loadCatalogProducts(productIds: string[], input: QuoteCartInput) 
         )
       )
   );
-  return details.flatMap((detail) => {
+  const products = details.flatMap((detail) => {
     const mapped = mapDetailProduct(detail);
     return mapped ? [mapped] : [];
   });
+  if (!input.destinationCountryCode || !input.client || products.length === 0) {
+    return products;
+  }
+
+  const countryCode = input.destinationCountryCode.trim().toUpperCase();
+  const variantIds = products.flatMap((product) => product.variants.map((variant) => variant.variantId));
+  const {data: ruleRows, error: rulesError} = await input.client.rpc('get_checkout_shipping_rules', {
+    p_product_ids: products.map((product) => product.productId),
+    p_variant_ids: variantIds,
+    p_country_code: countryCode
+  });
+
+  if (rulesError) {
+    return products;
+  }
+
+  const productRules = new Map<string, ShippingRuleQuote>();
+  const variantRules = new Map<string, ShippingRuleQuote>();
+  for (const row of ruleRows ?? []) {
+    const rule = {
+      countryCode: row.country_code,
+      firstItemFeeMinor: row.first_item_fee_minor,
+      additionalItemFeeMinor: row.additional_item_fee_minor
+    };
+    if (row.variant_id) {
+      variantRules.set(row.variant_id, rule);
+    } else if (row.product_id) {
+      productRules.set(row.product_id, rule);
+    }
+  }
+
+  return products.map((product) => ({
+    ...product,
+    shippingRule: productRules.get(product.productId) ?? null,
+    variants: product.variants.map((variant) => ({
+      ...variant,
+      shippingRule: variantRules.get(variant.variantId) ?? null
+    }))
+  }));
 }
 
 function parseIntentLines(lines: unknown[]) {
@@ -270,15 +313,46 @@ export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<Ca
     lines,
     subtotalMinor,
     excludedSubtotalMinor,
-    shipping: {status: 'not_calculated', amountMinor: 0},
+    shipping: input.destinationCountryCode
+      ? calculateShippingQuote({
+          countryCode: input.destinationCountryCode,
+          currencyCode: payableLines[0]?.currencyCode ?? lines[0]?.currencyCode ?? 'USD',
+          lines: payableLines.map((line) => ({
+            lineId: line.lineId,
+            productId: line.productId,
+            variantId: line.variantId,
+            fulfillmentType: line.fulfillmentType,
+            quantity: line.quantity,
+            currencyCode: line.currencyCode,
+            shippingProfileId: null,
+            rule:
+              products
+                .find((product) => product.productId === line.productId)
+                ?.variants.find((variant) => variant.variantId === line.variantId)?.shippingRule ??
+              products.find((product) => product.productId === line.productId)?.shippingRule ??
+              null
+          }))
+        })
+      : {status: 'not_calculated', amountMinor: 0},
     totalMinor: subtotalMinor,
     changes: lines.flatMap((line) => (line.change ? [line.change] : [])),
     quotedAt
   };
 
-  return {
+  const withShippingTotal: Omit<CartQuote, 'hash'> = {
     ...quoteWithoutHash,
-    hash: quoteHash(quoteWithoutHash)
+    status:
+      quoteWithoutHash.status === 'ready' && quoteWithoutHash.shipping.status === 'unsupported_destination'
+        ? 'blocked'
+        : quoteWithoutHash.status,
+    totalMinor:
+      quoteWithoutHash.subtotalMinor +
+      (quoteWithoutHash.shipping.status === 'ready' ? quoteWithoutHash.shipping.amountMinor : 0)
+  };
+
+  return {
+    ...withShippingTotal,
+    hash: quoteHash(withShippingTotal)
   };
 }
 

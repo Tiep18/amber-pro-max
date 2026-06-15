@@ -46,6 +46,10 @@ export const pathnames = {
   '/cart': {
     vi: '/gio-hang',
     en: '/cart'
+  },
+  '/checkout': {
+    vi: '/thanh-toan',
+    en: '/checkout'
   }
 } as const;
 
@@ -95,6 +99,10 @@ export function getProductPath(locale: Locale, productSlug: string): `/${Locale}
 
 export function getCartPath(locale: Locale): `/${Locale}${string}` {
   return getLocalizedPath('/cart', locale);
+}
+
+export function getCheckoutPath(locale: Locale): `/${Locale}${string}` {
+  return getLocalizedPath('/checkout', locale);
 }
 
 export function getEquivalentLocalizedPath(

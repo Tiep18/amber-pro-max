@@ -12,6 +12,7 @@ export const quoteCartInputSchema = z.object({
   locale: z.enum(['vi', 'en']),
   market: z.enum(['vn', 'intl']),
   lines: z.array(z.unknown()).max(100),
+  destinationCountryCode: z.string().trim().max(2).optional().nullable(),
   priorAcceptedQuoteHash: z.string().max(256).optional().nullable()
 });
 
@@ -21,6 +22,7 @@ export type QuoteCartInput = {
   locale: Locale;
   market: MarketCode;
   lines: unknown[];
+  destinationCountryCode?: string | null;
   priorAcceptedQuoteHash?: string | null;
   client?: CheckoutCatalogClient;
 };
@@ -62,7 +64,11 @@ export type CartQuote = {
   lines: CartQuoteLine[];
   subtotalMinor: number;
   excludedSubtotalMinor: number;
-  shipping: {status: 'not_calculated'; amountMinor: 0};
+  shipping:
+    | {status: 'not_calculated'; amountMinor: 0; countryCode?: null}
+    | {status: 'no_shipping_required'; amountMinor: 0; countryCode: string | null}
+    | {status: 'ready'; amountMinor: number; countryCode: string; firstItemLineId: string; chargeableUnitCount: number}
+    | {status: 'unsupported_destination'; amountMinor: null; countryCode: string; unsupportedLineIds: string[]};
   totalMinor: number;
   changes: CartQuoteLineChange[];
   hash: string;

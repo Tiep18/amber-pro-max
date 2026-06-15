@@ -996,6 +996,20 @@ export type Database = {
           variants: Json
         }[]
       }
+      get_checkout_shipping_rules: {
+        Args: {
+          p_country_code: string
+          p_product_ids: string[]
+          p_variant_ids: string[]
+        }
+        Returns: {
+          additional_item_fee_minor: number
+          country_code: string
+          first_item_fee_minor: number
+          product_id: string
+          variant_id: string
+        }[]
+      }
       list_catalog_facets: {
         Args: { p_locale: string; p_market: string }
         Returns: {

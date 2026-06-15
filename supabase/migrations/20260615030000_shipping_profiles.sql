@@ -157,3 +157,67 @@ on public.variant_shipping_profiles
 for all to authenticated
 using (private.is_admin())
 with check (private.is_admin());
+
+create or replace function public.get_checkout_shipping_rules(
+  p_product_ids uuid[],
+  p_variant_ids uuid[],
+  p_country_code text
+)
+returns table (
+  product_id uuid,
+  variant_id uuid,
+  country_code text,
+  first_item_fee_minor integer,
+  additional_item_fee_minor integer
+)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  with normalized as (
+    select upper(btrim(p_country_code)) as country_code
+  ),
+  product_rules as (
+    select
+      psp.product_id,
+      null::uuid as variant_id,
+      sr.country_code,
+      sr.first_item_fee_minor,
+      sr.additional_item_fee_minor
+    from public.product_shipping_profiles psp
+    join public.shipping_profiles sp
+      on sp.id = psp.profile_id
+     and sp.active
+    join public.shipping_rules sr
+      on sr.profile_id = sp.id
+     and sr.active
+    join normalized
+      on normalized.country_code = sr.country_code
+    where psp.product_id = any(coalesce(p_product_ids, '{}'::uuid[]))
+  ),
+  variant_rules as (
+    select
+      null::uuid as product_id,
+      vsp.variant_id,
+      sr.country_code,
+      sr.first_item_fee_minor,
+      sr.additional_item_fee_minor
+    from public.variant_shipping_profiles vsp
+    join public.shipping_profiles sp
+      on sp.id = vsp.profile_id
+     and sp.active
+    join public.shipping_rules sr
+      on sr.profile_id = sp.id
+     and sr.active
+    join normalized
+      on normalized.country_code = sr.country_code
+    where vsp.variant_id = any(coalesce(p_variant_ids, '{}'::uuid[]))
+  )
+  select * from product_rules
+  union all
+  select * from variant_rules;
+$$;
+
+revoke all on function public.get_checkout_shipping_rules(uuid[], uuid[], text) from public, anon, authenticated;
+grant execute on function public.get_checkout_shipping_rules(uuid[], uuid[], text) to anon, authenticated;

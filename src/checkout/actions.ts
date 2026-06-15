@@ -1,0 +1,38 @@
+'use server';
+
+import {z} from 'zod';
+import {suggestMarketFromCountry} from '@/catalog/market';
+import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {diffMaterialQuotes} from './market-revalidation';
+import {quoteCartIntent} from './quote';
+import {quoteCartInputSchema, type CartQuote} from './types';
+
+export type CheckoutQuoteActionState =
+  | {status: 'success'; quote: CartQuote; materialChanges: ReturnType<typeof diffMaterialQuotes>}
+  | {status: 'invalid'; code: 'invalid_checkout_quote'}
+  | {status: 'error'; code: 'checkout_quote_failed'};
+
+const checkoutQuoteInputSchema = quoteCartInputSchema.extend({
+  acceptedQuote: z.custom<CartQuote>().optional().nullable()
+});
+
+export async function refreshCheckoutQuoteAction(input: unknown): Promise<CheckoutQuoteActionState> {
+  const parsed = checkoutQuoteInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_checkout_quote'};
+  }
+
+  try {
+    const client = await createSupabaseServerClient();
+    const destinationCountryCode = parsed.data.destinationCountryCode?.trim().toUpperCase() || null;
+    const market = destinationCountryCode ? suggestMarketFromCountry(destinationCountryCode) : parsed.data.market;
+    const quote = await quoteCartIntent({...parsed.data, market, destinationCountryCode, client});
+    return {
+      status: 'success',
+      quote,
+      materialChanges: parsed.data.acceptedQuote ? diffMaterialQuotes(parsed.data.acceptedQuote, quote) : []
+    };
+  } catch {
+    return {status: 'error', code: 'checkout_quote_failed'};
+  }
+}
