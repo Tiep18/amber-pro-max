@@ -99,6 +99,224 @@ export type Database = {
           },
         ]
       }
+      checkout_inventory_reservations: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          inventory_record_id: string
+          order_id: string
+          order_line_id: string
+          quantity_reserved: number
+          released_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          inventory_record_id: string
+          order_id: string
+          order_line_id: string
+          quantity_reserved: number
+          released_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          inventory_record_id?: string
+          order_id?: string
+          order_line_id?: string
+          quantity_reserved?: number
+          released_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkout_inventory_reservations_inventory_record_id_fkey"
+            columns: ["inventory_record_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_inventory_reservations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_inventory_reservations_order_line_id_fkey"
+            columns: ["order_line_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_order_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checkout_order_lines: {
+        Row: {
+          created_at: string
+          currency_code: string
+          discount_allocation_minor: number
+          fulfillment_type: string
+          id: string
+          line_id: string
+          line_subtotal_minor: number
+          market: string
+          order_id: string
+          product_id: string
+          product_title: string
+          quantity: number
+          quote_line_snapshot: Json
+          shipping_allocation_minor: number
+          sku: string | null
+          unit_price_minor: number
+          variant_id: string | null
+          variant_label: string | null
+        }
+        Insert: {
+          created_at?: string
+          currency_code: string
+          discount_allocation_minor?: number
+          fulfillment_type: string
+          id?: string
+          line_id: string
+          line_subtotal_minor: number
+          market: string
+          order_id: string
+          product_id: string
+          product_title: string
+          quantity: number
+          quote_line_snapshot: Json
+          shipping_allocation_minor?: number
+          sku?: string | null
+          unit_price_minor: number
+          variant_id?: string | null
+          variant_label?: string | null
+        }
+        Update: {
+          created_at?: string
+          currency_code?: string
+          discount_allocation_minor?: number
+          fulfillment_type?: string
+          id?: string
+          line_id?: string
+          line_subtotal_minor?: number
+          market?: string
+          order_id?: string
+          product_id?: string
+          product_title?: string
+          quantity?: number
+          quote_line_snapshot?: Json
+          shipping_allocation_minor?: number
+          sku?: string | null
+          unit_price_minor?: number
+          variant_id?: string | null
+          variant_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkout_order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_order_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_order_lines_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checkout_orders: {
+        Row: {
+          accepted_quote_hash: string
+          cart_snapshot: Json
+          contact_email: string
+          created_at: string
+          currency_code: string
+          discount_minor: number
+          guest_secret_hash: string | null
+          id: string
+          idempotency_actor: string
+          idempotency_key: string
+          locale: string
+          market: string
+          order_number: string
+          owner_user_id: string | null
+          payment_intent: string
+          quote_snapshot: Json
+          reservation_expires_at: string
+          shipping_minor: number
+          status: string
+          subtotal_minor: number
+          total_minor: number
+          updated_at: string
+        }
+        Insert: {
+          accepted_quote_hash: string
+          cart_snapshot: Json
+          contact_email: string
+          created_at?: string
+          currency_code: string
+          discount_minor?: number
+          guest_secret_hash?: string | null
+          id?: string
+          idempotency_actor: string
+          idempotency_key: string
+          locale: string
+          market: string
+          order_number?: string
+          owner_user_id?: string | null
+          payment_intent: string
+          quote_snapshot: Json
+          reservation_expires_at: string
+          shipping_minor?: number
+          status?: string
+          subtotal_minor: number
+          total_minor: number
+          updated_at?: string
+        }
+        Update: {
+          accepted_quote_hash?: string
+          cart_snapshot?: Json
+          contact_email?: string
+          created_at?: string
+          currency_code?: string
+          discount_minor?: number
+          guest_secret_hash?: string | null
+          id?: string
+          idempotency_actor?: string
+          idempotency_key?: string
+          locale?: string
+          market?: string
+          order_number?: string
+          owner_user_id?: string | null
+          payment_intent?: string
+          quote_snapshot?: Json
+          reservation_expires_at?: string
+          shipping_minor?: number
+          status?: string
+          subtotal_minor?: number
+          total_minor?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       collection_products: {
         Row: {
           collection_id: string
@@ -1176,6 +1394,14 @@ export type Database = {
         Args: { locale: string; market: string }
         Returns: undefined
       }
+      checkout_available_inventory: {
+        Args: { p_inventory_record_id: string }
+        Returns: number
+      }
+      checkout_reservation_expires_at: {
+        Args: { p_now?: string; p_payment_intent: string }
+        Returns: string
+      }
       get_catalog_category_by_slug: {
         Args: { p_locale: string; p_market: string; p_slug: string }
         Returns: {
@@ -1317,6 +1543,7 @@ export type Database = {
           published: boolean
         }[]
       }
+      submit_checkout: { Args: { p_payload: Json }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
