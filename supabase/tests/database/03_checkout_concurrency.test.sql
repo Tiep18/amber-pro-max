@@ -1,6 +1,6 @@
 begin;
 
-select plan(8);
+select plan(10);
 
 select has_function(
   'public',
@@ -42,6 +42,18 @@ select is(
   public.checkout_available_inventory('00000000-0000-0000-0000-000000000000'::uuid),
   0,
   'missing inventory has zero available units'
+);
+
+select results_eq(
+  $$select status from jsonb_to_record(public.validate_market_exception_grant(repeat('0', 64))) as r(status text)$$,
+  $$values ('invalid'::text)$$,
+  'invalid exception grant returns generic invalid status'
+);
+
+select results_eq(
+  $$select code from jsonb_to_record(public.validate_market_exception_grant(repeat('0', 64))) as r(code text)$$,
+  $$values ('invalid_or_expired'::text)$$,
+  'invalid exception grant does not reveal token enumeration detail'
 );
 
 select * from finish();

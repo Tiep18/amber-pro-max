@@ -692,6 +692,158 @@ export type Database = {
           },
         ]
       }
+      market_exception_grants: {
+        Row: {
+          consumed_at: string | null
+          consumed_order_id: string | null
+          created_at: string
+          created_by: string | null
+          currency_code: string
+          destination_country_code: string
+          expires_at: string
+          id: string
+          market: string
+          product_id: string
+          request_id: string
+          shipping_fee_minor: number
+          status: string
+          token_hash: string
+          variant_id: string | null
+        }
+        Insert: {
+          consumed_at?: string | null
+          consumed_order_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency_code: string
+          destination_country_code: string
+          expires_at: string
+          id?: string
+          market: string
+          product_id: string
+          request_id: string
+          shipping_fee_minor: number
+          status?: string
+          token_hash: string
+          variant_id?: string | null
+        }
+        Update: {
+          consumed_at?: string | null
+          consumed_order_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          destination_country_code?: string
+          expires_at?: string
+          id?: string
+          market?: string
+          product_id?: string
+          request_id?: string
+          shipping_fee_minor?: number
+          status?: string
+          token_hash?: string
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_exception_grants_consumed_order_id_fkey"
+            columns: ["consumed_order_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_exception_grants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_exception_grants_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "market_exception_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_exception_grants_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_exception_requests: {
+        Row: {
+          admin_note: string | null
+          contact_email: string
+          created_at: string
+          customer_note: string
+          decided_at: string | null
+          decided_by: string | null
+          destination_country_code: string
+          id: string
+          locale: string
+          market: string
+          product_id: string
+          rejection_reason: string | null
+          status: string
+          updated_at: string
+          variant_id: string | null
+        }
+        Insert: {
+          admin_note?: string | null
+          contact_email: string
+          created_at?: string
+          customer_note?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          destination_country_code: string
+          id?: string
+          locale: string
+          market: string
+          product_id: string
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Update: {
+          admin_note?: string | null
+          contact_email?: string
+          created_at?: string
+          customer_note?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          destination_country_code?: string
+          id?: string
+          locale?: string
+          market?: string
+          product_id?: string
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_exception_requests_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_exception_requests_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_categories: {
         Row: {
           category_id: string
@@ -1402,6 +1554,10 @@ export type Database = {
         Args: { p_now?: string; p_payment_intent: string }
         Returns: string
       }
+      create_market_exception_request: {
+        Args: { p_payload: Json }
+        Returns: Json
+      }
       get_catalog_category_by_slug: {
         Args: { p_locale: string; p_market: string; p_slug: string }
         Returns: {
@@ -1544,6 +1700,10 @@ export type Database = {
         }[]
       }
       submit_checkout: { Args: { p_payload: Json }; Returns: Json }
+      validate_market_exception_grant: {
+        Args: { p_token_hash: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

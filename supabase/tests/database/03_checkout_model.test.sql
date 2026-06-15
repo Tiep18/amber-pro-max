@@ -1,6 +1,6 @@
 begin;
 
-select plan(20);
+select plan(28);
 
 select has_table('public', 'checkout_orders', 'checkout order shell exists');
 select has_table('public', 'checkout_order_lines', 'immutable checkout order lines exist');
@@ -45,6 +45,15 @@ select is(
   '2026-06-16T00:00:00Z'::timestamptz,
   'VietQR intent reserves for 24 hours'
 );
+
+select has_table('public', 'market_exception_requests', 'market exception requests table exists');
+select has_table('public', 'market_exception_grants', 'market exception grants table exists');
+select col_type_is('public', 'market_exception_requests', 'destination_country_code', 'text', 'exception requests scope destination country');
+select col_type_is('public', 'market_exception_grants', 'token_hash', 'text', 'exception grants store token hash');
+select col_type_is('public', 'market_exception_grants', 'expires_at', 'timestamp with time zone', 'exception grants expire');
+select col_is_fk('public', 'market_exception_grants', 'request_id', 'exception grants reference requests');
+select has_function('public', 'create_market_exception_request', array['jsonb'], 'request RPC exists');
+select has_function('public', 'validate_market_exception_grant', array['text'], 'grant validation RPC exists');
 
 select * from finish();
 

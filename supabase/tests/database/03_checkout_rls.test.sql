@@ -1,6 +1,6 @@
 begin;
 
-select plan(12);
+select plan(18);
 
 select policies_are(
   'public',
@@ -100,6 +100,55 @@ select table_privs_are(
   'authenticated',
   array[]::text[],
   'authenticated users have no direct reservation grants'
+);
+
+select policies_are(
+  'public',
+  'market_exception_requests',
+  array['market exception requests are admin managed'],
+  'exception requests expose only admin management policy'
+);
+
+select policies_are(
+  'public',
+  'market_exception_grants',
+  array['market exception grants are admin managed'],
+  'exception grants expose only admin management policy'
+);
+
+select table_privs_are(
+  'public',
+  'market_exception_grants',
+  'anon',
+  array[]::text[],
+  'anon has no direct grant table access'
+);
+
+select function_privs_are(
+  'public',
+  'create_market_exception_request',
+  array['jsonb'],
+  'anon',
+  array['EXECUTE'],
+  'anon can create exception requests only through RPC'
+);
+
+select function_privs_are(
+  'public',
+  'validate_market_exception_grant',
+  array['text'],
+  'anon',
+  array['EXECUTE'],
+  'anon can validate exception grants only through RPC'
+);
+
+select function_privs_are(
+  'public',
+  'validate_market_exception_grant',
+  array['text'],
+  'authenticated',
+  array['EXECUTE'],
+  'authenticated can validate exception grants only through RPC'
 );
 
 select * from finish();
