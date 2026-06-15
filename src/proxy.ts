@@ -18,6 +18,7 @@ const PHYSICAL_AUTH_SLUGS = new Set([
   '/en/reset-password'
 ]);
 const PHYSICAL_PROTECTED_SLUGS = new Set(['/vi/tai-khoan', '/en/account']);
+const PHYSICAL_CART_SLUGS = new Set(['/vi/gio-hang', '/en/cart']);
 
 function isPhysicalVietnameseCatalogPath(pathname: string) {
   return (
@@ -44,6 +45,7 @@ export default async function proxy(request: NextRequest) {
   if (
     PHYSICAL_AUTH_SLUGS.has(pathname) ||
     PHYSICAL_PROTECTED_SLUGS.has(pathname) ||
+    PHYSICAL_CART_SLUGS.has(pathname) ||
     isPhysicalVietnameseCatalogPath(pathname)
   ) {
     return updateSession(request, applyMarketSuggestionCookie(request, NextResponse.next()));

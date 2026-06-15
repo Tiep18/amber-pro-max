@@ -5,6 +5,7 @@ import {MARKET_COOKIE, resolveActiveMarket} from '@/catalog/market';
 import {getCatalogPath, getLocalizedPath, type Locale} from '@/i18n/routing';
 import {LocaleSwitcher} from './locale-switcher';
 import {MarketSwitcher} from './market-switcher';
+import {MiniCart} from './cart/mini-cart';
 import {Sheet} from './ui/sheet';
 
 export async function SiteHeader({locale}: {locale: Locale}) {
@@ -67,6 +68,7 @@ export async function SiteHeader({locale}: {locale: Locale}) {
               {marketLabels.markets[activeMarket]}
             </span>
           </nav>
+          <MiniCart locale={locale} />
           <Suspense fallback={null}>
             <LocaleSwitcher locale={locale} />
           </Suspense>

@@ -8,6 +8,7 @@ import {getRequestMarket} from '@/catalog/page-context';
 import {getCatalogProductBySlug} from '@/catalog/queries';
 import {ProductGallery} from '@/components/catalog/product-gallery';
 import {UnavailableMarket} from '@/components/catalog/unavailable-market';
+import {AddToCart} from '@/components/catalog/add-to-cart';
 import {VariantSelector, type PublicVariant} from '@/components/catalog/variant-selector';
 import {
   getProductPath,
@@ -135,13 +136,6 @@ export default async function ProductPage({params}: {params: Params}) {
             returnTo={getProductPath(locale, product.slug)}
             switchLabel={otherMarket === 'vn' ? marketT('switchToVietnam') : marketT('switchToInternational')}
           />
-        ) : variants.length ? (
-          <VariantSelector
-            variants={variants}
-            legend={t('variants')}
-            inStockLabel={t('inStock')}
-            outOfStockLabel={t('outOfStock')}
-          />
         ) : product.currency_code && product.price_minor !== null ? (
           <p className="text-2xl font-semibold">
             {formatMoney({
@@ -149,6 +143,16 @@ export default async function ProductPage({params}: {params: Params}) {
               currencyCode: product.currency_code === 'VND' ? 'VND' : 'USD'
             })}
           </p>
+        ) : null}
+        {product.available ? (
+          <AddToCart
+            locale={locale}
+            market={market}
+            productId={product.product_id}
+            productType={product.product_type === 'physical_finished' ? 'physical_finished' : 'pdf_pattern'}
+            available={product.available}
+            variants={variants}
+          />
         ) : null}
       </section>
     </main>

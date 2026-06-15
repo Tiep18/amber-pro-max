@@ -6,8 +6,8 @@ export const guestCartTtlDays = 30;
 export const maxCartQuantity = 99;
 
 export const cartIntentLineSchema = z.object({
-  productId: z.uuid(),
-  variantId: z.uuid().nullable().optional().default(null),
+  productId: z.guid(),
+  variantId: z.guid().nullable().optional().default(null),
   quantity: z.number().int().min(1).max(maxCartQuantity),
   marketAtAdd: z.enum(['vn', 'intl']),
   addedAt: z.iso.datetime(),

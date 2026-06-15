@@ -23,18 +23,24 @@ export function VariantSelector({
   variants,
   legend,
   inStockLabel,
-  outOfStockLabel
+  outOfStockLabel,
+  selectedId: controlledSelectedId,
+  onSelectedIdChange
 }: {
   variants: PublicVariant[];
   legend: string;
   inStockLabel: string;
   outOfStockLabel: string;
+  selectedId?: string;
+  onSelectedIdChange?: (variantId: string) => void;
 }) {
   const firstAvailable = useMemo(
     () => variants.find((variant) => variant.enabled && variant.stock) ?? null,
     [variants]
   );
-  const [selectedId, setSelectedId] = useState(firstAvailable?.variant_id ?? '');
+  const [uncontrolledSelectedId, setUncontrolledSelectedId] = useState(firstAvailable?.variant_id ?? '');
+  const selectedId = controlledSelectedId ?? uncontrolledSelectedId;
+  const setSelectedId = onSelectedIdChange ?? setUncontrolledSelectedId;
   const selected = variants.find((variant) => variant.variant_id === selectedId) ?? null;
 
   return (

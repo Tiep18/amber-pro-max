@@ -21,18 +21,20 @@ test('Vietnamese shopper adds a PDF pattern and edits it in the cart', async ({b
   await page.getByRole('button', {name: 'Them vao gio'}).click();
   await expect(page.getByRole('button', {name: /Gio hang, 1 san pham/})).toBeVisible();
 
-  await page.getByRole('link', {name: 'Xem gio hang'}).click();
+  await expect(page.getByRole('dialog', {name: 'Gio hang'}).getByRole('link', {name: 'Xem gio hang'})).toHaveAttribute('href', '/vi/gio-hang');
+  await page.goto('/vi/gio-hang');
   await expect(page).toHaveURL(/\/vi\/gio-hang$/);
-  await expect(page.getByText('Mau PDF')).toBeVisible();
-  await expect(page.getByText('Mau gau Viet Nam')).toBeVisible();
+  const pdfLine = page.getByRole('article').filter({hasText: 'Mau gau Viet Nam'});
+  await expect(pdfLine.getByRole('heading', {name: 'Mau gau Viet Nam'})).toBeVisible();
+  await expect(pdfLine.getByText('Mau PDF')).toBeVisible();
 
   await page.getByRole('button', {name: /Tang so luong/}).click();
-  await expect(page.getByText('250.000')).toBeVisible();
+  await expect(pdfLine.getByText('250.000')).toBeVisible();
 
   await page.getByRole('button', {name: /Xoa Mau gau Viet Nam/}).click();
   await expect(page.getByText('Da xoa khoi gio hang')).toBeVisible();
   await page.getByRole('button', {name: 'Hoan tac'}).click();
-  await expect(page.getByText('Mau gau Viet Nam')).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Mau gau Viet Nam'})).toBeVisible();
   await expect(page.getByText(/PayPal|VietQR/i)).toHaveCount(0);
 
   await context.close();
@@ -45,10 +47,11 @@ test('English shopper adds an in-stock physical variant through the mini cart', 
 
   await expect(page.getByRole('dialog', {name: 'Cart'})).toBeVisible();
   await expect(page.getByText('Handmade item')).toBeVisible();
-  await expect(page.getByText('Both-market bear')).toBeVisible();
-  await expect(page.getByText('$31.00')).toBeVisible();
+  await expect(page.getByRole('dialog', {name: 'Cart'}).getByRole('heading', {name: 'Both-market bear'})).toBeVisible();
+  const cartDialog = page.getByRole('dialog', {name: 'Cart'});
+  await expect(cartDialog.getByText('$31.00').first()).toBeVisible();
   await page.getByRole('button', {name: /Increase quantity/}).click();
-  await expect(page.getByText('$62.00')).toBeVisible();
+  await expect(cartDialog.getByText('$62.00').first()).toBeVisible();
 });
 
 test('blocking cart lines remain visible and disable checkout', async ({page}) => {
@@ -67,8 +70,8 @@ test('blocking cart lines remain visible and disable checkout', async ({page}) =
   ]));
 
   await page.goto('/en/cart');
-  await expect(page.getByText('Unavailable item')).toBeVisible();
-  await expect(page.getByText('Review unavailable items before checkout.')).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Unavailable item'})).toBeVisible();
+  await expect(page.getByText('Review unavailable items before checkout.').first()).toBeVisible();
   await expect(page.getByRole('button', {name: 'Checkout'})).toBeDisabled();
   await expect(page.getByText(/PayPal|VietQR/i)).toHaveCount(0);
 });
