@@ -81,7 +81,7 @@ Ngoại lệ:
 - Quantity stepper có control 44x44px và giá trị rộng tối thiểu 48px.
 - Border 1px và focus ring 2px là giá trị cấu trúc, không phải spacing token.
 - Sticky mobile action bar có padding bottom `max(16px, env(safe-area-inset-bottom))`.
-- Desktop gutter là 40px tại 1024px và 48px tại 1280px trở lên.
+- Desktop gutter là 32px tại 1024px và 48px tại 1280px trở lên.
 
 ---
 
@@ -365,7 +365,7 @@ validation state và edit affordance rõ ràng.
 ### Discount
 
 - Field label `Mã giảm giá` / `Discount code`, input và button secondary
-  `Áp dụng` / `Apply`.
+  `Áp dụng mã` / `Apply code`.
 - Code tự động trim, giữ casing người dùng nhập trong UI nhưng server quyết định
   normalization.
 - Success hiển thị code, discount amount và `Xóa mã` / `Remove code`.
@@ -622,7 +622,7 @@ Tiếng Việt phải tự nhiên; tiếng Anh ngắn gọn và quốc tế.
 | Accept market change | `Chấp nhận thay đổi` | `Accept changes` |
 | Cancel market change | `Giữ điểm đến hiện tại` | `Keep current destination` |
 | Merge CTA | `Gộp và kiểm tra giỏ hàng` | `Merge and review cart` |
-| Discount apply | `Áp dụng` | `Apply` |
+| Discount apply | `Áp dụng mã` | `Apply code` |
 | Exception CTA | `Gửi yêu cầu ngoại lệ` | `Submit exception request` |
 | Generic cart error | `Chưa thể cập nhật giỏ hàng. Giỏ của bạn vẫn được giữ; vui lòng thử lại.` | `We couldn't update your cart. Your cart is still saved; please try again.` |
 | Checkout conflict | `Giá hoặc tình trạng hàng đã thay đổi. Xem lại tổng mới trước khi tiếp tục.` | `A price or availability changed. Review the new total before continuing.` |
