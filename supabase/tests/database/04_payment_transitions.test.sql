@@ -3,7 +3,7 @@ begin;
 select plan(32);
 
 select has_function('public', 'apply_payment_transition', array['jsonb'], 'shared transition command exists');
-select has_function('public', 'expire_due_payment_orders', array['integer'], 'bounded expiry command exists');
+select has_function('public', 'expire_due_payments', array['integer'], 'bounded expiry command exists');
 
 select results_eq(
   $$select status from jsonb_to_record(public.apply_payment_transition('{"transitionKey":"x"}'::jsonb)) as r(status text)$$,
