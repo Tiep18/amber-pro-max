@@ -1,0 +1,81 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-06-15T03:36:48.134Z",
+  "phase": "03",
+  "phase_name": "Mixed Cart and Checkout",
+  "phase_dir": ".planning/phases/03-mixed-cart-and-checkout",
+  "plan": null,
+  "task": null,
+  "total_tasks": 0,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Capture Phase 3 implementation decisions",
+      "status": "done",
+      "commit": "0a2b165"
+    },
+    {
+      "id": 2,
+      "name": "Research mixed cart and checkout architecture",
+      "status": "done",
+      "commit": "1433f8c"
+    },
+    {
+      "id": 3,
+      "name": "Create Nyquist validation strategy",
+      "status": "done",
+      "commit": "6167847"
+    },
+    {
+      "id": 4,
+      "name": "Create and verify Phase 3 UI design contract",
+      "status": "done",
+      "commit": "8a46b65"
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 5,
+      "name": "Run $gsd-plan-phase 3 to create executable PLAN.md files",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [],
+  "human_actions_pending": [],
+  "decisions": [
+    {
+      "decision": "Guest cart stores only minimal purchase intent for 30 days; all commercial data is rehydrated and recalculated by the server.",
+      "rationale": "Prevents stale or client-tampered price, stock, discount and customer data from becoming authoritative.",
+      "phase": "03"
+    },
+    {
+      "decision": "Checkout is a one-page flow with sections, a header mini-cart and a full cart page.",
+      "rationale": "Keeps the MVP fast and editable while preserving a clear commerce review flow.",
+      "phase": "03"
+    },
+    {
+      "decision": "Material destination changes require a blocking modal comparing old/new lines and totals before acceptance.",
+      "rationale": "Market, currency, shipping and eligibility changes must never happen silently.",
+      "phase": "03"
+    },
+    {
+      "decision": "Checkout submission uses one idempotent PostgreSQL transaction/RPC for authoritative recalculation, inventory locks, snapshots, discount allocation and reservations.",
+      "rationale": "Avoids TOCTOU, oversell, duplicate writes and partial checkout state.",
+      "phase": "03"
+    },
+    {
+      "decision": "The visual direction is warm and handmade but clean; checkout prioritizes trust, accessibility and low distraction.",
+      "rationale": "Preserves the crochet brand while keeping high-risk commerce interactions precise.",
+      "phase": "03"
+    },
+    {
+      "decision": "Phase 3 stops at pending-payment/reservation handoff.",
+      "rationale": "Payment capture/confirmation, final inventory consumption/release and fulfillment belong to later phases.",
+      "phase": "03"
+    }
+  ],
+  "uncommitted_files": [],
+  "next_action": "Run $gsd-plan-phase 3. Use existing 03-CONTEXT.md, 03-RESEARCH.md, 03-VALIDATION.md and approved 03-UI-SPEC.md; do not repeat research or UI questioning.",
+  "context_notes": "Phase 3 is ready for planning and has no PLAN.md yet. UI-SPEC passed all 6 checker dimensions after changing the 1024px gutter from 40px to 32px and the discount CTA to 'Áp dụng mã / Apply code'. Security enforcement is enabled at ASVS L1 with block_on=high. Supabase schema changes require migrations, RLS/grants tests, generated types and a blocking schema push task. STATE.md contains stale prose fields from earlier phases; ROADMAP.md and Phase 3 artifacts are authoritative."
+}
