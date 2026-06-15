@@ -404,6 +404,39 @@ export type Database = {
           },
         ]
       }
+      product_shipping_profiles: {
+        Row: {
+          created_at: string
+          product_id: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          product_id: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          product_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_shipping_profiles_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_shipping_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_tags: {
         Row: {
           product_id: string
@@ -622,6 +655,77 @@ export type Database = {
         }
         Relationships: []
       }
+      shipping_profiles: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      shipping_rules: {
+        Row: {
+          active: boolean
+          additional_item_fee_minor: number
+          country_code: string
+          created_at: string
+          currency_code: string
+          first_item_fee_minor: number
+          id: string
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          additional_item_fee_minor: number
+          country_code: string
+          created_at?: string
+          currency_code: string
+          first_item_fee_minor: number
+          id?: string
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          additional_item_fee_minor?: number
+          country_code?: string
+          created_at?: string
+          currency_code?: string
+          first_item_fee_minor?: number
+          id?: string
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipping_rules_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tag_translations: {
         Row: {
           id: string
@@ -779,6 +883,39 @@ export type Database = {
             foreignKeyName: "variant_market_offers_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      variant_shipping_profiles: {
+        Row: {
+          created_at: string
+          profile_id: string
+          variant_id: string
+        }
+        Insert: {
+          created_at?: string
+          profile_id: string
+          variant_id: string
+        }
+        Update: {
+          created_at?: string
+          profile_id?: string
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variant_shipping_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "variant_shipping_profiles_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: true
             referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
