@@ -30,8 +30,8 @@
 - [x] **CART-01**: Customer can add digital and physical products to one cart.
 - [x] **CART-02**: Customer can update quantities, variants, and remove cart items.
 - [x] **CART-03**: Server recalculates product prices, discounts, shipping fees, and order totals from authoritative records.
-- [ ] **CART-04**: Customer can check out as a guest or while signed in.
-- [ ] **CART-05**: System stores an immutable snapshot of product, variant, market, currency, price, discount, and shipping data on each order line.
+- [x] **CART-04**: Customer can check out as a guest or while signed in.
+- [x] **CART-05**: System stores an immutable snapshot of product, variant, market, currency, price, discount, and shipping data on each order line.
 - [x] **SHIP-01**: Admin can create reusable shipping profiles with destination-based rules.
 - [x] **SHIP-02**: Shipping profiles can define first-item and additional-item fees for physical products.
 - [x] **SHIP-03**: Checkout calculates shipping only for physical order lines using the selected destination and attached profiles.
@@ -41,8 +41,8 @@
 ### Inventory and Orders
 
 - [x] **INV-01**: Admin can set and adjust inventory for each physical product or variant.
-- [ ] **INV-02**: Checkout atomically reserves available physical inventory for a defined payment window.
-- [ ] **INV-03**: System prevents checkout when requested inventory is unavailable or the variant combination is invalid.
+- [x] **INV-02**: Checkout atomically reserves available physical inventory for a defined payment window.
+- [x] **INV-03**: System prevents checkout when requested inventory is unavailable or the variant combination is invalid.
 - [ ] **INV-04**: System finalizes reserved inventory exactly once when payment is confirmed.
 - [ ] **INV-05**: System releases inventory when an order is cancelled, payment fails, or the reservation expires.
 - [ ] **ORD-01**: Customer receives an order number and can view a clear order summary after checkout.
@@ -166,16 +166,16 @@
 | CART-01 | Phase 3 | Complete |
 | CART-02 | Phase 3 | Complete |
 | CART-03 | Phase 3 | Complete |
-| CART-04 | Phase 3 | Pending |
-| CART-05 | Phase 3 | Pending |
+| CART-04 | Phase 3 | Complete |
+| CART-05 | Phase 3 | Complete |
 | SHIP-01 | Phase 3 | Complete |
 | SHIP-02 | Phase 3 | Complete |
 | SHIP-03 | Phase 3 | Complete |
 | SHIP-04 | Phase 3 | Pending |
 | SHIP-05 | Phase 3 | Pending |
 | INV-01 | Phase 2 | Complete |
-| INV-02 | Phase 3 | Pending |
-| INV-03 | Phase 3 | Pending |
+| INV-02 | Phase 3 | Complete |
+| INV-03 | Phase 3 | Complete |
 | INV-04 | Phase 4 | Pending |
 | INV-05 | Phase 4 | Pending |
 | ORD-01 | Phase 4 | Pending |
