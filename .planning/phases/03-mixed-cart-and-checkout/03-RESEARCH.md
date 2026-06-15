@@ -567,25 +567,25 @@ export function readGuestCart(now = Date.now()): StoredGuestCart | null {
 
 Các giả định trên là `[ASSUMED]` và cần được planner ghi thành checkpoint quyết định nếu ảnh hưởng task. Các quyết định D-01 đến D-25 không phải giả định. [ASSUMED]
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Targeted discount cho guest**
    - Đã biết: guest checkout bắt buộc; discount có customer restriction. [VERIFIED: requirements]
    - Chưa rõ: “customer” có bao gồm email chưa xác minh hay chỉ account ID.
-   - Khuyến nghị: MVP chỉ cho `restricted_user_id`; guest targeted code báo yêu cầu sign-in. [ASSUMED]
+   - RESOLVED: Plan 03-03 dùng `restricted_user_id` cho customer-specific discount; guest targeted code trả safe not-eligible/sign-in guidance. [ASSUMED]
 
 2. **Shipping granularity**
    - Đã biết: destination-based reusable rules, Vietnam và international markets. [VERIFIED: PROJECT/requirements]
    - Chưa rõ: country-only hay cần region/postal.
-   - Khuyến nghị: schema zone-country có khả năng mở rộng, UI Phase 3 chỉ country-level. [ASSUMED]
+   - RESOLVED: Plan 03-02 dùng country-level rules cho UI Phase 3 và giữ schema country-scope có khả năng mở rộng. [ASSUMED]
 
 3. **Order shell hay checkout draft**
    - Đã biết: immutable lines thuộc Phase 3, payment lifecycle thuộc Phase 4. [VERIFIED: roadmap/context]
-   - Khuyến nghị: tạo order `pending_payment` trong Phase 3 để reservation có owner bền vững; Phase 4 thêm payment transitions. [ASSUMED]
+   - RESOLVED: Plan 03-04 tạo order shell `pending_payment` trong Phase 3 để reservation có owner bền vững; Phase 4 thêm payment transitions. [ASSUMED]
 
 4. **Tax**
    - Đã biết: không có Phase 3 requirement về tax; STATE ghi tax/legal cần xác minh trước launch. [VERIFIED: `.planning/STATE.md`]
-   - Khuyến nghị: không tự tính tax Phase 3; giữ nullable/zero snapshot field chỉ khi architecture muốn forward compatibility. [ASSUMED]
+   - RESOLVED: Phase 3 không tự tính tax; Plan 03-04 chỉ cho phép snapshot field nullable/zero nếu cần forward compatibility và không đưa tax vào payable calculation. [ASSUMED]
 
 ## Environment Availability
 

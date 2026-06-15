@@ -125,13 +125,25 @@ Plans:
   5. Customer can submit a non-binding market exception request and admin can approve or reject it before exceptional checkout.
 
 **Plans**: 5 plans
-
-Plans:
+Plans:
+**Wave 1**
 
 - [ ] 03-01: Build mixed cart and server-owned pricing pipeline
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 03-02: Implement shipping profiles, destination quotes, and market revalidation
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 03-03: Implement discount administration, validation, and order allocation
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 03-04: Create guest/account checkout drafts, immutable lines, and atomic reservations
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 03-05: Add exception-request workflow and concurrent checkout verification
 
 ### Phase 4: Trusted Payments and Orders
