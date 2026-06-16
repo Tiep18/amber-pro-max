@@ -159,11 +159,13 @@
     "status": {
       "awaiting_payment": {
         "heading": "Dang cho thanh toan",
-        "body": "Kiem tra dung tong tien va hoan tat thanh toan truoc han giu hang."
+        "body": "Kiem tra dung tong tien va hoan tat thanh toan truoc han giu hang.",
+        "vietqrBody": "Chuyen dung so tien VND va noi dung hien thi truoc han. Nguoi ban phai kiem tra chuyen khoan ngan hang truoc khi don hang duoc tinh la da thanh toan."
       },
       "verifying_payment": {
         "heading": "Dang xac minh thanh toan",
-        "body": "PayPal da dua ban tro lai cua hang. Chung toi dang xac minh thanh toan truoc khi cap nhat don hang."
+        "body": "PayPal da dua ban tro lai cua hang. Chung toi dang xac minh thanh toan truoc khi cap nhat don hang.",
+        "vietqrBody": "Chuyen khoan dang cho nguoi ban kiem tra. Quyen PDF va xu ly giao hang van bi khoa den khi toan bo don hang duoc xac nhan da thanh toan."
       },
       "paid": {
         "heading": "Da thanh toan",
@@ -179,11 +181,12 @@
       },
       "rejected": {
         "heading": "Chuyen khoan khong duoc chap nhan",
-        "body": "Bang chung thanh toan khong duoc chap nhan. Hay tao don moi neu ban van muon mua."
+        "body": "Bang chung thanh toan khong khop so tien hoac noi dung chuyen khoan. Cong thanh toan van dong va don hang nay khong the thu lai."
       },
       "expired": {
         "heading": "Da het han thanh toan",
-        "body": "Han giu hang da qua va san pham khong con duoc giu cho don hang nay."
+        "body": "Han giu hang da qua va san pham khong con duoc giu cho don hang nay.",
+        "vietqrBody": "Thoi han chuyen khoan VietQR da het. Don hang nay khong the thanh toan hoac xu ly; hay tao don moi voi ton kho va gia hien tai."
       },
       "partially_refunded": {
         "heading": "Da hoan tien mot phan",
@@ -195,7 +198,8 @@
       },
       "review_required": {
         "heading": "Dang kiem tra thanh toan",
-        "body": "Chung toi dang xem lai thong tin thanh toan da xac minh truoc khi doi trang thai don hang."
+        "body": "Chung toi dang xem lai thong tin thanh toan da xac minh truoc khi doi trang thai don hang.",
+        "vietqrBody": "Nguoi ban dang kiem tra chi tiet chuyen khoan ngan hang truoc khi doi trang thai don hang."
       }
     }
   },
@@ -206,6 +210,22 @@
       "reload": "Tai lai PayPal",
       "unavailable": "PayPal hien khong kha dung cho don hang nay.",
       "amountContext": "Ban se thanh toan {amount} qua PayPal."
+    },
+    "vietqr": {
+      "title": "Chuyen khoan dung so tien va noi dung",
+      "body": "Don hang chi duoc xac nhan sau khi nguoi ban kiem tra tai khoan ngan hang. Khong chinh sua so tien hoac noi dung chuyen khoan.",
+      "amount": "So tien chinh xac",
+      "qrAlt": "Ma VietQR cho don hang {orderNumber}",
+      "bank": "Ngan hang",
+      "accountName": "Ten tai khoan",
+      "accountNumber": "So tai khoan",
+      "reference": "Noi dung chuyen khoan",
+      "deadline": "Han thanh toan",
+      "copyAmount": "Sao chep so tien",
+      "copyReference": "Sao chep noi dung",
+      "copied": "Da sao chep",
+      "loadingQr": "Dang tai ma VietQR",
+      "unavailable": "Huong dan VietQR hien khong kha dung cho don hang nay."
     }
   },
   "footer": {

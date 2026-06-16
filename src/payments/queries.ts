@@ -16,7 +16,13 @@ type QueryClient = RpcClient & {
 type RequireAdmin = () => Promise<unknown>;
 
 export type CustomerOrderPaymentProjection = {
+  orderId?: string;
+  paymentId?: string | null;
   orderNumber: string;
+  market?: 'vn' | 'intl' | string;
+  paymentIntent?: 'paypal_intent' | 'vietqr_intent' | string;
+  provider?: PaymentProvider;
+  paymentStatus?: PaymentInternalStatus;
   customerPaymentStatus: CustomerPaymentStatus;
   fulfillmentGateStatus: FulfillmentGateStatus;
   amountMinor: number;
@@ -162,16 +168,36 @@ export async function getAuthorizedOrderPayment({
     return {status: 'error', code: 'order_payment_lookup_failed'};
   }
 
+  const order: CustomerOrderPaymentProjection = {
+    orderNumber: data.orderNumber,
+    customerPaymentStatus: asCustomerPaymentStatus(data.customerPaymentStatus),
+    fulfillmentGateStatus: asFulfillmentGateStatus(data.fulfillmentGateStatus),
+    amountMinor: data.amountMinor,
+    currencyCode: asCurrencyCode(data.currencyCode),
+    reservationExpiresAt: typeof data.reservationExpiresAt === 'string' ? data.reservationExpiresAt : null
+  };
+  if (typeof data.orderId === 'string') {
+    order.orderId = data.orderId;
+  }
+  if (typeof data.paymentId === 'string') {
+    order.paymentId = data.paymentId;
+  }
+  if (typeof data.market === 'string') {
+    order.market = data.market;
+  }
+  if (data.paymentIntent === 'paypal_intent' || data.paymentIntent === 'vietqr_intent') {
+    order.paymentIntent = data.paymentIntent;
+  }
+  if (data.provider === 'paypal' || data.provider === 'vietqr') {
+    order.provider = data.provider;
+  }
+  if (typeof data.paymentStatus === 'string') {
+    order.paymentStatus = asPaymentStatus(data.paymentStatus);
+  }
+
   return {
     status: 'found',
-    order: {
-      orderNumber: data.orderNumber,
-      customerPaymentStatus: asCustomerPaymentStatus(data.customerPaymentStatus),
-      fulfillmentGateStatus: asFulfillmentGateStatus(data.fulfillmentGateStatus),
-      amountMinor: data.amountMinor,
-      currencyCode: asCurrencyCode(data.currencyCode),
-      reservationExpiresAt: typeof data.reservationExpiresAt === 'string' ? data.reservationExpiresAt : null
-    }
+    order
   };
 }
 

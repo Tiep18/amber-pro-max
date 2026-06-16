@@ -159,11 +159,13 @@
     "status": {
       "awaiting_payment": {
         "heading": "Awaiting payment",
-        "body": "Review the exact total and complete payment before the reservation deadline."
+        "body": "Review the exact total and complete payment before the reservation deadline.",
+        "vietqrBody": "Transfer the exact VND amount with the shown reference before the deadline. The seller must verify the bank transfer before this order can be paid."
       },
       "verifying_payment": {
         "heading": "Verifying payment",
-        "body": "PayPal returned you to the store. We are verifying the payment before updating your order."
+        "body": "PayPal returned you to the store. We are verifying the payment before updating your order.",
+        "vietqrBody": "The bank transfer is under seller review. PDF access and shipping remain locked until the full order is confirmed paid."
       },
       "paid": {
         "heading": "Payment confirmed",
@@ -179,11 +181,12 @@
       },
       "rejected": {
         "heading": "Bank transfer rejected",
-        "body": "The payment evidence was not accepted. Start a new checkout if you still want the items."
+        "body": "The payment evidence was not accepted because the amount or reference did not match. The paid gate stays closed and this order cannot be retried."
       },
       "expired": {
         "heading": "Payment window expired",
-        "body": "The reservation deadline passed and items are no longer held for this order."
+        "body": "The reservation deadline passed and items are no longer held for this order.",
+        "vietqrBody": "The VietQR transfer window expired. This order cannot be paid or fulfilled; start a new checkout for current stock and prices."
       },
       "partially_refunded": {
         "heading": "Partially refunded",
@@ -195,7 +198,8 @@
       },
       "review_required": {
         "heading": "Payment needs review",
-        "body": "We are reviewing verified payment facts before changing the order status."
+        "body": "We are reviewing verified payment facts before changing the order status.",
+        "vietqrBody": "The seller is checking the bank transfer details before changing the order status."
       }
     }
   },
@@ -206,6 +210,22 @@
       "reload": "Reload PayPal",
       "unavailable": "PayPal is not available for this order right now.",
       "amountContext": "You will pay {amount} through PayPal."
+    },
+    "vietqr": {
+      "title": "Transfer the exact amount and reference",
+      "body": "The order is confirmed only after the seller checks the bank account. Do not change the amount or transfer reference.",
+      "amount": "Exact amount",
+      "qrAlt": "VietQR code for order {orderNumber}",
+      "bank": "Bank",
+      "accountName": "Account name",
+      "accountNumber": "Account number",
+      "reference": "Transfer reference",
+      "deadline": "Payment deadline",
+      "copyAmount": "Copy amount",
+      "copyReference": "Copy reference",
+      "copied": "Copied",
+      "loadingQr": "Loading VietQR code",
+      "unavailable": "VietQR instructions are not available for this order right now."
     }
   },
   "footer": {

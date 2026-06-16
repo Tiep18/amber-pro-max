@@ -9,8 +9,10 @@ import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
 import {getAuthorizedOrderPayment} from '@/payments/queries';
 import {getPaymentStatusPresentation, mapCustomerPaymentStatus} from '@/payments/status';
+import {getVietQrInstructions, type VietQrInstructionResult} from '@/payments/vietqr/instructions';
 import {PaymentStatePanel} from './payment-state-panel';
 import {PayPalButtons} from './paypal-buttons';
+import {VietQrInstructions} from './vietqr-instructions';
 
 type OrderPaymentPageProps = {
   locale: Locale;
@@ -32,9 +34,23 @@ function formatDateTime(value: string | null, locale: Locale) {
   }).format(date);
 }
 
+function vietQrStatusBodyKey(status: string) {
+  if (
+    status === 'awaiting_payment' ||
+    status === 'verifying_payment' ||
+    status === 'rejected' ||
+    status === 'expired' ||
+    status === 'review_required'
+  ) {
+    return `status.${status}.vietqrBody`;
+  }
+  return `status.${status}.body`;
+}
+
 export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPageProps) {
   const t = await getTranslations({locale, namespace: 'orders'});
   const paypalT = await getTranslations({locale, namespace: 'payments.paypal'});
+  const vietqrT = await getTranslations({locale, namespace: 'payments.vietqr'});
   const client = await createSupabaseServerClient();
   const guestSecretHash = await getGuestOrderAccessHashFromServer(orderNumber);
   const result = await getAuthorizedOrderPayment({orderNumber, guestSecretHash, client: client as never});
@@ -62,7 +78,44 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
   });
   const env = getServerEnv();
   const paypalClientId = env.paypal.status === 'configured' ? env.paypal.clientId : null;
+  const vietQrConfig =
+    env.vietqr.status === 'configured' && env.vietqr.bankId && env.vietqr.accountNo && env.vietqr.accountName
+      ? {
+          status: 'configured' as const,
+          bankId: env.vietqr.bankId,
+          accountNo: env.vietqr.accountNo,
+          accountName: env.vietqr.accountName,
+          template: env.vietqr.template
+        }
+      : {
+          status: 'unconfigured' as const,
+          code: 'missing_vietqr_server_config' as const,
+          template: env.vietqr.template
+        };
   const showPayPal = status.status === 'awaiting_payment' && result.order.currencyCode === 'USD';
+  const isVietQrOrder = result.order.provider === 'vietqr' || result.order.paymentIntent === 'vietqr_intent';
+  const showVietQr =
+    status.status === 'awaiting_payment' &&
+    result.order.currencyCode === 'VND' &&
+    isVietQrOrder &&
+    typeof result.order.orderId === 'string';
+  const vietQrResult: VietQrInstructionResult | null = showVietQr
+    ? await getVietQrInstructions({
+        config: vietQrConfig,
+        order: {
+          orderId: result.order.orderId as string,
+          paymentId: result.order.paymentId ?? null,
+          orderNumber: result.order.orderNumber,
+          market: result.order.market ?? 'vn',
+          currencyCode: result.order.currencyCode,
+          paymentIntent: result.order.paymentIntent ?? 'vietqr_intent',
+          paymentStatus: result.order.paymentStatus ?? 'pending',
+          amountMinor: result.order.amountMinor,
+          reservationExpiresAt: result.order.reservationExpiresAt
+        }
+      })
+    : null;
+  const vietQrInstruction = vietQrResult?.status === 'ready' ? vietQrResult.instruction : null;
 
   return (
     <main className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -70,7 +123,7 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
         <PaymentStatePanel
           orderNumber={result.order.orderNumber}
           heading={t(`status.${status.status}.heading`)}
-          body={t(`status.${status.status}.body`)}
+          body={t(isVietQrOrder ? vietQrStatusBodyKey(status.status) : `status.${status.status}.body`)}
           presentation={presentation}
           deadlineLabel={t('labels.deadline')}
           deadlineValue={deadlineValue}
@@ -82,6 +135,39 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
             lastChecked: t('labels.lastChecked')
           }}
         />
+
+        {vietQrInstruction ? (
+          <VietQrInstructions
+            amountLabel={total}
+            bankName={vietQrInstruction.bankId}
+            accountName={vietQrInstruction.accountName}
+            accountNumberMasked={vietQrInstruction.accountNoMasked}
+            transferReference={vietQrInstruction.transferReference}
+            deadlineLabel={formatDateTime(vietQrInstruction.paymentDeadlineAt, locale) ?? deadlineValue ?? vietQrInstruction.paymentDeadlineAt}
+            qrImageUrl={vietQrInstruction.qrImageUrl}
+            qrAlt={vietqrT('qrAlt', {orderNumber: result.order.orderNumber})}
+            labels={{
+              title: vietqrT('title'),
+              body: vietqrT('body'),
+              amount: vietqrT('amount'),
+              qrAlt: vietqrT('qrAlt', {orderNumber: result.order.orderNumber}),
+              bank: vietqrT('bank'),
+              accountName: vietqrT('accountName'),
+              accountNumber: vietqrT('accountNumber'),
+              reference: vietqrT('reference'),
+              deadline: vietqrT('deadline'),
+              copyAmount: vietqrT('copyAmount'),
+              copyReference: vietqrT('copyReference'),
+              copied: vietqrT('copied'),
+              loadingQr: vietqrT('loadingQr'),
+              lockHeading: t('fulfillment.lockedHeading'),
+              lockBody: t('fulfillment.lockedBody'),
+              checkStatus: t('actions.checkStatus')
+            }}
+          />
+        ) : null}
+
+        {showVietQr && vietQrResult?.status === 'unconfigured' ? <Alert variant="warning">{vietqrT('unavailable')}</Alert> : null}
 
         {showPayPal ? (
           <Card>
@@ -108,10 +194,10 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
           </Card>
         ) : null}
 
-        <Alert variant={status.fulfillmentLocked ? 'warning' : 'success'}>
+        {!vietQrInstruction ? <Alert variant={status.fulfillmentLocked ? 'warning' : 'success'}>
           <AlertTitle>{status.fulfillmentLocked ? t('fulfillment.lockedHeading') : t('fulfillment.eligibleHeading')}</AlertTitle>
           <p>{status.fulfillmentLocked ? t('fulfillment.lockedBody') : t('fulfillment.eligibleBody')}</p>
-        </Alert>
+        </Alert> : null}
       </section>
 
       <aside className="grid content-start gap-5 lg:sticky lg:top-24">

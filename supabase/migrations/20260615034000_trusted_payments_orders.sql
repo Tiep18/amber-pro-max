@@ -386,6 +386,7 @@ select
   co.contact_email,
   co.locale,
   co.market,
+  co.payment_intent,
   co.currency_code,
   co.total_minor,
   co.reservation_expires_at,
@@ -452,7 +453,13 @@ begin
 
   return jsonb_build_object(
     'status', 'found',
+    'orderId', row_data.order_id,
+    'paymentId', row_data.payment_id,
     'orderNumber', row_data.order_number,
+    'market', row_data.market,
+    'paymentIntent', row_data.payment_intent,
+    'provider', row_data.provider,
+    'paymentStatus', row_data.payment_status,
     'customerPaymentStatus', row_data.customer_payment_status,
     'fulfillmentGateStatus', row_data.fulfillment_gate_status,
     'amountMinor', row_data.total_minor,
