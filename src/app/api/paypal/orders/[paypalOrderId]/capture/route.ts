@@ -3,6 +3,7 @@ import {z} from 'zod';
 
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
+import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
 import {capturePayPalOrder, getPayPalOrder, type PayPalOrderSource} from '@/payments/paypal/client';
 import {reconcilePayPalCapture} from '@/payments/paypal/mapping';
@@ -138,6 +139,7 @@ export async function POST(_request: Request, context: {params: Promise<{paypalO
     return json(400, {status: 'invalid', code: 'invalid_paypal_capture_request'});
   }
 
+  const authClient = (await createSupabaseServerClient()) as unknown as RouteClient;
   const client = createSupabaseAdminClient() as unknown as RouteClient;
   const order = await loadPayPalOrderSourceByProviderOrderId(client, params.data.paypalOrderId);
   if (!order) {
@@ -148,7 +150,7 @@ export async function POST(_request: Request, context: {params: Promise<{paypalO
   const authorized = await getAuthorizedOrderPayment({
     orderNumber: order.orderNumber,
     guestSecretHash,
-    client
+    client: authClient
   });
   if (authorized.status !== 'found') {
     return json(404, {status: 'not_found'});

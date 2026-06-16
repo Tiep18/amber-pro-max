@@ -6,6 +6,7 @@ import type {Locale} from '@/i18n/routing';
 import {getCheckoutPath} from '@/i18n/routing';
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {formatPaymentDateTime} from '@/payments/format';
 import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
 import {getAuthorizedOrderPayment} from '@/payments/queries';
 import {getPaymentStatusPresentation, mapCustomerPaymentStatus} from '@/payments/status';
@@ -18,21 +19,6 @@ type OrderPaymentPageProps = {
   locale: Locale;
   orderNumber: string;
 };
-
-function formatDateTime(value: string | null, locale: Locale) {
-  if (!value) {
-    return null;
-  }
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) {
-    return null;
-  }
-  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZoneName: 'short'
-  }).format(date);
-}
 
 function vietQrStatusBodyKey(status: string) {
   if (
@@ -67,11 +53,14 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
   }
 
   const status = mapCustomerPaymentStatus({
+    paymentStatus: result.order.paymentStatus,
     customerPaymentStatus: result.order.customerPaymentStatus,
-    fulfillmentGateStatus: result.order.fulfillmentGateStatus
+    fulfillmentGateStatus: result.order.fulfillmentGateStatus,
+    provider: result.order.provider,
+    reservationExpiresAt: result.order.reservationExpiresAt
   });
   const presentation = getPaymentStatusPresentation(status.status, locale, getCheckoutPath(locale));
-  const deadlineValue = formatDateTime(result.order.reservationExpiresAt, locale);
+  const deadlineValue = formatPaymentDateTime(result.order.reservationExpiresAt, locale);
   const total = formatMoney({
     amountMinor: result.order.amountMinor,
     currencyCode: result.order.currencyCode
@@ -139,7 +128,7 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
             accountName={vietQrInstruction.accountName}
             accountNumberMasked={vietQrInstruction.accountNoMasked}
             transferReference={vietQrInstruction.transferReference}
-            deadlineLabel={formatDateTime(vietQrInstruction.paymentDeadlineAt, locale) ?? deadlineValue ?? vietQrInstruction.paymentDeadlineAt}
+            deadlineLabel={formatPaymentDateTime(vietQrInstruction.paymentDeadlineAt, locale) ?? deadlineValue ?? vietQrInstruction.paymentDeadlineAt}
             qrImageUrl={vietQrInstruction.qrImageUrl}
             qrAlt={vietqrT('qrAlt', {orderNumber: result.order.orderNumber})}
             labels={{

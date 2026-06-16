@@ -140,10 +140,12 @@ function createRouteClient({row = routeOrderRow, payment = paymentRow}: {row?: R
 
 async function importCreateRoute({
   client = createRouteClient({payment: {...paymentRow, provider_order_id: null}}),
+  authClient = {rpc: vi.fn()},
   authorized = true,
   createResult = {status: 'created', paypalOrderId: paypalFixtureIds.paypalOrderId}
 }: {
   client?: ReturnType<typeof createRouteClient>;
+  authClient?: {rpc: ReturnType<typeof vi.fn>};
   authorized?: boolean;
   createResult?: unknown;
 } = {}) {
@@ -151,6 +153,7 @@ async function importCreateRoute({
   vi.doMock('server-only', () => ({}));
   vi.doMock('@/lib/env/server', () => ({getServerEnv: () => ({paypal: config})}));
   vi.doMock('@/lib/supabase/admin', () => ({createSupabaseAdminClient: () => client}));
+  vi.doMock('@/lib/supabase/server', () => ({createSupabaseServerClient: async () => authClient}));
   vi.doMock('@/payments/guest-access', () => ({getGuestOrderAccessHashFromServer: async () => 'guest-hash'}));
   vi.doMock('@/payments/queries', () => ({
     getAuthorizedOrderPayment: vi.fn(async () =>
@@ -163,11 +166,19 @@ async function importCreateRoute({
   }));
   const route = await import('@/app/api/paypal/orders/route');
   const clientModule = await import('@/payments/paypal/client');
-  return {POST: route.POST as (request: Request) => Promise<Response>, client, createPayPalOrder: vi.mocked(clientModule.createPayPalOrder)};
+  const queries = await import('@/payments/queries');
+  return {
+    POST: route.POST as (request: Request) => Promise<Response>,
+    client,
+    authClient,
+    createPayPalOrder: vi.mocked(clientModule.createPayPalOrder),
+    getAuthorizedOrderPayment: vi.mocked(queries.getAuthorizedOrderPayment)
+  };
 }
 
 async function importCaptureRoute({
   client = createRouteClient(),
+  authClient = {rpc: vi.fn()},
   captureResult = {
     status: 'captured',
     paypalOrderId: paypalFixtureIds.paypalOrderId,
@@ -195,12 +206,14 @@ async function importCaptureRoute({
   }
 }: {
   client?: ReturnType<typeof createRouteClient>;
+  authClient?: {rpc: ReturnType<typeof vi.fn>};
   captureResult?: unknown;
 } = {}) {
   vi.resetModules();
   vi.doMock('server-only', () => ({}));
   vi.doMock('@/lib/env/server', () => ({getServerEnv: () => ({paypal: config})}));
   vi.doMock('@/lib/supabase/admin', () => ({createSupabaseAdminClient: () => client}));
+  vi.doMock('@/lib/supabase/server', () => ({createSupabaseServerClient: async () => authClient}));
   vi.doMock('@/payments/guest-access', () => ({getGuestOrderAccessHashFromServer: async () => 'guest-hash'}));
   vi.doMock('@/payments/queries', () => ({
     getAuthorizedOrderPayment: vi.fn(async () => ({status: 'found', order: {orderNumber: paypalFixtureIds.orderNumber}}))
@@ -215,11 +228,14 @@ async function importCaptureRoute({
   const route = await import('@/app/api/paypal/orders/[paypalOrderId]/capture/route');
   const clientModule = await import('@/payments/paypal/client');
   const transitions = await import('@/payments/transitions');
+  const queries = await import('@/payments/queries');
   return {
     POST: route.POST as (request: Request, context: {params: Promise<{paypalOrderId: string}>}) => Promise<Response>,
     client,
+    authClient,
     capturePayPalOrder: vi.mocked(clientModule.capturePayPalOrder),
-    applyPaymentTransition: vi.mocked(transitions.applyPaymentTransition)
+    applyPaymentTransition: vi.mocked(transitions.applyPaymentTransition),
+    getAuthorizedOrderPayment: vi.mocked(queries.getAuthorizedOrderPayment)
   };
 }
 
@@ -369,7 +385,7 @@ describe('PayPal server client contract', () => {
 
 describe('PayPal route contract', () => {
   test('create body accepts only order number and uses local exact amount', async () => {
-    const {POST, createPayPalOrder} = await importCreateRoute();
+    const {POST, authClient, createPayPalOrder, getAuthorizedOrderPayment} = await importCreateRoute();
 
     const response = await POST(
       new Request('http://localhost/api/paypal/orders', {
@@ -379,6 +395,13 @@ describe('PayPal route contract', () => {
     );
 
     await expect(response.json()).resolves.toMatchObject({status: 'awaiting', paypalOrderId: paypalFixtureIds.paypalOrderId});
+    expect(getAuthorizedOrderPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderNumber: paypalFixtureIds.orderNumber,
+        guestSecretHash: 'guest-hash',
+        client: authClient
+      })
+    );
     expect(createPayPalOrder).toHaveBeenCalledWith(
       expect.objectContaining({
         order: expect.objectContaining({
@@ -425,13 +448,20 @@ describe('PayPal route contract', () => {
   });
 
   test('completed capture delegates paid state to applyPaymentTransition', async () => {
-    const {POST, applyPaymentTransition} = await importCaptureRoute();
+    const {POST, authClient, applyPaymentTransition, getAuthorizedOrderPayment} = await importCaptureRoute();
 
     const response = await POST(new Request('http://localhost/api/paypal/orders/id/capture', {method: 'POST'}), {
       params: Promise.resolve({paypalOrderId: paypalFixtureIds.paypalOrderId})
     });
 
     await expect(response.json()).resolves.toMatchObject({status: 'paid'});
+    expect(getAuthorizedOrderPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderNumber: paypalFixtureIds.orderNumber,
+        guestSecretHash: 'guest-hash',
+        client: authClient
+      })
+    );
     expect(applyPaymentTransition).toHaveBeenCalledWith(
       expect.objectContaining({
         source: 'paypal_recheck',

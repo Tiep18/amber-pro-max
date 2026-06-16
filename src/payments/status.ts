@@ -24,6 +24,7 @@ export type CustomerPaymentStatusInput = {
   fulfillmentGateStatus?: FulfillmentGateStatus | null;
   provider?: PaymentProvider | null;
   reviewReason?: string | null;
+  reservationExpiresAt?: string | null;
 };
 
 export type CustomerPaymentStatusModel = {
@@ -80,13 +81,15 @@ function normalizeProjectedStatus(status: ProjectionCustomerStatus | null | unde
 
 export function mapCustomerPaymentStatus(input: CustomerPaymentStatusInput): CustomerPaymentStatusModel {
   let status = normalizeProjectedStatus(input.customerPaymentStatus);
+  const deadlineMs = input.reservationExpiresAt ? Date.parse(input.reservationExpiresAt) : Number.NaN;
+  const isOverdue = Number.isFinite(deadlineMs) && deadlineMs <= Date.now();
 
   switch (input.paymentStatus) {
     case 'pending':
-      status = 'awaiting_payment';
+      status = isOverdue ? 'expired' : 'awaiting_payment';
       break;
     case 'verifying':
-      status = 'verifying_payment';
+      status = isOverdue ? 'expired' : 'verifying_payment';
       break;
     case 'paid':
     case 'failed':

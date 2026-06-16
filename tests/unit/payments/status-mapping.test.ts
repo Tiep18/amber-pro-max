@@ -55,6 +55,21 @@ describe('Phase 4 customer payment status contract', () => {
     expect(status.sameOrderRetryAllowed).toBe(false);
   });
 
+  test('maps overdue pending PayPal orders to expired before rendering payment actions', () => {
+    const status = mapCustomerPaymentStatus({
+      paymentStatus: 'pending',
+      customerPaymentStatus: 'awaiting_payment',
+      fulfillmentGateStatus: 'locked',
+      provider: 'paypal',
+      reservationExpiresAt: new Date(Date.now() - 1000).toISOString()
+    });
+    const presentation = getPaymentStatusPresentation(status.status, 'en', getCheckoutPath('en'));
+
+    expect(status.status).toBe('expired');
+    expect(status.isTerminal).toBe(true);
+    expect(presentation.primaryAction?.href).toBe('/en/checkout');
+  });
+
   test('maps verified completed payment to paid and opens only the paid gate', () => {
     const status = mapCustomerPaymentStatus({
       paymentStatus: 'paid',
