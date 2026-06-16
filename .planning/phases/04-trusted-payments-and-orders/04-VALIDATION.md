@@ -105,3 +105,42 @@ Plan 04-01 owns creating the files above before production implementation. The c
 - [x] `nyquist_compliant: true` is set after the 10-plan, 21-task mapping was finalized.
 
 **Approval:** approved 2026-06-15
+
+---
+
+## Plan 04-10 Execution Attempt - 2026-06-16
+
+### Managed Schema Gate
+
+| Check | Status | Evidence |
+|-------|--------|----------|
+| Remote project link | passed | Project ref `kpnazmkprosboeiuhgea` was already linked from Plan 04-02. |
+| `supabase db push` | passed | Applied pending migration `20260616035039_paypal_webhook_delivery_history.sql`. |
+| `supabase migration list` | passed | Local and remote histories align through `20260616035039`. |
+| Schema drift query | passed | `gsd-tools query verify.schema-drift 04` returned `drift_detected: false`. |
+
+### Provider Readiness Checkpoints
+
+| Check | Status | Evidence |
+|-------|--------|----------|
+| PayPal sandbox client ID/secret | blocked | No non-empty `PAYPAL_CLIENT_ID` or `PAYPAL_CLIENT_SECRET` found in local env files. Secret values were not printed. |
+| PayPal webhook ID / expected merchant | blocked | No non-empty `PAYPAL_WEBHOOK_ID` or `PAYPAL_EXPECTED_MERCHANT_ID` found in local env files. |
+| Real PayPal sandbox create/capture + verified webhook | blocked | Requires seller-provided sandbox app credentials and deployed/forwarded HTTPS webhook endpoint. |
+| VietQR seller bank configuration | blocked | No non-empty `VIETQR_BANK_ID`, `VIETQR_ACCOUNT_NO`, or `VIETQR_ACCOUNT_NAME` found in local env files. |
+| Production readiness | blocked | Provider facts are seller-owned and were not invented. |
+
+### Automated Verification
+
+| Command | Status | Evidence |
+|---------|--------|----------|
+| `npm run ci` | blocked | Lint, typecheck, and 138 unit tests passed; CI failed at `npm run db:reset` because `supabase_db_Test_GSD` stayed unhealthy after three reset attempts. Container logs repeatedly reported missing `/etc/postgresql-custom/conf.d`. |
+| `npx vitest run tests/unit/payments/status-mapping.test.ts tests/unit/payments/paypal-client.test.ts tests/unit/payments/paypal-webhook.test.ts tests/unit/payments/vietqr.test.ts tests/unit/payments/order-queries.test.ts tests/unit/payments/paypal-buttons.test.ts` | passed | 6 files, 41 tests passed. |
+| `node --test tests/security/payment-boundaries.test.mjs` | passed | 7 payment boundary tests passed. |
+| `npx playwright test --list tests/e2e/order-status.spec.ts tests/e2e/admin-orders.spec.ts tests/e2e/admin-vietqr.spec.ts` | passed | 22 browser scenarios listed across 3 files. |
+| `npm run build` | passed | Next.js production build completed and included Phase 4 customer/admin/payment routes. |
+
+### Open Blockers Before Phase Completion
+
+- Local Supabase Postgres container is unhealthy, so local `db:reset`, `db:lint`, `db:test`, `db:types`, payment concurrency script, and full `npm run ci` cannot complete in this environment.
+- PayPal sandbox credentials, webhook ID, expected merchant identity, and a webhook endpoint are missing, so sandbox create/capture/webhook readiness cannot be verified.
+- VietQR seller bank configuration is missing, so production instruction readiness cannot be verified.
