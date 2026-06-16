@@ -45,9 +45,9 @@
 - [x] **INV-03**: System prevents checkout when requested inventory is unavailable or the variant combination is invalid.
 - [x] **INV-04**: System finalizes reserved inventory exactly once when payment is confirmed.
 - [x] **INV-05**: System releases inventory when an order is cancelled, payment fails, or the reservation expires.
-- [ ] **ORD-01**: Customer receives an order number and can view a clear order summary after checkout.
+- [x] **ORD-01**: Customer receives an order number and can view a clear order summary after checkout.
 - [x] **ORD-02**: System tracks order, payment, digital fulfillment, and physical fulfillment states separately.
-- [ ] **ORD-03**: Admin can view order history, status transitions, payment records, fulfillment records, and customer details.
+- [x] **ORD-03**: Admin can view order history, status transitions, payment records, fulfillment records, and customer details.
 
 ### Payments
 
@@ -56,7 +56,7 @@
 - [ ] **PAY-03**: System verifies PayPal webhook authenticity and validates related order, merchant, amount, and currency.
 - [x] **PAY-04**: System processes each PayPal event and paid transition idempotently.
 - [ ] **PAY-05**: Vietnam customer can place a VND order and receive VietQR bank-transfer instructions with exact amount, unique reference, and payment deadline.
-- [ ] **PAY-06**: Authorized admin can confirm or reject a VietQR payment and the action is recorded in an audit trail.
+- [x] **PAY-06**: Authorized admin can confirm or reject a VietQR payment and the action is recorded in an audit trail.
 - [x] **PAY-07**: System does not grant digital access or begin fulfillment until the entire order is confirmed paid.
 - [ ] **PAY-08**: Customer and admin can see whether payment is pending, paid, failed, cancelled, partially refunded, or refunded.
 
@@ -178,15 +178,15 @@
 | INV-03 | Phase 3 | Complete |
 | INV-04 | Phase 4 | Complete |
 | INV-05 | Phase 4 | Complete |
-| ORD-01 | Phase 4 | Pending |
+| ORD-01 | Phase 4 | Complete |
 | ORD-02 | Phase 4 | Complete |
-| ORD-03 | Phase 4 | Pending |
+| ORD-03 | Phase 4 | Complete |
 | PAY-01 | Phase 4 | Pending |
 | PAY-02 | Phase 4 | Pending |
 | PAY-03 | Phase 4 | Pending |
 | PAY-04 | Phase 4 | Complete |
 | PAY-05 | Phase 4 | Pending |
-| PAY-06 | Phase 4 | Pending |
+| PAY-06 | Phase 4 | Complete |
 | PAY-07 | Phase 4 | Complete |
 | PAY-08 | Phase 4 | Pending |
 | DIG-01 | Phase 2 | Complete |

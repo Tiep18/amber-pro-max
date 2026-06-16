@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase 04
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-06-16T01:41:09.277Z"
-last_activity: 2026-06-16 -- Completed Phase 04 Plan 02 trusted payment authority
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-06-16T02:00:45.608Z"
+last_activity: 2026-06-16 -- Completed Phase 04 Plan 03 payment access boundaries
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 31
-  completed_plans: 23
-  percent: 74
+  completed_plans: 24
+  percent: 77
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 4
-Plan: 04-03 of 10
+Plan: 04-04 of 10
 Status: Ready to execute
-Last activity: 2026-06-16 -- Completed Phase 04 Plan 02 trusted payment authority
+Last activity: 2026-06-16 -- Completed Phase 04 Plan 03 payment access boundaries
 
-Progress: [##--------] 20%
+Progress: [###-------] 30%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 22
+- Total plans completed: 24
 - Average duration: 26 min
 - Total execution time: 5 hours 9 min
 
@@ -74,6 +74,7 @@ Progress: [##--------] 20%
 | Phase 03 P05 | 42 min | 3 tasks | 21 files |
 | Phase 04 P01 | 6 min | 2 tasks | 13 files |
 | Phase 04 P02 | 2 days elapsed across checkpoint | 3 tasks | 8 files |
+| Phase 04 P03 | 21 min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,9 @@ Recent decisions affecting current work:
 - [Phase 04 Plan 02]: Remote project kpnazmkprosboeiuhgea was approved for full migration-history bootstrap because dry-run showed no prior remote migration history.
 - [Phase 04 Plan 02]: Payment state authority lives in public.apply_payment_transition(jsonb), which updates payment/order gate, reservation outcome, inventory, transition ledger, and audit rows in one transaction.
 - [Phase 04 Plan 02]: Future PayPal, VietQR, admin, and expiry paths must call applyPaymentTransition instead of directly updating terminal payment or order tables.
+- [Phase 04 Plan 03]: Guest checkout raw tokens are exchanged inside the Server Action into order-scoped HttpOnly cookies; browser-visible state receives no guestAccessToken.
+- [Phase 04 Plan 03]: Checkout rejects mismatched market/currency/payment intent before submit_checkout; the database constraint remains the second boundary.
+- [Phase 04 Plan 03]: Admin order query helpers require requireAdmin before reading admin projections or timeline RPCs; customer reads stay on get_order_payment_status.
 
 ### Pending Todos
 
@@ -122,6 +126,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-16T01:40:50.494Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-06-16T02:00:28.309Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None
