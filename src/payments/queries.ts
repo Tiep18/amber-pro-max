@@ -322,6 +322,33 @@ export async function getAdminOrderDetail({
   };
 }
 
+export async function getAdminOrderDetailByOrderNumber({
+  orderNumber,
+  client,
+  requireAdmin: authorize = defaultRequireAdmin
+}: {
+  orderNumber: string;
+  client: QueryClient;
+  requireAdmin?: RequireAdmin;
+}): Promise<AdminOrderDetailResult> {
+  await authorize();
+
+  const lookupQuery = client.from('order_payment_statuses').select('order_id') as Filterable<unknown>;
+  const {data, error} = await lookupQuery.eq('order_number', orderNumber).maybeSingle();
+  if (error) {
+    return {status: 'error', code: 'admin_order_detail_failed'};
+  }
+  if (!isRecord(data) || typeof data.order_id !== 'string') {
+    return {status: 'not_found'};
+  }
+
+  return getAdminOrderDetail({
+    orderId: data.order_id,
+    client,
+    requireAdmin: async () => true
+  });
+}
+
 export async function createAdminOrderQueryClient() {
   const {createSupabaseAdminClient} = await import('@/lib/supabase/admin');
   return createSupabaseAdminClient() as unknown as QueryClient;
