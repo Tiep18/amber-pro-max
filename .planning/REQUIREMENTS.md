@@ -58,7 +58,7 @@
 - [x] **PAY-05**: Vietnam customer can place a VND order and receive VietQR bank-transfer instructions with exact amount, unique reference, and payment deadline.
 - [x] **PAY-06**: Authorized admin can confirm or reject a VietQR payment and the action is recorded in an audit trail.
 - [x] **PAY-07**: System does not grant digital access or begin fulfillment until the entire order is confirmed paid.
-- [ ] **PAY-08**: Customer and admin can see whether payment is pending, paid, failed, cancelled, partially refunded, or refunded.
+- [x] **PAY-08**: Customer and admin can see whether payment is pending, paid, failed, cancelled, partially refunded, or refunded.
 
 ### Digital and Physical Fulfillment
 
@@ -188,7 +188,7 @@
 | PAY-05 | Phase 4 | Complete |
 | PAY-06 | Phase 4 | Complete |
 | PAY-07 | Phase 4 | Complete |
-| PAY-08 | Phase 4 | Pending |
+| PAY-08 | Phase 4 | Complete |
 | DIG-01 | Phase 2 | Complete |
 | DIG-02 | Phase 5 | Pending |
 | DIG-03 | Phase 5 | Pending |

@@ -182,7 +182,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 04-05: Build localized customer PayPal order and verifying-return experience
+- [x] 04-05: Build localized customer PayPal order and verifying-return experience
 - [ ] 04-06: Verify PayPal webhooks, idempotency, reconciliation, and failure handling
 - [ ] 04-08: Build customer VietQR instructions and responsive payment status journeys
 
