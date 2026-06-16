@@ -43,10 +43,10 @@
 - [x] **INV-01**: Admin can set and adjust inventory for each physical product or variant.
 - [x] **INV-02**: Checkout atomically reserves available physical inventory for a defined payment window.
 - [x] **INV-03**: System prevents checkout when requested inventory is unavailable or the variant combination is invalid.
-- [ ] **INV-04**: System finalizes reserved inventory exactly once when payment is confirmed.
-- [ ] **INV-05**: System releases inventory when an order is cancelled, payment fails, or the reservation expires.
+- [x] **INV-04**: System finalizes reserved inventory exactly once when payment is confirmed.
+- [x] **INV-05**: System releases inventory when an order is cancelled, payment fails, or the reservation expires.
 - [ ] **ORD-01**: Customer receives an order number and can view a clear order summary after checkout.
-- [ ] **ORD-02**: System tracks order, payment, digital fulfillment, and physical fulfillment states separately.
+- [x] **ORD-02**: System tracks order, payment, digital fulfillment, and physical fulfillment states separately.
 - [ ] **ORD-03**: Admin can view order history, status transitions, payment records, fulfillment records, and customer details.
 
 ### Payments
@@ -54,10 +54,10 @@
 - [ ] **PAY-01**: International customer can pay an eligible USD order using PayPal.
 - [ ] **PAY-02**: System creates and captures PayPal orders server-side using the authoritative order total.
 - [ ] **PAY-03**: System verifies PayPal webhook authenticity and validates related order, merchant, amount, and currency.
-- [ ] **PAY-04**: System processes each PayPal event and paid transition idempotently.
+- [x] **PAY-04**: System processes each PayPal event and paid transition idempotently.
 - [ ] **PAY-05**: Vietnam customer can place a VND order and receive VietQR bank-transfer instructions with exact amount, unique reference, and payment deadline.
 - [ ] **PAY-06**: Authorized admin can confirm or reject a VietQR payment and the action is recorded in an audit trail.
-- [ ] **PAY-07**: System does not grant digital access or begin fulfillment until the entire order is confirmed paid.
+- [x] **PAY-07**: System does not grant digital access or begin fulfillment until the entire order is confirmed paid.
 - [ ] **PAY-08**: Customer and admin can see whether payment is pending, paid, failed, cancelled, partially refunded, or refunded.
 
 ### Digital and Physical Fulfillment
@@ -107,7 +107,7 @@
 - [x] **ADM-02**: Admin operations that affect payment, stock, access rights, or customer data require server-side authorization.
 - [x] **SEC-01**: Every exposed customer or commerce table has Row Level Security policies matching anonymous, customer, and admin access.
 - [x] **SEC-02**: Privileged database and storage credentials are never exposed to the browser.
-- [ ] **SEC-03**: Sensitive admin actions and important state transitions are recorded in an audit log.
+- [x] **SEC-03**: Sensitive admin actions and important state transitions are recorded in an audit log.
 - [ ] **OPS-01**: Transactional email requests are stored durably and retried safely after transient failures.
 - [ ] **OPS-02**: Admin can inspect failed transactional emails and trigger a controlled resend.
 - [ ] **OPS-03**: System captures and reports application, payment, email, and fulfillment errors without logging secrets or unnecessary personal data.
@@ -176,18 +176,18 @@
 | INV-01 | Phase 2 | Complete |
 | INV-02 | Phase 3 | Complete |
 | INV-03 | Phase 3 | Complete |
-| INV-04 | Phase 4 | Pending |
-| INV-05 | Phase 4 | Pending |
+| INV-04 | Phase 4 | Complete |
+| INV-05 | Phase 4 | Complete |
 | ORD-01 | Phase 4 | Pending |
-| ORD-02 | Phase 4 | Pending |
+| ORD-02 | Phase 4 | Complete |
 | ORD-03 | Phase 4 | Pending |
 | PAY-01 | Phase 4 | Pending |
 | PAY-02 | Phase 4 | Pending |
 | PAY-03 | Phase 4 | Pending |
-| PAY-04 | Phase 4 | Pending |
+| PAY-04 | Phase 4 | Complete |
 | PAY-05 | Phase 4 | Pending |
 | PAY-06 | Phase 4 | Pending |
-| PAY-07 | Phase 4 | Pending |
+| PAY-07 | Phase 4 | Complete |
 | PAY-08 | Phase 4 | Pending |
 | DIG-01 | Phase 2 | Complete |
 | DIG-02 | Phase 5 | Pending |
@@ -222,7 +222,7 @@
 | ADM-02 | Phase 1 | Complete |
 | SEC-01 | Phase 1 | Complete |
 | SEC-02 | Phase 1 | Complete |
-| SEC-03 | Phase 4 | Pending |
+| SEC-03 | Phase 4 | Complete |
 | OPS-01 | Phase 5 | Pending |
 | OPS-02 | Phase 5 | Pending |
 | OPS-03 | Phase 7 | Pending |

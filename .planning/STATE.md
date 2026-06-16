@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase 04
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-06-15T09:26:54.834Z"
-last_activity: 2026-06-15 -- Completed Phase 04 Plan 01 Wave 0 payment test contracts
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-06-16T01:41:09.277Z"
+last_activity: 2026-06-16 -- Completed Phase 04 Plan 02 trusted payment authority
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 31
-  completed_plans: 22
-  percent: 71
+  completed_plans: 23
+  percent: 74
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 4
-Plan: 04-02 of 10
-Status: In Progress
-Last activity: 2026-06-15 -- Completed Phase 04 Plan 01 Wave 0 payment test contracts
+Plan: 04-03 of 10
+Status: Ready to execute
+Last activity: 2026-06-16 -- Completed Phase 04 Plan 02 trusted payment authority
 
-Progress: [#---------] 10%
+Progress: [##--------] 20%
 
 ## Performance Metrics
 
@@ -73,6 +73,7 @@ Progress: [#---------] 10%
 | Phase 03 P04 | 31 min | 3 tasks | 11 files |
 | Phase 03 P05 | 42 min | 3 tasks | 21 files |
 | Phase 04 P01 | 6 min | 2 tasks | 13 files |
+| Phase 04 P02 | 2 days elapsed across checkpoint | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -97,8 +98,12 @@ Recent decisions affecting current work:
 - [Phase 04 Plan 01]: Wave 0 records Phase 4 requirement coverage as executable contracts only; payment, order, inventory, and fulfillment behavior remains owned by later implementation plans.
 - [Phase 04 Plan 01]: PayPal fixtures use sanitized deterministic IDs, merchant placeholders, amounts, and headers with no live seller identity or secrets.
 - [Phase 04 Plan 01]: Implementation-dependent payment UI journeys start as skipped Playwright contracts so later plans can turn them green without losing scenario ownership.
+- [Phase 04 Plan 02]: Remote project kpnazmkprosboeiuhgea was approved for full migration-history bootstrap because dry-run showed no prior remote migration history.
+- [Phase 04 Plan 02]: Payment state authority lives in public.apply_payment_transition(jsonb), which updates payment/order gate, reservation outcome, inventory, transition ledger, and audit rows in one transaction.
+- [Phase 04 Plan 02]: Future PayPal, VietQR, admin, and expiry paths must call applyPaymentTransition instead of directly updating terminal payment or order tables.
 
 ### Pending Todos
+
 None yet.
 
 ### Blockers/Concerns
@@ -117,6 +122,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-15T09:26:28.436Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-06-16T01:40:50.494Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None

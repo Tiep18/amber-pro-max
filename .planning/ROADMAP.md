@@ -169,7 +169,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-02: Define order/payment state machines, audit events, inventory finalization, and schema push
+- [x] 04-02: Define order/payment state machines, audit events, inventory finalization, and schema push
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -278,7 +278,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
 | 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
-| 4. Trusted Payments and Orders | 1/10 | In Progress|  |
+| 4. Trusted Payments and Orders | 2/10 | In Progress|  |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |
 | 6. Customer Retention and Trust | 0/4 | Not started | - |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |
