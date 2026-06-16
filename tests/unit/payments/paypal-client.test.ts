@@ -1,5 +1,8 @@
 import {describe, expect, test, vi} from 'vitest';
 import {paypalFixtureIds} from '../../fixtures/payments/paypal-events';
+
+vi.mock('server-only', () => ({}));
+
 import {
   capturePayPalOrder,
   createPayPalOrder,
@@ -13,8 +16,11 @@ const config: PayPalServerConfig = {
   status: 'configured',
   clientId: 'fixture-client-id',
   clientSecret: 'fixture-client-secret',
+  webhookId: 'fixture-webhook-id',
   expectedMerchantId: paypalFixtureIds.merchantId,
-  apiBase: 'https://api-m.sandbox.paypal.com'
+  apiBase: 'https://api-m.sandbox.paypal.com',
+  enabledCountries: ['US'],
+  enabledCurrency: 'USD'
 };
 
 const order: PayPalOrderSource = {
