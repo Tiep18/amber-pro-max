@@ -178,7 +178,7 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] 04-04: Integrate server-owned PayPal create/capture/recheck flow
-- [ ] 04-07: Implement VietQR instructions, evidence, and audited admin confirmation
+- [x] 04-07: Implement VietQR instructions, evidence, and audited admin confirmation
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -278,7 +278,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
 | 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
-| 4. Trusted Payments and Orders | 4/10 | In Progress|  |
+| 4. Trusted Payments and Orders | 5/10 | In Progress|  |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |
 | 6. Customer Retention and Trust | 0/4 | Not started | - |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |
