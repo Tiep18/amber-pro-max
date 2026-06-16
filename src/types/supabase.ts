@@ -991,8 +991,10 @@ export type Database = {
       }
       payment_events: {
         Row: {
+          delivery_count: number
           event_type: string
           id: string
+          last_received_at: string
           payload_digest: string | null
           payment_id: string
           provider: string
@@ -1003,8 +1005,10 @@ export type Database = {
           verification_status: string
         }
         Insert: {
+          delivery_count?: number
           event_type: string
           id?: string
+          last_received_at?: string
           payload_digest?: string | null
           payment_id: string
           provider: string
@@ -1015,8 +1019,10 @@ export type Database = {
           verification_status: string
         }
         Update: {
+          delivery_count?: number
           event_type?: string
           id?: string
+          last_received_at?: string
           payload_digest?: string | null
           payment_id?: string
           provider?: string
@@ -2328,4 +2334,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

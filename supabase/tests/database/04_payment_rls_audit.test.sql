@@ -102,7 +102,7 @@ select col_type_is('public', 'admin_order_timelines', 'sanitized_facts', 'jsonb'
 
 select table_privs_are('public', 'commerce_audit_events', 'service_role', array['SELECT', 'INSERT'], 'service role may append audit rows');
 select table_privs_are('public', 'commerce_audit_events', 'service_role', array['SELECT', 'INSERT'], 'service role is not granted audit update or delete');
-select table_privs_are('public', 'payment_events', 'service_role', array['SELECT', 'INSERT'], 'service role may append provider events');
+select table_privs_are('public', 'payment_events', 'service_role', array['SELECT', 'INSERT', 'UPDATE'], 'service role may append provider events and update duplicate delivery counters');
 select table_privs_are('public', 'payment_transitions', 'service_role', array['SELECT', 'INSERT'], 'service role may append transition rows');
 
 select lives_ok(

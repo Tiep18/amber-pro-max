@@ -1,6 +1,6 @@
 begin;
 
-select plan(38);
+select plan(41);
 
 select has_table('public', 'checkout_orders', 'existing checkout order shell remains the order aggregate');
 select has_table('public', 'checkout_order_lines', 'immutable order line snapshots remain the commercial record');
@@ -26,7 +26,10 @@ select col_type_is('public', 'payment_events', 'provider_event_id', 'text', 'pro
 select col_type_is('public', 'payment_events', 'event_type', 'text', 'provider event type is stored');
 select col_type_is('public', 'payment_events', 'verification_status', 'text', 'signature and reconciliation outcome is stored');
 select col_type_is('public', 'payment_events', 'payload_digest', 'text', 'raw payload is represented by a digest, not dumped to app tables');
+select col_type_is('public', 'payment_events', 'delivery_count', 'integer', 'webhook delivery attempts are counted for duplicate retries');
+select col_type_is('public', 'payment_events', 'last_received_at', 'timestamp with time zone', 'latest webhook delivery time is retained');
 select has_index('public', 'payment_events', 'payment_events_provider_event_unique_idx', 'provider event ids are unique for idempotency');
+select has_index('public', 'payment_events', 'payment_events_provider_last_received_idx', 'provider event deliveries can be inspected by latest receipt time');
 
 select col_is_fk('public', 'payment_transitions', 'payment_id', 'transitions reference payments');
 select col_type_is('public', 'payment_transitions', 'transition_key', 'text', 'transition key supports webhook/recheck/admin idempotency');

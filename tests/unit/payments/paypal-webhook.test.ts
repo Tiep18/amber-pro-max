@@ -382,8 +382,10 @@ describe('PayPal webhook route contract', () => {
     expect(response.status).toBe(200);
     expect(body).toMatchObject({status: 'accepted', result: 'applied'});
     expect(state.rpc).toHaveBeenCalledTimes(1);
-    expect(state.rpc.mock.calls[0][0]).toBe('apply_payment_transition');
-    expect(state.rpc.mock.calls[0][1].p_payload).toMatchObject({
+    const transitionCall = state.rpc.mock.calls[0];
+    expect(transitionCall?.[0]).toBe('apply_payment_transition');
+    const transitionPayload = transitionCall?.[1]?.p_payload;
+    expect(transitionPayload).toMatchObject({
       source: 'paypal_webhook',
       targetStatus: 'paid',
       providerEventId: paypalCompletedCaptureEvent.id,
