@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-08-PLAN.md
-last_updated: "2026-06-16T04:24:03.425Z"
-last_activity: 2026-06-16 -- Completed Phase 04 Plan 07 VietQR instructions and admin evidence
+stopped_at: Completed 04-09-PLAN.md
+last_updated: "2026-06-16T04:36:23.537Z"
+last_activity: 2026-06-16 -- Completed Phase 04 Plan 09 admin order operations
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 31
-  completed_plans: 29
-  percent: 43
+  completed_plans: 30
+  percent: 97
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 4
-Plan: 7-05 of 10
-Status: Ready to execute
-Last activity: 2026-06-16 -- Completed Phase 04 Plan 07 VietQR instructions and admin evidence
+Plan: 10 of 10
+Status: Ready to execute Phase 04 Plan 10
+Last activity: 2026-06-16 -- Completed Phase 04 Plan 09 admin order operations
 
-Progress: [#####-----] 50%
+Progress: [#########-] 90%
 
 ## Performance Metrics
 
@@ -80,6 +80,7 @@ Progress: [#####-----] 50%
 | Phase 04 P05 | 12 min | 2 tasks | 14 files |
 | Phase 04 P06 | 24 min | 2 tasks | 10 files |
 | Phase 04 P08 | 12 min | 2 tasks | 9 files |
+| Phase 04 P09 | 18 min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,8 @@ Recent decisions affecting current work:
 - [Phase 04 Plan 06]: PayPal webhook verification uses official postback verification with raw-body digesting and required transmission headers; tests inject transport so no live PayPal call is made.
 - [Phase 04 Plan 06]: PayPal webhook route delegates paid/failed effects to applyPaymentTransition, while duplicate/no-op/refund events are stored as sanitized payment_events evidence.
 - [Phase 04 Plan 06]: payment_events now tracks delivery_count and last_received_at because durable duplicate delivery history is required for webhook replay mitigation.
+- [Phase 04 Plan 09]: Admin order detail URLs use public order numbers while privileged order IDs are resolved only after requireAdmin.
+- [Phase 04 Plan 09]: Provider evidence panels render sanitized operational facts only; raw provider payloads, signatures, payer PII, secrets, and customer email display stay out of admin UI.
 
 ### Pending Todos
 
@@ -140,6 +143,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-16T04:24:03.415Z
-Stopped at: Completed 04-08-PLAN.md
+Last session: 2026-06-16T04:36:23.528Z
+Stopped at: Completed 04-09-PLAN.md
 Resume file: None
