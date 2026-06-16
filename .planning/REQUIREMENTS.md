@@ -51,8 +51,8 @@
 
 ### Payments
 
-- [ ] **PAY-01**: International customer can pay an eligible USD order using PayPal.
-- [ ] **PAY-02**: System creates and captures PayPal orders server-side using the authoritative order total.
+- [x] **PAY-01**: International customer can pay an eligible USD order using PayPal.
+- [x] **PAY-02**: System creates and captures PayPal orders server-side using the authoritative order total.
 - [ ] **PAY-03**: System verifies PayPal webhook authenticity and validates related order, merchant, amount, and currency.
 - [x] **PAY-04**: System processes each PayPal event and paid transition idempotently.
 - [ ] **PAY-05**: Vietnam customer can place a VND order and receive VietQR bank-transfer instructions with exact amount, unique reference, and payment deadline.
@@ -181,8 +181,8 @@
 | ORD-01 | Phase 4 | Complete |
 | ORD-02 | Phase 4 | Complete |
 | ORD-03 | Phase 4 | Complete |
-| PAY-01 | Phase 4 | Pending |
-| PAY-02 | Phase 4 | Pending |
+| PAY-01 | Phase 4 | Complete |
+| PAY-02 | Phase 4 | Complete |
 | PAY-03 | Phase 4 | Pending |
 | PAY-04 | Phase 4 | Complete |
 | PAY-05 | Phase 4 | Pending |

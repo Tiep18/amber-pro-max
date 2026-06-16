@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executing Phase 04
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-06-16T02:00:45.608Z"
+status: executing
+stopped_at: Completed 04-04-PLAN.md
+last_updated: "2026-06-16T02:35:35.940Z"
 last_activity: 2026-06-16 -- Completed Phase 04 Plan 03 payment access boundaries
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 31
-  completed_plans: 24
-  percent: 77
+  completed_plans: 25
+  percent: 81
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 4
-Plan: 04-04 of 10
+Plan: 04-05 of 10
 Status: Ready to execute
-Last activity: 2026-06-16 -- Completed Phase 04 Plan 03 payment access boundaries
+Last activity: 2026-06-16 -- Completed Phase 04 Plan 04 server-owned PayPal create/capture
 
-Progress: [###-------] 30%
+Progress: [####------] 40%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 24
+- Total plans completed: 25
 - Average duration: 26 min
 - Total execution time: 5 hours 9 min
 
@@ -75,6 +75,7 @@ Progress: [###-------] 30%
 | Phase 04 P01 | 6 min | 2 tasks | 13 files |
 | Phase 04 P02 | 2 days elapsed across checkpoint | 3 tasks | 8 files |
 | Phase 04 P03 | 21 min | 2 tasks | 14 files |
+| Phase 04 P04 | 13 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,9 @@ Recent decisions affecting current work:
 - [Phase 04 Plan 03]: Guest checkout raw tokens are exchanged inside the Server Action into order-scoped HttpOnly cookies; browser-visible state receives no guestAccessToken.
 - [Phase 04 Plan 03]: Checkout rejects mismatched market/currency/payment intent before submit_checkout; the database constraint remains the second boundary.
 - [Phase 04 Plan 03]: Admin order query helpers require requireAdmin before reading admin projections or timeline RPCs; customer reads stay on get_order_payment_status.
+- [Phase 04 Plan 04]: PayPal create/capture uses direct REST fetch with injected transport instead of adding a PayPal SDK dependency.
+- [Phase 04 Plan 04]: PayPal route handlers authorize the local order before provider I/O, then derive amount, currency, merchant, and request IDs from server-owned order/payment rows.
+- [Phase 04 Plan 04]: Capture/recheck treats uncertain provider outcomes as verifying and opens paid state only through applyPaymentTransition after exact provider fact reconciliation.
 
 ### Pending Todos
 
@@ -126,6 +130,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-16T02:00:28.309Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-06-16T02:35:35.931Z
+Stopped at: Completed 04-04-PLAN.md
 Resume file: None
