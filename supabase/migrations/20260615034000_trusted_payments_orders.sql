@@ -453,8 +453,6 @@ begin
 
   return jsonb_build_object(
     'status', 'found',
-    'orderId', row_data.order_id,
-    'paymentId', row_data.payment_id,
     'orderNumber', row_data.order_number,
     'market', row_data.market,
     'paymentIntent', row_data.payment_intent,

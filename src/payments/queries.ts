@@ -16,8 +16,6 @@ type QueryClient = RpcClient & {
 type RequireAdmin = () => Promise<unknown>;
 
 export type CustomerOrderPaymentProjection = {
-  orderId?: string;
-  paymentId?: string | null;
   orderNumber: string;
   market?: 'vn' | 'intl' | string;
   paymentIntent?: 'paypal_intent' | 'vietqr_intent' | string;
@@ -176,12 +174,6 @@ export async function getAuthorizedOrderPayment({
     currencyCode: asCurrencyCode(data.currencyCode),
     reservationExpiresAt: typeof data.reservationExpiresAt === 'string' ? data.reservationExpiresAt : null
   };
-  if (typeof data.orderId === 'string') {
-    order.orderId = data.orderId;
-  }
-  if (typeof data.paymentId === 'string') {
-    order.paymentId = data.paymentId;
-  }
   if (typeof data.market === 'string') {
     order.market = data.market;
   }

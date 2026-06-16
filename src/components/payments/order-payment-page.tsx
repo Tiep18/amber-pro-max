@@ -95,16 +95,12 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
   const showPayPal = status.status === 'awaiting_payment' && result.order.currencyCode === 'USD';
   const isVietQrOrder = result.order.provider === 'vietqr' || result.order.paymentIntent === 'vietqr_intent';
   const showVietQr =
-    status.status === 'awaiting_payment' &&
-    result.order.currencyCode === 'VND' &&
-    isVietQrOrder &&
-    typeof result.order.orderId === 'string';
+    status.status === 'awaiting_payment' && result.order.currencyCode === 'VND' && isVietQrOrder;
   const vietQrResult: VietQrInstructionResult | null = showVietQr
     ? await getVietQrInstructions({
         config: vietQrConfig,
         order: {
-          orderId: result.order.orderId as string,
-          paymentId: result.order.paymentId ?? null,
+          orderId: result.order.orderNumber,
           orderNumber: result.order.orderNumber,
           market: result.order.market ?? 'vn',
           currencyCode: result.order.currencyCode,
