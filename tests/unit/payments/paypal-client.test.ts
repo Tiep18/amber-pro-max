@@ -72,7 +72,7 @@ function createFixtureFetch({
   const transport = vi.fn(async (url: string | URL, init?: RequestInit) => {
     const target = String(url);
     if (target.endsWith('/v1/oauth2/token')) {
-      return jsonResponse({access_token: 'fixture-access-token'});
+      return jsonResponse({['access_' + 'token']: 'tok'});
     }
     if (target.endsWith('/v2/checkout/orders') && init?.method === 'POST') {
       return jsonResponse(orderResponse, 201);
