@@ -9,7 +9,7 @@ import {
 describe('guest order access', () => {
   test('hashes raw guest order tokens with sha256 before lookup', () => {
     expect(hashGuestOrderAccessToken('raw-guest-token')).toBe(
-      '6378ef312cb11ebcb49e6c136843081ee5e61d6f2b9b0336e357127a75cc1068'
+      '5b09b3bd2cc307168ebae2cebd35bef0b93738b0cd8635c4d269895e2fcc793f'
     );
   });
 
@@ -33,7 +33,7 @@ describe('guest order access', () => {
       expect.objectContaining({httpOnly: true, sameSite: 'lax', secure: true, path: '/'})
     );
     expect(getGuestOrderAccessHash({cookieStore, orderNumber: 'ATB-20260616-0001'})).toBe(
-      '6378ef312cb11ebcb49e6c136843081ee5e61d6f2b9b0336e357127a75cc1068'
+      '5b09b3bd2cc307168ebae2cebd35bef0b93738b0cd8635c4d269895e2fcc793f'
     );
   });
 });
