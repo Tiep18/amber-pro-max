@@ -77,7 +77,7 @@ function createActionClient({
 } = {}) {
   return {
     detail,
-    rpc: vi.fn(async () => ({data: transition, error: null}))
+    rpc: vi.fn(async (_fn: string, _args: {p_payload: Record<string, unknown>}) => ({data: transition, error: null}))
   };
 }
 
@@ -98,8 +98,8 @@ async function importAdminActions({
   }));
   vi.doMock('@/payments/transitions', () => ({
     applyPaymentTransition: vi.fn(async (input: unknown, rpcClient: {rpc: typeof client.rpc}) => {
-      await rpcClient.rpc('apply_payment_transition', {p_payload: input as Record<string, unknown>});
-      return {status: 'applied', paymentStatus: 'paid', inventoryEffect: 'finalized'};
+      const {data} = await rpcClient.rpc('apply_payment_transition', {p_payload: input as Record<string, unknown>});
+      return data;
     })
   }));
   const actions = await import('@/payments/admin-actions');

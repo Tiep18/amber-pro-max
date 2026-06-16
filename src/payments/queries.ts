@@ -62,6 +62,13 @@ export type AdminOrderDetail = AdminOrderQueueItem & {
   refundStatus: string;
   refundedAmountMinor: number;
   reviewReason: string | null;
+  vietQrEvidence: {
+    transferReference: string;
+    expectedAmountMinor: number;
+    paymentDeadlineAt: string | null;
+    actionAvailable: boolean;
+    latestEvidence: Json | null;
+  } | null;
   timeline: AdminOrderTimelineItem[];
 };
 
@@ -210,6 +217,16 @@ function mapTimelineItem(row: Record<string, unknown>): AdminOrderTimelineItem |
   };
 }
 
+function isPendingVietQrAction(row: AdminOrderQueueItem) {
+  const deadlineMs = row.reservationExpiresAt ? Date.parse(row.reservationExpiresAt) : Number.NaN;
+  return (
+    row.provider === 'vietqr' &&
+    (row.paymentStatus === 'pending' || row.paymentStatus === 'verifying') &&
+    Number.isFinite(deadlineMs) &&
+    deadlineMs > Date.now()
+  );
+}
+
 type Orderable<T> = {order: (column: string, options?: Record<string, unknown>) => Promise<{data: T; error: unknown}>};
 type Filterable<T> = {eq: (column: string, value: string) => {maybeSingle: () => Promise<{data: T; error: unknown}>}};
 
@@ -272,6 +289,16 @@ export async function getAdminOrderDetail({
       refundStatus: typeof data.refund_status === 'string' ? data.refund_status : 'none',
       refundedAmountMinor: typeof data.refunded_amount_minor === 'number' ? data.refunded_amount_minor : 0,
       reviewReason: typeof data.review_reason === 'string' ? data.review_reason : null,
+      vietQrEvidence:
+        base.provider === 'vietqr'
+          ? {
+              transferReference: base.orderNumber,
+              expectedAmountMinor: base.amountMinor,
+              paymentDeadlineAt: base.reservationExpiresAt,
+              actionAvailable: isPendingVietQrAction(base),
+              latestEvidence: null
+            }
+          : null,
       timeline: timelineData.filter(isRecord).map(mapTimelineItem).filter((row): row is AdminOrderTimelineItem => Boolean(row))
     }
   };
