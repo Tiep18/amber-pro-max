@@ -2,6 +2,12 @@ import {describe, expect, test, vi} from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
+import {
+  buildVietQrConfirmTransition,
+  buildVietQrRejectTransition,
+  compareVietQrEvidence,
+  type VietQrExpectedPayment
+} from '@/payments/vietqr/evidence';
 import {getVietQrInstructions, type VietQrInstructionOrder, type VietQrServerConfig} from '@/payments/vietqr/instructions';
 
 const vietQrInstructionContract = {
@@ -32,6 +38,105 @@ const order: VietQrInstructionOrder = {
   amountMinor: vietQrInstructionContract.amountMinor,
   reservationExpiresAt: '2026-06-17T09:00:00.000Z'
 };
+
+const expectedPayment: VietQrExpectedPayment = {
+  orderId: order.orderId,
+  paymentId: order.paymentId,
+  orderNumber: order.orderNumber,
+  provider: 'vietqr',
+  paymentStatus: 'pending',
+  amountMinor: order.amountMinor,
+  currencyCode: 'VND',
+  transferReference: order.orderNumber,
+  paymentDeadlineAt: order.reservationExpiresAt
+};
+
+function createActionClient({
+  detail = {
+    orderId: order.orderId,
+    orderNumber: order.orderNumber,
+    paymentId: order.paymentId,
+    provider: 'vietqr',
+    paymentStatus: 'pending',
+    amountMinor: order.amountMinor,
+    currencyCode: 'VND',
+    reservationExpiresAt: order.reservationExpiresAt,
+    vietQrEvidence: {
+      transferReference: order.orderNumber,
+      expectedAmountMinor: order.amountMinor,
+      paymentDeadlineAt: order.reservationExpiresAt,
+      actionAvailable: true,
+      latestEvidence: null
+    },
+    timeline: []
+  },
+  transition = {status: 'applied', paymentStatus: 'paid', inventoryEffect: 'finalized'}
+}: {
+  detail?: Record<string, unknown>;
+  transition?: Record<string, unknown>;
+} = {}) {
+  return {
+    detail,
+    rpc: vi.fn(async () => ({data: transition, error: null}))
+  };
+}
+
+async function importAdminActions({
+  client = createActionClient(),
+  requireAdmin = vi.fn(async () => ({id: 'admin-user'}))
+}: {
+  client?: ReturnType<typeof createActionClient>;
+  requireAdmin?: ReturnType<typeof vi.fn>;
+} = {}) {
+  vi.resetModules();
+  vi.doMock('server-only', () => ({}));
+  vi.doMock('next/cache', () => ({revalidatePath: vi.fn()}));
+  vi.doMock('@/auth/guards', () => ({requireAdmin}));
+  vi.doMock('@/payments/queries', () => ({
+    createAdminOrderQueryClient: vi.fn(async () => client),
+    getAdminOrderDetail: vi.fn(async () => ({status: 'success', order: client.detail}))
+  }));
+  vi.doMock('@/payments/transitions', () => ({
+    applyPaymentTransition: vi.fn(async (input: unknown, rpcClient: {rpc: typeof client.rpc}) => {
+      await rpcClient.rpc('apply_payment_transition', {p_payload: input as Record<string, unknown>});
+      return {status: 'applied', paymentStatus: 'paid', inventoryEffect: 'finalized'};
+    })
+  }));
+  const actions = await import('@/payments/admin-actions');
+  const transitions = await import('@/payments/transitions');
+  return {
+    confirmVietQrPaymentAction: actions.confirmVietQrPaymentAction as (formData: FormData) => Promise<unknown>,
+    rejectVietQrPaymentAction: actions.rejectVietQrPaymentAction as (formData: FormData) => Promise<unknown>,
+    applyPaymentTransition: vi.mocked(transitions.applyPaymentTransition),
+    requireAdmin,
+    client
+  };
+}
+
+function confirmForm(overrides: Record<string, string> = {}) {
+  const formData = new FormData();
+  formData.set('orderId', order.orderId);
+  formData.set('bankReference', order.orderNumber);
+  formData.set('receivedAmountMinor', String(order.amountMinor));
+  formData.set('receivedAt', '2026-06-16T09:05:00.000Z');
+  formData.set('idempotencyKey', 'admin-confirm-atb-20260615-0002');
+  for (const [key, value] of Object.entries(overrides)) {
+    formData.set(key, value);
+  }
+  return formData;
+}
+
+function rejectForm(overrides: Record<string, string> = {}) {
+  const formData = new FormData();
+  formData.set('orderId', order.orderId);
+  formData.set('reason', 'wrong_amount');
+  formData.set('note', 'Customer transferred the wrong amount.');
+  formData.set('idempotencyKey', 'admin-reject-atb-20260615-0002');
+  for (const [key, value] of Object.entries(overrides)) {
+    formData.set(key, value);
+  }
+  return formData;
+}
 
 describe('VietQR instruction and evidence contract', () => {
   test('keeps VietQR as exact VND payment instructions, not customer self-confirmation', () => {
@@ -146,7 +251,134 @@ describe('VietQR instruction and evidence contract', () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  test.todo('requires admin bank reference, received amount, and received timestamp before confirmation');
-  test.todo('rejects wrong amount or wrong reference through an audited release transition');
-  test.todo('handles admin double-submit and stale confirm-versus-reject as idempotent no-ops');
+  test('requires exact bank reference, received amount and timestamp before confirmation', () => {
+    const comparison = compareVietQrEvidence(expectedPayment, {
+      bankReference: order.orderNumber,
+      receivedAmountMinor: order.amountMinor,
+      receivedAt: '2026-06-16T09:05:00.000Z',
+      idempotencyKey: 'admin-confirm-atb-20260615-0002'
+    });
+
+    expect(comparison).toEqual({status: 'matched'});
+    expect(
+      buildVietQrConfirmTransition({
+        expected: expectedPayment,
+        evidence: {
+          bankReference: order.orderNumber,
+          receivedAmountMinor: order.amountMinor,
+          receivedAt: '2026-06-16T09:05:00.000Z',
+          idempotencyKey: 'admin-confirm-atb-20260615-0002'
+        }
+      })
+    ).toMatchObject({
+      transitionKey: 'vietqr-confirm:admin-confirm-atb-20260615-0002',
+      source: 'vietqr_admin',
+      targetStatus: 'paid',
+      orderNumber: order.orderNumber,
+      bankReference: order.orderNumber,
+      receivedAmountMinor: order.amountMinor,
+      receivedAt: '2026-06-16T09:05:00.000Z',
+      sanitizedFacts: expect.objectContaining({
+        transferReference: order.orderNumber,
+        evidenceMatched: true
+      })
+    });
+  });
+
+  test('rejects wrong amount or wrong reference through an audited release transition', () => {
+    expect(
+      compareVietQrEvidence(expectedPayment, {
+        bankReference: 'WRONG-REFERENCE',
+        receivedAmountMinor: order.amountMinor,
+        receivedAt: '2026-06-16T09:05:00.000Z',
+        idempotencyKey: 'admin-confirm-atb-20260615-0002'
+      })
+    ).toEqual({status: 'mismatch', code: 'vietqr_reference_mismatch'});
+    expect(
+      compareVietQrEvidence(expectedPayment, {
+        bankReference: order.orderNumber,
+        receivedAmountMinor: order.amountMinor - 1,
+        receivedAt: '2026-06-16T09:05:00.000Z',
+        idempotencyKey: 'admin-confirm-atb-20260615-0002'
+      })
+    ).toEqual({status: 'mismatch', code: 'vietqr_amount_mismatch'});
+    expect(
+      buildVietQrRejectTransition({
+        expected: expectedPayment,
+        rejection: {
+          reason: 'wrong_amount',
+          note: 'Customer transferred the wrong amount.',
+          idempotencyKey: 'admin-reject-atb-20260615-0002'
+        }
+      })
+    ).toMatchObject({
+      transitionKey: 'vietqr-reject:admin-reject-atb-20260615-0002',
+      source: 'vietqr_admin',
+      targetStatus: 'rejected',
+      orderNumber: order.orderNumber,
+      releaseReason: 'vietqr_wrong_amount',
+      sanitizedFacts: expect.objectContaining({
+        rejectionReason: 'wrong_amount',
+        noteProvided: true
+      })
+    });
+  });
+
+  test('admin actions authorize before parsing and delegate exact confirmation to the shared transition command', async () => {
+    const {confirmVietQrPaymentAction, applyPaymentTransition, requireAdmin, client} = await importAdminActions();
+
+    const result = await confirmVietQrPaymentAction(confirmForm());
+
+    expect(result).toEqual({status: 'confirmed', paymentStatus: 'paid'});
+    expect(requireAdmin).toHaveBeenCalledOnce();
+    expect(applyPaymentTransition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'vietqr_admin',
+        targetStatus: 'paid',
+        orderNumber: order.orderNumber,
+        bankReference: order.orderNumber,
+        receivedAmountMinor: order.amountMinor
+      }),
+      client
+    );
+  });
+
+  test('non-admin, stale and duplicate VietQR actions cannot create repeated or regressive effects', async () => {
+    const deniedAdmin = vi.fn(async () => {
+      throw new Error('not-admin');
+    });
+    const deniedClient = createActionClient();
+    const denied = await importAdminActions({client: deniedClient, requireAdmin: deniedAdmin});
+
+    await expect(denied.confirmVietQrPaymentAction(confirmForm({receivedAmountMinor: 'not-a-number'}))).rejects.toThrow('not-admin');
+    expect(deniedClient.rpc).not.toHaveBeenCalled();
+
+    const stale = await importAdminActions({
+      client: createActionClient({
+        detail: {
+          ...createActionClient().detail,
+          paymentStatus: 'paid',
+          vietQrEvidence: {
+            transferReference: order.orderNumber,
+            expectedAmountMinor: order.amountMinor,
+            paymentDeadlineAt: order.reservationExpiresAt,
+            actionAvailable: false,
+            latestEvidence: null
+          }
+        }
+      })
+    });
+    await expect(stale.rejectVietQrPaymentAction(rejectForm())).resolves.toEqual({
+      status: 'stale',
+      code: 'vietqr_action_not_available'
+    });
+
+    const duplicate = await importAdminActions({
+      client: createActionClient({transition: {status: 'duplicate', paymentStatus: 'paid', inventoryEffect: 'none'}})
+    });
+    await expect(duplicate.confirmVietQrPaymentAction(confirmForm())).resolves.toEqual({
+      status: 'duplicate',
+      paymentStatus: 'paid'
+    });
+  });
 });
