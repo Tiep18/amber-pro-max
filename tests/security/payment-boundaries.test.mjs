@@ -18,10 +18,15 @@ const contractFiles = [
 ];
 
 const paymentSurfaceFiles = [
+  'src/checkout/actions.ts',
+  'src/checkout/submit-checkout.ts',
   'src/payments/schemas.ts',
   'src/payments/types.ts',
   'src/payments/transitions.ts',
   'src/payments/queries.ts',
+  'src/payments/guest-access.ts',
+  'src/lib/env/server.ts',
+  'src/lib/supabase/admin.ts',
   'src/payments/paypal/client.ts',
   'src/payments/paypal/mapping.ts',
   'src/payments/paypal/verification.ts',
@@ -75,6 +80,18 @@ test('client payment surfaces never expose server-only payment or Supabase secre
   assert.doesNotMatch(clientSource, /rawGuestToken|guestAccessToken.*localStorage|providerPayload|webhook.*body/i);
 });
 
+test('checkout handoff exchanges guest access server-side without returning raw tokens', () => {
+  const actionSource = readFileSync('src/checkout/actions.ts', 'utf8');
+  const submitSource = readFileSync('src/checkout/submit-checkout.ts', 'utf8');
+
+  assert.match(actionSource, /setGuestOrderAccessCookieFromServer/);
+  assert.doesNotMatch(actionSource, /return\s+result\s*;/);
+  assert.doesNotMatch(actionSource, /localStorage|sessionStorage|console\.(log|info|warn|error)\([^)]*guestAccessToken/s);
+  assert.match(submitSource, /invalid_payment_method_for_market/);
+  assert.match(submitSource, /intl[\s\S]{0,120}USD[\s\S]{0,120}paypal_intent/);
+  assert.match(submitSource, /vn[\s\S]{0,120}VND[\s\S]{0,120}vietqr_intent/);
+});
+
 test('payment implementation cannot add direct paid, order, inventory, or fulfillment mutation shortcuts', () => {
   const source = readExisting(paymentSurfaceFiles);
 
@@ -93,4 +110,10 @@ test('payment boundary contracts require webhook verification, idempotency, audi
   assert.match(source, /audit rows are append-only/i);
   assert.match(source, /non-enumerating/i);
   assert.match(source, /fulfillment locked/i);
+});
+
+test('npm security script includes the Phase 4 payment boundary harness', () => {
+  const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
+
+  assert.match(packageJson.scripts['test:security'], /tests\/security\/payment-boundaries\.test\.mjs/);
 });
