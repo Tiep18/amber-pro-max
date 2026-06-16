@@ -134,11 +134,13 @@
   "orders": {
     "labels": {
       "order": "Order",
-      "deadline": "Reservation deadline"
+      "deadline": "Reservation deadline",
+      "lastChecked": "Last checked"
     },
     "actions": {
       "newCheckout": "Start a new checkout",
-      "checkStatus": "Check payment status"
+      "checkStatus": "Check payment status",
+      "checkingStatus": "Checking status"
     },
     "accessDenied": {
       "heading": "This order cannot be opened",
@@ -202,7 +204,8 @@
       "pay": "Pay with PayPal",
       "connecting": "Connecting to PayPal",
       "reload": "Reload PayPal",
-      "unavailable": "PayPal is not available for this order right now."
+      "unavailable": "PayPal is not available for this order right now.",
+      "amountContext": "You will pay {amount} through PayPal."
     }
   },
   "footer": {

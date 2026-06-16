@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import {Alert, AlertTitle} from '@/components/ui/alert';
 import type {PaymentStatusPresentation} from '@/payments/status';
+import {PaymentStatusRecheck} from './paypal-buttons';
 
 type PaymentStatePanelProps = {
   orderNumber: string;
@@ -11,6 +12,11 @@ type PaymentStatePanelProps = {
   deadlineValue: string | null;
   orderLabel: string;
   actionLabel: string | null;
+  recheckLabels?: {
+    checkStatus: string;
+    checking: string;
+    lastChecked: string;
+  };
 };
 
 export function PaymentStatePanel({
@@ -21,7 +27,8 @@ export function PaymentStatePanel({
   deadlineLabel,
   deadlineValue,
   orderLabel,
-  actionLabel
+  actionLabel,
+  recheckLabels
 }: PaymentStatePanelProps) {
   return (
     <Alert variant={presentation.surface} className="space-y-4">
@@ -45,6 +52,7 @@ export function PaymentStatePanel({
           {actionLabel}
         </Link>
       ) : null}
+      {presentation.status === 'verifying_payment' && recheckLabels ? <PaymentStatusRecheck labels={recheckLabels} /> : null}
     </Alert>
   );
 }

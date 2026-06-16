@@ -4,11 +4,13 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {formatMoney} from '@/catalog/money';
 import type {Locale} from '@/i18n/routing';
 import {getCheckoutPath} from '@/i18n/routing';
+import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
 import {getAuthorizedOrderPayment} from '@/payments/queries';
 import {getPaymentStatusPresentation, mapCustomerPaymentStatus} from '@/payments/status';
 import {PaymentStatePanel} from './payment-state-panel';
+import {PayPalButtons} from './paypal-buttons';
 
 type OrderPaymentPageProps = {
   locale: Locale;
@@ -32,6 +34,7 @@ function formatDateTime(value: string | null, locale: Locale) {
 
 export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPageProps) {
   const t = await getTranslations({locale, namespace: 'orders'});
+  const paypalT = await getTranslations({locale, namespace: 'payments.paypal'});
   const client = await createSupabaseServerClient();
   const guestSecretHash = await getGuestOrderAccessHashFromServer(orderNumber);
   const result = await getAuthorizedOrderPayment({orderNumber, guestSecretHash, client: client as never});
@@ -57,6 +60,9 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
     amountMinor: result.order.amountMinor,
     currencyCode: result.order.currencyCode
   });
+  const env = getServerEnv();
+  const paypalClientId = env.paypal.status === 'configured' ? env.paypal.clientId : null;
+  const showPayPal = status.status === 'awaiting_payment' && result.order.currencyCode === 'USD';
 
   return (
     <main className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -70,7 +76,37 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
           deadlineValue={deadlineValue}
           orderLabel={t('labels.order')}
           actionLabel={presentation.primaryAction ? t('actions.newCheckout') : null}
+          recheckLabels={{
+            checkStatus: t('actions.checkStatus'),
+            checking: t('actions.checkingStatus'),
+            lastChecked: t('labels.lastChecked')
+          }}
         />
+
+        {showPayPal ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>{paypalT('pay')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {paypalClientId ? (
+                <PayPalButtons
+                  orderNumber={result.order.orderNumber}
+                  clientId={paypalClientId}
+                  amountLabel={paypalT('amountContext', {amount: total})}
+                  labels={{
+                    pay: paypalT('pay'),
+                    connecting: paypalT('connecting'),
+                    reload: paypalT('reload'),
+                    unavailable: paypalT('unavailable')
+                  }}
+                />
+              ) : (
+                <Alert variant="warning">{paypalT('unavailable')}</Alert>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Alert variant={status.fulfillmentLocked ? 'warning' : 'success'}>
           <AlertTitle>{status.fulfillmentLocked ? t('fulfillment.lockedHeading') : t('fulfillment.eligibleHeading')}</AlertTitle>

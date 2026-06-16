@@ -134,11 +134,13 @@
   "orders": {
     "labels": {
       "order": "Don hang",
-      "deadline": "Han giu hang"
+      "deadline": "Han giu hang",
+      "lastChecked": "Kiem tra lan cuoi"
     },
     "actions": {
       "newCheckout": "Tao don hang moi",
-      "checkStatus": "Kiem tra lai trang thai"
+      "checkStatus": "Kiem tra lai trang thai",
+      "checkingStatus": "Dang kiem tra trang thai"
     },
     "accessDenied": {
       "heading": "Khong the mo don hang nay",
@@ -202,7 +204,8 @@
       "pay": "Thanh toan bang PayPal",
       "connecting": "Dang ket noi voi PayPal",
       "reload": "Tai lai PayPal",
-      "unavailable": "PayPal hien khong kha dung cho don hang nay."
+      "unavailable": "PayPal hien khong kha dung cho don hang nay.",
+      "amountContext": "Ban se thanh toan {amount} qua PayPal."
     }
   },
   "footer": {
