@@ -34,6 +34,27 @@ const order: PayPalOrderSource = {
   paypalCaptureRequestId: '22222222-2222-4222-8222-222222222222'
 };
 
+const paymentRow = {
+  id: '33333333-3333-4333-8333-333333333333',
+  order_id: paypalFixtureIds.localOrderId,
+  provider_order_id: paypalFixtureIds.paypalOrderId,
+  request_id: '44444444-4444-4444-8444-444444444444',
+  provider_request_id: '55555555-5555-4555-8555-555555555555'
+};
+
+const routeOrderRow = {
+  order_id: paypalFixtureIds.localOrderId,
+  order_number: paypalFixtureIds.orderNumber,
+  market: 'intl',
+  currency_code: 'USD',
+  total_minor: 4250,
+  provider: 'paypal',
+  payment_status: 'pending',
+  payment_id: paymentRow.id,
+  provider_order_id: paymentRow.provider_order_id,
+  reservation_expires_at: new Date(Date.now() + 60_000).toISOString()
+};
+
 function jsonResponse(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
     status,
@@ -91,6 +112,115 @@ function createFixtureFetch({
   });
 
   return transport;
+}
+
+function createRouteClient({row = routeOrderRow, payment = paymentRow}: {row?: Record<string, unknown> | null; payment?: Record<string, unknown> | null} = {}) {
+  return {
+    from: vi.fn((table: string) => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn(async () => {
+            if (table === 'order_payment_statuses') {
+              return {data: row, error: null};
+            }
+            if (table === 'payments') {
+              return {data: payment, error: null};
+            }
+            return {data: null, error: null};
+          })
+        }))
+      })),
+      update: vi.fn(() => ({
+        eq: vi.fn(async () => ({data: null, error: null}))
+      }))
+    })),
+    rpc: vi.fn(async () => ({data: {status: 'applied', paymentStatus: 'paid', inventoryEffect: 'finalized'}, error: null}))
+  };
+}
+
+async function importCreateRoute({
+  client = createRouteClient(),
+  authorized = true,
+  createResult = {status: 'created', paypalOrderId: paypalFixtureIds.paypalOrderId}
+}: {
+  client?: ReturnType<typeof createRouteClient>;
+  authorized?: boolean;
+  createResult?: unknown;
+} = {}) {
+  vi.resetModules();
+  vi.doMock('server-only', () => ({}));
+  vi.doMock('@/lib/env/server', () => ({getServerEnv: () => ({paypal: config})}));
+  vi.doMock('@/lib/supabase/admin', () => ({createSupabaseAdminClient: () => client}));
+  vi.doMock('@/payments/guest-access', () => ({getGuestOrderAccessHashFromServer: async () => 'guest-hash'}));
+  vi.doMock('@/payments/queries', () => ({
+    getAuthorizedOrderPayment: vi.fn(async () =>
+      authorized ? {status: 'found', order: {orderNumber: paypalFixtureIds.orderNumber}} : {status: 'not_found'}
+    )
+  }));
+  vi.doMock('@/payments/paypal/client', () => ({
+    createPayPalOrder: vi.fn(async () => createResult),
+    getPayPalOrder: vi.fn()
+  }));
+  const route = await import('@/app/api/paypal/orders/route');
+  const clientModule = await import('@/payments/paypal/client');
+  return {POST: route.POST as (request: Request) => Promise<Response>, client, createPayPalOrder: vi.mocked(clientModule.createPayPalOrder)};
+}
+
+async function importCaptureRoute({
+  client = createRouteClient(),
+  captureResult = {
+    status: 'captured',
+    paypalOrderId: paypalFixtureIds.paypalOrderId,
+    providerOrder: {
+      id: paypalFixtureIds.paypalOrderId,
+      status: 'COMPLETED',
+      purchase_units: [
+        {
+          invoice_id: paypalFixtureIds.orderNumber,
+          custom_id: paypalFixtureIds.localOrderId,
+          payee: {merchant_id: paypalFixtureIds.merchantId},
+          payments: {
+            captures: [
+              {
+                id: paypalFixtureIds.paypalCaptureId,
+                status: 'COMPLETED',
+                amount: {currency_code: 'USD', value: '42.50'},
+                seller_receivable_breakdown: {gross_amount: {currency_code: 'USD', value: '42.50'}}
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}: {
+  client?: ReturnType<typeof createRouteClient>;
+  captureResult?: unknown;
+} = {}) {
+  vi.resetModules();
+  vi.doMock('server-only', () => ({}));
+  vi.doMock('@/lib/env/server', () => ({getServerEnv: () => ({paypal: config})}));
+  vi.doMock('@/lib/supabase/admin', () => ({createSupabaseAdminClient: () => client}));
+  vi.doMock('@/payments/guest-access', () => ({getGuestOrderAccessHashFromServer: async () => 'guest-hash'}));
+  vi.doMock('@/payments/queries', () => ({
+    getAuthorizedOrderPayment: vi.fn(async () => ({status: 'found', order: {orderNumber: paypalFixtureIds.orderNumber}}))
+  }));
+  vi.doMock('@/payments/paypal/client', () => ({
+    capturePayPalOrder: vi.fn(async () => captureResult),
+    getPayPalOrder: vi.fn(async () => captureResult)
+  }));
+  vi.doMock('@/payments/transitions', () => ({
+    applyPaymentTransition: vi.fn(async () => ({status: 'applied', paymentStatus: 'paid', inventoryEffect: 'finalized'}))
+  }));
+  const route = await import('@/app/api/paypal/orders/[paypalOrderId]/capture/route');
+  const clientModule = await import('@/payments/paypal/client');
+  const transitions = await import('@/payments/transitions');
+  return {
+    POST: route.POST as (request: Request, context: {params: Promise<{paypalOrderId: string}>}) => Promise<Response>,
+    client,
+    capturePayPalOrder: vi.mocked(clientModule.capturePayPalOrder),
+    applyPaymentTransition: vi.mocked(transitions.applyPaymentTransition)
+  };
 }
 
 describe('PayPal server client contract', () => {
@@ -234,5 +364,87 @@ describe('PayPal server client contract', () => {
         expectedMerchantId: 'MERCHANT-MISMATCH'
       })
     ).toEqual({status: 'rejected', code: 'paypal_merchant_mismatch'});
+  });
+});
+
+describe('PayPal route contract', () => {
+  test('create body accepts only order number and uses local exact amount', async () => {
+    const {POST, createPayPalOrder} = await importCreateRoute();
+
+    const response = await POST(
+      new Request('http://localhost/api/paypal/orders', {
+        method: 'POST',
+        body: JSON.stringify({orderNumber: paypalFixtureIds.orderNumber, amountMinor: 1, currencyCode: 'VND'})
+      })
+    );
+
+    await expect(response.json()).resolves.toMatchObject({status: 'awaiting', paypalOrderId: paypalFixtureIds.paypalOrderId});
+    expect(createPayPalOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order: expect.objectContaining({
+          orderNumber: paypalFixtureIds.orderNumber,
+          totalMinor: 4250,
+          currencyCode: 'USD',
+          market: 'intl',
+          paymentIntent: 'paypal_intent'
+        })
+      })
+    );
+  });
+
+  test('create rejects cross-order access before provider I/O', async () => {
+    const {POST, createPayPalOrder} = await importCreateRoute({authorized: false});
+
+    const response = await POST(
+      new Request('http://localhost/api/paypal/orders', {
+        method: 'POST',
+        body: JSON.stringify({orderNumber: paypalFixtureIds.orderNumber})
+      })
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({status: 'not_found'});
+    expect(createPayPalOrder).not.toHaveBeenCalled();
+  });
+
+  test('capture returns verifying on uncertain provider outcome', async () => {
+    const {POST, applyPaymentTransition} = await importCaptureRoute({
+      captureResult: {status: 'verifying', code: 'paypal_capture_uncertain', paypalOrderId: paypalFixtureIds.paypalOrderId}
+    });
+
+    const response = await POST(new Request('http://localhost/api/paypal/orders/id/capture', {method: 'POST'}), {
+      params: Promise.resolve({paypalOrderId: paypalFixtureIds.paypalOrderId})
+    });
+
+    await expect(response.json()).resolves.toEqual({
+      status: 'verifying',
+      code: 'paypal_capture_uncertain',
+      paypalOrderId: paypalFixtureIds.paypalOrderId
+    });
+    expect(applyPaymentTransition).not.toHaveBeenCalled();
+  });
+
+  test('completed capture delegates paid state to applyPaymentTransition', async () => {
+    const {POST, applyPaymentTransition} = await importCaptureRoute();
+
+    const response = await POST(new Request('http://localhost/api/paypal/orders/id/capture', {method: 'POST'}), {
+      params: Promise.resolve({paypalOrderId: paypalFixtureIds.paypalOrderId})
+    });
+
+    await expect(response.json()).resolves.toMatchObject({status: 'paid'});
+    expect(applyPaymentTransition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'paypal_recheck',
+        targetStatus: 'paid',
+        orderNumber: paypalFixtureIds.orderNumber,
+        amountMinor: 4250,
+        currencyCode: 'USD',
+        sanitizedFacts: expect.objectContaining({
+          providerOrderId: paypalFixtureIds.paypalOrderId,
+          providerCaptureId: paypalFixtureIds.paypalCaptureId
+        })
+      }),
+      expect.any(Object)
+    );
   });
 });
