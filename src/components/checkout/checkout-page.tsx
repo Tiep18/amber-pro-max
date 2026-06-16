@@ -1,6 +1,7 @@
 'use client';
 
 import {useEffect, useState} from 'react';
+import {useRouter} from 'next/navigation';
 import type {Locale} from '@/i18n/routing';
 import type {CartQuote} from '@/checkout/types';
 import {submitCheckoutAction, type SubmitCheckoutActionState} from '@/checkout/actions';
@@ -48,6 +49,7 @@ const copy = {
 
 export function CheckoutPage({locale}: {locale: Locale}) {
   const t = copy[locale];
+  const router = useRouter();
   const {quote, cart} = useCart();
   const [acceptedQuote, setAcceptedQuote] = useState<CartQuote | null>(quote);
   const [email, setEmail] = useState('');
@@ -92,6 +94,9 @@ export function CheckoutPage({locale}: {locale: Locale}) {
     });
     setSubmitResult(result);
     setSubmitting(false);
+    if (result.status === 'success') {
+      router.push(result.orderPath);
+    }
   }
 
   return (

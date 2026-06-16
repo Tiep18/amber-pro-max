@@ -131,6 +131,80 @@
   "admin": {
     "title": "Admin"
   },
+  "orders": {
+    "labels": {
+      "order": "Order",
+      "deadline": "Reservation deadline"
+    },
+    "actions": {
+      "newCheckout": "Start a new checkout",
+      "checkStatus": "Check payment status"
+    },
+    "accessDenied": {
+      "heading": "This order cannot be opened",
+      "body": "The link is invalid, expired, or you do not have access."
+    },
+    "summary": {
+      "title": "Order summary",
+      "total": "Total"
+    },
+    "fulfillment": {
+      "lockedHeading": "Fulfillment is locked",
+      "lockedBody": "PDF access and shipping work begin only after the full order is confirmed paid.",
+      "eligibleHeading": "Payment gate is open",
+      "eligibleBody": "Payment is confirmed. This order is now eligible for the next fulfillment step."
+    },
+    "status": {
+      "awaiting_payment": {
+        "heading": "Awaiting payment",
+        "body": "Review the exact total and complete payment before the reservation deadline."
+      },
+      "verifying_payment": {
+        "heading": "Verifying payment",
+        "body": "PayPal returned you to the store. We are verifying the payment before updating your order."
+      },
+      "paid": {
+        "heading": "Payment confirmed",
+        "body": "The full order payment has been confirmed."
+      },
+      "failed": {
+        "heading": "Payment failed",
+        "body": "This order cannot be retried. Start a new checkout to recalculate current stock and prices."
+      },
+      "cancelled": {
+        "heading": "Payment cancelled",
+        "body": "Payment was cancelled and reserved items are no longer held for this order."
+      },
+      "rejected": {
+        "heading": "Bank transfer rejected",
+        "body": "The payment evidence was not accepted. Start a new checkout if you still want the items."
+      },
+      "expired": {
+        "heading": "Payment window expired",
+        "body": "The reservation deadline passed and items are no longer held for this order."
+      },
+      "partially_refunded": {
+        "heading": "Partially refunded",
+        "body": "A partial refund is recorded for this order. No new customer action is available here."
+      },
+      "refunded": {
+        "heading": "Refunded",
+        "body": "This order has been refunded. No new customer action is available here."
+      },
+      "review_required": {
+        "heading": "Payment needs review",
+        "body": "We are reviewing verified payment facts before changing the order status."
+      }
+    }
+  },
+  "payments": {
+    "paypal": {
+      "pay": "Pay with PayPal",
+      "connecting": "Connecting to PayPal",
+      "reload": "Reload PayPal",
+      "unavailable": "PayPal is not available for this order right now."
+    }
+  },
   "footer": {
     "copyright": "Provisional handmade studio foundation"
   }

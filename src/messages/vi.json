@@ -131,6 +131,80 @@
   "admin": {
     "title": "Quan tri"
   },
+  "orders": {
+    "labels": {
+      "order": "Don hang",
+      "deadline": "Han giu hang"
+    },
+    "actions": {
+      "newCheckout": "Tao don hang moi",
+      "checkStatus": "Kiem tra lai trang thai"
+    },
+    "accessDenied": {
+      "heading": "Khong the mo don hang nay",
+      "body": "Lien ket khong hop le, da het han hoac ban khong co quyen truy cap."
+    },
+    "summary": {
+      "title": "Tom tat don hang",
+      "total": "Tong cong"
+    },
+    "fulfillment": {
+      "lockedHeading": "Quyen nhan hang dang khoa",
+      "lockedBody": "File PDF va xu ly giao hang chi bat dau sau khi toan bo don hang duoc xac nhan da thanh toan.",
+      "eligibleHeading": "Cong xu ly da mo",
+      "eligibleBody": "Thanh toan da duoc xac nhan. Don hang da du dieu kien cho buoc xu ly tiep theo."
+    },
+    "status": {
+      "awaiting_payment": {
+        "heading": "Dang cho thanh toan",
+        "body": "Kiem tra dung tong tien va hoan tat thanh toan truoc han giu hang."
+      },
+      "verifying_payment": {
+        "heading": "Dang xac minh thanh toan",
+        "body": "PayPal da dua ban tro lai cua hang. Chung toi dang xac minh thanh toan truoc khi cap nhat don hang."
+      },
+      "paid": {
+        "heading": "Da thanh toan",
+        "body": "Thanh toan cho toan bo don hang da duoc xac nhan."
+      },
+      "failed": {
+        "heading": "Thanh toan khong thanh cong",
+        "body": "Don hang nay khong the thu lai. Hay tao don moi de tinh lai gia va hang ton hien tai."
+      },
+      "cancelled": {
+        "heading": "Thanh toan da huy",
+        "body": "Thanh toan da huy va san pham khong con duoc giu cho don hang nay."
+      },
+      "rejected": {
+        "heading": "Chuyen khoan khong duoc chap nhan",
+        "body": "Bang chung thanh toan khong duoc chap nhan. Hay tao don moi neu ban van muon mua."
+      },
+      "expired": {
+        "heading": "Da het han thanh toan",
+        "body": "Han giu hang da qua va san pham khong con duoc giu cho don hang nay."
+      },
+      "partially_refunded": {
+        "heading": "Da hoan tien mot phan",
+        "body": "Don hang co ghi nhan hoan tien mot phan. Khong co hanh dong moi cho khach tai day."
+      },
+      "refunded": {
+        "heading": "Da hoan tien",
+        "body": "Don hang da duoc hoan tien. Khong co hanh dong moi cho khach tai day."
+      },
+      "review_required": {
+        "heading": "Dang kiem tra thanh toan",
+        "body": "Chung toi dang xem lai thong tin thanh toan da xac minh truoc khi doi trang thai don hang."
+      }
+    }
+  },
+  "payments": {
+    "paypal": {
+      "pay": "Thanh toan bang PayPal",
+      "connecting": "Dang ket noi voi PayPal",
+      "reload": "Tai lai PayPal",
+      "unavailable": "PayPal hien khong kha dung cho don hang nay."
+    }
+  },
   "footer": {
     "copyright": "Nen tang studio handmade tam thoi"
   }

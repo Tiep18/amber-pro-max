@@ -2,6 +2,7 @@
 
 import {z} from 'zod';
 import {suggestMarketFromCountry} from '@/catalog/market';
+import {getOrderPath} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {setGuestOrderAccessCookieFromServer} from '@/payments/guest-access';
 import {diffMaterialQuotes} from './market-revalidation';
@@ -85,7 +86,7 @@ export async function submitCheckoutAction(input: unknown): Promise<SubmitChecko
       orderId: result.orderId,
       orderNumber: result.orderNumber,
       reservationExpiresAt: result.reservationExpiresAt,
-      orderPath: `/${locale}/order/${encodeURIComponent(result.orderNumber)}`
+      orderPath: getOrderPath(locale, result.orderNumber)
     };
   } catch {
     return {status: 'error', code: 'checkout_submit_failed'};

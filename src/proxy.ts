@@ -20,6 +20,10 @@ const PHYSICAL_AUTH_SLUGS = new Set([
 const PHYSICAL_PROTECTED_SLUGS = new Set(['/vi/tai-khoan', '/en/account']);
 const PHYSICAL_CART_SLUGS = new Set(['/vi/gio-hang', '/en/cart', '/vi/thanh-toan', '/en/checkout']);
 
+function isPhysicalOrderPath(pathname: string) {
+  return pathname.startsWith('/vi/don-hang/') || pathname.startsWith('/en/orders/');
+}
+
 function isPhysicalVietnameseCatalogPath(pathname: string) {
   return (
     pathname === '/vi/cua-hang' ||
@@ -46,6 +50,7 @@ export default async function proxy(request: NextRequest) {
     PHYSICAL_AUTH_SLUGS.has(pathname) ||
     PHYSICAL_PROTECTED_SLUGS.has(pathname) ||
     PHYSICAL_CART_SLUGS.has(pathname) ||
+    isPhysicalOrderPath(pathname) ||
     isPhysicalVietnameseCatalogPath(pathname)
   ) {
     return updateSession(request, applyMarketSuggestionCookie(request, NextResponse.next()));
