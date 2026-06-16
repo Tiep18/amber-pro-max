@@ -139,7 +139,7 @@ function createRouteClient({row = routeOrderRow, payment = paymentRow}: {row?: R
 }
 
 async function importCreateRoute({
-  client = createRouteClient(),
+  client = createRouteClient({payment: {...paymentRow, provider_order_id: null}}),
   authorized = true,
   createResult = {status: 'created', paypalOrderId: paypalFixtureIds.paypalOrderId}
 }: {
