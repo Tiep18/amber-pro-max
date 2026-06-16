@@ -60,8 +60,8 @@ Wave 0 is Plan 04-01. It creates all payment, database, security, integration an
 | 04-08-02 | 08 | 5 | ORD-01, PAY-05, PAY-08 | T-04-22 | Customer order browser journeys are listed for mobile/desktop | Playwright list | `npx playwright test --list tests/e2e/order-status.spec.ts tests/e2e/admin-vietqr.spec.ts` | W0 owned | pending |
 | 04-09-01 | 09 | 6 | ORD-03, PAY-03, PAY-08, SEC-03 | T-04-23 | Admin queue/detail/timeline expose redacted provider evidence | source assertion | `node -e "const fs=require('fs');for(const f of ['src/app/admin/orders/page.tsx','src/app/admin/orders/[orderNumber]/page.tsx','src/components/admin/orders/payment-timeline.tsx']){const s=fs.readFileSync(f,'utf8'); if(!/admin|timeline|order/i.test(s)) throw new Error(f+' missing admin order contract')} "` | implementation owned | pending |
 | 04-09-02 | 09 | 6 | PAY-06, ORD-03, SEC-03 | T-04-24 | Admin VietQR decisions are explicit, audited and idempotency-aware | Playwright list | `npx playwright test --list tests/e2e/admin-orders.spec.ts tests/e2e/admin-vietqr.spec.ts` | W0 owned | pending |
-| 04-10-01 | 10 | 7 | All Phase 4 IDs | T-04-26 | Managed schema/provider readiness is proven or blocked explicitly | schema/provider gate | `supabase db push` | manual gate | manual |
-| 04-10-02 | 10 | 7 | All Phase 4 IDs | T-04-28 | Full CI/lifecycle/security/UI verification is green before completion | final suite | `npm run ci` | final gate | pending |
+| 04-10-01 | 10 | 7 | All Phase 4 IDs | T-04-26 | Managed schema/provider readiness is proven or blocked explicitly | schema/provider gate | `supabase db push` | manual gate | passed/manual-provider |
+| 04-10-02 | 10 | 7 | All Phase 4 IDs | T-04-28 | Full CI/lifecycle/security/UI verification is green before completion | final suite | `npm run ci` | final gate | passed |
 
 ---
 
@@ -144,3 +144,42 @@ Plan 04-01 owns creating the files above before production implementation. The c
 - Local Supabase Postgres container is unhealthy, so local `db:reset`, `db:lint`, `db:test`, `db:types`, payment concurrency script, and full `npm run ci` cannot complete in this environment.
 - PayPal sandbox credentials, webhook ID, expected merchant identity, and a webhook endpoint are missing, so sandbox create/capture/webhook readiness cannot be verified.
 - VietQR seller bank configuration is missing, so production instruction readiness cannot be verified.
+
+---
+
+## Plan 04-10 Final Validation Run - 2026-06-16
+
+### Managed Schema Gate
+
+| Check | Status | Evidence |
+|-------|--------|----------|
+| Local env presence | passed | Required Supabase, PayPal, and VietQR keys were present in local env files. Secret values were not printed or committed. |
+| `supabase db push --yes` | passed | Remote project `kpnazmkprosboeiuhgea` applied validation migrations `20260616092625`, `20260616092934`, and `20260616093830`. |
+| `supabase migration list` | passed | Local and remote histories align through `20260616093830`. |
+| Schema drift query | passed | `gsd-tools query verify.schema-drift 04` returned `drift_detected: false`. |
+
+### Provider Readiness Checkpoints
+
+| Check | Status | Evidence |
+|-------|--------|----------|
+| PayPal sandbox env values | present | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, and `PAYPAL_EXPECTED_MERCHANT_ID` were non-empty locally; values were not printed. |
+| Real PayPal sandbox create/capture + verified webhook | manual pending | Requires a public HTTPS webhook endpoint and an actual sandbox order flow. Localhost alone is not sufficient for PayPal delivery. |
+| VietQR seller bank configuration | present | `VIETQR_BANK_ID`, `VIETQR_ACCOUNT_NO`, and `VIETQR_ACCOUNT_NAME` were non-empty locally; values were not printed. |
+| Production readiness | manual pending | Seller-owned provider/bank facts are configured locally, but live/sandbox provider UAT is still required before production use. |
+
+### Automated Verification
+
+| Command | Status | Evidence |
+|---------|--------|----------|
+| `npm run ci` | passed | Lint completed with 9 existing warnings and 0 errors; typecheck passed; 22 unit files / 138 tests passed; DB reset/lint/pgTAP passed; generated Supabase types had no drift; production build passed; security tests passed; Playwright completed 48 passed and 22 intentionally skipped contract scenarios. |
+| `node tests/integration/payment-concurrency.mjs` | passed | Duplicate paid, expiry-versus-paid, two-admin VietQR confirm, and confirm-versus-reject scenarios completed with exact-once inventory outcomes. |
+| `npx vitest run tests/unit/payments/status-mapping.test.ts tests/unit/payments/paypal-client.test.ts tests/unit/payments/paypal-webhook.test.ts tests/unit/payments/vietqr.test.ts tests/unit/payments/order-queries.test.ts tests/unit/payments/paypal-buttons.test.ts` | passed | 6 files, 41 tests passed. |
+| `node --test tests/security/payment-boundaries.test.mjs` | passed | 7 focused payment boundary tests passed; full `npm run test:security` passed 10 tests inside CI. |
+| `npx playwright test --list tests/e2e/order-status.spec.ts tests/e2e/admin-orders.spec.ts tests/e2e/admin-vietqr.spec.ts` | passed | 22 Phase 4 browser contract scenarios listed across 3 files; the full E2E suite passed its executable tests in CI. |
+| `npm run build` | passed | Next.js production build completed and included customer order, admin order, PayPal route, and PayPal webhook routes. |
+
+### Remaining Manual Provider UAT Before Production
+
+- Complete a PayPal sandbox create/capture with a public HTTPS webhook URL, then confirm exactly one verified paid transition and one inventory finalization.
+- Confirm the VietQR receiving bank values with the seller and run representative admin confirm/reject checks against real bank evidence.
+- Confirm managed `pg_cron` job availability in the deployment dashboard; deadline checks and direct expiry RPC remain correctness fallbacks.
