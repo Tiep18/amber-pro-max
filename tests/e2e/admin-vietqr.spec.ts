@@ -59,4 +59,10 @@ test.describe('Phase 4 admin VietQR decision contract', () => {
     await expect(page.getByText(/Confirm payment|Reject payment|Bank reference/i)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
+
+  test.skip('non-admin cannot view or submit VietQR evidence decisions', async ({page}) => {
+    test.info().annotations.push({type: 'skip-reason', description: seededAdminVietQrHelpersPending});
+    await page.goto('/admin/orders/ATB-20260615-0002');
+    await expect(page.getByRole('button', {name: /Confirm payment|Reject payment/i})).toHaveCount(0);
+  });
 });

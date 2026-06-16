@@ -112,6 +112,10 @@ export function VietQrEvidenceForm({order}: {order: AdminOrderDetail}) {
             Decision note
             <textarea name="note" required className="min-h-24 rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2" />
           </label>
+          <label className="flex min-h-11 items-start gap-2 text-sm font-semibold">
+            <input type="checkbox" required className="mt-1 h-5 w-5" />
+            I understand this rejects the payment evidence, releases held inventory, and the same order cannot be retried.
+          </label>
           <p className="text-sm text-[var(--muted-foreground)]">Rejecting releases reserved inventory and this same order cannot be retried.</p>
           <Button type="submit" variant="destructive" disabled={!evidence.actionAvailable || rejectPending} aria-disabled={!evidence.actionAvailable || rejectPending}>
             {rejectPending ? 'Rejecting payment' : 'Reject payment'}
