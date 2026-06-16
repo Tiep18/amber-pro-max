@@ -139,7 +139,10 @@ describe('VietQR instruction and evidence contract', () => {
       transitionClient: {rpc}
     });
 
-    expect(duplicate).toEqual(result);
+    expect(duplicate).toEqual({
+      status: 'ready',
+      instruction: result.status === 'ready' ? result.instruction : null
+    });
     expect(rpc).not.toHaveBeenCalled();
   });
 

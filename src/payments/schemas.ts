@@ -31,12 +31,14 @@ export const fulfillmentGateStatusSchema = z.enum(['locked', 'eligible', 'review
 export const paymentTransitionSourceSchema = z.enum([
   'paypal_webhook',
   'paypal_recheck',
+  'vietqr_instruction',
   'vietqr_admin',
   'reservation_expiry_job',
   'system'
 ]);
 
 export const paymentTransitionTargetSchema = z.enum([
+  'pending',
   'paid',
   'failed',
   'cancelled',
