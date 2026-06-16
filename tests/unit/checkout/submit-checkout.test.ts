@@ -8,7 +8,7 @@ describe('submitCheckoutInputSchema', () => {
       market: 'intl',
       lines: [],
       acceptedQuoteHash: 'hash',
-      acceptedQuote: {status: 'ready', hash: 'hash'},
+      acceptedQuote: {status: 'ready', hash: 'hash', market: 'intl', currencyCode: 'USD'},
       idempotencyKey: 'idem-key',
       contactEmail: 'customer@example.com',
       paymentIntent: 'paypal_intent'
@@ -52,7 +52,7 @@ describe('submitCheckout', () => {
         market: 'intl',
         lines: [],
         acceptedQuoteHash: 'hash',
-        acceptedQuote: {status: 'ready', hash: 'hash'},
+        acceptedQuote: {status: 'ready', hash: 'hash', market: 'intl', currencyCode: 'USD'},
         idempotencyKey: 'idem-key',
         contactEmail: 'customer@example.com',
         paymentIntent: 'paypal_intent'

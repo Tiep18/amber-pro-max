@@ -19,6 +19,23 @@ type RpcClient = {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function matchesPaymentMethodInvariant(input: SubmitCheckoutInput) {
+  if (!isRecord(input.acceptedQuote)) {
+    return false;
+  }
+
+  const quoteMarket = typeof input.acceptedQuote.market === 'string' ? input.acceptedQuote.market : input.market;
+  const currencyCode = input.acceptedQuote.currencyCode;
+  const intlUsdPaypal = quoteMarket === 'intl' && currencyCode === 'USD' && input.paymentIntent === 'paypal_intent';
+  const vnVndVietqr = quoteMarket === 'vn' && currencyCode === 'VND' && input.paymentIntent === 'vietqr_intent';
+
+  return intlUsdPaypal || vnVndVietqr;
+}
+
 function mapRpcResult(value: unknown): SubmitCheckoutResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {status: 'error', code: 'checkout_submit_failed'};
@@ -51,6 +68,9 @@ export async function submitCheckout(input: SubmitCheckoutInput, client: RpcClie
   const parsed = submitCheckoutInputSchema.safeParse(input);
   if (!parsed.success) {
     return {status: 'invalid', code: 'invalid_checkout_submit'};
+  }
+  if (!matchesPaymentMethodInvariant(parsed.data)) {
+    return {status: 'invalid', code: 'invalid_payment_method_for_market'};
   }
 
   for (let attempt = 0; attempt < 2; attempt += 1) {

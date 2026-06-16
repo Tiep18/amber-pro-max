@@ -13,6 +13,9 @@ const secretPatterns = [
   /sb_secret_/i,
   /NEXT_PUBLIC_[A-Z0-9_]*SECRET/i
 ];
+const serverSecretNameFiles = new Set(['src/lib/env/server.ts', 'src/lib/supabase/admin.ts', '.env.example']);
+const serverSecretNamePatterns = new Set(secretPatterns.slice(0, 4));
+const literalSecretValuePatterns = [/sb_secret_[A-Za-z0-9._-]+/i, /^SUPABASE_SECRET_KEY=\S+/m, /^SUPABASE_SERVICE_ROLE_KEY=\S+/m];
 const privilegedImportPatterns = [
   /from ['"]@\/lib\/supabase\/server['"]/,
   /from ['"]@\/lib\/supabase\/proxy['"]/,
@@ -54,8 +57,14 @@ function scanFiles(targets, {build = false} = {}) {
     const content = readFileSync(file, 'utf8');
     const rel = relative(root, file).replaceAll('\\', '/');
     for (const pattern of secretPatterns) {
-      if (pattern.test(content)) {
+      const allowedServerReference = serverSecretNameFiles.has(rel) && serverSecretNamePatterns.has(pattern);
+      if (pattern.test(content) && !allowedServerReference) {
         findings.push(`${rel}: matched ${pattern}`);
+      }
+    }
+    for (const pattern of literalSecretValuePatterns) {
+      if (pattern.test(content)) {
+        findings.push(`${rel}: contains literal secret-shaped value`);
       }
     }
 

@@ -1,6 +1,6 @@
 begin;
 
-select plan(35);
+select plan(37);
 
 select policies_are(
   'public',
@@ -42,6 +42,8 @@ select table_privs_are('public', 'payments', 'authenticated', array['SELECT'], '
 select table_privs_are('public', 'payment_events', 'authenticated', array[]::text[], 'authenticated users cannot read provider events directly');
 select table_privs_are('public', 'payment_transitions', 'authenticated', array[]::text[], 'authenticated users cannot read transition internals directly');
 select table_privs_are('public', 'commerce_audit_events', 'authenticated', array[]::text[], 'authenticated users cannot mutate or read audit base table directly');
+select table_privs_are('public', 'checkout_inventory_reservations', 'anon', array[]::text[], 'anon cannot mutate reservation outcome records');
+select table_privs_are('public', 'checkout_inventory_reservations', 'authenticated', array[]::text[], 'authenticated users cannot mutate reservation outcome records');
 
 select function_privs_are(
   'public',

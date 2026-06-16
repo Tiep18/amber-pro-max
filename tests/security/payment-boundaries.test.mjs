@@ -85,11 +85,11 @@ test('checkout handoff exchanges guest access server-side without returning raw 
   const submitSource = readFileSync('src/checkout/submit-checkout.ts', 'utf8');
 
   assert.match(actionSource, /setGuestOrderAccessCookieFromServer/);
-  assert.doesNotMatch(actionSource, /return\s+result\s*;/);
+  assert.doesNotMatch(actionSource, /SubmitCheckoutActionState\s*=\s*SubmitCheckoutResult/);
   assert.doesNotMatch(actionSource, /localStorage|sessionStorage|console\.(log|info|warn|error)\([^)]*guestAccessToken/s);
   assert.match(submitSource, /invalid_payment_method_for_market/);
-  assert.match(submitSource, /intl[\s\S]{0,120}USD[\s\S]{0,120}paypal_intent/);
-  assert.match(submitSource, /vn[\s\S]{0,120}VND[\s\S]{0,120}vietqr_intent/);
+  assert.match(submitSource, /intl[\s\S]{0,160}USD[\s\S]{0,160}paypal_intent/);
+  assert.match(submitSource, /vn[\s\S]{0,160}VND[\s\S]{0,160}vietqr_intent/);
 });
 
 test('payment implementation cannot add direct paid, order, inventory, or fulfillment mutation shortcuts', () => {

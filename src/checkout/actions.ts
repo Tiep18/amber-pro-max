@@ -3,9 +3,10 @@
 import {z} from 'zod';
 import {suggestMarketFromCountry} from '@/catalog/market';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {setGuestOrderAccessCookieFromServer} from '@/payments/guest-access';
 import {diffMaterialQuotes} from './market-revalidation';
 import {quoteCartIntent} from './quote';
-import {submitCheckout, type SubmitCheckoutResult} from './submit-checkout';
+import {submitCheckout} from './submit-checkout';
 import {quoteCartInputSchema, type CartQuote} from './types';
 
 export type CheckoutQuoteActionState =
@@ -13,7 +14,18 @@ export type CheckoutQuoteActionState =
   | {status: 'invalid'; code: 'invalid_checkout_quote'}
   | {status: 'error'; code: 'checkout_quote_failed'};
 
-export type SubmitCheckoutActionState = SubmitCheckoutResult;
+export type SubmitCheckoutActionState =
+  | {
+      status: 'success';
+      orderId: string;
+      orderNumber: string;
+      reservationExpiresAt: string;
+      orderPath: string;
+    }
+  | {
+      status: 'invalid' | 'stale' | 'conflict' | 'retryable' | 'error';
+      code: string;
+    };
 
 const checkoutQuoteInputSchema = quoteCartInputSchema.extend({
   acceptedQuote: z.custom<CartQuote>().optional().nullable()
@@ -45,18 +57,36 @@ export async function refreshCheckoutQuoteAction(input: unknown): Promise<Checko
 
 export async function submitCheckoutAction(input: unknown): Promise<SubmitCheckoutActionState> {
   try {
+    const inputRecord = input && typeof input === 'object' && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
     const client = await createSupabaseServerClient();
     const {
       data: {user}
     } = await client.auth.getUser();
     const result = await submitCheckout(
       {
-        ...(input as Record<string, unknown>),
+        ...inputRecord,
         userId: user?.id ?? null
       } as never,
       client as never
     );
-    return result;
+    if (result.status !== 'success') {
+      return result;
+    }
+
+    await setGuestOrderAccessCookieFromServer({
+      orderNumber: result.orderNumber,
+      rawToken: result.guestAccessToken,
+      reservationExpiresAt: result.reservationExpiresAt
+    });
+
+    const locale = inputRecord.locale === 'en' ? 'en' : 'vi';
+    return {
+      status: 'success',
+      orderId: result.orderId,
+      orderNumber: result.orderNumber,
+      reservationExpiresAt: result.reservationExpiresAt,
+      orderPath: `/${locale}/order/${encodeURIComponent(result.orderNumber)}`
+    };
   } catch {
     return {status: 'error', code: 'checkout_submit_failed'};
   }
