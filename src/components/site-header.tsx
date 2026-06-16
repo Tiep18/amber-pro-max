@@ -44,7 +44,7 @@ export async function SiteHeader({locale}: {locale: Locale}) {
 
   return (
     <header className="border-b border-[var(--border)] bg-[var(--surface)]">
-      <div className="mx-auto flex min-h-16 w-full max-w-[1200px] items-center justify-between gap-4 px-4 sm:px-6 lg:min-h-[72px] lg:px-10 xl:px-12">
+      <div className="mx-auto flex min-h-16 w-full max-w-[1200px] flex-wrap items-center justify-between gap-2 px-4 py-2 sm:flex-nowrap sm:gap-4 sm:px-6 lg:min-h-[72px] lg:px-10 xl:px-12">
         <a href={getLocalizedPath('/', locale)} className="min-w-0 truncate text-base font-semibold sm:text-xl">
           Amigurumi studio
         </a>
@@ -59,7 +59,7 @@ export async function SiteHeader({locale}: {locale: Locale}) {
             </a>
           ))}
           </nav>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <div className="hidden md:block">
             <MarketSwitcher activeMarket={activeMarket} labels={marketLabels} />
           </div>

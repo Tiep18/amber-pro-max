@@ -16,7 +16,7 @@ for (const viewport of viewports) {
       await expect(page.getByRole('banner')).toBeVisible();
       await expect(page.getByRole('contentinfo')).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-      await expect(page.getByText(/cart|catalog|payment|download|shipping/i)).toHaveCount(0);
+      await expect(page.getByRole('button', {name: /cart|gio hang/i})).toBeVisible();
     }
   });
 }

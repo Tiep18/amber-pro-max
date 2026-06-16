@@ -36,8 +36,9 @@ test('explicit locale routes render without unprefixed customer content', async 
     page.getByRole('heading', {name: 'Handmade crochet patterns and keepsakes'})
   ).toBeVisible();
   await expect(page.getByRole('link', {name: 'Home'})).toBeVisible();
+  await expect(page.getByRole('link', {name: 'Shop'})).toHaveAttribute('href', '/en/catalog');
   await expect(page.getByRole('link', {name: 'Sign in'})).toBeVisible();
-  await expect(page.getByText(/cart|catalog|blog|wishlist|order|payment|download|shipping/i)).toHaveCount(0);
+  await expect(page.getByRole('button', {name: /Cart, 0 items/i})).toBeVisible();
 });
 
 test('language switching preserves equivalent translated auth page', async ({page}) => {
