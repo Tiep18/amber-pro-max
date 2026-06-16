@@ -533,8 +533,8 @@ declare
 begin
   if jsonb_typeof(p_payload) <> 'object'
     or length(transition_key_value) < 8
-    or source_name not in ('paypal_webhook', 'paypal_recheck', 'vietqr_admin', 'reservation_expiry_job', 'system')
-    or target_status not in ('paid', 'failed', 'cancelled', 'rejected', 'expired', 'review_required')
+    or source_name not in ('paypal_webhook', 'paypal_recheck', 'vietqr_instruction', 'vietqr_admin', 'reservation_expiry_job', 'system')
+    or target_status not in ('pending', 'paid', 'failed', 'cancelled', 'rejected', 'expired', 'review_required')
     or (order_number_value is null and payment_id_input is null)
     or not private.payment_safe_json(sanitized_facts) then
     return jsonb_build_object('status', 'invalid', 'code', 'invalid_payment_transition');
@@ -589,6 +589,19 @@ begin
 
   if currency_code_value is not null and currency_code_value <> payment_row.currency_code then
     return jsonb_build_object('status', 'invalid', 'code', 'payment_currency_mismatch');
+  end if;
+
+  if source_name = 'vietqr_instruction' and target_status <> 'pending' then
+    return jsonb_build_object('status', 'invalid', 'code', 'invalid_vietqr_instruction_transition');
+  end if;
+
+  if source_name = 'vietqr_admin' and target_status = 'paid' then
+    if nullif(btrim(coalesce(p_payload->>'bankReference', '')), '') is null
+      or btrim(coalesce(p_payload->>'bankReference', '')) <> order_row.order_number
+      or nullif(p_payload->>'receivedAmountMinor', '')::bigint <> payment_row.amount_minor
+      or nullif(p_payload->>'receivedAt', '') is null then
+      return jsonb_build_object('status', 'invalid', 'code', 'invalid_vietqr_evidence');
+    end if;
   end if;
 
   if provider_event_id_value is not null then
@@ -834,6 +847,7 @@ begin
 
   audit_event_type := case
     when result_status = 'review_required' then 'late_payment_detected'
+    when effective_status = 'pending' and source_name = 'vietqr_instruction' then 'vietqr_instruction_recorded'
     when effective_status = 'paid' and source_name = 'vietqr_admin' then 'admin_vietqr_confirmed'
     when effective_status = 'rejected' and source_name = 'vietqr_admin' then 'admin_vietqr_rejected'
     when effective_status = 'paid' then 'payment_verified_paid'
