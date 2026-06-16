@@ -103,7 +103,7 @@ describe('PayPal webhook verification contract', () => {
       eventId: paypalCompletedCaptureEvent.id,
       eventType: paypalCompletedCaptureEvent.event_type
     });
-    expect(result.status === 'verified' ? result.rawBody : undefined).toBeUndefined();
+    expect('rawBody' in result).toBe(false);
     expect(result.status === 'verified' ? result.payloadDigest : '').toMatch(/^[a-f0-9]{64}$/);
 
     const verificationCall = verifier.calls.find((call) => call.url.endsWith('/v1/notifications/verify-webhook-signature'));

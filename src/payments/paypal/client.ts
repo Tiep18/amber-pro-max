@@ -27,6 +27,26 @@ export type PayPalClientResult =
   | {status: 'unconfigured'; code: 'missing_paypal_server_config'}
   | {status: 'error'; code: 'paypal_provider_error'};
 
+export type PayPalWebhookVerificationHeaders = {
+  authAlgo: string;
+  certUrl: string;
+  transmissionId: string;
+  transmissionSig: string;
+  transmissionTime: string;
+};
+
+export type VerifyPayPalWebhookSignatureInput = {
+  config: PayPalServerConfig;
+  headers: PayPalWebhookVerificationHeaders;
+  webhookEvent: unknown;
+  transport?: PayPalTransport;
+};
+
+export type PayPalWebhookSignatureResult =
+  | {status: 'verified'}
+  | {status: 'rejected'; code: 'paypal_webhook_signature_rejected' | 'missing_paypal_server_config'}
+  | {status: 'error'; code: 'paypal_provider_error'};
+
 type CreatePayPalOrderInput = {
   config: PayPalServerConfig;
   order: PayPalOrderSource;
@@ -223,4 +243,43 @@ export async function getPayPalOrder(input: GetPayPalOrderInput): Promise<PayPal
 
   const providerOrder = await readJson(response);
   return {status: 'retrieved', paypalOrderId: input.paypalOrderId, providerOrder};
+}
+
+export async function verifyPayPalWebhookSignature(
+  input: VerifyPayPalWebhookSignatureInput
+): Promise<PayPalWebhookSignatureResult> {
+  if (!isConfigured(input.config)) {
+    return {status: 'rejected', code: 'missing_paypal_server_config'};
+  }
+
+  const transport = input.transport ?? defaultTransport;
+  const token = await getAccessToken(input.config, transport);
+  if (!token) {
+    return {status: 'error', code: 'paypal_provider_error'};
+  }
+
+  const response = await transport(apiUrl(input.config, '/v1/notifications/verify-webhook-signature'), {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify({
+      auth_algo: input.headers.authAlgo,
+      cert_url: input.headers.certUrl,
+      transmission_id: input.headers.transmissionId,
+      transmission_sig: input.headers.transmissionSig,
+      transmission_time: input.headers.transmissionTime,
+      webhook_id: input.config.webhookId,
+      webhook_event: input.webhookEvent
+    })
+  });
+
+  if (!response.ok) {
+    return {status: 'error', code: 'paypal_provider_error'};
+  }
+
+  const payload = await readJson(response);
+  if (isRecord(payload) && payload.verification_status === 'SUCCESS') {
+    return {status: 'verified'};
+  }
+
+  return {status: 'rejected', code: 'paypal_webhook_signature_rejected'};
 }

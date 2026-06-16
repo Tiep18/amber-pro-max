@@ -61,6 +61,17 @@ export const paypalDeclinedCaptureEvent = {
   }
 } as const;
 
+export const paypalPendingCaptureEvent = {
+  ...paypalDeclinedCaptureEvent,
+  id: 'WH-TEST-CAPTURE-PENDING-0001',
+  event_type: 'PAYMENT.CAPTURE.PENDING',
+  resource: {
+    ...paypalDeclinedCaptureEvent.resource,
+    id: 'PAYPAL-CAPTURE-TEST-PENDING',
+    status: 'PENDING'
+  }
+} as const;
+
 export const paypalMismatchedMerchantEvent = {
   ...paypalCompletedCaptureEvent,
   id: 'WH-TEST-CAPTURE-MERCHANT-MISMATCH-0001',
@@ -90,6 +101,60 @@ export const paypalMismatchedAmountEvent = {
   }
 } as const;
 
+export const paypalMismatchedCurrencyEvent = {
+  ...paypalCompletedCaptureEvent,
+  id: 'WH-TEST-CAPTURE-CURRENCY-MISMATCH-0001',
+  resource: {
+    ...paypalCompletedCaptureEvent.resource,
+    amount: {
+      currency_code: 'VND',
+      value: '42.50'
+    },
+    seller_receivable_breakdown: {
+      gross_amount: {
+        currency_code: 'VND',
+        value: '42.50'
+      }
+    }
+  }
+} as const;
+
+export const paypalPartialRefundEvent = {
+  id: 'WH-TEST-CAPTURE-PARTIAL-REFUND-0001',
+  event_type: 'PAYMENT.CAPTURE.REFUNDED',
+  create_time: '2026-06-15T03:03:00Z',
+  resource: {
+    id: 'PAYPAL-REFUND-TEST-PARTIAL',
+    status: 'COMPLETED',
+    amount: {
+      currency_code: 'USD',
+      value: '12.50'
+    },
+    invoice_id: paypalFixtureIds.orderNumber,
+    custom_id: paypalFixtureIds.localOrderId,
+    links: [
+      {
+        href: `https://api-m.sandbox.paypal.com/v2/payments/captures/${paypalFixtureIds.paypalCaptureId}`,
+        rel: 'up',
+        method: 'GET'
+      }
+    ]
+  }
+} as const;
+
+export const paypalFullRefundEvent = {
+  ...paypalPartialRefundEvent,
+  id: 'WH-TEST-CAPTURE-FULL-REFUND-0001',
+  resource: {
+    ...paypalPartialRefundEvent.resource,
+    id: 'PAYPAL-REFUND-TEST-FULL',
+    amount: {
+      currency_code: 'USD',
+      value: '42.50'
+    }
+  }
+} as const;
+
 export const paypalFixtureHeaders = {
   'paypal-auth-algo': 'SHA256withRSA',
   'paypal-cert-url': 'https://api-m.sandbox.paypal.com/v1/notifications/certs/test-cert',
@@ -101,6 +166,10 @@ export const paypalFixtureHeaders = {
 export const paypalFixtureEvents = [
   paypalCompletedCaptureEvent,
   paypalDeclinedCaptureEvent,
+  paypalPendingCaptureEvent,
   paypalMismatchedMerchantEvent,
-  paypalMismatchedAmountEvent
+  paypalMismatchedAmountEvent,
+  paypalMismatchedCurrencyEvent,
+  paypalPartialRefundEvent,
+  paypalFullRefundEvent
 ] as const;

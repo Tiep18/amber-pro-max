@@ -94,3 +94,68 @@ export function reconcilePayPalCapture({
     }
   };
 }
+
+export function reconcilePayPalCaptureResource({
+  capture,
+  order,
+  expectedMerchantId
+}: {
+  capture: unknown;
+  order: PayPalOrderSource;
+  expectedMerchantId: string;
+}): PayPalReconciliationResult {
+  if (!isRecord(capture)) {
+    return {status: 'rejected', code: 'paypal_capture_missing'};
+  }
+
+  const relatedIds = isRecord(capture.supplementary_data)
+    ? isRecord(capture.supplementary_data.related_ids)
+      ? capture.supplementary_data.related_ids
+      : null
+    : null;
+  const providerOrderId = typeof relatedIds?.order_id === 'string' ? relatedIds.order_id : null;
+  if (
+    !providerOrderId ||
+    providerOrderId !== order.providerOrderId ||
+    capture.invoice_id !== order.orderNumber ||
+    capture.custom_id !== order.orderId
+  ) {
+    return {status: 'rejected', code: 'paypal_order_mismatch'};
+  }
+
+  if (typeof capture.id !== 'string') {
+    return {status: 'rejected', code: 'paypal_capture_missing'};
+  }
+  if (capture.status !== 'COMPLETED') {
+    return {status: 'rejected', code: 'paypal_capture_not_completed'};
+  }
+
+  const payee = isRecord(capture.payee) ? capture.payee : null;
+  const merchantId = typeof payee?.merchant_id === 'string' ? payee.merchant_id : null;
+  if (!merchantId || merchantId !== expectedMerchantId) {
+    return {status: 'rejected', code: 'paypal_merchant_mismatch'};
+  }
+
+  const sellerBreakdown = isRecord(capture.seller_receivable_breakdown) ? capture.seller_receivable_breakdown : null;
+  const grossAmount = isRecord(sellerBreakdown?.gross_amount) ? sellerBreakdown.gross_amount : null;
+  const amount = grossAmount ?? (isRecord(capture.amount) ? capture.amount : null);
+  if (!amount || amount.currency_code !== 'USD') {
+    return {status: 'rejected', code: 'paypal_currency_mismatch'};
+  }
+
+  const amountMinor = parseUsdMinor(amount.value);
+  if (amountMinor !== order.totalMinor) {
+    return {status: 'rejected', code: 'paypal_amount_mismatch'};
+  }
+
+  return {
+    status: 'verified',
+    facts: {
+      providerOrderId,
+      providerCaptureId: capture.id,
+      merchantId,
+      amountMinor,
+      currencyCode: 'USD'
+    }
+  };
+}
