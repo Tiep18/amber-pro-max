@@ -1,6 +1,7 @@
 'use client';
 
 import {useMemo, useState} from 'react';
+import {canAddToCart} from '@/catalog/add-to-cart-eligibility';
 import type {MarketCode} from '@/catalog/market';
 import type {Locale} from '@/i18n/routing';
 import {Button} from '@/components/ui/button';
@@ -31,6 +32,7 @@ export function AddToCart({
   productId,
   productType,
   available,
+  inStock,
   variants
 }: {
   locale: Locale;
@@ -38,6 +40,7 @@ export function AddToCart({
   productId: string;
   productType: 'pdf_pattern' | 'physical_finished';
   available: boolean;
+  inStock: boolean;
   variants: PublicVariant[];
 }) {
   const t = copy[locale];
@@ -47,7 +50,7 @@ export function AddToCart({
   const {addLine} = useCart();
   const needsVariant = productType === 'physical_finished' && variants.length > 0;
   const selectedVariant = variants.find((variant) => variant.variant_id === selectedId) ?? null;
-  const canAdd = available && (!needsVariant || Boolean(selectedVariant?.enabled && selectedVariant.stock));
+  const canAdd = canAddToCart({available, productType, inStock, needsVariant, selectedVariant});
 
   return (
     <div className="grid gap-3">

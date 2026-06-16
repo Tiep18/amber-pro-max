@@ -151,6 +151,7 @@ export default async function ProductPage({params}: {params: Params}) {
             productId={product.product_id}
             productType={product.product_type === 'physical_finished' ? 'physical_finished' : 'pdf_pattern'}
             available={product.available}
+            inStock={product.in_stock}
             variants={variants}
           />
         ) : null}
