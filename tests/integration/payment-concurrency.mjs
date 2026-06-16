@@ -228,7 +228,7 @@ async function vietqrConfirmRace() {
         source: 'vietqr_admin',
         targetStatus: 'paid',
         orderNumber: fixture.order.order_number,
-        bankReference: `BANK-${suffix()}`,
+        bankReference: fixture.order.order_number,
         receivedAmountMinor: fixture.amountMinor,
         receivedAt: new Date().toISOString()
       },
@@ -240,7 +240,7 @@ async function vietqrConfirmRace() {
         source: 'vietqr_admin',
         targetStatus: 'paid',
         orderNumber: fixture.order.order_number,
-        bankReference: `BANK-${suffix()}`,
+        bankReference: fixture.order.order_number,
         receivedAmountMinor: fixture.amountMinor,
         receivedAt: new Date().toISOString()
       },
@@ -264,7 +264,7 @@ async function vietqrConfirmRejectRace() {
         source: 'vietqr_admin',
         targetStatus: 'paid',
         orderNumber: fixture.order.order_number,
-        bankReference: `BANK-${suffix()}`,
+        bankReference: fixture.order.order_number,
         receivedAmountMinor: fixture.amountMinor,
         receivedAt: new Date().toISOString()
       },

@@ -1986,6 +1986,7 @@ export type Database = {
           order_number: string | null
           owner_user_id: string | null
           payment_id: string | null
+          payment_intent: string | null
           payment_status: string | null
           physical_fulfillment_status: string | null
           provider: string | null
@@ -2334,3 +2335,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
