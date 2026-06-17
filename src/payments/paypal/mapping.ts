@@ -4,6 +4,7 @@ export type PayPalCaptureFacts = {
   providerOrderId: string;
   providerCaptureId: string;
   merchantId: string;
+  merchantVerificationSource: 'provider_payee' | 'server_payee_contract';
   amountMinor: number;
   currencyCode: 'USD';
 };
@@ -52,7 +53,7 @@ export function reconcilePayPalCapture({
   }
 
   const purchaseUnit = firstRecord(providerOrder.purchase_units);
-  if (!purchaseUnit || purchaseUnit.invoice_id !== order.orderNumber || purchaseUnit.custom_id !== order.orderId) {
+  if (!purchaseUnit) {
     return {status: 'rejected', code: 'paypal_order_mismatch'};
   }
 
@@ -65,11 +66,20 @@ export function reconcilePayPalCapture({
     return {status: 'rejected', code: 'paypal_capture_not_completed'};
   }
 
+  const invoiceId = typeof purchaseUnit.invoice_id === 'string' ? purchaseUnit.invoice_id : capture.invoice_id;
+  const customId = typeof purchaseUnit.custom_id === 'string' ? purchaseUnit.custom_id : capture.custom_id;
+  if (invoiceId !== order.orderNumber || customId !== order.orderId) {
+    return {status: 'rejected', code: 'paypal_order_mismatch'};
+  }
+
   const payee = isRecord(purchaseUnit.payee) ? purchaseUnit.payee : null;
-  const merchantId = typeof payee?.merchant_id === 'string' ? payee.merchant_id : null;
-  if (!merchantId || merchantId !== expectedMerchantId) {
+  const capturePayee = isRecord(capture.payee) ? capture.payee : null;
+  const merchantId = typeof payee?.merchant_id === 'string' ? payee.merchant_id : typeof capturePayee?.merchant_id === 'string' ? capturePayee.merchant_id : null;
+  if (merchantId && merchantId !== expectedMerchantId) {
     return {status: 'rejected', code: 'paypal_merchant_mismatch'};
   }
+  const verifiedMerchantId = merchantId ?? expectedMerchantId;
+  const merchantVerificationSource = merchantId ? 'provider_payee' : 'server_payee_contract';
 
   const sellerBreakdown = isRecord(capture.seller_receivable_breakdown) ? capture.seller_receivable_breakdown : null;
   const grossAmount = isRecord(sellerBreakdown?.gross_amount) ? sellerBreakdown.gross_amount : null;
@@ -88,7 +98,8 @@ export function reconcilePayPalCapture({
     facts: {
       providerOrderId: String(providerOrder.id),
       providerCaptureId: capture.id,
-      merchantId,
+      merchantId: verifiedMerchantId,
+      merchantVerificationSource,
       amountMinor,
       currencyCode: 'USD'
     }
@@ -132,9 +143,11 @@ export function reconcilePayPalCaptureResource({
 
   const payee = isRecord(capture.payee) ? capture.payee : null;
   const merchantId = typeof payee?.merchant_id === 'string' ? payee.merchant_id : null;
-  if (!merchantId || merchantId !== expectedMerchantId) {
+  if (merchantId && merchantId !== expectedMerchantId) {
     return {status: 'rejected', code: 'paypal_merchant_mismatch'};
   }
+  const verifiedMerchantId = merchantId ?? expectedMerchantId;
+  const merchantVerificationSource = merchantId ? 'provider_payee' : 'server_payee_contract';
 
   const sellerBreakdown = isRecord(capture.seller_receivable_breakdown) ? capture.seller_receivable_breakdown : null;
   const grossAmount = isRecord(sellerBreakdown?.gross_amount) ? sellerBreakdown.gross_amount : null;
@@ -153,7 +166,8 @@ export function reconcilePayPalCaptureResource({
     facts: {
       providerOrderId,
       providerCaptureId: capture.id,
-      merchantId,
+      merchantId: verifiedMerchantId,
+      merchantVerificationSource,
       amountMinor,
       currencyCode: 'USD'
     }

@@ -3,6 +3,7 @@ import {NextResponse} from 'next/server';
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 import type {PayPalOrderSource} from '@/payments/paypal/client';
+import {logPayPalStage} from '@/payments/paypal/logging';
 import {
   PAYPAL_WEBHOOK_BODY_LIMIT_BYTES,
   reconcilePayPalEvent,
@@ -220,12 +221,14 @@ function statusForRejected(verification: PayPalWebhookVerificationResult) {
 export async function POST(request: Request) {
   const contentLength = request.headers.get('content-length');
   if (contentLength && Number(contentLength) > PAYPAL_WEBHOOK_BODY_LIMIT_BYTES) {
+    logPayPalStage('webhook.body_too_large', {contentLength: Number(contentLength)}, 'warn');
     return json(413, {status: 'rejected', code: 'paypal_webhook_body_too_large'});
   }
 
   const rawBody = await request.text();
   const env = getServerEnv();
   if (env.paypal.status !== 'configured' || !env.paypal.expectedMerchantId) {
+    logPayPalStage('webhook.unconfigured', {}, 'error');
     return json(503, {status: 'unconfigured', code: 'missing_paypal_server_config'});
   }
   const expectedMerchantId = env.paypal.expectedMerchantId;
@@ -236,6 +239,10 @@ export async function POST(request: Request) {
     config: env.paypal
   });
   if (verification.status !== 'verified') {
+    logPayPalStage('webhook.verification_failed', {
+      verificationStatus: verification.status,
+      code: 'code' in verification ? verification.code : undefined
+    }, verification.status === 'error' ? 'error' : 'warn');
     return json(statusForRejected(verification), {status: verification.status, code: verification.code});
   }
 
@@ -243,11 +250,13 @@ export async function POST(request: Request) {
   const existingEvent = await findExistingEvent(client, verification.eventId);
   if (existingEvent) {
     await incrementDelivery(client, existingEvent.id, existingEvent.deliveryCount);
+    logPayPalStage('webhook.duplicate_event', {providerEventId: verification.eventId, eventType: verification.eventType, deliveryCount: existingEvent.deliveryCount + 1});
     return json(200, {status: 'duplicate'});
   }
 
   const order = await loadPayPalOrderSource(client, verification.event);
   if (!order) {
+    logPayPalStage('webhook.order_not_found', {providerEventId: verification.eventId, eventType: verification.eventType}, 'warn');
     return json(202, {status: 'ignored', code: 'paypal_order_not_found'});
   }
 
@@ -257,6 +266,14 @@ export async function POST(request: Request) {
     expectedMerchantId,
     orderExpired: order.expired
   });
+  if (reconciliation.status === 'rejected') {
+    logPayPalStage('webhook.reconciliation_rejected', {
+      providerEventId: reconciliation.providerEventId ?? verification.eventId,
+      eventType: reconciliation.eventType ?? verification.eventType,
+      orderNumber: order.orderNumber,
+      code: reconciliation.code
+    }, 'warn');
+  }
 
   if (reconciliation.status === 'transition') {
     const transition = await applyPaymentTransition(
@@ -277,6 +294,15 @@ export async function POST(request: Request) {
       },
       client
     );
+    logPayPalStage('webhook.transition_result', {
+      providerEventId: reconciliation.providerEventId,
+      eventType: reconciliation.eventType,
+      orderNumber: order.orderNumber,
+      transitionStatus: transition.status,
+      paymentStatus: transition.paymentStatus,
+      inventoryEffect: transition.inventoryEffect,
+      code: transition.code
+    }, transition.status === 'error' || transition.status === 'invalid' ? 'error' : transition.status === 'review_required' ? 'warn' : 'info');
     return json(transition.status === 'error' ? 502 : 200, {status: 'accepted', result: transition.status, code: transition.code});
   }
 
@@ -290,6 +316,7 @@ export async function POST(request: Request) {
 
   if (reconciliation.status === 'refund_visibility') {
     await applyRefundVisibility({client, orderId: order.orderId, paymentId: order.paymentId, reconciliation});
+    logPayPalStage('webhook.refund_visibility_applied', {providerEventId: reconciliation.providerEventId, orderNumber: order.orderNumber, refundStatus: reconciliation.refundStatus});
     return json(200, {status: 'refund_visibility', refundStatus: reconciliation.refundStatus});
   }
 

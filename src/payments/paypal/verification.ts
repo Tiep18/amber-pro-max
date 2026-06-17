@@ -319,6 +319,7 @@ export function reconcilePayPalEvent({
       providerOrderId: capture.facts.providerOrderId,
       providerCaptureId: capture.facts.providerCaptureId,
       merchantId: capture.facts.merchantId,
+      merchantVerificationSource: capture.facts.merchantVerificationSource,
       amountMinor: capture.facts.amountMinor,
       currencyCode: capture.facts.currencyCode
     }

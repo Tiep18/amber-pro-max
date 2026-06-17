@@ -6,6 +6,7 @@ import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
 import {capturePayPalOrder, getPayPalOrder, type PayPalOrderSource} from '@/payments/paypal/client';
+import {logPayPalStage, sanitizePayPalProviderOrderForLog} from '@/payments/paypal/logging';
 import {reconcilePayPalCapture} from '@/payments/paypal/mapping';
 import {getAuthorizedOrderPayment} from '@/payments/queries';
 import {applyPaymentTransition} from '@/payments/transitions';
@@ -99,8 +100,24 @@ async function reconcileAndTransition({
 }) {
   const reconciled = reconcilePayPalCapture({providerOrder, order, expectedMerchantId});
   if (reconciled.status === 'rejected') {
+    logPayPalStage('capture.reconciliation_rejected', {
+      orderNumber: order.orderNumber,
+      orderId: order.orderId,
+      paypalOrderId: order.providerOrderId,
+      code: reconciled.code,
+      providerOrder: sanitizePayPalProviderOrderForLog(providerOrder)
+    }, 'warn');
     return json(202, {status: 'review_required', code: reconciled.code});
   }
+  logPayPalStage('capture.reconciliation_verified', {
+    orderNumber: order.orderNumber,
+    orderId: order.orderId,
+    paypalOrderId: reconciled.facts.providerOrderId,
+    providerCaptureId: reconciled.facts.providerCaptureId,
+    merchantVerificationSource: reconciled.facts.merchantVerificationSource,
+    amountMinor: reconciled.facts.amountMinor,
+    currencyCode: reconciled.facts.currencyCode
+  });
 
   const transition = await applyPaymentTransition(
     {
@@ -117,12 +134,23 @@ async function reconcileAndTransition({
         providerOrderId: reconciled.facts.providerOrderId,
         providerCaptureId: reconciled.facts.providerCaptureId,
         merchantId: reconciled.facts.merchantId,
+        merchantVerificationSource: reconciled.facts.merchantVerificationSource,
         amountMinor: reconciled.facts.amountMinor,
         currencyCode: reconciled.facts.currencyCode
       }
     },
     client
   );
+  logPayPalStage('capture.transition_result', {
+    orderNumber: order.orderNumber,
+    orderId: order.orderId,
+    paypalOrderId: reconciled.facts.providerOrderId,
+    providerCaptureId: reconciled.facts.providerCaptureId,
+    transitionStatus: transition.status,
+    paymentStatus: transition.paymentStatus,
+    inventoryEffect: transition.inventoryEffect,
+    code: transition.code
+  }, transition.status === 'error' || transition.status === 'invalid' ? 'error' : transition.status === 'review_required' ? 'warn' : 'info');
 
   if (transition.status === 'applied' || transition.status === 'duplicate') {
     return json(200, {status: 'paid', paymentStatus: transition.paymentStatus ?? 'paid'});
@@ -136,6 +164,7 @@ async function reconcileAndTransition({
 export async function POST(_request: Request, context: {params: Promise<{paypalOrderId: string}>}) {
   const params = paramsSchema.safeParse(await context.params);
   if (!params.success) {
+    logPayPalStage('capture.invalid_request', {}, 'warn');
     return json(400, {status: 'invalid', code: 'invalid_paypal_capture_request'});
   }
 
@@ -143,6 +172,7 @@ export async function POST(_request: Request, context: {params: Promise<{paypalO
   const client = createSupabaseAdminClient() as unknown as RouteClient;
   const order = await loadPayPalOrderSourceByProviderOrderId(client, params.data.paypalOrderId);
   if (!order) {
+    logPayPalStage('capture.local_order_not_found', {paypalOrderId: params.data.paypalOrderId}, 'warn');
     return json(404, {status: 'not_found'});
   }
 
@@ -153,21 +183,39 @@ export async function POST(_request: Request, context: {params: Promise<{paypalO
     client: authClient
   });
   if (authorized.status !== 'found') {
+    logPayPalStage('capture.authorization_failed', {orderNumber: order.orderNumber, paypalOrderId: params.data.paypalOrderId, status: authorized.status}, 'warn');
     return json(404, {status: 'not_found'});
   }
 
   const env = getServerEnv();
   if (env.paypal.status !== 'configured' || !env.paypal.expectedMerchantId) {
+    logPayPalStage('capture.unconfigured', {orderNumber: order.orderNumber, paypalOrderId: params.data.paypalOrderId}, 'error');
     return json(503, {status: 'unconfigured', code: 'missing_paypal_server_config'});
   }
   const expectedMerchantId = env.paypal.expectedMerchantId;
 
   const captured = await capturePayPalOrder({config: env.paypal, order});
+  if (captured.status !== 'captured') {
+    logPayPalStage('capture.provider_capture_result', {
+      orderNumber: order.orderNumber,
+      orderId: order.orderId,
+      paypalOrderId: params.data.paypalOrderId,
+      providerStatus: captured.status,
+      code: 'code' in captured ? captured.code : undefined
+    }, captured.status === 'verifying' ? 'warn' : 'error');
+  }
   if (captured.status === 'captured') {
     return reconcileAndTransition({providerOrder: captured.providerOrder, order, expectedMerchantId, client});
   }
   if (captured.status === 'verifying') {
     const retrieved = await getPayPalOrder({config: env.paypal, paypalOrderId: params.data.paypalOrderId});
+    logPayPalStage('capture.provider_retrieve_after_uncertain', {
+      orderNumber: order.orderNumber,
+      orderId: order.orderId,
+      paypalOrderId: params.data.paypalOrderId,
+      providerStatus: retrieved.status,
+      code: 'code' in retrieved ? retrieved.code : undefined
+    }, retrieved.status === 'retrieved' ? 'info' : 'warn');
     if (retrieved.status === 'retrieved') {
       return reconcileAndTransition({providerOrder: retrieved.providerOrder, order, expectedMerchantId, client});
     }

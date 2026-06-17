@@ -122,6 +122,23 @@ describe('Phase 4 customer payment status contract', () => {
     expect(status.isPaid).toBe(false);
   });
 
+  test('does not render a review-required paid gate as awaiting payment when payment status lags', () => {
+    const status = mapCustomerPaymentStatus({
+      paymentStatus: 'pending',
+      customerPaymentStatus: 'awaiting_payment',
+      fulfillmentGateStatus: 'review_required',
+      provider: 'paypal',
+      reviewReason: 'late_payment_detected',
+      reservationExpiresAt: new Date(Date.now() + 60_000).toISOString()
+    });
+    const presentation = getPaymentStatusPresentation(status.status, 'en', getCheckoutPath('en'));
+
+    expect(status.status).toBe('review_required');
+    expect(status.isPaid).toBe(false);
+    expect(status.fulfillmentLocked).toBe(true);
+    expect(presentation.primaryAction).toBeNull();
+  });
+
   test('renders partially_refunded and refunded as read-only visibility states', () => {
     for (const paymentStatus of ['partially_refunded', 'refunded'] as const) {
       const status = mapCustomerPaymentStatus({

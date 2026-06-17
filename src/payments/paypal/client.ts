@@ -123,10 +123,11 @@ async function getAccessToken(config: Extract<PayPalServerConfig, {status: 'conf
   return isRecord(payload) && typeof payload.access_token === 'string' ? payload.access_token : null;
 }
 
-function headers(token: string, requestId?: string): Record<string, string> {
+function headers(token: string, requestId?: string, preferRepresentation = false): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
+    ...(preferRepresentation ? {Prefer: 'return=representation'} : {}),
     ...(requestId ? {'PayPal-Request-Id': requestId} : {})
   };
 }
@@ -156,7 +157,7 @@ export async function createPayPalOrder(input: CreatePayPalOrderInput): Promise<
 
   const response = await transport(apiUrl(input.config, '/v2/checkout/orders'), {
     method: 'POST',
-    headers: headers(token, input.order.paypalCreateRequestId),
+    headers: headers(token, input.order.paypalCreateRequestId, true),
     body: JSON.stringify({
       intent: 'CAPTURE',
       purchase_units: [
@@ -164,6 +165,9 @@ export async function createPayPalOrder(input: CreatePayPalOrderInput): Promise<
           reference_id: input.order.orderId,
           invoice_id: input.order.orderNumber,
           custom_id: input.order.orderId,
+          payee: {
+            merchant_id: input.config.expectedMerchantId
+          },
           amount: {
             currency_code: 'USD',
             value
@@ -206,7 +210,7 @@ export async function capturePayPalOrder(input: CapturePayPalOrderInput): Promis
 
   const response = await transport(apiUrl(input.config, `/v2/checkout/orders/${encodeURIComponent(input.order.providerOrderId)}/capture`), {
     method: 'POST',
-    headers: headers(token, input.order.paypalCaptureRequestId)
+    headers: headers(token, input.order.paypalCaptureRequestId, true)
   });
 
   if (!response.ok) {
@@ -232,7 +236,7 @@ export async function getPayPalOrder(input: GetPayPalOrderInput): Promise<PayPal
 
   const response = await transport(apiUrl(input.config, `/v2/checkout/orders/${encodeURIComponent(input.paypalOrderId)}`), {
     method: 'GET',
-    headers: headers(token)
+    headers: headers(token, undefined, true)
   });
 
   if (!response.ok) {

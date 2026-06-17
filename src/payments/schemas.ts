@@ -22,6 +22,7 @@ export const customerPaymentStatusSchema = z.enum([
   'payment_failed',
   'payment_cancelled',
   'expired',
+  'review_required',
   'partially_refunded',
   'refunded'
 ]);

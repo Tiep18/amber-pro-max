@@ -105,6 +105,10 @@ export function mapCustomerPaymentStatus(input: CustomerPaymentStatusInput): Cus
       break;
   }
 
+  if (input.fulfillmentGateStatus === 'review_required' || input.reviewReason === 'late_payment_detected') {
+    status = 'review_required';
+  }
+
   const isPaid = status === 'paid' || status === 'partially_refunded' || status === 'refunded';
   const fulfillmentLocked = !isPaid || input.fulfillmentGateStatus !== 'eligible';
 

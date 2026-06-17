@@ -1,6 +1,6 @@
 begin;
 
-select plan(30);
+select plan(31);
 
 select has_function('public', 'apply_payment_transition', array['jsonb'], 'shared transition command exists');
 select has_function('public', 'expire_due_payments', array['integer'], 'bounded expiry command exists');
@@ -116,6 +116,73 @@ select lives_ok(
     'reviewReason', 'late_payment_detected'
   ))$$,
   'late completed capture after terminal release becomes review_required'
+);
+
+insert into public.checkout_orders (
+  id,
+  order_number,
+  guest_secret_hash,
+  contact_email,
+  locale,
+  market,
+  currency_code,
+  status,
+  payment_intent,
+  subtotal_minor,
+  discount_minor,
+  shipping_minor,
+  total_minor,
+  accepted_quote_hash,
+  quote_snapshot,
+  cart_snapshot,
+  idempotency_actor,
+  idempotency_key,
+  reservation_expires_at
+)
+values (
+  '00000000-0000-4000-8000-000000000421',
+  'ATB-REVIEW-PROJECTION',
+  'review-projection-guest-hash',
+  'review-projection@example.test',
+  'en',
+  'intl',
+  'USD',
+  'pending_payment',
+  'paypal_intent',
+  4250,
+  0,
+  0,
+  4250,
+  'review-projection-hash',
+  '{}'::jsonb,
+  '[]'::jsonb,
+  'guest',
+  'review-projection-key',
+  now() + interval '15 minutes'
+);
+
+update public.payments p
+set status = 'pending',
+  review_reason = 'late_payment_detected',
+  terminal_at = now(),
+  updated_at = now()
+from public.checkout_orders co
+where co.id = p.order_id
+  and co.order_number = 'ATB-REVIEW-PROJECTION';
+
+update public.checkout_orders
+set paid_gate_status = 'review_required',
+  review_reason = 'late_payment_detected',
+  payment_terminal_at = now(),
+  updated_at = now()
+where order_number = 'ATB-REVIEW-PROJECTION';
+
+select results_eq(
+  $$select payment_status, customer_payment_status, fulfillment_gate_status
+    from public.order_payment_statuses
+    where order_number = 'ATB-REVIEW-PROJECTION'$$,
+  $$values ('review_required'::text, 'review_required'::text, 'review_required'::text)$$,
+  'review-required paid gate is projected to the customer instead of awaiting payment'
 );
 
 select has_trigger('public', 'payment_transitions', 'payment_transitions_monotonic_status', 'payment transitions are monotonic');

@@ -6,6 +6,7 @@ import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
 import {createPayPalOrder, getPayPalOrder, type PayPalOrderSource} from '@/payments/paypal/client';
+import {logPayPalStage} from '@/payments/paypal/logging';
 import {getAuthorizedOrderPayment} from '@/payments/queries';
 
 const createRouteSchema = z.object({
@@ -88,6 +89,7 @@ async function loadPayPalOrderSourceByOrderNumber(client: RouteClient, orderNumb
 export async function POST(request: Request) {
   const input = createRouteSchema.safeParse(await request.json().catch(() => null));
   if (!input.success) {
+    logPayPalStage('create.invalid_request', {}, 'warn');
     return json(400, {status: 'invalid', code: 'invalid_paypal_order_request'});
   }
 
@@ -100,33 +102,48 @@ export async function POST(request: Request) {
     client: authClient
   });
   if (authorized.status !== 'found') {
+    logPayPalStage('create.authorization_failed', {orderNumber: input.data.orderNumber, status: authorized.status}, 'warn');
     return json(404, {status: 'not_found'});
   }
 
   const order = await loadPayPalOrderSourceByOrderNumber(client, input.data.orderNumber);
   if (!order) {
+    logPayPalStage('create.order_not_eligible', {orderNumber: input.data.orderNumber}, 'warn');
     return json(409, {status: 'invalid', code: 'paypal_order_not_eligible'});
   }
-
   const env = getServerEnv();
   if (order.providerOrderId) {
     const retrieved = await getPayPalOrder({config: env.paypal, paypalOrderId: order.providerOrderId});
     if (retrieved.status === 'retrieved') {
       return json(200, {status: 'awaiting', paypalOrderId: retrieved.paypalOrderId});
     }
+    logPayPalStage('create.provider_order_retrieve_failed', {
+      orderNumber: order.orderNumber,
+      paypalOrderId: order.providerOrderId,
+      status: retrieved.status,
+      code: 'code' in retrieved ? retrieved.code : undefined
+    }, 'warn');
   }
 
   const created = await createPayPalOrder({config: env.paypal, order});
   if (created.status === 'created') {
     await client.from('payments').update({provider_order_id: created.paypalOrderId}).eq('order_id', order.orderId);
+    logPayPalStage('create.provider_order_created', {orderNumber: order.orderNumber, orderId: order.orderId, paypalOrderId: created.paypalOrderId});
     return json(200, {status: 'awaiting', paypalOrderId: created.paypalOrderId});
   }
   if (created.status === 'verifying') {
+    logPayPalStage('create.provider_uncertain', {
+      orderNumber: order.orderNumber,
+      paypalOrderId: created.paypalOrderId,
+      code: created.code
+    }, 'warn');
     return json(202, created);
   }
   if (created.status === 'unconfigured') {
+    logPayPalStage('create.unconfigured', {orderNumber: order.orderNumber, code: created.code}, 'error');
     return json(503, created);
   }
 
+  logPayPalStage('create.failed', {orderNumber: order.orderNumber, status: created.status, code: 'code' in created ? created.code : undefined}, 'error');
   return json(created.status === 'invalid' ? 409 : 502, created);
 }

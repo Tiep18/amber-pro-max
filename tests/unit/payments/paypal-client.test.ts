@@ -261,6 +261,7 @@ describe('PayPal server client contract', () => {
         {
           invoice_id: paypalFixtureIds.orderNumber,
           custom_id: paypalFixtureIds.localOrderId,
+          payee: {merchant_id: paypalFixtureIds.merchantId},
           amount: {currency_code: 'USD', value: '42.50'}
         }
       ]
@@ -276,7 +277,7 @@ describe('PayPal server client contract', () => {
     expect(transport.mock.calls.map(([, init]) => init?.headers)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({'PayPal-Request-Id': order.paypalCreateRequestId}),
-        expect.objectContaining({'PayPal-Request-Id': order.paypalCaptureRequestId})
+        expect.objectContaining({'PayPal-Request-Id': order.paypalCaptureRequestId, Prefer: 'return=representation'})
       ])
     );
   });
@@ -380,6 +381,82 @@ describe('PayPal server client contract', () => {
         expectedMerchantId: 'MERCHANT-MISMATCH'
       })
     ).toEqual({status: 'rejected', code: 'paypal_merchant_mismatch'});
+  });
+
+  test('reconciles capture metadata when PayPal returns invoice and custom id on the capture object', () => {
+    const completedOrder = {
+      id: paypalFixtureIds.paypalOrderId,
+      status: 'COMPLETED',
+      purchase_units: [
+        {
+          reference_id: paypalFixtureIds.localOrderId,
+          payments: {
+            captures: [
+              {
+                id: paypalFixtureIds.paypalCaptureId,
+                status: 'COMPLETED',
+                invoice_id: paypalFixtureIds.orderNumber,
+                custom_id: paypalFixtureIds.localOrderId,
+                payee: {merchant_id: paypalFixtureIds.merchantId},
+                amount: {currency_code: 'USD', value: '42.50'},
+                seller_receivable_breakdown: {
+                  gross_amount: {currency_code: 'USD', value: '42.50'}
+                }
+              }
+            ]
+          }
+        }
+      ]
+    };
+
+    expect(reconcilePayPalCapture({providerOrder: completedOrder, order, expectedMerchantId: paypalFixtureIds.merchantId})).toMatchObject({
+      status: 'verified',
+      facts: {
+        providerOrderId: paypalFixtureIds.paypalOrderId,
+        providerCaptureId: paypalFixtureIds.paypalCaptureId,
+        merchantId: paypalFixtureIds.merchantId,
+        amountMinor: 4250,
+        currencyCode: 'USD'
+      }
+    });
+  });
+
+  test('reconciles missing merchant id when the server-created PayPal order contract matches all capture facts', () => {
+    const completedOrder = {
+      id: paypalFixtureIds.paypalOrderId,
+      status: 'COMPLETED',
+      purchase_units: [
+        {
+          reference_id: paypalFixtureIds.localOrderId,
+          payments: {
+            captures: [
+              {
+                id: paypalFixtureIds.paypalCaptureId,
+                status: 'COMPLETED',
+                invoice_id: paypalFixtureIds.orderNumber,
+                custom_id: paypalFixtureIds.localOrderId,
+                amount: {currency_code: 'USD', value: '42.50'},
+                seller_receivable_breakdown: {
+                  gross_amount: {currency_code: 'USD', value: '42.50'}
+                }
+              }
+            ]
+          }
+        }
+      ]
+    };
+
+    expect(reconcilePayPalCapture({providerOrder: completedOrder, order, expectedMerchantId: paypalFixtureIds.merchantId})).toMatchObject({
+      status: 'verified',
+      facts: {
+        providerOrderId: paypalFixtureIds.paypalOrderId,
+        providerCaptureId: paypalFixtureIds.paypalCaptureId,
+        merchantId: paypalFixtureIds.merchantId,
+        merchantVerificationSource: 'server_payee_contract',
+        amountMinor: 4250,
+        currencyCode: 'USD'
+      }
+    });
   });
 });
 
