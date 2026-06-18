@@ -3,6 +3,7 @@
 import {useState, useTransition} from 'react';
 import {refreshCheckoutQuoteAction} from '@/checkout/actions';
 import type {MaterialQuoteChange} from '@/checkout/market-revalidation';
+import {getShippingCountryOptions, validateCheckoutShippingAddress} from '@/checkout/shipping-address-ui';
 import type {ShippingAddress} from '@/checkout/shipping-address';
 import type {CartQuote} from '@/checkout/types';
 import type {Locale} from '@/i18n/routing';
@@ -20,6 +21,10 @@ const copy = {
     locality: 'City',
     region: 'State / province',
     postalCode: 'Postal code',
+    searchCountry: 'Search countries',
+    clearCountry: 'Clear country',
+    countryPlaceholder: 'Select a country',
+    noCountryResults: 'No matching countries',
     submit: 'Update destination',
     pending: 'Calculating',
     invalid: 'Choose a shipping country and complete the required address fields.',
@@ -34,20 +39,16 @@ const copy = {
     locality: 'Thanh pho',
     region: 'Tinh / bang',
     postalCode: 'Ma buu chinh',
+    searchCountry: 'Tim quoc gia',
+    clearCountry: 'Xoa quoc gia',
+    countryPlaceholder: 'Chon quoc gia',
+    noCountryResults: 'Khong tim thay quoc gia phu hop',
     submit: 'Cap nhat dia chi giao hang',
     pending: 'Dang tinh',
     invalid: 'Chon quoc gia giao hang va dien cac thong tin dia chi bat buoc.',
     error: 'Khong the tinh dia diem giao hang.'
   }
 } as const;
-
-const countries = [
-  {code: 'VN', en: 'Vietnam', vi: 'Viet Nam'},
-  {code: 'US', en: 'United States', vi: 'Hoa Ky'},
-  {code: 'CA', en: 'Canada', vi: 'Canada'},
-  {code: 'AU', en: 'Australia', vi: 'Uc'},
-  {code: 'GB', en: 'United Kingdom', vi: 'Vuong quoc Anh'}
-] as const;
 
 export type CheckoutShippingAddress = ShippingAddress;
 
@@ -79,18 +80,30 @@ export function DestinationForm({
   const [error, setError] = useState<string | null>(null);
   const [proposal, setProposal] = useState<{quote: CartQuote; changes: MaterialQuoteChange[]} | null>(null);
   const [countrySearch, setCountrySearch] = useState('');
+  const [showValidation, setShowValidation] = useState(false);
   const [pending, startTransition] = useTransition();
-  const addressReady =
-    shippingAddress.countryCode.length === 2 &&
-    shippingAddress.recipientName.trim().length > 0 &&
-    shippingAddress.phoneNumber.trim().length >= 5 &&
-    shippingAddress.addressLine1.trim().length > 0;
+  const countries = getShippingCountryOptions(locale);
+  const selectedCountry = countries.find((country) => country.code === shippingAddress.countryCode) ?? null;
+  const filteredCountries = countrySearch.trim()
+    ? countries.filter((country) => country.searchText.includes(countrySearch.trim().toLowerCase())).slice(0, 60)
+    : countries;
+  const visibleCountries =
+    selectedCountry && !filteredCountries.some((country) => country.code === selectedCountry.code)
+      ? [selectedCountry, ...filteredCountries]
+      : filteredCountries;
+  const validationErrors = validateCheckoutShippingAddress(shippingAddress, locale);
+  const addressReady = Object.keys(validationErrors).length === 0;
+
+  function fieldError(field: keyof CheckoutShippingAddress) {
+    return showValidation ? validationErrors[field] : null;
+  }
 
   function updateAddress(patch: Partial<CheckoutShippingAddress>) {
     onShippingAddressChange({...emptyAddress, ...shippingAddress, ...patch});
   }
 
   function submit() {
+    setShowValidation(true);
     setError(null);
     if (!addressReady) {
       setError(t.invalid);
@@ -130,97 +143,169 @@ export function DestinationForm({
   return (
     <div className="grid gap-3">
       {error ? <Alert variant="destructive">{error}</Alert> : null}
-      <label className="space-y-2">
-        <span className="font-semibold">{t.country}</span>
+      <div className="grid gap-2">
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="shipping-country-search" className="font-semibold">
+            {t.country} <span className="text-[var(--destructive)]">*</span>
+          </label>
+          {selectedCountry ? (
+            <Button
+              variant="ghost"
+              className="min-h-9 px-2 text-sm"
+              onClick={() => {
+                setCountrySearch('');
+                updateAddress({countryCode: ''});
+              }}
+            >
+              {t.clearCountry}
+            </Button>
+          ) : null}
+        </div>
         <input
-          value={countrySearch || (countries.find((country) => country.code === shippingAddress.countryCode)?.[locale] ?? '')}
-          list="shipping-country-options"
-          onChange={(event) => {
-            const rawValue = event.target.value;
-            setCountrySearch(rawValue);
-            const value = rawValue.trim().toLowerCase();
-            const selected = countries.find(
-              (country) =>
-                country.code.toLowerCase() === value ||
-                country.en.toLowerCase() === value ||
-                country.vi.toLowerCase() === value
-            );
-            updateAddress({countryCode: selected?.code ?? shippingAddress.countryCode});
-            if (selected) {
-              setCountrySearch(selected[locale]);
-            }
-          }}
+          id="shipping-country-search"
+          value={countrySearch}
+          placeholder={selectedCountry ? `${selectedCountry.label} (${selectedCountry.code})` : t.searchCountry}
+          onChange={(event) => setCountrySearch(event.target.value)}
+          onBlur={() => setShowValidation(true)}
+          aria-describedby={fieldError('countryCode') ? 'shipping-country-error' : undefined}
+          aria-invalid={Boolean(fieldError('countryCode'))}
           className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
         />
-        <datalist id="shipping-country-options">
-          {countries.map((country) => (
-            <option key={country.code} value={country[locale]}>
-              {country.code}
+        <select
+          value={shippingAddress.countryCode}
+          onChange={(event) => {
+            updateAddress({countryCode: event.target.value});
+            setCountrySearch('');
+            setShowValidation(true);
+          }}
+          aria-label={t.country}
+          aria-describedby={fieldError('countryCode') ? 'shipping-country-error' : undefined}
+          aria-invalid={Boolean(fieldError('countryCode'))}
+          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3"
+        >
+          <option value="">{t.countryPlaceholder}</option>
+          {visibleCountries.map((country) => (
+            <option key={country.code} value={country.code}>
+              {country.label} ({country.code})
             </option>
           ))}
-        </datalist>
-      </label>
+          {visibleCountries.length === 0 ? (
+            <option value="" disabled>
+              {t.noCountryResults}
+            </option>
+          ) : null}
+        </select>
+        {fieldError('countryCode') ? (
+          <p id="shipping-country-error" className="text-sm font-medium text-[var(--destructive)]">
+            {fieldError('countryCode')}
+          </p>
+        ) : null}
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="space-y-2">
-          <span className="font-semibold">{t.recipient}</span>
+        <label className="space-y-2" htmlFor="shipping-recipient-name">
+          <span className="font-semibold">
+            {t.recipient} <span className="text-[var(--destructive)]">*</span>
+          </span>
           <input
+            id="shipping-recipient-name"
             value={shippingAddress.recipientName}
             onChange={(event) => updateAddress({recipientName: event.target.value})}
+            onBlur={() => setShowValidation(true)}
+            aria-describedby={fieldError('recipientName') ? 'shipping-recipient-name-error' : undefined}
+            aria-invalid={Boolean(fieldError('recipientName'))}
             className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
           />
+          {fieldError('recipientName') ? (
+            <p id="shipping-recipient-name-error" className="text-sm font-medium text-[var(--destructive)]">
+              {fieldError('recipientName')}
+            </p>
+          ) : null}
         </label>
-        <label className="space-y-2">
-          <span className="font-semibold">{t.phone}</span>
+        <label className="space-y-2" htmlFor="shipping-phone-number">
+          <span className="font-semibold">
+            {t.phone} <span className="text-[var(--destructive)]">*</span>
+          </span>
           <input
+            id="shipping-phone-number"
+            type="tel"
+            autoComplete="tel"
             value={shippingAddress.phoneNumber}
             onChange={(event) => updateAddress({phoneNumber: event.target.value})}
+            onBlur={() => setShowValidation(true)}
+            aria-describedby={fieldError('phoneNumber') ? 'shipping-phone-number-error' : undefined}
+            aria-invalid={Boolean(fieldError('phoneNumber'))}
             className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
           />
+          {fieldError('phoneNumber') ? (
+            <p id="shipping-phone-number-error" className="text-sm font-medium text-[var(--destructive)]">
+              {fieldError('phoneNumber')}
+            </p>
+          ) : null}
         </label>
       </div>
-      <label className="space-y-2">
-        <span className="font-semibold">{t.addressLine1}</span>
+      <label className="space-y-2" htmlFor="shipping-address-line-1">
+        <span className="font-semibold">
+          {t.addressLine1} <span className="text-[var(--destructive)]">*</span>
+        </span>
         <input
+          id="shipping-address-line-1"
+          autoComplete="address-line1"
           value={shippingAddress.addressLine1}
           onChange={(event) => updateAddress({addressLine1: event.target.value})}
+          onBlur={() => setShowValidation(true)}
+          aria-describedby={fieldError('addressLine1') ? 'shipping-address-line-1-error' : undefined}
+          aria-invalid={Boolean(fieldError('addressLine1'))}
           className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
         />
+        {fieldError('addressLine1') ? (
+          <p id="shipping-address-line-1-error" className="text-sm font-medium text-[var(--destructive)]">
+            {fieldError('addressLine1')}
+          </p>
+        ) : null}
       </label>
-      <label className="space-y-2">
+      <label className="space-y-2" htmlFor="shipping-address-line-2">
         <span className="font-semibold">{t.addressLine2}</span>
         <input
+          id="shipping-address-line-2"
+          autoComplete="address-line2"
           value={shippingAddress.addressLine2 ?? ''}
           onChange={(event) => updateAddress({addressLine2: event.target.value})}
           className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
         />
       </label>
       <div className="grid gap-3 sm:grid-cols-3">
-        <label className="space-y-2">
+        <label className="space-y-2" htmlFor="shipping-locality">
           <span className="font-semibold">{t.locality}</span>
           <input
+            id="shipping-locality"
+            autoComplete="address-level2"
             value={shippingAddress.locality ?? ''}
             onChange={(event) => updateAddress({locality: event.target.value})}
             className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
           />
         </label>
-        <label className="space-y-2">
+        <label className="space-y-2" htmlFor="shipping-region">
           <span className="font-semibold">{t.region}</span>
           <input
+            id="shipping-region"
+            autoComplete="address-level1"
             value={shippingAddress.region ?? ''}
             onChange={(event) => updateAddress({region: event.target.value})}
             className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
           />
         </label>
-        <label className="space-y-2">
+        <label className="space-y-2" htmlFor="shipping-postal-code">
           <span className="font-semibold">{t.postalCode}</span>
           <input
+            id="shipping-postal-code"
+            autoComplete="postal-code"
             value={shippingAddress.postalCode ?? ''}
             onChange={(event) => updateAddress({postalCode: event.target.value})}
             className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
           />
         </label>
       </div>
-      <Button disabled={pending || !addressReady} onClick={submit}>
+      <Button disabled={pending} onClick={submit} aria-disabled={!addressReady || pending}>
         {pending ? t.pending : t.submit}
       </Button>
       {proposal ? (

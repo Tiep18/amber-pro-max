@@ -142,14 +142,18 @@ test('destination changes require a blocking material-change confirmation', asyn
 
   await page.goto('/vi/thanh-toan');
   await expect(page.getByRole('heading', {name: 'Thanh toan'})).toBeVisible();
-  await page.getByLabel('Quoc gia giao hang').fill('US');
-  await page.getByRole('button', {name: 'Cap nhat dia diem'}).click();
+  await page.getByPlaceholder('Tim quoc gia').fill('US');
+  await page.getByRole('combobox', {name: 'Quoc gia giao hang'}).selectOption('US');
+  await page.getByLabel('Ten nguoi nhan').fill('Taylor Customer');
+  await page.getByLabel('So dien thoai').fill('+15551234567');
+  await page.getByLabel('Dia chi dong 1').fill('123 Market Street');
+  await page.getByRole('button', {name: 'Cap nhat dia chi giao hang'}).click();
   await expect(page.getByRole('dialog', {name: 'Xem lai thay doi giao hang'})).toBeVisible();
   await expect(page.getByText(/Market: vn -> intl/)).toBeVisible();
   await page.getByRole('button', {name: 'Giu bao gia cu'}).click();
   await expect(page.getByRole('dialog', {name: 'Xem lai thay doi giao hang'})).toHaveCount(0);
 
-  await page.getByRole('button', {name: 'Cap nhat dia diem'}).click();
+  await page.getByRole('button', {name: 'Cap nhat dia chi giao hang'}).click();
   await page.getByRole('button', {name: 'Xac nhan thay doi'}).click();
   await expect(page.getByText('$25.50')).toBeVisible();
 });
