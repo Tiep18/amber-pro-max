@@ -165,34 +165,34 @@ Plans:
 Plans:
 **Wave 1**
 
-- [x] 04-01: Create Wave 0 payment, database, security, concurrency, and browser test contracts
+- [ ] 04-01: Add address-correct checkout, payment, inventory, order visibility, and security contracts
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [x] 04-02: Define order/payment state machines, audit events, inventory finalization, and schema push
+- [ ] 04-02: Replace country-code destination with localized full-address checkout
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [x] 04-03: Build guest/customer/admin authorization, server-only config, and checkout handoff
+- [ ] 04-03: Persist immutable shipping-address snapshots and scoped projections
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [x] 04-04: Integrate server-owned PayPal create/capture/recheck flow
-- [x] 04-07: Implement VietQR instructions, evidence, and audited admin confirmation
+- [ ] 04-04: Preserve payment state machine, inventory outcomes, and audit authority
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [x] 04-05: Build localized customer PayPal order and verifying-return experience
-- [x] 04-06: Verify PayPal webhooks, idempotency, reconciliation, and failure handling
-- [x] 04-08: Build customer VietQR instructions and responsive payment status journeys
+- [ ] 04-05: Integrate PayPal create/capture with server-owned address context
+- [ ] 04-06: Verify PayPal webhooks, idempotency, reconciliation, and sanitized evidence
+- [ ] 04-07: Implement VietQR instructions and admin decisions with server-owned address context
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [x] 04-09: Build admin order queue, detail, timeline, provider evidence, and VietQR decision UI
+- [ ] 04-08: Build customer payment/order detail with shipping-address visibility
+- [ ] 04-09: Build admin order operations with address evidence, timeline, and VietQR decision UI
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [x] 04-10: Run schema push, provider readiness checkpoints, CI, security, concurrency, and lifecycle verification
+- [ ] 04-10: Run final automated verification and provider UAT checkpoints
 
 ### Phase 5: Fulfillment and Purchase Access
 
@@ -278,7 +278,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
 | 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
-| 4. Trusted Payments and Orders | 10/10 | UAT pending | - |
+| 4. Trusted Payments and Orders | 0/10 | Needs Review | - |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |
 | 6. Customer Retention and Trust | 0/4 | Not started | - |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |
