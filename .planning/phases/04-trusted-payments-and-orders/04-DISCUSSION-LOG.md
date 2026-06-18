@@ -5,7 +5,7 @@
 
 **Date:** 2026-06-15
 **Phase:** 4-Trusted Payments and Orders
-**Areas discussed:** Payment lifecycle and state display, PayPal webhook/callback and VietQR admin confirmation, Inventory finalization/release and audit trail
+**Areas discussed:** Payment lifecycle and state display, PayPal webhook/callback and VietQR admin confirmation, Inventory finalization/release and audit trail, Checkout shipping address correction
 
 ---
 
@@ -51,7 +51,58 @@
 ## the agent's Discretion
 
 - Exact enum/status names, bilingual UI copy, and admin timeline layout may be chosen during planning if they preserve the locked behavior.
+- Exact country list package/source, address field labels, and destination-specific postal-code validation details may be chosen during planning if they preserve the locked full-address behavior.
 
 ## Deferred Ideas
 
 - Full refund initiation workflow is deferred; Phase 4 only models and displays refund states.
+
+---
+
+## 2026-06-18 Addendum: Checkout Shipping Address Correction
+
+The user identified a current checkout issue: physical/mixed checkout collects only a raw country code, which is poor UI/UX and does not record the real destination where a customer wants to receive physical goods.
+
+### Shipping Address Data
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Full shipping address | Require recipient name, phone, country, province/state/region, city/district/locality, address line 1, optional line 2, and postal code according to destination norms. | yes |
+| Lean address | Require name, phone, country, and freeform address only. | |
+| Country-specific forms | Use separate Vietnam and US/international address structures with deeper local subdivisions. | |
+
+**User's choice:** Full shipping address.
+**Notes:** Physical and mixed orders need enough structured address data to support later manual fulfillment. Postal code can follow country-specific expectations during planning.
+
+### Country Selector UX
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Searchable country select | Display localized country names, store ISO country code internally, and default from market/locale where reasonable. | yes |
+| Simple native select | Use a basic dropdown with supported destinations. | |
+| Limited market selector | Only allow Vietnam or United States/International in MVP. | |
+
+**User's choice:** Searchable country select.
+**Notes:** Raw two-letter country-code text entry is explicitly rejected. `shipping_country` stays separate from `locale`, `market`, and `currency`.
+
+### Digital vs Physical Checkout
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Conditional required sections | Digital-only asks only for contact/payment details; physical/mixed requires full shipping address before order creation. | yes |
+| Always show address optional | Always show address fields, optional for digital-only. | |
+| Step-based checkout | Contact, then shipping when needed, then payment. | |
+
+**User's choice:** Conditional required sections.
+**Notes:** Digital-only checkout must remain lightweight and must not ask for shipping address. Physical/mixed checkout cannot create a payable order/reservation/payment handoff without a full address.
+
+### Order/Admin Visibility
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Snapshot on order and show in customer/admin detail | Store immutable shipping-address snapshot on the order; show it to the customer and admin. | yes |
+| Admin-only address display | Store the snapshot but show it only to admin. | |
+| Store for fulfillment later only | Persist the address but do not display it in Phase 4. | |
+
+**User's choice:** Snapshot on order and show in customer/admin detail.
+**Notes:** Customer can verify the destination attached to the pending or paid order. Admin can inspect the full destination alongside payment/order evidence so Phase 5 manual fulfillment has reliable data.

@@ -1,6 +1,7 @@
 # Phase 4: Trusted Payments and Orders - Context
 
 **Gathered:** 2026-06-15
+**Updated:** 2026-06-18 - Added checkout shipping-address correction for physical/mixed orders.
 **Status:** Ready for planning
 
 <domain>
@@ -49,10 +50,22 @@ full refund operations belong to later phases.
 - **D-20:** Phase 4 audit does not need to log every customer view, refresh, or admin click; focus on state transitions that affect payment, stock, access rights, or customer-visible order status.
 - **D-21:** Admin order detail should show an order timeline with payment events, VietQR evidence, inventory finalization/release, actor/source, amount/reference, customer email, and immutable line snapshots.
 
+### Checkout Shipping Address Correction
+- **D-22:** The current country-code-only checkout destination is not acceptable for physical or mixed orders. Physical and mixed checkout must collect a full shipping address before creating a payable order, reservation, PayPal order, or VietQR instruction.
+- **D-23:** Digital-only checkout must not ask for a shipping address. It should collect only the information needed for digital purchase/payment, such as contact email and payment method.
+- **D-24:** Physical and mixed checkout require recipient name, recipient phone number, shipping country, province/state/region when applicable, city/district/locality when applicable, address line 1, optional address line 2, and postal code according to the destination country's normal requirements.
+- **D-25:** The shipping country UI must not be a free text two-letter-code input. Use a searchable country select that displays localized country names and stores the ISO country code internally.
+- **D-26:** The country selector should default from the active market/locale where reasonable, but it remains distinct from `locale`, `market`, and `currency`. Changing the shipping country can still trigger the Phase 3 market/price/shipping revalidation flow.
+- **D-27:** Checkout submission and the order database model must store an immutable shipping-address snapshot for any physical or mixed order. The snapshot is part of the order evidence and must not be replaced by later customer edits.
+- **D-28:** Customer order detail in Phase 4 must show the shipping address snapshot for physical and mixed orders so the customer can verify the destination attached to the pending or paid order.
+- **D-29:** Admin order detail in Phase 4 must show the full shipping address snapshot together with payment/order evidence so manual fulfillment in Phase 5 has a reliable destination.
+- **D-30:** PayPal/VietQR payment initiation must use the server-owned order/address snapshot, not client-submitted country text, as the source of truth for physical shipment destination context.
+
 ### the agent's Discretion
 - Exact database enum/status names may be chosen during planning, provided they preserve separate payment state, order summary state, and fulfillment gate semantics.
 - Exact customer copy for verifying payment, expired payment windows, and rejected payments may follow existing bilingual UI patterns.
 - Exact admin timeline layout and filtering may follow existing admin table/detail patterns as long as the required audit evidence remains inspectable.
+- Exact country list package/source, address field labels, and country-specific postal-code validation details may be selected during planning, provided the UI remains localized, accessible, and does not regress to raw country-code text entry.
 
 </decisions>
 
@@ -65,6 +78,7 @@ full refund operations belong to later phases.
 - `.planning/PROJECT.md` - Defines PayPal for international customers, VietQR manual bank transfer for Vietnam, full-payment gating before digital delivery, mixed carts, and manual fulfillment constraints.
 - `.planning/REQUIREMENTS.md` - Phase 4 requirements are INV-04, INV-05, ORD-01, ORD-02, ORD-03, PAY-01 through PAY-08, and SEC-03.
 - `.planning/ROADMAP.md` - Defines Phase 4 goal, success criteria, dependencies, and planned slices 04-01 through 04-05.
+- `.planning/phases/04-trusted-payments-and-orders/04-UI-SPEC.md` - Must be updated or interpreted with D-22 through D-30 so customer/admin order detail includes the physical shipping address snapshot.
 
 ### Prior Phase Decisions
 - `.planning/phases/03-mixed-cart-and-checkout/03-CONTEXT.md` - Locks checkout order creation, immutable line snapshots, PayPal 15-minute reservation windows, VietQR 24-hour reservation windows, and non-binding exception grants.
@@ -88,6 +102,8 @@ full refund operations belong to later phases.
 - `src/checkout/schemas.ts`: Existing payment intents are `paypal_intent` and `vietqr_intent`.
 - `src/checkout/submit-checkout.ts` and `src/checkout/actions.ts`: Existing checkout submit action and typed result mapping for pending-payment handoff.
 - `src/components/checkout/checkout-page.tsx`: Existing customer checkout UI stops at "Order is awaiting payment" and reservation deadline.
+- `src/components/checkout/destination-form.tsx`: Current destination UI is a two-letter country-code text input; this must be replaced for physical/mixed checkout by a localized searchable country selector plus full address fields.
+- `public.submit_checkout(jsonb)` and `src/checkout/schemas.ts`: Current submit payload does not validate or persist a full shipping address snapshot; planning must add this before physical/mixed orders can become payable.
 - `src/components/ui/alert.tsx`, `button.tsx`, `card.tsx`, `separator.tsx`, and admin commerce components: Existing UI primitives and admin form patterns for order/payment views.
 
 ### Established Patterns
@@ -102,7 +118,9 @@ full refund operations belong to later phases.
 - PayPal route handlers should integrate under the Next.js API route handler layer and call the same idempotent state-machine command as other payment sources.
 - VietQR admin confirmation should integrate into protected admin order/payment screens.
 - Customer order status pages should reuse locale-aware routing and simple customer-facing payment states.
+- Customer and admin order detail projections need to include the immutable shipping-address snapshot for physical/mixed orders.
 - Database and application tests should cover duplicate webhooks, delayed webhook after expiry/cancel, admin double-submit, amount/currency mismatch, wrong VietQR reference, paid finalization exactly once, and release on fail/cancel/reject/expired.
+- Checkout/address tests should cover digital-only no-address checkout, physical/mixed address-required checkout, country picker storing ISO country code, country changes triggering quote revalidation, order snapshot immutability, and customer/admin visibility of the saved destination.
 
 </code_context>
 
@@ -113,6 +131,8 @@ full refund operations belong to later phases.
 - VietQR is intentionally manual in v1: the seller checks the bank account, then confirms or rejects payment in the admin UI.
 - Keeping reservation rows after release/expiry matters because stock and payment disputes need an audit trail.
 - Refund visibility is needed for PAY-08, but full refund tooling should not distract Phase 4 from confirmed payment and inventory correctness.
+- The user explicitly rejected raw country-code text entry because it is poor UX and does not capture the actual delivery destination.
+- The desired checkout behavior is conditional: digital-only stays lightweight, while physical/mixed orders require a complete delivery address before payment.
 
 </specifics>
 
