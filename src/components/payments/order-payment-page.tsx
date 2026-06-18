@@ -2,6 +2,7 @@ import {getTranslations} from 'next-intl/server';
 import {Alert, AlertTitle} from '@/components/ui/alert';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {formatMoney} from '@/catalog/money';
+import {formatShippingAddressLines} from '@/checkout/shipping-address';
 import type {Locale} from '@/i18n/routing';
 import {getCheckoutPath} from '@/i18n/routing';
 import {getServerEnv} from '@/lib/env/server';
@@ -207,6 +208,22 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
             ) : null}
           </CardContent>
         </Card>
+        {result.order.shippingAddress ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('shippingAddress.title')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <address className="not-italic text-sm leading-6">
+                {formatShippingAddressLines(result.order.shippingAddress).map((line) => (
+                  <span key={line} className="block">
+                    {line}
+                  </span>
+                ))}
+              </address>
+            </CardContent>
+          </Card>
+        ) : null}
       </aside>
     </main>
   );

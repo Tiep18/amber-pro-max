@@ -1,6 +1,6 @@
 begin;
 
-select plan(18);
+select plan(19);
 
 select policies_are(
   'public',
@@ -27,6 +27,13 @@ select policies_are(
   'checkout_inventory_reservations',
   array['checkout reservations are admin managed'],
   'reservation records are not directly customer-readable'
+);
+
+select has_trigger(
+  'public',
+  'checkout_orders',
+  'checkout_orders_immutable_shipping_address',
+  'shipping address snapshots are immutable'
 );
 
 select has_trigger(

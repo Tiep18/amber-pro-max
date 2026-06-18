@@ -301,6 +301,7 @@ export type Database = {
           refunded_amount_minor: number
           reservation_expires_at: string
           review_reason: string | null
+          shipping_address: Json | null
           shipping_minor: number
           status: string
           subtotal_minor: number
@@ -335,6 +336,7 @@ export type Database = {
           refunded_amount_minor?: number
           reservation_expires_at: string
           review_reason?: string | null
+          shipping_address?: Json | null
           shipping_minor?: number
           status?: string
           subtotal_minor: number
@@ -369,6 +371,7 @@ export type Database = {
           refunded_amount_minor?: number
           reservation_expires_at?: string
           review_reason?: string | null
+          shipping_address?: Json | null
           shipping_minor?: number
           status?: string
           subtotal_minor?: number
@@ -1994,6 +1997,7 @@ export type Database = {
           refunded_amount_minor: number | null
           reservation_expires_at: string | null
           review_reason: string | null
+          shipping_address: Json | null
           total_minor: number | null
           updated_at: string | null
         }

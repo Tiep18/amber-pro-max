@@ -150,6 +150,9 @@
       "title": "Tom tat don hang",
       "total": "Tong cong"
     },
+    "shippingAddress": {
+      "title": "Dia chi giao hang"
+    },
     "fulfillment": {
       "lockedHeading": "Quyen nhan hang dang khoa",
       "lockedBody": "File PDF va xu ly giao hang chi bat dau sau khi toan bo don hang duoc xac nhan da thanh toan.",

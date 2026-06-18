@@ -1,4 +1,5 @@
 import type {CustomerPaymentStatus, FulfillmentGateStatus, PaymentInternalStatus, PaymentProvider} from '@/payments/types';
+import {shippingAddressSchema, type ShippingAddress} from '@/checkout/shipping-address';
 import type {Database, Json} from '@/types/supabase';
 
 type RpcClient = {
@@ -26,6 +27,7 @@ export type CustomerOrderPaymentProjection = {
   amountMinor: number;
   currencyCode: 'USD' | 'VND';
   reservationExpiresAt: string | null;
+  shippingAddress: ShippingAddress | null;
 };
 
 export type AuthorizedOrderPaymentResult =
@@ -44,6 +46,7 @@ export type AdminOrderQueueItem = {
   currencyCode: 'USD' | 'VND';
   provider: PaymentProvider;
   reservationExpiresAt: string | null;
+  shippingAddress: ShippingAddress | null;
   updatedAt: string | null;
 };
 
@@ -138,6 +141,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+function asShippingAddress(value: unknown): ShippingAddress | null {
+  const parsed = shippingAddressSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
 async function defaultRequireAdmin() {
   const {requireAdmin} = await import('@/auth/guards');
   return requireAdmin();
@@ -172,7 +180,8 @@ export async function getAuthorizedOrderPayment({
     fulfillmentGateStatus: asFulfillmentGateStatus(data.fulfillmentGateStatus),
     amountMinor: data.amountMinor,
     currencyCode: asCurrencyCode(data.currencyCode),
-    reservationExpiresAt: typeof data.reservationExpiresAt === 'string' ? data.reservationExpiresAt : null
+    reservationExpiresAt: typeof data.reservationExpiresAt === 'string' ? data.reservationExpiresAt : null,
+    shippingAddress: asShippingAddress(data.shippingAddress)
   };
   if (typeof data.market === 'string') {
     order.market = data.market;
@@ -194,7 +203,7 @@ export async function getAuthorizedOrderPayment({
 }
 
 const ADMIN_QUEUE_SELECT =
-  'order_id,order_number,contact_email,customer_payment_status,payment_status,fulfillment_gate_status,total_minor,currency_code,provider,reservation_expires_at,updated_at';
+  'order_id,order_number,contact_email,customer_payment_status,payment_status,fulfillment_gate_status,total_minor,currency_code,provider,reservation_expires_at,shipping_address,updated_at';
 
 const ADMIN_DETAIL_SELECT = `${ADMIN_QUEUE_SELECT},owner_user_id,payment_id,digital_fulfillment_status,physical_fulfillment_status,refund_status,refunded_amount_minor,review_reason`;
 
@@ -214,6 +223,7 @@ function mapQueueItem(row: Record<string, unknown>): AdminOrderQueueItem | null 
     currencyCode: asCurrencyCode(row.currency_code),
     provider: asPaymentProvider(row.provider),
     reservationExpiresAt: typeof row.reservation_expires_at === 'string' ? row.reservation_expires_at : null,
+    shippingAddress: asShippingAddress(row.shipping_address),
     updatedAt: typeof row.updated_at === 'string' ? row.updated_at : null
   };
 }

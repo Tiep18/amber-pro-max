@@ -2,6 +2,17 @@ import {describe, expect, test, vi} from 'vitest';
 import {getAuthorizedOrderPayment, getAdminOrderDetail, getAdminOrderQueue} from '@/payments/queries';
 
 describe('payment order projections', () => {
+  const shippingAddress = {
+    recipientName: 'Taylor Customer',
+    phoneNumber: '+15551234567',
+    countryCode: 'US',
+    region: 'California',
+    locality: 'San Francisco',
+    addressLine1: '123 Market Street',
+    addressLine2: null,
+    postalCode: '94105'
+  };
+
   test('customer lookup calls the narrow status RPC with a guest token hash', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {
@@ -11,7 +22,8 @@ describe('payment order projections', () => {
         fulfillmentGateStatus: 'locked',
         amountMinor: 1200,
         currencyCode: 'USD',
-        reservationExpiresAt: '2026-06-16T12:00:00.000Z'
+        reservationExpiresAt: '2026-06-16T12:00:00.000Z',
+        shippingAddress
       },
       error: null
     });
@@ -34,7 +46,8 @@ describe('payment order projections', () => {
         fulfillmentGateStatus: 'locked',
         amountMinor: 1200,
         currencyCode: 'USD',
-        reservationExpiresAt: '2026-06-16T12:00:00.000Z'
+        reservationExpiresAt: '2026-06-16T12:00:00.000Z',
+        shippingAddress
       }
     });
   });
@@ -87,6 +100,7 @@ describe('payment order projections', () => {
         currency_code: 'USD',
         provider: 'paypal',
         reservation_expires_at: '2026-06-16T12:00:00.000Z',
+        shipping_address: shippingAddress,
         updated_at: '2026-06-16T11:30:00.000Z'
       },
       error: null
@@ -101,6 +115,11 @@ describe('payment order projections', () => {
     });
 
     expect(rpc).toHaveBeenCalledWith('get_admin_order_timeline', {p_order_id: 'order-id'});
-    expect(detail.status).toBe('success');
+    expect(detail).toMatchObject({
+      status: 'success',
+      order: {
+        shippingAddress
+      }
+    });
   });
 });

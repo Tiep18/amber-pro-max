@@ -1,6 +1,6 @@
 begin;
 
-select plan(28);
+select plan(29);
 
 select has_table('public', 'checkout_orders', 'checkout order shell exists');
 select has_table('public', 'checkout_order_lines', 'immutable checkout order lines exist');
@@ -10,6 +10,7 @@ select col_type_is('public', 'checkout_orders', 'owner_user_id', 'uuid', 'orders
 select col_type_is('public', 'checkout_orders', 'guest_secret_hash', 'text', 'guest order access uses a secret hash');
 select col_type_is('public', 'checkout_orders', 'status', 'text', 'orders track pending-payment state');
 select col_type_is('public', 'checkout_orders', 'reservation_expires_at', 'timestamp with time zone', 'orders store reservation deadline');
+select col_type_is('public', 'checkout_orders', 'shipping_address', 'jsonb', 'physical and mixed orders snapshot shipping address');
 select col_type_is('public', 'checkout_order_lines', 'product_title', 'text', 'lines snapshot localized product title');
 select col_type_is('public', 'checkout_order_lines', 'unit_price_minor', 'bigint', 'lines snapshot unit price in integer minor units');
 select col_type_is('public', 'checkout_order_lines', 'discount_allocation_minor', 'bigint', 'lines snapshot discount allocation');

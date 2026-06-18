@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
+import {formatShippingAddressLines} from '@/checkout/shipping-address';
 import type {AdminOrderDetail} from '@/payments/queries';
 import {formatAdminDate, formatAdminMoney, statusLabel} from './format';
 import {PaymentTimeline} from './payment-timeline';
@@ -60,6 +61,22 @@ export function OrderDetail({order}: {order: AdminOrderDetail}) {
           </dl>
         </CardContent>
       </Card>
+      {order.shippingAddress ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Shipping address snapshot</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <address className="not-italic text-sm leading-6">
+              {formatShippingAddressLines(order.shippingAddress).map((line) => (
+                <span key={line} className="block">
+                  {line}
+                </span>
+              ))}
+            </address>
+          </CardContent>
+        </Card>
+      ) : null}
       <ProviderEvidencePanel order={order} />
       <VietQrEvidenceForm order={order} />
       <PaymentTimeline items={order.timeline} />

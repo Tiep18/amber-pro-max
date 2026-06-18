@@ -150,6 +150,9 @@
       "title": "Order summary",
       "total": "Total"
     },
+    "shippingAddress": {
+      "title": "Shipping address"
+    },
     "fulfillment": {
       "lockedHeading": "Fulfillment is locked",
       "lockedBody": "PDF access and shipping work begin only after the full order is confirmed paid.",

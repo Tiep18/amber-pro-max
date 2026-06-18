@@ -5,6 +5,7 @@ import {useRouter} from 'next/navigation';
 import type {Locale} from '@/i18n/routing';
 import type {CartQuote} from '@/checkout/types';
 import {submitCheckoutAction, type SubmitCheckoutActionState} from '@/checkout/actions';
+import type {ShippingAddress} from '@/checkout/shipping-address';
 import {Alert} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
@@ -47,6 +48,17 @@ const copy = {
   }
 } as const;
 
+const emptyShippingAddress: ShippingAddress = {
+  recipientName: '',
+  phoneNumber: '',
+  countryCode: '',
+  region: null,
+  locality: null,
+  addressLine1: '',
+  addressLine2: null,
+  postalCode: null
+};
+
 export function CheckoutPage({locale}: {locale: Locale}) {
   const t = copy[locale];
   const router = useRouter();
@@ -54,20 +66,33 @@ export function CheckoutPage({locale}: {locale: Locale}) {
   const [acceptedQuote, setAcceptedQuote] = useState<CartQuote | null>(quote);
   const [email, setEmail] = useState('');
   const [paymentIntent, setPaymentIntent] = useState<CheckoutPaymentIntent>('paypal_intent');
+  const [shippingAddress, setShippingAddress] = useState<ShippingAddress>(emptyShippingAddress);
   const [submitResult, setSubmitResult] = useState<SubmitCheckoutActionState | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (quote) {
       setAcceptedQuote(quote);
+      if ((quote.shipping.status === 'ready' || quote.shipping.status === 'unsupported_destination') && quote.shipping.countryCode) {
+        const countryCode = quote.shipping.countryCode;
+        setShippingAddress((current) => ({...current, countryCode: current.countryCode || countryCode}));
+      }
     }
   }, [quote]);
 
   const physicalCount = acceptedQuote?.lines.filter((line) => line.fulfillmentType === 'physical' && line.quantity > 0).length ?? 0;
+  const shippingAddressReady =
+    physicalCount === 0 ||
+    (shippingAddress.countryCode.length === 2 &&
+      shippingAddress.recipientName.trim().length > 0 &&
+      shippingAddress.phoneNumber.trim().length >= 5 &&
+      shippingAddress.addressLine1.trim().length > 0);
   const readyToSubmit =
     Boolean(acceptedQuote) &&
     acceptedQuote?.status === 'ready' &&
     acceptedQuote.shipping.status !== 'not_calculated' &&
+    (physicalCount === 0 || acceptedQuote.shipping.status === 'ready') &&
+    shippingAddressReady &&
     email.trim().length > 0 &&
     !submitting;
 
@@ -90,6 +115,7 @@ export function CheckoutPage({locale}: {locale: Locale}) {
         acceptedQuote.shipping.status === 'ready' || acceptedQuote.shipping.status === 'unsupported_destination'
           ? acceptedQuote.shipping.countryCode
           : null,
+      shippingAddress: physicalCount > 0 ? shippingAddress : null,
       discountCode: acceptedQuote.discount.status === 'applied' || acceptedQuote.discount.status === 'not_eligible' ? acceptedQuote.discount.code : null
     });
     setSubmitResult(result);
@@ -135,7 +161,13 @@ export function CheckoutPage({locale}: {locale: Locale}) {
               <CardTitle>{t.destination}</CardTitle>
             </CardHeader>
             <CardContent>
-              <DestinationForm locale={locale} acceptedQuote={acceptedQuote} onAcceptedQuote={setAcceptedQuote} />
+              <DestinationForm
+                locale={locale}
+                acceptedQuote={acceptedQuote}
+                shippingAddress={shippingAddress}
+                onShippingAddressChange={setShippingAddress}
+                onAcceptedQuote={setAcceptedQuote}
+              />
             </CardContent>
           </Card>
         ) : null}
