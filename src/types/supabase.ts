@@ -556,6 +556,147 @@ export type Database = {
           },
         ]
       }
+      digital_access_tokens: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          entitlement_id: string
+          expires_at: string
+          id: string
+          purpose: string
+          revoked_at: string | null
+          status: string
+          token_hash: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          entitlement_id: string
+          expires_at: string
+          id?: string
+          purpose?: string
+          revoked_at?: string | null
+          status?: string
+          token_hash: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          entitlement_id?: string
+          expires_at?: string
+          id?: string
+          purpose?: string
+          revoked_at?: string | null
+          status?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "digital_access_tokens_entitlement_id_fkey"
+            columns: ["entitlement_id"]
+            isOneToOne: false
+            referencedRelation: "digital_entitlements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      digital_entitlements: {
+        Row: {
+          contact_email: string
+          created_at: string
+          granted_by_payment_transition_id: string | null
+          id: string
+          order_id: string
+          order_line_id: string
+          owner_user_id: string | null
+          product_id: string | null
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          status: string
+          updated_at: string
+          variant_id: string | null
+          version: number
+        }
+        Insert: {
+          contact_email: string
+          created_at?: string
+          granted_by_payment_transition_id?: string | null
+          id?: string
+          order_id: string
+          order_line_id: string
+          owner_user_id?: string | null
+          product_id?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          status?: string
+          updated_at?: string
+          variant_id?: string | null
+          version?: number
+        }
+        Update: {
+          contact_email?: string
+          created_at?: string
+          granted_by_payment_transition_id?: string | null
+          id?: string
+          order_id?: string
+          order_line_id?: string
+          owner_user_id?: string | null
+          product_id?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          status?: string
+          updated_at?: string
+          variant_id?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "digital_entitlements_granted_by_payment_transition_id_fkey"
+            columns: ["granted_by_payment_transition_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "digital_entitlements_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "digital_entitlements_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "digital_entitlements_order_line_id_fkey"
+            columns: ["order_line_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_order_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "digital_entitlements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "digital_entitlements_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discount_code_categories: {
         Row: {
           category_id: string
@@ -788,6 +929,125 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "discount_codes"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      fulfillment_audit_events: {
+        Row: {
+          actor_id: string | null
+          actor_type: string
+          created_at: string
+          entitlement_id: string | null
+          event_key: string
+          event_type: string
+          id: string
+          metadata: Json
+          order_id: string | null
+          physical_fulfillment_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_type: string
+          created_at?: string
+          entitlement_id?: string | null
+          event_key: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          physical_fulfillment_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string
+          entitlement_id?: string | null
+          event_key?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          physical_fulfillment_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fulfillment_audit_events_entitlement_id_fkey"
+            columns: ["entitlement_id"]
+            isOneToOne: false
+            referencedRelation: "digital_entitlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fulfillment_audit_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fulfillment_audit_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "fulfillment_audit_events_physical_fulfillment_id_fkey"
+            columns: ["physical_fulfillment_id"]
+            isOneToOne: false
+            referencedRelation: "physical_fulfillments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guest_order_access_tokens: {
+        Row: {
+          consumed_at: string | null
+          contact_email: string
+          created_at: string
+          expires_at: string
+          id: string
+          order_id: string
+          purpose: string
+          status: string
+          token_hash: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          contact_email: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          order_id: string
+          purpose: string
+          status?: string
+          token_hash: string
+        }
+        Update: {
+          consumed_at?: string | null
+          contact_email?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          order_id?: string
+          purpose?: string
+          status?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_order_access_tokens_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_order_access_tokens_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["order_id"]
           },
         ]
       }
@@ -1213,6 +1473,101 @@ export type Database = {
             foreignKeyName: "payments_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
+      physical_fulfillment_events: {
+        Row: {
+          actor_id: string | null
+          actor_type: string
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          physical_fulfillment_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_type: string
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          physical_fulfillment_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          physical_fulfillment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "physical_fulfillment_events_physical_fulfillment_id_fkey"
+            columns: ["physical_fulfillment_id"]
+            isOneToOne: false
+            referencedRelation: "physical_fulfillments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      physical_fulfillments: {
+        Row: {
+          carrier: string | null
+          created_at: string
+          delivered_at: string | null
+          id: string
+          order_id: string
+          shipped_at: string | null
+          status: string
+          tracking_number: string | null
+          tracking_url: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          carrier?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          order_id: string
+          shipped_at?: string | null
+          status?: string
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          carrier?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          order_id?: string
+          shipped_at?: string | null
+          status?: string
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "physical_fulfillments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "checkout_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "physical_fulfillments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
             referencedRelation: "order_payment_statuses"
             referencedColumns: ["order_id"]
           },
@@ -1802,6 +2157,73 @@ export type Database = {
         }
         Relationships: []
       }
+      transactional_email_outbox: {
+        Row: {
+          available_at: string
+          created_at: string
+          entitlement_id: string | null
+          event_type: string
+          id: string
+          locale: string
+          order_id: string | null
+          payload: Json
+          recipient_email: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          available_at?: string
+          created_at?: string
+          entitlement_id?: string | null
+          event_type: string
+          id?: string
+          locale: string
+          order_id?: string | null
+          payload?: Json
+          recipient_email: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          available_at?: string
+          created_at?: string
+          entitlement_id?: string | null
+          event_type?: string
+          id?: string
+          locale?: string
+          order_id?: string | null
+          payload?: Json
+          recipient_email?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactional_email_outbox_entitlement_id_fkey"
+            columns: ["entitlement_id"]
+            isOneToOne: false
+            referencedRelation: "digital_entitlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactional_email_outbox_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactional_email_outbox_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           assigned_at: string
@@ -2198,6 +2620,22 @@ export type Database = {
         Returns: {
           published: boolean
         }[]
+      }
+      reissue_digital_access_token: {
+        Args: {
+          p_entitlement_id: string
+          p_expected_version: number
+          p_new_token_hash: string
+        }
+        Returns: Json
+      }
+      revoke_digital_entitlement: {
+        Args: {
+          p_entitlement_id: string
+          p_expected_version: number
+          p_reason: string
+        }
+        Returns: Json
       }
       submit_checkout: { Args: { p_payload: Json }; Returns: Json }
       validate_market_exception_grant: {
