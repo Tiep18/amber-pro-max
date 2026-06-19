@@ -211,15 +211,40 @@ Plans:
   4. Admin can advance physical fulfillment and add tracking while digital fulfillment remains independently complete.
   5. Failed transactional emails are durable, visible to admin, retry safely, and do not cause duplicate entitlements.
 
-**Plans**: 5 plans
+**Plans**: 11 plans
 
 Plans:
+**Wave 1**
 
-- [ ] 05-01: Implement entitlement creation, private downloads, and secure guest access
-- [ ] 05-02: Build transactional outbox, localized order/download email, retry, and resend
-- [ ] 05-03: Build account order history, pattern library, and guest-order claiming
-- [ ] 05-04: Implement physical fulfillment, tracking, notifications, and mixed-order status
-- [ ] 05-05: Verify entitlement, email failure, cross-user access, and fulfillment-state scenarios
+- [ ] 05-01: Create fulfillment database, RLS, RPC, audit, and security foundation
+- [ ] 05-03: Verify Resend package legitimacy before install
+
+**Wave 2** *(blocked on 05-01 and 05-03 where applicable)*
+
+- [ ] 05-02: Implement entitlement-checked downloads and customer download panel
+- [ ] 05-04: Build transactional email renderer and protected outbox worker
+
+**Wave 3** *(blocked on Wave 2 dependencies)*
+
+- [ ] 05-05: Build admin failed-email queue, retry, and download resend
+- [ ] 05-07: Build signed-in order history and grouped pattern library
+
+**Wave 4** *(blocked on admin/email/account foundations)*
+
+- [ ] 05-06: Implement admin entitlement revoke/reissue with audit and stale-state handling
+- [ ] 05-08: Implement guest reopen and same-email order claim
+
+**Wave 5** *(blocked on email worker and entitlement admin foundations)*
+
+- [ ] 05-09: Implement admin physical fulfillment status, tracking, and shipping email enqueue
+
+**Wave 6** *(blocked on downloads, guest claim, and physical fulfillment)*
+
+- [ ] 05-10: Render customer physical tracking and split mixed-order fulfillment status
+
+**Wave 7** *(blocked on all implementation plans)*
+
+- [ ] 05-11: Run final Phase 5 verification and close coverage gaps
 
 ### Phase 6: Customer Retention and Trust
 
@@ -281,6 +306,6 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
-| 5. Fulfillment and Purchase Access | 0/5 | Not started | - |
+| 5. Fulfillment and Purchase Access | 0/11 | Not started | - |
 | 6. Customer Retention and Trust | 0/4 | Not started | - |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |

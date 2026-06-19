@@ -86,7 +86,7 @@ Resend is the standard email provider from the project stack and official docs s
 | Signed-in order history and pattern library | Frontend Server (SSR) | Database / Storage | Account pages should render owner-filtered data through server-side Supabase clients and RLS-backed queries. [VERIFIED: codebase grep] |
 | Guest reopen and claim | API / Backend | Database / Storage | Token verification, same-email matching, token revocation, and ownership updates are security-sensitive server/database operations. [VERIFIED: 05-CONTEXT.md] |
 | Transactional email outbox | Database / Storage | API / Backend | Durable request state, retry counters, idempotency keys, and audit need database ownership; provider send happens server-side. [CITED: https://resend.com/docs/api-reference/emails/send-email] |
-| Outbox worker scheduling | Database / Storage | API / Backend | Supabase Cron can run SQL/database functions or HTTP requests and is the native scheduler already aligned with Supabase operations. [CITED: https://supabase.com/docs/guides/cron] |
+| Outbox worker scheduling | API / Backend | Database / Storage | Use a Vercel Cron-compatible protected Next.js route plus an admin-triggered retry path; the database owns due-row selection, locking, attempts, backoff, and audit state. [RESOLVED: required planning decision] |
 | Physical fulfillment and tracking | API / Backend | Database / Storage | Admin actions mutate fulfillment records/status and enqueue notifications under server-side authorization. [VERIFIED: codebase grep] |
 | Customer/admin UI | Browser / Client | Frontend Server (SSR) | UI should display server-authorized projections and call server actions; it must not carry PDF paths, service keys, or authoritative state changes. [VERIFIED: AGENTS.md] |
 
@@ -97,7 +97,7 @@ Resend is the standard email provider from the project stack and official docs s
 | Library | Version | Purpose | Why Standard |
 |---------|---------|---------|--------------|
 | Next.js | 16.2.9 | App Router pages, route handlers, server actions, SSR account/admin pages | Existing app is Next.js 16.2.9 and Phase 5 needs server-side access control plus localized routes. [VERIFIED: package.json] |
-| React | 19.2.7 | Customer/admin components and optional React email body rendering | Existing app is React 19.2.7 and Resend supports React content in the Node SDK. [VERIFIED: package.json] [CITED: https://resend.com/docs/send-with-nextjs] |
+| React | 19.2.7 | Customer/admin components only | Email bodies use plain TypeScript localized HTML/text helper functions; React email components are not introduced by Phase 5. [RESOLVED: required planning decision] |
 | TypeScript | 5.9.3 | Typed commerce/access/email state machines | Existing repo uses TypeScript and generated Supabase types. [VERIFIED: package.json] |
 | Supabase Postgres/Auth/Storage | Managed current + CLI 2.106.0 | Entitlements, RLS, tokens, private PDFs, cron/job state | Existing migrations use Supabase Postgres, RLS, private storage, and SQL functions. [VERIFIED: codebase grep] |
 | Resend | 6.14.0 | Transactional email provider | Official Next.js docs install `resend`; package exists on npm with source repo and no `postinstall` script, but latest version is flagged `SUS` due recent publish. [CITED: https://resend.com/docs/send-with-nextjs] [VERIFIED: npm registry] |
@@ -117,10 +117,10 @@ Resend is the standard email provider from the project stack and official docs s
 
 | Instead of | Could Use | Tradeoff |
 |------------|-----------|----------|
-| Database outbox + Supabase Cron | Direct send inside payment transition route | Direct send couples provider failures to paid-state transitions and violates locked durable outbox decision. [VERIFIED: 05-CONTEXT.md] |
+| Database outbox + Vercel Cron protected route | Direct send inside payment transition route | Direct send couples provider failures to paid-state transitions and violates locked durable outbox decision. [VERIFIED: 05-CONTEXT.md] |
 | Resend SDK | Raw Resend REST fetch | Raw fetch avoids one package but duplicates SDK request/error handling and loses the project stack recommendation. [CITED: https://resend.com/docs/send-with-nextjs] |
 | App-generated tokens + Storage signed URLs | Direct Storage RLS policy letting customers read PDFs | Direct customer Storage reads risk exposing object paths and make guest/signed-in/revocation semantics harder to audit. [CITED: https://supabase.com/docs/guides/storage/security/access-control] |
-| Supabase Cron worker | Vercel Cron route | Vercel Cron is viable on Vercel, but Supabase Cron keeps retry selection near the outbox table and can run SQL functions directly. [CITED: https://supabase.com/docs/guides/cron] |
+| Vercel Cron protected route | Supabase Cron worker | Vercel Cron matches the deployment target and avoids adding a Supabase Cron operational dependency; database functions still own due-row selection, locks, and retry state. [RESOLVED: required planning decision] |
 
 **Installation:**
 ```bash
@@ -133,7 +133,7 @@ npm install resend@6.14.0
 
 | Package | Registry | Age | Downloads | Source Repo | Verdict | Disposition |
 |---------|----------|-----|-----------|-------------|---------|-------------|
-| `resend` [WARNING: flagged as suspicious — verify before using.] | npm | Package created 2017-02-25; latest `6.14.0` published 2026-06-17 | 7,403,783/week | `github.com/resend/resend-node` | SUS | Flagged — planner must add `checkpoint:human-verify` before install. [VERIFIED: npm registry] |
+| `resend` [WARNING: flagged as suspicious â€” verify before using.] | npm | Package created 2017-02-25; latest `6.14.0` published 2026-06-17 | 7,403,783/week | `github.com/resend/resend-node` | SUS | Flagged â€” planner must add `checkpoint:human-verify` before install. [VERIFIED: npm registry] |
 
 **Packages removed due to [SLOP] verdict:** none. [VERIFIED: package-legitimacy seam]
 **Packages flagged as suspicious [SUS]:** `resend` because the latest publish is less than three days old, even though the package is official and high-download. [VERIFIED: package-legitimacy seam]
@@ -171,7 +171,7 @@ Guest email reopen
   -> short-lived signed Storage URL or fresh email token
 
 Outbox worker
-  -> Supabase Cron / admin retry trigger
+  -> Vercel Cron protected route / admin retry trigger
   -> claim due email outbox rows
   -> Resend send with idempotency key
   -> record provider id or sanitized failure
@@ -189,24 +189,24 @@ Admin fulfillment
 
 ```text
 src/
-├── fulfillment/                 # entitlement, download, outbox, physical fulfillment domain logic
-│   ├── entitlements.ts
-│   ├── downloads.ts
-│   ├── email-outbox.ts
-│   ├── physical.ts
-│   └── schemas.ts
-├── app/[locale]/account/
-│   ├── orders/                  # signed-in order history/detail
-│   └── patterns/                # grouped pattern library
-├── app/[locale]/orders/[orderNumber]/
-│   └── page.tsx                 # extend existing localized order page
-├── app/[locale]/guest-order/
-│   └── page.tsx                 # guest reopen/claim token flow
-├── app/api/downloads/
-│   └── route.ts                 # entitlement-checked signed URL issue/redirect
-├── components/fulfillment/      # customer status/download/tracking panels
-├── components/admin/fulfillment/ # email queue, entitlement actions, tracking form
-└── emails/                      # localized email rendering helpers
+â”œâ”€â”€ fulfillment/                 # entitlement, download, outbox, physical fulfillment domain logic
+â”‚   â”œâ”€â”€ entitlements.ts
+â”‚   â”œâ”€â”€ downloads.ts
+â”‚   â”œâ”€â”€ email-outbox.ts
+â”‚   â”œâ”€â”€ physical.ts
+â”‚   â””â”€â”€ schemas.ts
+â”œâ”€â”€ app/[locale]/account/
+â”‚   â”œâ”€â”€ orders/                  # signed-in order history/detail
+â”‚   â””â”€â”€ patterns/                # grouped pattern library
+â”œâ”€â”€ app/[locale]/orders/[orderNumber]/
+â”‚   â””â”€â”€ page.tsx                 # extend existing localized order page
+â”œâ”€â”€ app/[locale]/guest-order/
+â”‚   â””â”€â”€ page.tsx                 # guest reopen/claim token flow
+â”œâ”€â”€ app/api/downloads/
+â”‚   â””â”€â”€ route.ts                 # entitlement-checked signed URL issue/redirect
+â”œâ”€â”€ components/fulfillment/      # customer status/download/tracking panels
+â”œâ”€â”€ components/admin/fulfillment/ # email queue, entitlement actions, tracking form
+â””â”€â”€ emails/                      # localized email rendering helpers
 ```
 
 ### Pattern 1: Idempotent Entitlement Creation
@@ -290,7 +290,7 @@ const {data, error} = await resend.emails.send(
 |---------|-------------|-------------|-----|
 | Private PDF URL signing | Custom HMAC URL signer or permanent opaque URL table | Supabase Storage `createSignedUrl` after entitlement validation | Storage already implements fixed-duration signed URLs for object paths. [CITED: https://supabase.com/docs/reference/javascript/storage-from-createsignedurl] |
 | Email delivery transport | Raw SMTP client or custom HTTP retry-only sender | Resend SDK plus durable outbox | Official provider SDK handles API transport; app outbox owns durable retry/audit. [CITED: https://resend.com/docs/send-with-nextjs] |
-| Recurring outbox scheduling | Browser-triggered retry loop | Supabase Cron or explicit admin/server job runner | Cron can run SQL/functions or HTTP jobs and records job runs in Postgres. [CITED: https://supabase.com/docs/guides/cron] |
+| Recurring outbox scheduling | Browser-triggered retry loop | Vercel Cron-compatible protected route plus admin/server retry action | Keeps worker execution server-side and deployment-aligned while the database owns claim/retry state. [RESOLVED: required planning decision] |
 | Access-control bypasses | Client-side PDF path checks or hidden buttons | RLS, owner filters, server actions, and service-role-only server code | Supabase service keys bypass RLS and must not be public; UI hiding is not authorization. [CITED: https://supabase.com/docs/guides/storage/security/access-control] |
 | Payment-to-fulfillment coupling | Direct entitlement/email writes in PayPal/VietQR handlers | Post-paid fulfillment orchestration keyed by existing paid transition | Phase 4 locked `apply_payment_transition` as the single paid-state mutation boundary. [VERIFIED: STATE.md] |
 
@@ -405,24 +405,21 @@ using (
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
 | A1 | Use unique constraints on `order_line_id` plus purpose/entity idempotency keys for entitlement/outbox dedupe. | Common Pitfalls | Planner may need a different uniqueness model if refunds/reissues require multiple active entitlement versions per line. |
-| A2 | Supabase Cron is acceptable as the default outbox scheduler for this project. | Architecture Patterns | If production hosting disables or avoids Supabase Cron, planner must swap to a Vercel Cron route or manual admin job runner. |
+| A2 | Outbox scheduling uses a Vercel Cron-compatible protected route plus admin-triggered retry. | Architecture Patterns | Resolved by required planning decision; no Supabase Cron dependency is planned. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should outbox worker execution be Supabase Cron, Vercel Cron, or manual/admin-triggered for MVP?**
-   - What we know: Supabase Cron can run SQL/functions or HTTP jobs and records run details. [CITED: https://supabase.com/docs/guides/cron]
-   - What's unclear: Whether the deployment project has Supabase Cron enabled and approved for production operations. [ASSUMED]
-   - Recommendation: Plan Supabase Cron as the standard path, with a server/admin manual `processDueEmailOutbox` action as fallback. [ASSUMED]
+   - Resolution: Use a Vercel Cron-compatible protected Next.js route plus admin-triggered retry for Phase 5. Do not require Supabase Cron.
+   - Planning impact: `src/app/api/fulfillment/email-outbox/route.ts` is protected by `TRANSACTIONAL_EMAIL_WORKER_SECRET`; `src/fulfillment/email-outbox.ts` owns due-row claim, retry, and attempt recording; admin retry calls the same worker/service path.
 
 2. **Should email body rendering use plain HTML helpers or React components?**
-   - What we know: Resend supports `html`, `text`, and Node SDK `react` content. [CITED: https://resend.com/docs/api-reference/emails/send-email]
-   - What's unclear: The project has no existing email component convention. [VERIFIED: codebase grep]
-   - Recommendation: Start with localized HTML/text helper functions to avoid extra packages; introduce React email components only if templates become complex. [ASSUMED]
+   - Resolution: Use plain TypeScript localized HTML/text helper functions in `src/emails/transactional.ts`.
+   - Planning impact: Do not introduce React email components or a React email package. Resend sending receives rendered `html` and `text` payloads from typed helper functions.
 
 3. **How should revoked/reissued entitlements model refunds?**
-   - What we know: Phase 5 locks admin revoke/reissue audit but Phase 4 refund handling is not a full entitlement revocation system. [VERIFIED: 05-CONTEXT.md]
-   - What's unclear: Whether partial refunds should automatically revoke matching digital entitlements in v1. [ASSUMED]
-   - Recommendation: Implement manual admin revoke/reissue now and leave automatic refund-entitlement coupling as a later explicit requirement unless Phase 5 planning decides otherwise. [ASSUMED]
+   - Resolution: Use explicit entitlement state transitions plus append-only audit events for admin revoke/reissue. Reissue creates fresh token/link/outbox work and never mutates expired links, public links, or prior token records.
+   - Planning impact: Automatic refund-to-entitlement coupling is not inferred here; Phase 5 implements manual admin revoke/reissue with stale-state checks and audit evidence.
 
 ## Environment Availability
 
@@ -431,14 +428,14 @@ using (
 | Node.js | Next.js, tests, scripts | yes | 20.19.4 | none needed. [VERIFIED: command] |
 | npm | Install `resend`, run scripts | yes | 10.8.1 | none needed. [VERIFIED: command] |
 | Supabase CLI | migrations, DB tests, type generation | yes | 2.106.0 | Use managed Supabase/MCP only if local CLI fails. [VERIFIED: command] |
-| Supabase local services | DB reset/tests | not probed in research | — | Planner should include `npm run db:reset`/`npm run db:test` verification and handle service startup if needed. [ASSUMED] |
-| Resend API key/domain | Sending transactional email | not configured in repo | — | Use mocked sender in tests; production requires `RESEND_API_KEY` and verified sender domain. [CITED: https://resend.com/docs/send-with-nextjs] |
+| Supabase local services | DB reset/tests | not probed in research | â€” | Planner should include `npm run db:reset`/`npm run db:test` verification and handle service startup if needed. [ASSUMED] |
+| Resend API key/domain | Sending transactional email | not configured in repo | â€” | Use mocked sender in tests; production requires `RESEND_API_KEY` and verified sender domain. [CITED: https://resend.com/docs/send-with-nextjs] |
 
 **Missing dependencies with no fallback:**
 - Production Resend API key and verified sending domain are required before real email delivery. [CITED: https://resend.com/docs/send-with-nextjs]
 
 **Missing dependencies with fallback:**
-- Supabase Cron production approval is not verified; fallback is admin/manual worker trigger or Vercel Cron route. [ASSUMED]
+- Supabase Cron production approval is not required by the selected plan; the fallback and scheduled path both use the protected Vercel-compatible worker route or admin-triggered retry. [RESOLVED: required planning decision]
 
 ## Validation Architecture
 
@@ -451,7 +448,7 @@ using (
 | Quick run command | `npm run test:unit` [VERIFIED: package.json] |
 | Full suite command | `npm run lint && npm run typecheck && npm run test:unit && npm run db:reset && npm run db:lint && npm run db:test && npm run db:types && git diff --exit-code src/types/supabase.ts && npm run build && npm run test:security && npm run test:e2e` [VERIFIED: package.json] |
 
-### Phase Requirements → Test Map
+### Phase Requirements â†’ Test Map
 
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
 |--------|----------|-----------|-------------------|--------------|
@@ -473,19 +470,19 @@ using (
 
 - **Per task commit:** `npm run test:unit` plus the nearest DB test when migration logic changes. [VERIFIED: package.json]
 - **Per wave merge:** `npm run lint && npm run typecheck && npm run test:unit && npm run db:test && npm run test:security`. [VERIFIED: package.json]
-- **Phase gate:** Full `npm run ci` equivalent green before `$gsd-verify-work`, plus manual Resend/Supabase Cron/provider checks if real email delivery is enabled. [VERIFIED: package.json]
+- **Phase gate:** Full `npm run ci` equivalent green before `$gsd-verify-work`, plus manual Resend/provider delivery checks if real email delivery is enabled. The worker route itself is covered locally without Supabase Cron. [VERIFIED: package.json]
 
 ### Wave 0 Gaps
 
-- [ ] `supabase/tests/database/05_fulfillment_entitlements.test.sql` — covers DIG-02, DIG-04, FUL-01, ACC-02.
-- [ ] `supabase/tests/database/05_email_outbox.test.sql` — covers DIG-03, DIG-07, OPS-01, OPS-02.
-- [ ] `supabase/tests/database/05_guest_claim.test.sql` — covers DIG-06, ACC-05.
-- [ ] `tests/unit/fulfillment/downloads.test.ts` — covers token validation and signed URL adapter behavior.
-- [ ] `tests/unit/fulfillment/email-outbox.test.ts` — covers retry/backoff/idempotency and sanitized errors.
-- [ ] `tests/unit/fulfillment/physical.test.ts` — covers manual status flow and shipping notification enqueue.
-- [ ] `tests/e2e/order-downloads.spec.ts` — covers signed-in/guest download and expired-link regeneration.
-- [ ] `tests/e2e/admin-fulfillment.spec.ts` — covers failed email queue, resend, revoke/reissue, and physical tracking updates.
-- [ ] `tests/security/fulfillment-boundaries.test.mjs` — blocks public PDF URL exposure, service-role browser imports, raw tokens in URLs/logs, and cross-user access helpers.
+- [ ] `supabase/tests/database/05_fulfillment_entitlements.test.sql` â€” covers DIG-02, DIG-04, FUL-01, ACC-02.
+- [ ] `supabase/tests/database/05_email_outbox.test.sql` â€” covers DIG-03, DIG-07, OPS-01, OPS-02.
+- [ ] `supabase/tests/database/05_guest_claim.test.sql` â€” covers DIG-06, ACC-05.
+- [ ] `tests/unit/fulfillment/downloads.test.ts` â€” covers token validation and signed URL adapter behavior.
+- [ ] `tests/unit/fulfillment/email-outbox.test.ts` â€” covers retry/backoff/idempotency and sanitized errors.
+- [ ] `tests/unit/fulfillment/physical.test.ts` â€” covers manual status flow and shipping notification enqueue.
+- [ ] `tests/e2e/order-downloads.spec.ts` â€” covers signed-in/guest download and expired-link regeneration.
+- [ ] `tests/e2e/admin-fulfillment.spec.ts` â€” covers failed email queue, resend, revoke/reissue, and physical tracking updates.
+- [ ] `tests/security/fulfillment-boundaries.test.mjs` â€” blocks public PDF URL exposure, service-role browser imports, raw tokens in URLs/logs, and cross-user access helpers.
 
 ## Security Domain
 
@@ -520,13 +517,13 @@ using (
 - npm registry: `resend` version/package metadata and package-legitimacy seam output. [VERIFIED: npm registry]
 
 ### Secondary (MEDIUM confidence)
-- https://supabase.com/docs/reference/javascript/storage-from-createsignedurl — signed URL semantics and `expiresIn`. [CITED: docs]
-- https://supabase.com/docs/guides/storage/security/access-control — Storage RLS, service key bypass warning, private bucket policy model. [CITED: docs]
-- https://supabase.com/docs/guides/database/postgres/row-level-security — RLS, `auth.jwt()`, `user_metadata`, filters, security-definer cautions. [CITED: docs]
-- https://supabase.com/docs/guides/cron — Supabase Cron scheduling model and limits. [CITED: docs]
-- https://resend.com/docs/send-with-nextjs — Next.js SDK setup and prerequisites. [CITED: docs]
-- https://resend.com/docs/api-reference/emails/send-email — send email parameters and idempotency header. [CITED: docs]
-- https://resend.com/docs/dashboard/emails/idempotency-keys — 24-hour provider idempotency behavior. [CITED: docs]
+- https://supabase.com/docs/reference/javascript/storage-from-createsignedurl â€” signed URL semantics and `expiresIn`. [CITED: docs]
+- https://supabase.com/docs/guides/storage/security/access-control â€” Storage RLS, service key bypass warning, private bucket policy model. [CITED: docs]
+- https://supabase.com/docs/guides/database/postgres/row-level-security â€” RLS, `auth.jwt()`, `user_metadata`, filters, security-definer cautions. [CITED: docs]
+- https://supabase.com/docs/guides/cron â€” Supabase Cron scheduling model and limits. [CITED: docs]
+- https://resend.com/docs/send-with-nextjs â€” Next.js SDK setup and prerequisites. [CITED: docs]
+- https://resend.com/docs/api-reference/emails/send-email â€” send email parameters and idempotency header. [CITED: docs]
+- https://resend.com/docs/dashboard/emails/idempotency-keys â€” 24-hour provider idempotency behavior. [CITED: docs]
 
 ### Tertiary (LOW confidence)
 - Assumptions in the Assumptions Log only; no unverified package recommendations are made. [ASSUMED]
@@ -534,9 +531,9 @@ using (
 ## Metadata
 
 **Confidence breakdown:**
-- Standard stack: HIGH — package versions and project stack are verified locally; `resend` is official-doc cited and npm-verified but has a `SUS` package-legitimacy flag due recent latest publish.
-- Architecture: MEDIUM — project code and official docs strongly support the shape, but scheduler choice and exact entitlement schema need planning decisions.
-- Pitfalls: MEDIUM — most pitfalls are grounded in locked decisions, Supabase docs, and Phase 4 patterns; specific uniqueness/backoff thresholds remain assumptions.
+- Standard stack: HIGH â€” package versions and project stack are verified locally; `resend` is official-doc cited and npm-verified but has a `SUS` package-legitimacy flag due recent latest publish.
+- Architecture: MEDIUM â€” project code and official docs strongly support the shape, but scheduler choice and exact entitlement schema need planning decisions.
+- Pitfalls: MEDIUM â€” most pitfalls are grounded in locked decisions, Supabase docs, and Phase 4 patterns; specific uniqueness/backoff thresholds remain assumptions.
 
 **Research date:** 2026-06-19
 **Valid until:** 2026-07-19 for local architecture and 2026-06-26 for external package/docs versions.
