@@ -3,6 +3,7 @@ import {Alert, AlertTitle} from '@/components/ui/alert';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {formatMoney} from '@/catalog/money';
 import {formatShippingAddressLines} from '@/checkout/shipping-address';
+import {DownloadPanel} from '@/components/fulfillment/download-panel';
 import type {Locale} from '@/i18n/routing';
 import {getCheckoutPath} from '@/i18n/routing';
 import {getServerEnv} from '@/lib/env/server';
@@ -184,6 +185,18 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
           <AlertTitle>{status.fulfillmentLocked ? t('fulfillment.lockedHeading') : t('fulfillment.eligibleHeading')}</AlertTitle>
           <p>{status.fulfillmentLocked ? t('fulfillment.lockedBody') : t('fulfillment.eligibleBody')}</p>
         </Alert> : null}
+
+        <DownloadPanel
+          orderNumber={result.order.orderNumber}
+          eligible={!status.fulfillmentLocked}
+          labels={{
+            title: t('downloads.title'),
+            readyBody: t('downloads.readyBody'),
+            lockedBody: t('downloads.lockedBody'),
+            expiredBody: t('downloads.expiredBody'),
+            action: t('downloads.action')
+          }}
+        />
       </section>
 
       <aside className="grid content-start gap-5 lg:sticky lg:top-24">

@@ -159,6 +159,13 @@
       "eligibleHeading": "Cong xu ly da mo",
       "eligibleBody": "Thanh toan da duoc xac nhan. Don hang da du dieu kien cho buoc xu ly tiep theo."
     },
+    "downloads": {
+      "title": "Tai mau PDF",
+      "readyBody": "Mau PDF da thanh toan co the duoc yeu cau tu trang don hang nay. Moi lan yeu cau tao mot lien ket rieng co thoi han ngan.",
+      "lockedBody": "Quyen tai xuong se xuat hien sau khi toan bo don hang duoc xac nhan da thanh toan.",
+      "expiredBody": "Neu lien ket trong email da het han, hay yeu cau lien ket moi tu trang don hang nay sau khi thanh toan duoc xac nhan.",
+      "action": "Tai mau PDF"
+    },
     "status": {
       "awaiting_payment": {
         "heading": "Dang cho thanh toan",

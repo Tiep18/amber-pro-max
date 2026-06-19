@@ -159,6 +159,13 @@
       "eligibleHeading": "Payment gate is open",
       "eligibleBody": "Payment is confirmed. This order is now eligible for the next fulfillment step."
     },
+    "downloads": {
+      "title": "Pattern downloads",
+      "readyBody": "Paid PDF patterns can be requested from this order page. Each request creates a short-lived private link.",
+      "lockedBody": "Download access appears here after the full order is confirmed paid.",
+      "expiredBody": "If an email link expired, request a fresh link from this order page after payment is confirmed.",
+      "action": "Download pattern"
+    },
     "status": {
       "awaiting_payment": {
         "heading": "Awaiting payment",

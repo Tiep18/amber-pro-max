@@ -13,8 +13,10 @@ const contractFiles = [
 
 const fulfillmentSurfaceFiles = [
   'src/lib/supabase/admin.ts',
-  'src/app/[locale]/order/[orderNumber]/page.tsx',
-  'src/components/payments/order-payment-page.tsx'
+  'src/app/[locale]/orders/[orderNumber]/page.tsx',
+  'src/app/[locale]/don-hang/[orderNumber]/page.tsx',
+  'src/components/payments/order-payment-page.tsx',
+  'src/components/fulfillment/download-panel.tsx'
 ];
 
 function readExisting(files) {
@@ -45,6 +47,19 @@ test('fulfillment implementation does not expose public PDF storage or browser s
 
   assert.doesNotMatch(source, /createSignedUrl|signedUrl|private.*pdf/i);
   assert.doesNotMatch(source, /SUPABASE_SERVICE_ROLE_KEY|service_role|sb_secret_/i);
+  assert.doesNotMatch(source, /token_hash|object_path|pattern-pdfs/i);
+});
+
+test('download signed URL creation is isolated behind entitlement authorization', () => {
+  const pureService = readFileSync('src/fulfillment/downloads.ts', 'utf8');
+  const serverAdapter = readFileSync('src/fulfillment/downloads.server.ts', 'utf8');
+  const route = readFileSync('src/app/api/downloads/route.ts', 'utf8');
+
+  assert.match(pureService, /authorizeDownloadRequest/);
+  assert.match(serverAdapter, /createSignedUrl/);
+  assert.match(serverAdapter, /authorizeDownloadRequest/);
+  assert.match(route, /authorizeDownloadWithSupabase/);
+  assert.doesNotMatch(route, /bucket_id|object_path|signed_url|token_hash|pattern-pdfs/i);
 });
 
 test('fulfillment audit and outbox payloads reject unsafe secrets', () => {
