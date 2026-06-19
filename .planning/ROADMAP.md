@@ -222,7 +222,7 @@ Plans:
 **Wave 2** *(blocked on 05-01 and 05-03 where applicable)*
 
 - [x] 05-02: Implement entitlement-checked downloads and customer download panel
-- [ ] 05-04: Build transactional email renderer and protected outbox worker
+- [x] 05-04: Build transactional email renderer and protected outbox worker
 
 **Wave 3** *(blocked on Wave 2 dependencies)*
 
@@ -306,6 +306,6 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
-| 5. Fulfillment and Purchase Access | 3/11 | In Progress|  |
+| 5. Fulfillment and Purchase Access | 4/11 | In Progress|  |
 | 6. Customer Retention and Trust | 0/4 | Not started | - |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |
