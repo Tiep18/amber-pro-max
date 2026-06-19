@@ -24,6 +24,38 @@ human_verification:
 **Status:** human_needed
 **Re-verification:** No - initial verification
 
+## Post-Verification Addendum: D-22..D-30 Address Snapshot and Address UX
+
+**Updated:** 2026-06-19
+**Status impact:** Phase 4 remains `human_needed` because provider/manual UAT is still outstanding. The checkout shipping-address delta and follow-up address UX fix are implemented and locally verified.
+
+### Added Evidence
+
+| Area | Evidence | Status |
+| --- | --- | --- |
+| Physical/mixed checkout address collection | Checkout now collects full shipping address for physical and mixed carts, while digital-only checkout continues without an address. | VERIFIED |
+| Country selection UX | The country selector uses a broad localized country list, supports search, clear, and reselect behavior, and no longer traps customers after one selection. | VERIFIED |
+| Address validation UX | Required address fields show inline validation messages; the update action no longer fails only through a silent disabled state. | VERIFIED |
+| Immutable order snapshot | `checkout_orders.shipping_address` persists a JSONB snapshot with a shape constraint and immutability trigger; customer/admin order detail projections display it. | VERIFIED |
+| Regression scope | Payment/webhook/VietQR/inventory/audit behavior was not re-executed except for the narrow order projection integration needed to expose the address snapshot. | VERIFIED |
+
+### Addendum Verification Commands
+
+| Command | Result | Status |
+| --- | --- | --- |
+| `npm run test:unit -- tests/unit/checkout/submit-checkout.test.ts tests/unit/payments/order-queries.test.ts` | Passed. | PASS |
+| `npm run test:unit -- tests/unit/checkout/shipping-address-ui.test.ts tests/unit/checkout/submit-checkout.test.ts tests/unit/payments/order-queries.test.ts` | Passed. | PASS |
+| `npm run typecheck` | Passed. | PASS |
+| `npm run db:test` | Passed all 289 DB tests after the reset-applied schema was available. | PASS |
+| `npm run db:lint` | Passed with no schema errors. | PASS |
+| `npm run lint` | Passed with existing warnings only. | PASS |
+| `npm run build` | Passed. | PASS |
+| `npm run test:security` | Passed. | PASS |
+
+### Remaining Human Verification
+
+The original manual/provider UAT list below is unchanged: PayPal sandbox webhook delivery, seller-approved VietQR bank evidence, and managed Supabase Cron/dashboard checks remain required before marking Phase 4 complete.
+
 ## User Flow Coverage
 
 | Step | Expected | Evidence in Codebase | Status |

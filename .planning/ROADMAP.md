@@ -14,7 +14,7 @@ The project grows through seven vertical MVP phases. Each phase leaves a usable 
 - [x] **Phase 1: Secure Bilingual Foundation** - Customers and admins can enter a localized application with correctly protected identities and data. (completed 2026-06-12)
 - [x] **Phase 2: Market-Aware Catalog** - Admin can publish products and customers can discover eligible products with correct market prices and variants. (completed 2026-06-13)
 - [x] **Phase 3: Mixed Cart and Checkout** - Customers can build a mixed order with authoritative pricing, shipping, discounts, inventory reservation, and exception handling. (completed 2026-06-15)
-- [ ] **Phase 4: Trusted Payments and Orders** - PayPal and VietQR safely move orders through auditable, idempotent payment and inventory states. (awaiting provider UAT)
+- [ ] **Phase 4: Trusted Payments and Orders** - PayPal and VietQR safely move orders through auditable, idempotent payment and inventory states. (implementation complete; awaiting provider/manual UAT)
 - [ ] **Phase 5: Fulfillment and Purchase Access** - Paid customers receive secure PDFs and can follow physical fulfillment without conflating the two workflows.
 - [ ] **Phase 6: Customer Retention and Trust** - Customers can manage repeat-purchase data, wishlists, reviews, and newsletter relationships.
 - [ ] **Phase 7: Content, SEO, and Launch Readiness** - The bilingual store is discoverable, operable, policy-complete, monitored, and verified for launch.
@@ -162,37 +162,39 @@ Plans:
   5. Admin can inspect order history, payment evidence, state transitions, and audit records without exposing another customer's data.
 
 **Plans**: 10 plans
+**Status note:** Automated implementation and D-22..D-30 checkout shipping-address gaps are complete. Phase 4 remains open until PayPal sandbox webhook delivery, seller-approved VietQR bank evidence, and managed Supabase Cron/provider checks are manually verified.
+
 Plans:
 **Wave 1**
 
-- [ ] 04-01: Add address-correct checkout, payment, inventory, order visibility, and security contracts
+- [x] 04-01: Add address-correct checkout, payment, inventory, order visibility, and security contracts
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-02: Replace country-code destination with localized full-address checkout
+- [x] 04-02: Replace country-code destination with localized full-address checkout
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 04-03: Persist immutable shipping-address snapshots and scoped projections
+- [x] 04-03: Persist immutable shipping-address snapshots and scoped projections
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 04-04: Preserve payment state machine, inventory outcomes, and audit authority
+- [x] 04-04: Preserve payment state machine, inventory outcomes, and audit authority
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 04-05: Integrate PayPal create/capture with server-owned address context
-- [ ] 04-06: Verify PayPal webhooks, idempotency, reconciliation, and sanitized evidence
-- [ ] 04-07: Implement VietQR instructions and admin decisions with server-owned address context
+- [x] 04-05: Integrate PayPal create/capture with server-owned address context
+- [x] 04-06: Verify PayPal webhooks, idempotency, reconciliation, and sanitized evidence
+- [x] 04-07: Implement VietQR instructions and admin decisions with server-owned address context
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 04-08: Build customer payment/order detail with shipping-address visibility
-- [ ] 04-09: Build admin order operations with address evidence, timeline, and VietQR decision UI
+- [x] 04-08: Build customer payment/order detail with shipping-address visibility
+- [x] 04-09: Build admin order operations with address evidence, timeline, and VietQR decision UI
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 04-10: Run final automated verification and provider UAT checkpoints
+- [x] 04-10: Run final automated verification and provider UAT checkpoints
 
 ### Phase 5: Fulfillment and Purchase Access
 
@@ -278,7 +280,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 1. Secure Bilingual Foundation | 8/8 | Complete   | 2026-06-12 |
 | 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
-| 4. Trusted Payments and Orders | 0/10 | Needs Review | - |
+| 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
 | 5. Fulfillment and Purchase Access | 0/5 | Not started | - |
 | 6. Customer Retention and Trust | 0/4 | Not started | - |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |

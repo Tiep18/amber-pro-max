@@ -7,6 +7,7 @@ Scope: Delta-only execution for the Phase 4 replan gaps D-22..D-30. Existing pay
 ## Completed
 
 - Replaced the checkout destination country-code text input with a searchable country selector and full shipping-address form for physical and mixed carts.
+- Follow-up address UX fix replaced the limited five-country list with a broad localized country list, allowed customers to clear and reselect the country, and added inline validation messages for required address fields instead of relying on silent disabled buttons.
 - Kept digital-only checkout address-free by submitting `shippingAddress: null`.
 - Added shared shipping-address validation and formatting helpers.
 - Required full shipping address for physical checkout before the submit RPC boundary.
@@ -25,6 +26,8 @@ Scope: Delta-only execution for the Phase 4 replan gaps D-22..D-30. Existing pay
 - `npm run lint` passed with existing warnings only.
 - `npm run build` passed.
 - `npm run test:security` passed.
+- Address UX follow-up verification passed: `npm run test:unit -- tests/unit/checkout/shipping-address-ui.test.ts tests/unit/checkout/submit-checkout.test.ts tests/unit/payments/order-queries.test.ts`, `npm run typecheck`, `npm run lint`, and `npm run build`.
+- The checkout market-change Playwright spec was updated for the new full-address flow, but the focused E2E run could not start because an existing `next dev` server lock prevented Playwright's configured web server from launching.
 
 ## Known Non-Delta Observation
 

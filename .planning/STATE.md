@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Awaiting Phase 04 provider UAT
-stopped_at: Phase 04 D-22..D-30 address snapshot gaps executed
-last_updated: "2026-06-18T09:55:00.000+07:00"
-last_activity: 2026-06-18 -- Executed Phase 04 D-22..D-30 checkout shipping-address snapshot gaps; provider UAT pending
+stopped_at: Phase 04 docs refreshed after checkout address snapshot and address UX fixes
+last_updated: "2026-06-19T00:00:00.000+07:00"
+last_activity: 2026-06-19 -- Completed quick task 260619-phase-4-docs-refresh: update Phase 4 docs only
 progress:
   total_phases: 7
   completed_phases: 4
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 4
 Plan: 10 of 10
 Status: Awaiting Phase 04 provider UAT
-Last activity: 2026-06-18 -- Executed Phase 04 D-22..D-30 checkout shipping-address snapshot gaps; provider UAT pending
+Last activity: 2026-06-19 -- Completed quick task 260619-phase-4-docs-refresh: update Phase 4 docs only
 
 Progress: [██████████] 100% of planned Phase 04 execution; phase verification requires human/provider UAT
 
@@ -134,6 +134,12 @@ None yet.
 - Seller-specific PayPal eligibility, shipping destinations, tax, privacy, and consumer-policy decisions must be validated before launch.
 - Phase 04 automated validation is green, but PayPal sandbox HTTPS webhook delivery, seller-approved VietQR bank evidence, and managed Supabase Cron dashboard checks remain manual UAT before production readiness.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260619-phase-4-docs-refresh | Update Phase 4 docs after checkout shipping-address/address-UX commits | 2026-06-19 | this commit | [260619-phase-4-docs-refresh](./quick/260619-phase-4-docs-refresh/) |
+
 ## Deferred Items
 
 | Category | Item | Status | Deferred At |
@@ -145,6 +151,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-18T02:00:33.929Z
-Stopped at: Phase 04 context updated with checkout shipping-address correction
+Last session: 2026-06-19T00:00:00.000+07:00
+Stopped at: Phase 04 docs refreshed after checkout address snapshot and address UX fixes
 Resume file: .planning/phases/04-trusted-payments-and-orders/04-CONTEXT.md
