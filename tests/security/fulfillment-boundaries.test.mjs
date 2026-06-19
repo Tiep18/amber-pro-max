@@ -19,6 +19,13 @@ const fulfillmentSurfaceFiles = [
   'src/components/fulfillment/download-panel.tsx'
 ];
 
+const fulfillmentEmailFiles = [
+  'src/emails/transactional.ts',
+  'src/fulfillment/email-outbox.ts',
+  'src/fulfillment/email-outbox.server.ts',
+  'src/app/api/fulfillment/email-outbox/route.ts'
+];
+
 function readExisting(files) {
   return files
     .filter((file) => existsSync(file))
@@ -60,6 +67,17 @@ test('download signed URL creation is isolated behind entitlement authorization'
   assert.match(serverAdapter, /authorizeDownloadRequest/);
   assert.match(route, /authorizeDownloadWithSupabase/);
   assert.doesNotMatch(route, /bucket_id|object_path|signed_url|token_hash|pattern-pdfs/i);
+});
+
+test('transactional email worker keeps tokens and provider secrets out of durable payloads', () => {
+  const source = readExisting(fulfillmentEmailFiles);
+  const route = readFileSync('src/app/api/fulfillment/email-outbox/route.ts', 'utf8');
+
+  assert.match(route, /authorization|x-worker-secret/i);
+  assert.match(route, /transactionalEmailWorkerSecret/);
+  assert.doesNotMatch(source, /console\.(log|error|warn)|provider_payload|signed_url|signedUrl|object_path|pattern-pdfs/i);
+  assert.doesNotMatch(source, /RESEND_API_KEY|TRANSACTIONAL_EMAIL_WORKER_SECRET/);
+  assert.doesNotMatch(source, /attachments\s*:/i);
 });
 
 test('fulfillment audit and outbox payloads reject unsafe secrets', () => {
