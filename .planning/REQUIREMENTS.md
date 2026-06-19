@@ -63,23 +63,23 @@
 ### Digital and Physical Fulfillment
 
 - [x] **DIG-01**: Admin can upload a PDF pattern to private storage and associate it with a digital product.
-- [ ] **DIG-02**: System creates a digital entitlement only after the containing order is confirmed paid.
-- [ ] **DIG-03**: Paid customer receives an email with an expiring link for each purchased PDF.
-- [ ] **DIG-04**: Every download request validates an active entitlement before generating a short-lived signed storage URL.
-- [ ] **DIG-05**: Signed-in customer can re-download purchased PDFs from a personal pattern library.
-- [ ] **DIG-06**: Guest customer can securely reopen an order and request a fresh download link using an expiring access token.
-- [ ] **DIG-07**: Admin can resend a download email or revoke/reissue digital access with an audit record.
-- [ ] **FUL-01**: A mixed order releases eligible PDFs after full payment while physical lines remain awaiting fulfillment.
-- [ ] **FUL-02**: Admin can update physical fulfillment status and add carrier and tracking information.
-- [ ] **FUL-03**: Customer receives shipping updates by email and can view tracking on the order page.
+- [x] **DIG-02**: System creates a digital entitlement only after the containing order is confirmed paid.
+- [x] **DIG-03**: Paid customer receives an email with an expiring link for each purchased PDF.
+- [x] **DIG-04**: Every download request validates an active entitlement before generating a short-lived signed storage URL.
+- [x] **DIG-05**: Signed-in customer can re-download purchased PDFs from a personal pattern library.
+- [x] **DIG-06**: Guest customer can securely reopen an order and request a fresh download link using an expiring access token.
+- [x] **DIG-07**: Admin can resend a download email or revoke/reissue digital access with an audit record.
+- [x] **FUL-01**: A mixed order releases eligible PDFs after full payment while physical lines remain awaiting fulfillment.
+- [x] **FUL-02**: Admin can update physical fulfillment status and add carrier and tracking information.
+- [x] **FUL-03**: Customer receives shipping updates by email and can view tracking on the order page.
 
 ### Customer Accounts
 
 - [x] **ACC-01**: Customer can register, sign in, sign out, and reset a password.
-- [ ] **ACC-02**: Signed-in customer can view only their own order history, order details, payments, downloads, and tracking.
+- [x] **ACC-02**: Signed-in customer can view only their own order history, order details, payments, downloads, and tracking.
 - [ ] **ACC-03**: Customer can save, edit, and delete shipping addresses.
 - [ ] **ACC-04**: Customer can add and remove products from a wishlist.
-- [ ] **ACC-05**: Guest customer can claim prior orders into an account after verifying control of the order email.
+- [x] **ACC-05**: Guest customer can claim prior orders into an account after verifying control of the order email.
 
 ### Reviews, Discounts, and Newsletter
 
@@ -108,8 +108,8 @@
 - [x] **SEC-01**: Every exposed customer or commerce table has Row Level Security policies matching anonymous, customer, and admin access.
 - [x] **SEC-02**: Privileged database and storage credentials are never exposed to the browser.
 - [x] **SEC-03**: Sensitive admin actions and important state transitions are recorded in an audit log.
-- [ ] **OPS-01**: Transactional email requests are stored durably and retried safely after transient failures.
-- [ ] **OPS-02**: Admin can inspect failed transactional emails and trigger a controlled resend.
+- [x] **OPS-01**: Transactional email requests are stored durably and retried safely after transient failures.
+- [x] **OPS-02**: Admin can inspect failed transactional emails and trigger a controlled resend.
 - [ ] **OPS-03**: System captures and reports application, payment, email, and fulfillment errors without logging secrets or unnecessary personal data.
 - [ ] **OPS-04**: Critical guest/account checkout, payment, inventory, download, tracking, localization, and authorization flows have automated verification.
 - [ ] **LEGAL-01**: Store publishes Vietnamese and English privacy, terms of sale, physical return, and digital-download policies.
@@ -190,20 +190,20 @@
 | PAY-07 | Phase 4 | Complete |
 | PAY-08 | Phase 4 | Complete |
 | DIG-01 | Phase 2 | Complete |
-| DIG-02 | Phase 5 | Pending |
-| DIG-03 | Phase 5 | Pending |
-| DIG-04 | Phase 5 | Pending |
-| DIG-05 | Phase 5 | Pending |
-| DIG-06 | Phase 5 | Pending |
-| DIG-07 | Phase 5 | Pending |
-| FUL-01 | Phase 5 | Pending |
-| FUL-02 | Phase 5 | Pending |
-| FUL-03 | Phase 5 | Pending |
+| DIG-02 | Phase 5 | Complete |
+| DIG-03 | Phase 5 | Complete |
+| DIG-04 | Phase 5 | Complete |
+| DIG-05 | Phase 5 | Complete |
+| DIG-06 | Phase 5 | Complete |
+| DIG-07 | Phase 5 | Complete |
+| FUL-01 | Phase 5 | Complete |
+| FUL-02 | Phase 5 | Complete |
+| FUL-03 | Phase 5 | Complete |
 | ACC-01 | Phase 1 | Complete |
-| ACC-02 | Phase 5 | Pending |
+| ACC-02 | Phase 5 | Complete |
 | ACC-03 | Phase 6 | Pending |
 | ACC-04 | Phase 6 | Pending |
-| ACC-05 | Phase 5 | Pending |
+| ACC-05 | Phase 5 | Complete |
 | REV-01 | Phase 6 | Pending |
 | REV-02 | Phase 6 | Pending |
 | DISC-01 | Phase 3 | Complete |
@@ -223,8 +223,8 @@
 | SEC-01 | Phase 1 | Complete |
 | SEC-02 | Phase 1 | Complete |
 | SEC-03 | Phase 4 | Complete |
-| OPS-01 | Phase 5 | Pending |
-| OPS-02 | Phase 5 | Pending |
+| OPS-01 | Phase 5 | Complete |
+| OPS-02 | Phase 5 | Complete |
 | OPS-03 | Phase 7 | Pending |
 | OPS-04 | Phase 7 | Pending |
 | LEGAL-01 | Phase 7 | Pending |
