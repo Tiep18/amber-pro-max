@@ -227,7 +227,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 dependencies)*
 
 - [x] 05-05: Build admin failed-email queue, retry, and download resend
-- [ ] 05-07: Build signed-in order history and grouped pattern library
+- [x] 05-07: Build signed-in order history and grouped pattern library
 
 **Wave 4** *(blocked on admin/email/account foundations)*
 
@@ -306,6 +306,6 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
-| 5. Fulfillment and Purchase Access | 5/11 | In Progress|  |
+| 5. Fulfillment and Purchase Access | 6/11 | In Progress|  |
 | 6. Customer Retention and Trust | 0/4 | Not started | - |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |
