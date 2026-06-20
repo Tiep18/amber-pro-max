@@ -242,21 +242,25 @@ export async function getAuthorizedOrderPayment({
     orderNumber: data.orderNumber,
     customerPaymentStatus: asCustomerPaymentStatus(data.customerPaymentStatus),
     fulfillmentGateStatus: asFulfillmentGateStatus(data.fulfillmentGateStatus),
-    digitalFulfillmentStatus: typeof data.digitalFulfillmentStatus === 'string' ? data.digitalFulfillmentStatus : undefined,
-    physicalFulfillmentStatus: typeof data.physicalFulfillmentStatus === 'string' ? data.physicalFulfillmentStatus : undefined,
-    physicalTracking: isRecord(data.physicalTracking)
-      ? {
-          status: typeof data.physicalTracking.status === 'string' ? data.physicalTracking.status : 'awaiting_fulfillment',
-          carrier: typeof data.physicalTracking.carrier === 'string' ? data.physicalTracking.carrier : null,
-          trackingNumber: typeof data.physicalTracking.trackingNumber === 'string' ? data.physicalTracking.trackingNumber : null,
-          trackingUrl: typeof data.physicalTracking.trackingUrl === 'string' ? data.physicalTracking.trackingUrl : null
-        }
-      : null,
     amountMinor: data.amountMinor,
     currencyCode: asCurrencyCode(data.currencyCode),
     reservationExpiresAt: typeof data.reservationExpiresAt === 'string' ? data.reservationExpiresAt : null,
     shippingAddress: asShippingAddress(data.shippingAddress)
   };
+  if (typeof data.digitalFulfillmentStatus === 'string') {
+    order.digitalFulfillmentStatus = data.digitalFulfillmentStatus;
+  }
+  if (typeof data.physicalFulfillmentStatus === 'string') {
+    order.physicalFulfillmentStatus = data.physicalFulfillmentStatus;
+  }
+  if (isRecord(data.physicalTracking)) {
+    order.physicalTracking = {
+      status: typeof data.physicalTracking.status === 'string' ? data.physicalTracking.status : 'awaiting_fulfillment',
+      carrier: typeof data.physicalTracking.carrier === 'string' ? data.physicalTracking.carrier : null,
+      trackingNumber: typeof data.physicalTracking.trackingNumber === 'string' ? data.physicalTracking.trackingNumber : null,
+      trackingUrl: typeof data.physicalTracking.trackingUrl === 'string' ? data.physicalTracking.trackingUrl : null
+    };
+  }
   if (typeof data.market === 'string') {
     order.market = data.market;
   }
@@ -335,7 +339,15 @@ async function getFailedEmailsForOrder(client: QueryClient, orderId: string, ord
       };
     };
   };
-  const {data, error} = await query.eq('order_id', orderId).in('status', ['failed', 'pending']).order('created_at', {ascending: false});
+  const eqResult = query.eq('order_id', orderId) as {
+    in?: (column: string, values: string[]) => {
+      order: (column: string, options?: Record<string, unknown>) => Promise<{data: unknown[] | null; error: unknown}>;
+    };
+  };
+  if (typeof eqResult.in !== 'function') {
+    return [];
+  }
+  const {data, error} = await eqResult.in('status', ['failed', 'pending']).order('created_at', {ascending: false});
   if (error || !Array.isArray(data)) {
     return [];
   }
@@ -344,8 +356,11 @@ async function getFailedEmailsForOrder(client: QueryClient, orderId: string, ord
 
 async function getFailedEmailCounts(client: QueryClient) {
   const query = client.from('transactional_email_outbox').select('order_id,status') as {
-    in: (column: string, values: string[]) => Promise<{data: unknown[] | null; error: unknown}>;
+    in?: (column: string, values: string[]) => Promise<{data: unknown[] | null; error: unknown}>;
   };
+  if (typeof query.in !== 'function') {
+    return new Map<string, number>();
+  }
   const {data, error} = await query.in('status', ['failed', 'pending']);
   const counts = new Map<string, number>();
   if (error || !Array.isArray(data)) {
@@ -429,7 +444,11 @@ async function getDigitalEntitlementsForOrder(client: QueryClient, orderId: stri
       order: (column: string, options?: Record<string, unknown>) => Promise<{data: unknown[] | null; error: unknown}>;
     };
   };
-  const {data, error} = await query.eq('order_id', orderId).order('created_at', {ascending: false});
+  const eqResult = query.eq('order_id', orderId);
+  if (!('order' in eqResult) || typeof eqResult.order !== 'function') {
+    return [];
+  }
+  const {data, error} = await eqResult.order('created_at', {ascending: false});
   if (error || !Array.isArray(data)) {
     return [];
   }
@@ -444,8 +463,15 @@ async function getEntitlementAuditForOrder(client: QueryClient, orderId: string)
       };
     };
   };
-  const {data, error} = await query
-    .eq('order_id', orderId)
+  const auditEqResult = query.eq('order_id', orderId) as {
+    in?: (column: string, values: string[]) => {
+      order: (column: string, options?: Record<string, unknown>) => Promise<{data: unknown[] | null; error: unknown}>;
+    };
+  };
+  if (typeof auditEqResult.in !== 'function') {
+    return [];
+  }
+  const {data, error} = await auditEqResult
     .in('event_type', ['digital_entitlement_granted', 'digital_entitlement_revoked', 'digital_access_reissued', 'digital_access_resend_requested'])
     .order('created_at', {ascending: false});
   if (error || !Array.isArray(data)) {
