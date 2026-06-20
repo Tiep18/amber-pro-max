@@ -447,22 +447,19 @@ export function hashNewsletterToken(token: string) {
 - `auth.role()`-style policy checks: avoid; prefer `TO authenticated` plus owner predicates. [CITED: https://supabase.com/docs/guides/database/postgres/row-level-security]
 - Admin controls based on user-editable metadata: forbidden by project stack constraints. [VERIFIED: AGENTS.md]
 
-## Open Questions
+## Open Questions - RESOLVED BY PLANNER
 
-1. **Review rating scale**
+1. **Review rating scale - RESOLVED**
    - What we know: the user left rating scale to agent discretion. [VERIFIED: 06-CONTEXT.md]
-   - What's unclear: whether ratings are 1-5 stars, text-only, or optional text with rating. [VERIFIED: 06-CONTEXT.md]
-   - Recommendation: planner should use a conventional 1-5 integer rating with optional moderated body unless UI spec decides otherwise. [ASSUMED]
+   - Decision: Phase 6 uses a required conventional 1-5 integer star rating with optional moderated title/body. This matches `06-UI-SPEC.md` and must be enforced by SQL checks, server validation, and review form controls. [RESOLVED: planner, 2026-06-20]
 
-2. **Newsletter confirmation email**
+2. **Newsletter confirmation email - RESOLVED**
    - What we know: subscribe and unsubscribe consent state are required; explicit subscribe in either language is required. [VERIFIED: REQUIREMENTS.md]
-   - What's unclear: whether v1 sends a welcome/confirmation email immediately after subscribe. [ASSUMED]
-   - Recommendation: store consent and show localized success; send a welcome email only if it can reuse the outbox without delaying core consent requirements. [ASSUMED]
+   - Decision: A successful subscribe stores consent, shows localized success immediately, and enqueues a lightweight localized welcome/confirmation email through the existing transactional outbox. That email includes the one-click unsubscribe link required by D-14/NEWS-02. No double-opt-in gate is added in Phase 6. [RESOLVED: planner, 2026-06-20]
 
-3. **Admin subscriber data masking**
+3. **Admin subscriber data masking - RESOLVED**
    - What we know: admin can inspect subscriber status and consent history but cannot override consent. [VERIFIED: 06-CONTEXT.md]
-   - What's unclear: whether admin needs full email display or masked display in list view. [ASSUMED]
-   - Recommendation: list view can show email for operational search, but source/user-agent/IP metadata should stay redacted/hashed. [ASSUMED]
+   - Decision: The protected admin subscriber list may show full subscriber email for operational search/filtering after `requireAdmin`; public surfaces and non-admin outputs must use masked email. Raw IP, raw user-agent, raw token, and token hash values must not render in admin UI. [RESOLVED: planner, 2026-06-20]
 
 ## Environment Availability
 

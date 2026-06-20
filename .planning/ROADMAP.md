@@ -261,25 +261,49 @@ Plans:
   4. Visitor can explicitly subscribe in either language and unsubscribe through a secure link with consent history retained.
   5. Admin can inspect current subscriber status without overriding customer consent.
 
-**Plans**: 4 plans
+**Plans**: 10 plans
 
 Plans:
 
 **Wave 1**
 
-- [ ] 06-01-PLAN.md - Implement saved addresses and wishlist experiences
+- [ ] 06-01-PLAN.md - Implement saved-address account management
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 06-02-PLAN.md - Implement verified-purchase reviews and admin moderation/replies
+- [ ] 06-02-PLAN.md - Wire saved addresses into checkout quote revalidation
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 06-03-PLAN.md - Implement localized newsletter consent, unsubscribe, and subscriber administration
+- [ ] 06-03-PLAN.md - Implement account wishlist storage and current catalog rendering
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 06-04-PLAN.md - Verify ownership, review eligibility, consent, and account UX
+- [ ] 06-04-PLAN.md - Add wishlist hearts to product cards and detail pages
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 06-05-PLAN.md - Implement customer verified reviews and approved public display
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 06-06-PLAN.md - Implement review moderation and one shop reply
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 06-07-PLAN.md - Implement newsletter subscribe and consent history
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
+- [ ] 06-08-PLAN.md - Implement confirmation email and one-click unsubscribe
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
+- [ ] 06-09-PLAN.md - Implement read-only subscriber administration
+
+**Wave 10** *(blocked on Wave 9 completion)*
+
+- [ ] 06-10-PLAN.md - Run authenticated final verification and UI checkpoint
 
 ### Phase 7: Content, SEO, and Launch Readiness
 
@@ -318,5 +342,5 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
 | 5. Fulfillment and Purchase Access | 11/11 | Complete   | 2026-06-20 |
-| 6. Customer Retention and Trust | 0/4 | Not started | - |
+| 6. Customer Retention and Trust | 0/10 | Not started | - |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |
