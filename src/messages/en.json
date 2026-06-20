@@ -284,6 +284,43 @@
       "error": "Pattern library could not be loaded."
     }
   },
+  "accountAddresses": {
+    "title": "Saved addresses",
+    "intro": "Keep shipping details ready for future checkout. Past orders always keep their original shipping address.",
+    "empty": "Nothing saved yet. Save a shipping address to fill checkout faster next time.",
+    "newAddress": "Add an address",
+    "defaultBadge": "Default",
+    "loadError": "Saved addresses could not be loaded.",
+    "deleteConfirm": "Delete this saved address? Past orders keep their original shipping details.",
+    "fields": {
+      "label": "Address label",
+      "recipientName": "Recipient name",
+      "phoneNumber": "Phone number",
+      "countryCode": "Country code",
+      "region": "State / province",
+      "locality": "City",
+      "addressLine1": "Address line 1",
+      "addressLine2": "Address line 2",
+      "postalCode": "Postal code",
+      "isDefault": "Use as default shipping address"
+    },
+    "actions": {
+      "save": "Save address",
+      "saving": "Saving",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleting": "Deleting",
+      "setDefault": "Set as default",
+      "settingDefault": "Setting default"
+    },
+    "status": {
+      "saved": "Address saved.",
+      "deleted": "Address deleted. Past orders were not changed.",
+      "defaultSet": "Default address updated.",
+      "error": "We could not save your changes. Check the highlighted fields and try again."
+    }
+  },
   "guestAccess": {
     "fields": {
       "orderNumber": "Order number",

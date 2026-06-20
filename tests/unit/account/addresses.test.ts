@@ -1,4 +1,10 @@
 import {describe, expect, test, vi} from 'vitest';
+
+vi.mock('server-only', () => ({}));
+vi.mock('next/cache', () => ({revalidatePath: vi.fn()}));
+vi.mock('@/auth/guards', () => ({requireUser: vi.fn()}));
+vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient: vi.fn()}));
+
 import {
   getCustomerShippingAddresses,
   mapCustomerShippingAddressRow,
@@ -84,7 +90,7 @@ describe('saved shipping address contracts (ACC-03, D-01, D-02, D-04)', () => {
     });
   });
 
-  test('queries with the server-owned user id and returns default-first rows', async () => {
+  test('queries with the server-owned user id and preserves stable creation order', async () => {
     const order = vi.fn(() => Promise.resolve({
       data: [
         {
@@ -115,7 +121,7 @@ describe('saved shipping address contracts (ACC-03, D-01, D-02, D-04)', () => {
     });
     expect(client.from).toHaveBeenCalledWith('customer_shipping_addresses');
     expect(eq).toHaveBeenCalledWith('user_id', ownerId);
-    expect(order).toHaveBeenCalledWith('is_default', {ascending: false});
+    expect(order).toHaveBeenCalledWith('created_at', {ascending: true});
   });
 
   test('saves through the atomic RPC without accepting a browser owner id', async () => {

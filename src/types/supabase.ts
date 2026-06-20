@@ -556,6 +556,57 @@ export type Database = {
           },
         ]
       }
+      customer_shipping_addresses: {
+        Row: {
+          address_line_1: string
+          address_line_2: string | null
+          country_code: string
+          created_at: string
+          id: string
+          is_default: boolean
+          label: string
+          locality: string | null
+          phone_number: string
+          postal_code: string | null
+          recipient_name: string
+          region: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address_line_1: string
+          address_line_2?: string | null
+          country_code: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label: string
+          locality?: string | null
+          phone_number: string
+          postal_code?: string | null
+          recipient_name: string
+          region?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address_line_1?: string
+          address_line_2?: string | null
+          country_code?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          locality?: string | null
+          phone_number?: string
+          postal_code?: string | null
+          recipient_name?: string
+          region?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       digital_access_tokens: {
         Row: {
           consumed_at: string | null
@@ -2455,6 +2506,10 @@ export type Database = {
         Args: { p_payload: Json }
         Returns: Json
       }
+      delete_customer_shipping_address: {
+        Args: { p_address_id: string }
+        Returns: Json
+      }
       expire_due_payments: { Args: { p_limit?: number }; Returns: Json }
       get_admin_order_timeline: {
         Args: { p_order_id: string }
@@ -2635,6 +2690,26 @@ export type Database = {
           p_expected_version: number
           p_reason: string
         }
+        Returns: Json
+      }
+      save_customer_shipping_address: {
+        Args: {
+          p_address_id: string
+          p_address_line_1: string
+          p_address_line_2: string
+          p_country_code: string
+          p_is_default: boolean
+          p_label: string
+          p_locality: string
+          p_phone_number: string
+          p_postal_code: string
+          p_recipient_name: string
+          p_region: string
+        }
+        Returns: Json
+      }
+      set_default_customer_shipping_address: {
+        Args: { p_address_id: string }
         Returns: Json
       }
       submit_checkout: { Args: { p_payload: Json }; Returns: Json }

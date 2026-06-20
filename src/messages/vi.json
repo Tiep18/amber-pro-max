@@ -284,6 +284,43 @@
       "error": "Chua tai duoc thu vien mau PDF."
     }
   },
+  "accountAddresses": {
+    "title": "Dia chi da luu",
+    "intro": "Luu thong tin giao hang cho lan thanh toan sau. Don hang cu luon giu nguyen dia chi giao hang ban dau.",
+    "empty": "Chua co dia chi da luu. Luu dia chi giao hang de thanh toan nhanh hon lan sau.",
+    "newAddress": "Them dia chi",
+    "defaultBadge": "Mac dinh",
+    "loadError": "Chua tai duoc dia chi da luu.",
+    "deleteConfirm": "Xoa dia chi da luu nay? Don hang cu van giu nguyen thong tin giao hang ban dau.",
+    "fields": {
+      "label": "Ten dia chi",
+      "recipientName": "Ten nguoi nhan",
+      "phoneNumber": "So dien thoai",
+      "countryCode": "Ma quoc gia",
+      "region": "Tinh / bang",
+      "locality": "Thanh pho",
+      "addressLine1": "Dia chi dong 1",
+      "addressLine2": "Dia chi dong 2",
+      "postalCode": "Ma buu chinh",
+      "isDefault": "Dung lam dia chi giao hang mac dinh"
+    },
+    "actions": {
+      "save": "Luu dia chi",
+      "saving": "Dang luu",
+      "cancel": "Huy",
+      "edit": "Sua",
+      "delete": "Xoa",
+      "deleting": "Dang xoa",
+      "setDefault": "Dat mac dinh",
+      "settingDefault": "Dang dat mac dinh"
+    },
+    "status": {
+      "saved": "Da luu dia chi.",
+      "deleted": "Da xoa dia chi. Don hang cu khong thay doi.",
+      "defaultSet": "Da cap nhat dia chi mac dinh.",
+      "error": "Khong the luu thay doi. Kiem tra cac truong va thu lai."
+    }
+  },
   "guestAccess": {
     "fields": {
       "orderNumber": "Ma don hang",
