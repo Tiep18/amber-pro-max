@@ -240,5 +240,26 @@
   },
   "footer": {
     "copyright": "Provisional handmade studio foundation"
+  },
+  "accountPurchases": {
+    "orders": {
+      "title": "Order history",
+      "empty": "No paid orders yet.",
+      "total": "Total",
+      "payment": "Payment",
+      "digital": "Digital",
+      "physical": "Physical",
+      "open": "Open order",
+      "error": "Order history could not be loaded."
+    },
+    "patterns": {
+      "title": "Pattern library",
+      "empty": "Paid PDF patterns will appear here after payment is confirmed.",
+      "purchases": "Purchases",
+      "latest": "Latest purchase",
+      "download": "Download PDF",
+      "inactive": "Access inactive",
+      "error": "Pattern library could not be loaded."
+    }
   }
 }

@@ -240,5 +240,26 @@
   },
   "footer": {
     "copyright": "Nen tang studio handmade tam thoi"
+  },
+  "accountPurchases": {
+    "orders": {
+      "title": "Lich su don hang",
+      "empty": "Chua co don hang da thanh toan.",
+      "total": "Tong cong",
+      "payment": "Thanh toan",
+      "digital": "PDF",
+      "physical": "Hang giao",
+      "open": "Mo don hang",
+      "error": "Chua tai duoc lich su don hang."
+    },
+    "patterns": {
+      "title": "Thu vien mau PDF",
+      "empty": "Mau PDF da mua se hien thi tai day sau khi thanh toan duoc xac nhan.",
+      "purchases": "So lan mua",
+      "latest": "Lan mua moi nhat",
+      "download": "Tai PDF",
+      "inactive": "Quyen truy cap khong con hoat dong",
+      "error": "Chua tai duoc thu vien mau PDF."
+    }
   }
 }

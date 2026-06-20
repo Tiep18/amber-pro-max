@@ -19,6 +19,17 @@ const fulfillmentSurfaceFiles = [
   'src/components/fulfillment/download-panel.tsx'
 ];
 
+const fulfillmentAccountFiles = [
+  'src/fulfillment/account-queries.ts',
+  'src/components/fulfillment/account-order-history.tsx',
+  'src/components/fulfillment/pattern-library.tsx',
+  'src/components/fulfillment/pattern-library-card.tsx',
+  'src/app/[locale]/account/orders/page.tsx',
+  'src/app/[locale]/account/patterns/page.tsx',
+  'src/app/[locale]/tai-khoan/don-hang/page.tsx',
+  'src/app/[locale]/tai-khoan/mau-pdf/page.tsx'
+];
+
 const fulfillmentEmailFiles = [
   'src/emails/transactional.ts',
   'src/fulfillment/email-outbox.ts',
@@ -83,6 +94,13 @@ test('transactional email worker keeps tokens and provider secrets out of durabl
   assert.doesNotMatch(sourceWithoutSanitizer, /console\.(log|error|warn)|provider_payload|signed_url|signedUrl|object_path|pattern-pdfs/i);
   assert.doesNotMatch(source, /RESEND_API_KEY|TRANSACTIONAL_EMAIL_WORKER_SECRET/);
   assert.doesNotMatch(source, /attachments\s*:/i);
+});
+
+test('account purchase library delegates downloads through the app route without private storage details', () => {
+  const source = readExisting(fulfillmentAccountFiles);
+
+  assert.match(source, /\/api\/downloads/);
+  assert.doesNotMatch(source, /createSignedUrl|signedUrl|token_hash|bucket_id|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
 });
 
 test('fulfillment audit and outbox payloads reject unsafe secrets', () => {
