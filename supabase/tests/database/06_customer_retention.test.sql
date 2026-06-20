@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(13);
+select plan(28);
 
 select has_table('public', 'customer_shipping_addresses', 'customer shipping address table exists');
 select col_is_fk('public', 'customer_shipping_addresses', 'user_id', 'saved addresses belong to auth users');
@@ -179,6 +179,104 @@ select throws_ok(
   '23505',
   null,
   'database rejects a second default address for one customer'
+);
+
+select has_table('public', 'wishlist_items', 'wishlist items table exists');
+select col_is_fk('public', 'wishlist_items', 'user_id', 'wishlist items belong to auth users');
+select col_is_fk('public', 'wishlist_items', 'product_id', 'wishlist items point at catalog products');
+select has_index(
+  'public',
+  'wishlist_items',
+  'wishlist_items_owner_product_idx',
+  'each customer can save a product once'
+);
+select policies_are(
+  'public',
+  'wishlist_items',
+  array[
+    'wishlist items are owner readable',
+    'wishlist items are owner insertable',
+    'wishlist items are owner deletable'
+  ],
+  'wishlist exposes owner-only read, create, and remove policies'
+);
+select table_privs_are(
+  'public',
+  'wishlist_items',
+  'anon',
+  array[]::text[],
+  'anonymous visitors have no direct wishlist access'
+);
+select table_privs_are(
+  'public',
+  'wishlist_items',
+  'authenticated',
+  array['SELECT', 'INSERT', 'DELETE'],
+  'authenticated customers use owner-scoped wishlist CRUD'
+);
+select hasnt_column('public', 'wishlist_items', 'price_minor', 'wishlist rows do not snapshot price');
+select hasnt_column('public', 'wishlist_items', 'currency_code', 'wishlist rows do not snapshot currency');
+select hasnt_column('public', 'wishlist_items', 'localized_title', 'wishlist rows do not snapshot localized titles');
+select hasnt_column('public', 'wishlist_items', 'stock_quantity', 'wishlist rows do not snapshot stock');
+
+reset role;
+
+insert into public.wishlist_items (id, user_id, product_id)
+select
+  '00000000-0000-4000-8000-000000000631',
+  '00000000-0000-4000-8000-000000000601',
+  products.id
+from public.products
+order by products.id
+limit 1;
+
+insert into public.wishlist_items (id, user_id, product_id)
+select
+  '00000000-0000-4000-8000-000000000632',
+  '00000000-0000-4000-8000-000000000602',
+  products.id
+from public.products
+order by products.id
+limit 1;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000601', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+
+select results_eq(
+  $$select user_id from public.wishlist_items order by id$$,
+  $$values ('00000000-0000-4000-8000-000000000601'::uuid)$$,
+  'customer sees only their own wishlist items'
+);
+select is_empty(
+  $$
+    delete from public.wishlist_items
+    where id = '00000000-0000-4000-8000-000000000632'
+    returning id
+  $$,
+  'customer cannot remove another customer wishlist item'
+);
+select throws_ok(
+  $$
+    insert into public.wishlist_items (user_id, product_id)
+    select '00000000-0000-4000-8000-000000000601', product_id
+    from public.wishlist_items
+    where id = '00000000-0000-4000-8000-000000000631'
+  $$,
+  '23505',
+  null,
+  'database rejects duplicate owner and product wishlist rows'
+);
+select throws_ok(
+  $$
+    insert into public.wishlist_items (user_id, product_id)
+    select '00000000-0000-4000-8000-000000000602', product_id
+    from public.wishlist_items
+    where id = '00000000-0000-4000-8000-000000000631'
+  $$,
+  '42501',
+  null,
+  'customer cannot create a wishlist item for another owner'
 );
 
 select * from finish();
