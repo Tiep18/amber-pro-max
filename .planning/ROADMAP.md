@@ -265,10 +265,21 @@ Plans:
 
 Plans:
 
-- [ ] 06-01: Implement saved addresses and wishlist experiences
-- [ ] 06-02: Implement verified-purchase reviews and admin moderation/replies
-- [ ] 06-03: Implement localized newsletter consent, unsubscribe, and subscriber administration
-- [ ] 06-04: Verify ownership, review eligibility, consent, and account UX
+**Wave 1**
+
+- [ ] 06-01-PLAN.md - Implement saved addresses and wishlist experiences
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 06-02-PLAN.md - Implement verified-purchase reviews and admin moderation/replies
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 06-03-PLAN.md - Implement localized newsletter consent, unsubscribe, and subscriber administration
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 06-04-PLAN.md - Verify ownership, review eligibility, consent, and account UX
 
 ### Phase 7: Content, SEO, and Launch Readiness
 
