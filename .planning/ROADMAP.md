@@ -232,7 +232,7 @@ Plans:
 **Wave 4** *(blocked on admin/email/account foundations)*
 
 - [x] 05-06: Implement admin entitlement revoke/reissue with audit and stale-state handling
-- [ ] 05-08: Implement guest reopen and same-email order claim
+- [x] 05-08: Implement guest reopen and same-email order claim
 
 **Wave 5** *(blocked on email worker and entitlement admin foundations)*
 
@@ -306,6 +306,6 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
-| 5. Fulfillment and Purchase Access | 7/11 | In Progress|  |
+| 5. Fulfillment and Purchase Access | 8/11 | In Progress|  |
 | 6. Customer Retention and Trust | 0/4 | Not started | - |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |
