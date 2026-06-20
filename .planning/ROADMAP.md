@@ -271,7 +271,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 06-02-PLAN.md - Wire saved addresses into checkout quote revalidation
+- [x] 06-02-PLAN.md - Wire saved addresses into checkout quote revalidation
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -342,5 +342,5 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
 | 5. Fulfillment and Purchase Access | 11/11 | Complete   | 2026-06-20 |
-| 6. Customer Retention and Trust | 1/10 | In Progress|  |
+| 6. Customer Retention and Trust | 2/10 | In Progress|  |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |
