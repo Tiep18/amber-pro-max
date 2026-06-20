@@ -39,6 +39,11 @@ export function OrderQueue({orders}: {orders: AdminOrderQueueItem[]}) {
                 </div>
                 <div className="flex min-h-11 items-center">
                   <span className="rounded-full bg-[var(--surface-muted)] px-3 py-1 text-sm font-semibold">{statusLabel(order.fulfillmentGateStatus)}</span>
+                  {order.failedEmailCount > 0 ? (
+                    <span className="ml-2 rounded-full bg-[var(--warning-surface)] px-3 py-1 text-sm font-semibold text-[var(--warning)]">
+                      {order.failedEmailCount} email
+                    </span>
+                  ) : null}
                 </div>
               </Link>
             ))}

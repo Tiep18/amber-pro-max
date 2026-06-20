@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {formatShippingAddressLines} from '@/checkout/shipping-address';
+import {FailedEmailQueue} from '@/components/admin/fulfillment/failed-email-queue';
 import type {AdminOrderDetail} from '@/payments/queries';
 import {formatAdminDate, formatAdminMoney, statusLabel} from './format';
 import {PaymentTimeline} from './payment-timeline';
@@ -78,6 +79,7 @@ export function OrderDetail({order}: {order: AdminOrderDetail}) {
         </Card>
       ) : null}
       <ProviderEvidencePanel order={order} />
+      <FailedEmailQueue emails={order.failedEmails} />
       <VietQrEvidenceForm order={order} />
       <PaymentTimeline items={order.timeline} />
     </div>

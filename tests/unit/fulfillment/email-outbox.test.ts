@@ -1,5 +1,11 @@
 import {describe, expect, test, vi} from 'vitest';
 import {POST} from '@/app/api/fulfillment/email-outbox/route';
+import {
+  buildDownloadResendIntent,
+  maskEmailForAdmin,
+  sanitizeEmailFailureCode,
+  validateRetryCandidate
+} from '@/fulfillment/admin-email-actions';
 import {processTransactionalEmailBatch} from '@/fulfillment/email-outbox';
 import {renderTransactionalEmail} from '@/emails/transactional';
 
@@ -131,5 +137,41 @@ describe('transactional email worker route', () => {
 
     expect(missing.status).toBe(401);
     expect(wrong.status).toBe(401);
+  });
+});
+
+describe('admin transactional email recovery helpers', () => {
+  test('masks recipients and sanitizes provider failure details', () => {
+    expect(maskEmailForAdmin('buyer.long@example.test')).toBe('b***g@example.test');
+    expect(sanitizeEmailFailureCode('Authorization: Bearer secret provider_payload raw_token')).toBe('provider_error');
+  });
+
+  test('allows controlled retry only for failed or due pending rows', () => {
+    expect(validateRetryCandidate({status: 'failed', availableAt: null}, now)).toEqual({status: 'retryable'});
+    expect(validateRetryCandidate({status: 'pending', availableAt: new Date(now.getTime() - 1_000).toISOString()}, now)).toEqual({status: 'retryable'});
+    expect(validateRetryCandidate({status: 'sent', availableAt: null}, now)).toEqual({status: 'stale', code: 'email_retry_not_available'});
+  });
+
+  test('builds download resend outbox and audit intent without reusing a stale link', () => {
+    const intent = buildDownloadResendIntent({
+      orderId: 'order-1',
+      orderNumber: 'ATB-20260619-0001',
+      entitlementId: 'entitlement-1',
+      recipientEmail: 'buyer@example.test',
+      locale: 'en',
+      adminId: 'admin-1'
+    });
+
+    expect(intent.outbox).toMatchObject({
+      event_type: 'digital_access_reissued',
+      recipient_email: 'buyer@example.test',
+      locale: 'en'
+    });
+    expect(intent.audit).toMatchObject({
+      event_type: 'digital_access_resend_requested',
+      actor_type: 'admin',
+      actor_id: 'admin-1'
+    });
+    expect(JSON.stringify(intent)).not.toMatch(/raw_token|signed_url|pattern-pdfs|object_path/i);
   });
 });

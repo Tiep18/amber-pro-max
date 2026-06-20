@@ -23,7 +23,9 @@ const fulfillmentEmailFiles = [
   'src/emails/transactional.ts',
   'src/fulfillment/email-outbox.ts',
   'src/fulfillment/email-outbox.server.ts',
-  'src/app/api/fulfillment/email-outbox/route.ts'
+  'src/app/api/fulfillment/email-outbox/route.ts',
+  'src/fulfillment/admin-email-actions.ts',
+  'src/components/admin/fulfillment/failed-email-queue.tsx'
 ];
 
 function readExisting(files) {
@@ -75,7 +77,10 @@ test('transactional email worker keeps tokens and provider secrets out of durabl
 
   assert.match(route, /authorization|x-worker-secret/i);
   assert.match(route, /transactionalEmailWorkerSecret/);
-  assert.doesNotMatch(source, /console\.(log|error|warn)|provider_payload|signed_url|signedUrl|object_path|pattern-pdfs/i);
+  const sanitizerPattern = /export function sanitizeEmailFailureCode[\s\S]*?export function validateRetryCandidate/;
+  const sourceWithoutSanitizer = source.replace(sanitizerPattern, 'export function validateRetryCandidate');
+
+  assert.doesNotMatch(sourceWithoutSanitizer, /console\.(log|error|warn)|provider_payload|signed_url|signedUrl|object_path|pattern-pdfs/i);
   assert.doesNotMatch(source, /RESEND_API_KEY|TRANSACTIONAL_EMAIL_WORKER_SECRET/);
   assert.doesNotMatch(source, /attachments\s*:/i);
 });

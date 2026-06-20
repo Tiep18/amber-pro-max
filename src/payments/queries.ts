@@ -1,5 +1,6 @@
 import type {CustomerPaymentStatus, FulfillmentGateStatus, PaymentInternalStatus, PaymentProvider} from '@/payments/types';
 import {shippingAddressSchema, type ShippingAddress} from '@/checkout/shipping-address';
+import {maskEmailForAdmin, sanitizeEmailFailureCode} from '@/fulfillment/admin-email-actions';
 import type {Database, Json} from '@/types/supabase';
 
 type RpcClient = {
@@ -48,6 +49,22 @@ export type AdminOrderQueueItem = {
   reservationExpiresAt: string | null;
   shippingAddress: ShippingAddress | null;
   updatedAt: string | null;
+  failedEmailCount: number;
+};
+
+export type AdminFailedEmailQueueItem = {
+  id: string;
+  orderId: string | null;
+  orderNumber: string;
+  entitlementId: string | null;
+  eventType: string;
+  status: string;
+  locale: 'en' | 'vi';
+  recipientEmail: string;
+  maskedRecipient: string;
+  sanitizedError: string;
+  nextRetryAt: string | null;
+  createdAt: string | null;
 };
 
 export type AdminOrderTimelineItem = {
@@ -77,6 +94,7 @@ export type AdminOrderDetail = AdminOrderQueueItem & {
     latestEvidence: Json | null;
   } | null;
   timeline: AdminOrderTimelineItem[];
+  failedEmails: AdminFailedEmailQueueItem[];
 };
 
 export type AdminOrderQueueResult =
@@ -224,8 +242,64 @@ function mapQueueItem(row: Record<string, unknown>): AdminOrderQueueItem | null 
     provider: asPaymentProvider(row.provider),
     reservationExpiresAt: typeof row.reservation_expires_at === 'string' ? row.reservation_expires_at : null,
     shippingAddress: asShippingAddress(row.shipping_address),
-    updatedAt: typeof row.updated_at === 'string' ? row.updated_at : null
+    updatedAt: typeof row.updated_at === 'string' ? row.updated_at : null,
+    failedEmailCount: typeof row.failed_email_count === 'number' ? row.failed_email_count : 0
   };
+}
+
+function mapFailedEmailRow(row: Record<string, unknown>, fallbackOrderNumber: string): AdminFailedEmailQueueItem | null {
+  if (typeof row.id !== 'string' || typeof row.event_type !== 'string' || typeof row.recipient_email !== 'string') {
+    return null;
+  }
+  const payload = isRecord(row.payload) ? row.payload : {};
+  return {
+    id: row.id,
+    orderId: typeof row.order_id === 'string' ? row.order_id : null,
+    orderNumber: typeof payload.orderNumber === 'string' ? payload.orderNumber : fallbackOrderNumber,
+    entitlementId: typeof row.entitlement_id === 'string' ? row.entitlement_id : null,
+    eventType: row.event_type,
+    status: typeof row.status === 'string' ? row.status : 'failed',
+    locale: row.locale === 'vi' ? 'vi' : 'en',
+    recipientEmail: row.recipient_email,
+    maskedRecipient: maskEmailForAdmin(row.recipient_email),
+    sanitizedError: sanitizeEmailFailureCode(typeof payload.failureCode === 'string' ? payload.failureCode : null),
+    nextRetryAt: typeof row.available_at === 'string' ? row.available_at : null,
+    createdAt: typeof row.created_at === 'string' ? row.created_at : null
+  };
+}
+
+async function getFailedEmailsForOrder(client: QueryClient, orderId: string, orderNumber: string) {
+  const query = client.from('transactional_email_outbox').select(
+    'id,order_id,entitlement_id,event_type,recipient_email,locale,status,payload,available_at,created_at'
+  ) as {
+    eq: (column: string, value: string) => {
+      in: (column: string, values: string[]) => {
+        order: (column: string, options?: Record<string, unknown>) => Promise<{data: unknown[] | null; error: unknown}>;
+      };
+    };
+  };
+  const {data, error} = await query.eq('order_id', orderId).in('status', ['failed', 'pending']).order('created_at', {ascending: false});
+  if (error || !Array.isArray(data)) {
+    return [];
+  }
+  return data.filter(isRecord).map((row) => mapFailedEmailRow(row, orderNumber)).filter((row): row is AdminFailedEmailQueueItem => Boolean(row));
+}
+
+async function getFailedEmailCounts(client: QueryClient) {
+  const query = client.from('transactional_email_outbox').select('order_id,status') as {
+    in: (column: string, values: string[]) => Promise<{data: unknown[] | null; error: unknown}>;
+  };
+  const {data, error} = await query.in('status', ['failed', 'pending']);
+  const counts = new Map<string, number>();
+  if (error || !Array.isArray(data)) {
+    return counts;
+  }
+  for (const row of data.filter(isRecord)) {
+    if (typeof row.order_id === 'string') {
+      counts.set(row.order_id, (counts.get(row.order_id) ?? 0) + 1);
+    }
+  }
+  return counts;
 }
 
 function mapTimelineItem(row: Record<string, unknown>): AdminOrderTimelineItem | null {
@@ -273,7 +347,14 @@ export async function getAdminOrderQueue({
     return {status: 'error', code: 'admin_order_queue_failed'};
   }
 
-  return {status: 'success', orders: data.filter(isRecord).map(mapQueueItem).filter((row): row is AdminOrderQueueItem => Boolean(row))};
+  const counts = await getFailedEmailCounts(client);
+  const orders = data
+    .filter(isRecord)
+    .map(mapQueueItem)
+    .filter((row): row is AdminOrderQueueItem => Boolean(row))
+    .map((order) => ({...order, failedEmailCount: counts.get(order.orderId) ?? order.failedEmailCount}));
+
+  return {status: 'success', orders};
 }
 
 export async function getAdminOrderDetail({
@@ -327,7 +408,8 @@ export async function getAdminOrderDetail({
               latestEvidence: null
             }
           : null,
-      timeline: timelineData.filter(isRecord).map(mapTimelineItem).filter((row): row is AdminOrderTimelineItem => Boolean(row))
+      timeline: timelineData.filter(isRecord).map(mapTimelineItem).filter((row): row is AdminOrderTimelineItem => Boolean(row)),
+      failedEmails: await getFailedEmailsForOrder(client, base.orderId, base.orderNumber)
     }
   };
 }
