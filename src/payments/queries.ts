@@ -25,6 +25,14 @@ export type CustomerOrderPaymentProjection = {
   paymentStatus?: PaymentInternalStatus;
   customerPaymentStatus: CustomerPaymentStatus;
   fulfillmentGateStatus: FulfillmentGateStatus;
+  digitalFulfillmentStatus?: string;
+  physicalFulfillmentStatus?: string;
+  physicalTracking?: {
+    status: string;
+    carrier: string | null;
+    trackingNumber: string | null;
+    trackingUrl: string | null;
+  } | null;
   amountMinor: number;
   currencyCode: 'USD' | 'VND';
   reservationExpiresAt: string | null;
@@ -234,6 +242,16 @@ export async function getAuthorizedOrderPayment({
     orderNumber: data.orderNumber,
     customerPaymentStatus: asCustomerPaymentStatus(data.customerPaymentStatus),
     fulfillmentGateStatus: asFulfillmentGateStatus(data.fulfillmentGateStatus),
+    digitalFulfillmentStatus: typeof data.digitalFulfillmentStatus === 'string' ? data.digitalFulfillmentStatus : undefined,
+    physicalFulfillmentStatus: typeof data.physicalFulfillmentStatus === 'string' ? data.physicalFulfillmentStatus : undefined,
+    physicalTracking: isRecord(data.physicalTracking)
+      ? {
+          status: typeof data.physicalTracking.status === 'string' ? data.physicalTracking.status : 'awaiting_fulfillment',
+          carrier: typeof data.physicalTracking.carrier === 'string' ? data.physicalTracking.carrier : null,
+          trackingNumber: typeof data.physicalTracking.trackingNumber === 'string' ? data.physicalTracking.trackingNumber : null,
+          trackingUrl: typeof data.physicalTracking.trackingUrl === 'string' ? data.physicalTracking.trackingUrl : null
+        }
+      : null,
     amountMinor: data.amountMinor,
     currencyCode: asCurrencyCode(data.currencyCode),
     reservationExpiresAt: typeof data.reservationExpiresAt === 'string' ? data.reservationExpiresAt : null,

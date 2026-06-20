@@ -1,5 +1,7 @@
 ﻿import {describe, expect, test, vi} from 'vitest';
 import {buildPhysicalFulfillmentUpdate, updatePhysicalFulfillment} from '@/fulfillment/physical';
+import {getFulfillmentTrackLabels} from '@/components/fulfillment/fulfillment-track-summary';
+import {safeTrackingHref} from '@/components/fulfillment/physical-tracking-panel';
 
 describe('admin physical fulfillment transitions', () => {
   test('allows forward status flow and queues shipped email without tracking', async () => {
@@ -75,5 +77,26 @@ describe('admin physical fulfillment transitions', () => {
 
     await expect(updatePhysicalFulfillment({orderId: '11111111-1111-4111-8111-111111111111', expectedStatus: 'shipped', expectedVersion: 5, status: 'delivered', locale: 'en', orderNumber: 'ATB-1', recipientEmail: 'buyer@example.test'}, client as never)).resolves.toMatchObject({status: 'updated', physicalStatus: 'delivered'});
     expect(inserts).not.toEqual(expect.arrayContaining([expect.objectContaining({table: 'transactional_email_outbox'})]));
+  });
+});
+
+
+describe('customer physical tracking display helpers', () => {
+  test('separates digital and physical track copy for mixed orders', () => {
+    expect(getFulfillmentTrackLabels({digitalStatus: 'eligible', physicalStatus: 'packing'})).toEqual({
+      digital: 'ready',
+      physical: 'packing'
+    });
+    expect(getFulfillmentTrackLabels({digitalStatus: 'blocked', physicalStatus: 'shipped'})).toEqual({
+      digital: 'locked',
+      physical: 'shipped'
+    });
+  });
+
+  test('renders tracking links only for https URLs', () => {
+    expect(safeTrackingHref('https://tracking.example.test/TRACK123')).toBe('https://tracking.example.test/TRACK123');
+    expect(safeTrackingHref('http://tracking.example.test/TRACK123')).toBeNull();
+    expect(safeTrackingHref('javascript:alert(1)')).toBeNull();
+    expect(safeTrackingHref(null)).toBeNull();
   });
 });

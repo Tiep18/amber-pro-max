@@ -211,6 +211,28 @@
         "body": "Chung toi dang xem lai thong tin thanh toan da xac minh truoc khi doi trang thai don hang.",
         "vietqrBody": "Nguoi ban dang kiem tra chi tiet chuyen khoan ngan hang truoc khi doi trang thai don hang."
       }
+    },
+    "tracks": {
+      "title": "Tien do xu ly",
+      "digital": "PDF",
+      "physical": "Hang giao",
+      "digitalReady": "Quyen PDF da san sang sau khi thanh toan duoc xac nhan.",
+      "digitalLocked": "Quyen PDF bi khoa den khi toan bo don hang duoc xac nhan da thanh toan.",
+      "physicalAwaiting": "San pham handmade dang cho xu ly.",
+      "physicalPacking": "San pham handmade dang duoc dong goi.",
+      "physicalShipped": "San pham handmade da duoc gui.",
+      "physicalDelivered": "San pham handmade da giao xong."
+    },
+    "tracking": {
+      "title": "Theo doi van chuyen",
+      "awaiting": "Don hang chua bat dau van chuyen.",
+      "packing": "Don hang dang duoc dong goi. Thong tin theo doi co the xuat hien sau khi gui.",
+      "shippedNoTracking": "Don hang da duoc gui nhung chua co thong tin theo doi. Thong tin se duoc cap nhat khi co.",
+      "shippedTracking": "Don hang da duoc gui. Dung thong tin ben duoi de theo doi voi don vi van chuyen.",
+      "delivered": "Don hang duoc danh dau da giao.",
+      "carrier": "Don vi van chuyen",
+      "trackingNumber": "Ma theo doi",
+      "openTracking": "Mo trang theo doi"
     }
   },
   "payments": {

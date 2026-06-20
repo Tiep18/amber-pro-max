@@ -30,6 +30,12 @@ const fulfillmentAccountFiles = [
   'src/app/[locale]/tai-khoan/mau-pdf/page.tsx'
 ];
 
+const fulfillmentCustomerTrackingFiles = [
+  'src/components/fulfillment/fulfillment-track-summary.tsx',
+  'src/components/fulfillment/physical-tracking-panel.tsx',
+  'src/components/payments/order-payment-page.tsx'
+];
+
 const fulfillmentPhysicalFiles = [
   'src/fulfillment/physical.ts',
   'src/components/admin/fulfillment/physical-fulfillment-form.tsx',
@@ -126,6 +132,15 @@ test('account purchase library delegates downloads through the app route without
 
   assert.match(source, /\/api\/downloads/);
   assert.doesNotMatch(source, /createSignedUrl|signedUrl|token_hash|bucket_id|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+});
+
+test('customer fulfillment tracking separates digital and physical state without admin-only leakage', () => {
+  const source = readExisting(fulfillmentCustomerTrackingFiles);
+
+  assert.match(source, /FulfillmentTrackSummary/);
+  assert.match(source, /PhysicalTrackingPanel/);
+  assert.match(source, /https:\/\//);
+  assert.doesNotMatch(source, /admin_note|fulfillment_audit|provider_payload|raw_token|token_hash|object_path|pattern-pdfs|signedUrl|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
 });
 
 test('admin physical fulfillment keeps tracking customer-safe and admin-only notes out of customer surfaces', () => {

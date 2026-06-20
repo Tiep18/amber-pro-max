@@ -211,6 +211,28 @@
         "body": "We are reviewing verified payment facts before changing the order status.",
         "vietqrBody": "The seller is checking the bank transfer details before changing the order status."
       }
+    },
+    "tracks": {
+      "title": "Fulfillment progress",
+      "digital": "Digital",
+      "physical": "Physical",
+      "digitalReady": "PDF access is ready after payment confirmation.",
+      "digitalLocked": "PDF access is locked until full payment is confirmed.",
+      "physicalAwaiting": "Handmade items are waiting for fulfillment.",
+      "physicalPacking": "Handmade items are being packed.",
+      "physicalShipped": "Handmade items have shipped.",
+      "physicalDelivered": "Handmade items have been delivered."
+    },
+    "tracking": {
+      "title": "Shipment tracking",
+      "awaiting": "Shipping has not started yet.",
+      "packing": "The order is being packed. Tracking may appear after shipment.",
+      "shippedNoTracking": "The order has shipped without tracking details yet. Tracking will be updated when available.",
+      "shippedTracking": "The order has shipped. Use the tracking details below for carrier updates.",
+      "delivered": "The order is marked delivered.",
+      "carrier": "Carrier",
+      "trackingNumber": "Tracking number",
+      "openTracking": "Open tracking"
     }
   },
   "payments": {

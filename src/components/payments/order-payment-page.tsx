@@ -4,6 +4,8 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {formatMoney} from '@/catalog/money';
 import {formatShippingAddressLines} from '@/checkout/shipping-address';
 import {DownloadPanel} from '@/components/fulfillment/download-panel';
+import {FulfillmentTrackSummary} from '@/components/fulfillment/fulfillment-track-summary';
+import {PhysicalTrackingPanel} from '@/components/fulfillment/physical-tracking-panel';
 import type {Locale} from '@/i18n/routing';
 import {getCheckoutPath} from '@/i18n/routing';
 import {getServerEnv} from '@/lib/env/server';
@@ -186,6 +188,22 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
           <p>{status.fulfillmentLocked ? t('fulfillment.lockedBody') : t('fulfillment.eligibleBody')}</p>
         </Alert> : null}
 
+        <FulfillmentTrackSummary
+          digitalStatus={result.order.digitalFulfillmentStatus ?? (status.fulfillmentLocked ? 'blocked' : 'eligible')}
+          physicalStatus={result.order.physicalFulfillmentStatus ?? 'awaiting_fulfillment'}
+          labels={{
+            title: t('tracks.title'),
+            digital: t('tracks.digital'),
+            physical: t('tracks.physical'),
+            digitalReady: t('tracks.digitalReady'),
+            digitalLocked: t('tracks.digitalLocked'),
+            physicalAwaiting: t('tracks.physicalAwaiting'),
+            physicalPacking: t('tracks.physicalPacking'),
+            physicalShipped: t('tracks.physicalShipped'),
+            physicalDelivered: t('tracks.physicalDelivered')
+          }}
+        />
+
         <DownloadPanel
           orderNumber={result.order.orderNumber}
           eligible={!status.fulfillmentLocked}
@@ -195,6 +213,21 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
             lockedBody: t('downloads.lockedBody'),
             expiredBody: t('downloads.expiredBody'),
             action: t('downloads.action')
+          }}
+        />
+
+        <PhysicalTrackingPanel
+          tracking={result.order.physicalTracking ?? null}
+          labels={{
+            title: t('tracking.title'),
+            awaiting: t('tracking.awaiting'),
+            packing: t('tracking.packing'),
+            shippedNoTracking: t('tracking.shippedNoTracking'),
+            shippedTracking: t('tracking.shippedTracking'),
+            delivered: t('tracking.delivered'),
+            carrier: t('tracking.carrier'),
+            trackingNumber: t('tracking.trackingNumber'),
+            openTracking: t('tracking.openTracking')
           }}
         />
       </section>

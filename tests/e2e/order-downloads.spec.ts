@@ -15,4 +15,14 @@ test.describe('order downloads', () => {
     await page.goto('/en/orders/ATB-EXPIRED-DOWNLOAD');
     await expect(page.getByText(/request a fresh link|lien ket moi/i)).toBeVisible();
   });
+  test.skip('mixed order page shows digital and physical progress separately', async ({page}) => {
+    await page.goto('/en/orders/ATB-MIXED-SHIPPED');
+    await expect(page.getByText(/digital/i)).toBeVisible();
+    await expect(page.getByText(/physical|shipment/i)).toBeVisible();
+  });
+
+  test.skip('customer sees shipped without tracking copy or safe https tracking link', async ({page}) => {
+    await page.goto('/en/orders/ATB-SHIPPED-NO-TRACKING');
+    await expect(page.getByText(/shipped without tracking|tracking will be updated/i)).toBeVisible();
+  });
 });
