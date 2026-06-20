@@ -17,7 +17,7 @@ const PHYSICAL_AUTH_SLUGS = new Set([
   '/en/forgot-password',
   '/en/reset-password'
 ]);
-const PHYSICAL_PROTECTED_SLUGS = new Set(['/vi/tai-khoan', '/en/account']);
+const PHYSICAL_PROTECTED_SLUGS = new Set(['/vi/tai-khoan', '/en/account', '/vi/tai-khoan/dia-chi', '/en/account/addresses']);
 const PHYSICAL_CART_SLUGS = new Set(['/vi/gio-hang', '/en/cart', '/vi/thanh-toan', '/en/checkout']);
 
 function isPhysicalOrderPath(pathname: string) {

@@ -2,6 +2,7 @@
 
 import {useEffect, useState} from 'react';
 import {useRouter} from 'next/navigation';
+import type {CustomerShippingAddress} from '@/account/addresses';
 import type {Locale} from '@/i18n/routing';
 import type {CartQuote} from '@/checkout/types';
 import {submitCheckoutAction, type SubmitCheckoutActionState} from '@/checkout/actions';
@@ -14,6 +15,7 @@ import {ContactForm, type CheckoutPaymentIntent} from './contact-form';
 import {DestinationForm} from './destination-form';
 import {DiscountCodeForm} from './discount-code-form';
 import {OrderSummary} from './order-summary';
+import {SavedAddressSelector} from './saved-address-selector';
 
 const copy = {
   en: {
@@ -59,7 +61,7 @@ const emptyShippingAddress: ShippingAddress = {
   postalCode: null
 };
 
-export function CheckoutPage({locale}: {locale: Locale}) {
+export function CheckoutPage({locale, savedAddresses = []}: {locale: Locale; savedAddresses?: CustomerShippingAddress[]}) {
   const t = copy[locale];
   const router = useRouter();
   const {quote, cart} = useCart();
@@ -160,7 +162,18 @@ export function CheckoutPage({locale}: {locale: Locale}) {
             <CardHeader>
               <CardTitle>{t.destination}</CardTitle>
             </CardHeader>
-            <CardContent>
+          <CardContent>
+              {savedAddresses.length > 0 ? (
+                <div className="mb-5">
+                  <SavedAddressSelector
+                    locale={locale}
+                    addresses={savedAddresses}
+                    acceptedQuote={acceptedQuote}
+                    onShippingAddressSelected={setShippingAddress}
+                    onAcceptedQuote={setAcceptedQuote}
+                  />
+                </div>
+              ) : null}
               <DestinationForm
                 locale={locale}
                 acceptedQuote={acceptedQuote}

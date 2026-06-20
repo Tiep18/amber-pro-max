@@ -30,6 +30,19 @@ export type CustomerShippingAddressResult =
   | {status: 'success'; addresses: CustomerShippingAddress[]}
   | {status: 'error'; code: 'addresses_load_failed'};
 
+export function customerAddressToShippingAddress(address: CustomerShippingAddress): ShippingAddress {
+  return {
+    recipientName: address.recipientName,
+    phoneNumber: address.phoneNumber,
+    countryCode: address.countryCode,
+    region: address.region,
+    locality: address.locality,
+    addressLine1: address.addressLine1,
+    addressLine2: address.addressLine2,
+    postalCode: address.postalCode
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
