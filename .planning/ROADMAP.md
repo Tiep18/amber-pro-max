@@ -240,7 +240,7 @@ Plans:
 
 **Wave 6** *(blocked on downloads, guest claim, and physical fulfillment)*
 
-- [ ] 05-10: Render customer physical tracking and split mixed-order fulfillment status
+- [x] 05-10: Render customer physical tracking and split mixed-order fulfillment status
 
 **Wave 7** *(blocked on all implementation plans)*
 
@@ -306,6 +306,6 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 2. Market-Aware Catalog | 8/8 | Complete    | 2026-06-13 |
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
-| 5. Fulfillment and Purchase Access | 9/11 | In Progress|  |
+| 5. Fulfillment and Purchase Access | 10/11 | In Progress|  |
 | 6. Customer Retention and Trust | 0/4 | Not started | - |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |
