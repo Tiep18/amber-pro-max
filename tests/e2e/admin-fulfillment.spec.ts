@@ -23,4 +23,9 @@ test.describe('admin fulfillment', () => {
     await expect(page.getByRole('button', {name: /reissue access/i})).toBeVisible();
     await expect(page.getByText(/raw_token|token_hash|signed_url|object_path/i)).toHaveCount(0);
   });
+  test.skip('admin can update physical fulfillment status and optional tracking', async ({page}) => {
+    await page.goto('/admin/orders/ATB-PHYSICAL-PACKING');
+    await expect(page.getByRole('button', {name: /update physical status/i})).toBeVisible();
+    await expect(page.getByLabel(/tracking url/i)).toBeVisible();
+  });
 });

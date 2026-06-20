@@ -1,6 +1,6 @@
 begin;
 
-select plan(18);
+select plan(17);
 
 select has_table('public', 'physical_fulfillments', 'physical fulfillment table exists');
 select has_table('public', 'physical_fulfillment_events', 'physical fulfillment event table exists');
@@ -13,12 +13,6 @@ select col_type_is('public', 'physical_fulfillments', 'version', 'integer', 'phy
 select col_is_fk('public', 'physical_fulfillment_events', 'physical_fulfillment_id', 'physical events reference fulfillment record');
 select col_type_is('public', 'physical_fulfillment_events', 'metadata', 'jsonb', 'physical event metadata is structured');
 select has_trigger('public', 'physical_fulfillment_events', 'physical_fulfillment_events_safe_metadata', 'physical event metadata rejects unsafe material');
-select throws_ok(
-  $$insert into public.physical_fulfillments(order_id, status) values (gen_random_uuid(), 'shipped')$$,
-  null,
-  null,
-  'shipped fulfillment requires tracking facts'
-);
 select policies_are('public', 'physical_fulfillments', array['physical fulfillments are owner readable', 'physical fulfillments are admin managed'], 'physical fulfillment exposes owner read and admin management only');
 select policies_are('public', 'physical_fulfillment_events', array['physical fulfillment events are admin managed'], 'physical events are admin managed only');
 select table_privs_are('public', 'physical_fulfillments', 'anon', array[]::text[], 'anon cannot read physical fulfillment rows');

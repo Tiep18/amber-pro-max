@@ -43,6 +43,7 @@ export type AdminOrderQueueItem = {
   customerPaymentStatus: CustomerPaymentStatus;
   paymentStatus: PaymentInternalStatus;
   fulfillmentGateStatus: FulfillmentGateStatus;
+  physicalFulfillmentStatus: string;
   amountMinor: number;
   currencyCode: 'USD' | 'VND';
   provider: PaymentProvider;
@@ -100,6 +101,18 @@ export type AdminEntitlementAuditItem = {
   createdAt: string | null;
 };
 
+export type AdminPhysicalFulfillment = {
+  id: string;
+  orderId: string;
+  status: string;
+  version: number;
+  carrier: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
+};
+
 export type AdminOrderDetail = AdminOrderQueueItem & {
   ownerUserId: string | null;
   paymentId: string | null;
@@ -119,6 +132,7 @@ export type AdminOrderDetail = AdminOrderQueueItem & {
   failedEmails: AdminFailedEmailQueueItem[];
   digitalEntitlements: AdminDigitalEntitlementItem[];
   entitlementAudit: AdminEntitlementAuditItem[];
+  physicalFulfillment: AdminPhysicalFulfillment | null;
 };
 
 export type AdminOrderQueueResult =
@@ -245,7 +259,7 @@ export async function getAuthorizedOrderPayment({
 }
 
 const ADMIN_QUEUE_SELECT =
-  'order_id,order_number,contact_email,customer_payment_status,payment_status,fulfillment_gate_status,total_minor,currency_code,provider,reservation_expires_at,shipping_address,updated_at';
+  'order_id,order_number,contact_email,customer_payment_status,payment_status,fulfillment_gate_status,physical_fulfillment_status,total_minor,currency_code,provider,reservation_expires_at,shipping_address,updated_at';
 
 const ADMIN_DETAIL_SELECT = `${ADMIN_QUEUE_SELECT},owner_user_id,payment_id,digital_fulfillment_status,physical_fulfillment_status,refund_status,refunded_amount_minor,review_reason`;
 
@@ -261,6 +275,7 @@ function mapQueueItem(row: Record<string, unknown>): AdminOrderQueueItem | null 
     customerPaymentStatus: asCustomerPaymentStatus(row.customer_payment_status),
     paymentStatus: asPaymentStatus(row.payment_status),
     fulfillmentGateStatus: asFulfillmentGateStatus(row.fulfillment_gate_status),
+    physicalFulfillmentStatus: typeof row.physical_fulfillment_status === 'string' ? row.physical_fulfillment_status : 'blocked',
     amountMinor: typeof row.total_minor === 'number' ? row.total_minor : 0,
     currencyCode: asCurrencyCode(row.currency_code),
     provider: asPaymentProvider(row.provider),
@@ -324,6 +339,34 @@ async function getFailedEmailCounts(client: QueryClient) {
     }
   }
   return counts;
+}
+
+function mapPhysicalFulfillmentRow(row: Record<string, unknown>): AdminPhysicalFulfillment | null {
+  if (typeof row.id !== 'string' || typeof row.order_id !== 'string') {
+    return null;
+  }
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    status: typeof row.status === 'string' ? row.status : 'awaiting_fulfillment',
+    version: typeof row.version === 'number' ? row.version : 0,
+    carrier: typeof row.carrier === 'string' ? row.carrier : null,
+    trackingNumber: typeof row.tracking_number === 'string' ? row.tracking_number : null,
+    trackingUrl: typeof row.tracking_url === 'string' ? row.tracking_url : null,
+    shippedAt: typeof row.shipped_at === 'string' ? row.shipped_at : null,
+    deliveredAt: typeof row.delivered_at === 'string' ? row.delivered_at : null
+  };
+}
+
+async function getPhysicalFulfillmentForOrder(client: QueryClient, orderId: string) {
+  const query = client.from('physical_fulfillments').select('id,order_id,status,version,carrier,tracking_number,tracking_url,shipped_at,delivered_at') as {
+    eq: (column: string, value: string) => {maybeSingle: () => Promise<{data: unknown; error: unknown}>};
+  };
+  const {data, error} = await query.eq('order_id', orderId).maybeSingle();
+  if (error) {
+    return null;
+  }
+  return mapPhysicalFulfillmentRow(isRecord(data) ? data : {});
 }
 
 function mapDigitalEntitlementRow(row: Record<string, unknown>): AdminDigitalEntitlementItem | null {
@@ -502,7 +545,8 @@ export async function getAdminOrderDetail({
       timeline: timelineData.filter(isRecord).map(mapTimelineItem).filter((row): row is AdminOrderTimelineItem => Boolean(row)),
       failedEmails: await getFailedEmailsForOrder(client, base.orderId, base.orderNumber),
       digitalEntitlements: await getDigitalEntitlementsForOrder(client, base.orderId),
-      entitlementAudit: await getEntitlementAuditForOrder(client, base.orderId)
+      entitlementAudit: await getEntitlementAuditForOrder(client, base.orderId),
+      physicalFulfillment: await getPhysicalFulfillmentForOrder(client, base.orderId)
     }
   };
 }

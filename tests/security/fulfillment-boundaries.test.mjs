@@ -30,6 +30,13 @@ const fulfillmentAccountFiles = [
   'src/app/[locale]/tai-khoan/mau-pdf/page.tsx'
 ];
 
+const fulfillmentPhysicalFiles = [
+  'src/fulfillment/physical.ts',
+  'src/components/admin/fulfillment/physical-fulfillment-form.tsx',
+  'src/components/admin/orders/order-detail.tsx',
+  'src/components/admin/orders/order-queue.tsx'
+];
+
 const fulfillmentGuestClaimFiles = [
   'src/fulfillment/order-claim.ts',
   'src/fulfillment/guest-access.ts',
@@ -119,6 +126,14 @@ test('account purchase library delegates downloads through the app route without
 
   assert.match(source, /\/api\/downloads/);
   assert.doesNotMatch(source, /createSignedUrl|signedUrl|token_hash|bucket_id|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+});
+
+test('admin physical fulfillment keeps tracking customer-safe and admin-only notes out of customer surfaces', () => {
+  const source = readExisting(fulfillmentPhysicalFiles);
+
+  assert.match(source, /physical_shipped/);
+  assert.match(source, /trackingUrl|tracking_url/);
+  assert.doesNotMatch(source, /createSignedUrl|signedUrl|raw_token|token_hash|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
 });
 
 test('guest reopen and order claim keep token material out of UI and durable payloads', () => {

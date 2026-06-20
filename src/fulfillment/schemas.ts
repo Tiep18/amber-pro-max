@@ -66,22 +66,15 @@ export const digitalEntitlementResultSchema = z.object({
 
 export const transactionalEmailOutboxPayloadSchema = safeFulfillmentPayloadSchema;
 
-export const physicalFulfillmentUpdateSchema = z
-  .object({
-    orderId: z.uuid(),
-    expectedVersion: z.number().int().positive(),
-    status: physicalFulfillmentStatusSchema,
-    carrier: z.string().trim().max(120).optional(),
-    trackingNumber: z.string().trim().max(160).optional(),
-    trackingUrl: z.url().startsWith('https://').optional()
-  })
-  .refine(
-    (value) => value.status !== 'shipped' || Boolean(value.trackingNumber && value.trackingUrl),
-    {
-      message: 'shipped physical fulfillment requires tracking number and HTTPS tracking URL',
-      path: ['trackingNumber']
-    }
-  );
+export const physicalFulfillmentUpdateSchema = z.object({
+  orderId: z.uuid(),
+  expectedVersion: z.number().int().nonnegative(),
+  status: physicalFulfillmentStatusSchema,
+  carrier: z.string().trim().max(120).optional(),
+  trackingNumber: z.string().trim().max(160).optional(),
+  trackingUrl: z.url().startsWith('https://').optional(),
+  note: z.string().trim().max(240).optional()
+});
 
 export type DigitalEntitlementStatus = z.infer<typeof digitalEntitlementStatusSchema>;
 export type DigitalAccessTokenStatus = z.infer<typeof digitalAccessTokenStatusSchema>;

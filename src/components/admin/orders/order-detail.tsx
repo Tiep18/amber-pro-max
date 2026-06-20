@@ -5,6 +5,7 @@ import {formatShippingAddressLines} from '@/checkout/shipping-address';
 import {EntitlementActions} from '@/components/admin/fulfillment/entitlement-actions';
 import {EntitlementAuditList} from '@/components/admin/fulfillment/entitlement-audit-list';
 import {FailedEmailQueue} from '@/components/admin/fulfillment/failed-email-queue';
+import {PhysicalFulfillmentForm} from '@/components/admin/fulfillment/physical-fulfillment-form';
 import type {AdminOrderDetail} from '@/payments/queries';
 import {formatAdminDate, formatAdminMoney, statusLabel} from './format';
 import {PaymentTimeline} from './payment-timeline';
@@ -81,6 +82,7 @@ export function OrderDetail({order}: {order: AdminOrderDetail}) {
         </Card>
       ) : null}
       <ProviderEvidencePanel order={order} />
+      <PhysicalFulfillmentForm order={order} />
       <EntitlementActions orderId={order.orderId} entitlements={order.digitalEntitlements} />
       <EntitlementAuditList items={order.entitlementAudit} />
       <FailedEmailQueue emails={order.failedEmails} />
