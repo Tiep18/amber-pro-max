@@ -6,6 +6,7 @@ vi.mock('@/auth/guards', () => ({requireUser: vi.fn()}));
 vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient: vi.fn()}));
 
 import {
+  customerAddressToShippingAddress,
   getCustomerShippingAddresses,
   mapCustomerShippingAddressRow,
   parseCustomerShippingAddressInput
@@ -56,8 +57,7 @@ describe('saved shipping address contracts (ACC-03, D-01, D-02, D-04)', () => {
   });
 
   test('maps database rows without exposing owner ids to account UI data', () => {
-    expect(
-      mapCustomerShippingAddressRow({
+    const mapped = mapCustomerShippingAddressRow({
         id: addressId,
         user_id: ownerId,
         label: 'Home',
@@ -72,8 +72,9 @@ describe('saved shipping address contracts (ACC-03, D-01, D-02, D-04)', () => {
         is_default: true,
         created_at: '2026-06-20T00:00:00.000Z',
         updated_at: '2026-06-20T00:00:00.000Z'
-      })
-    ).toEqual({
+      });
+
+    expect(mapped).toEqual({
       id: addressId,
       label: 'Home',
       recipientName: 'Taylor Customer',
@@ -87,6 +88,16 @@ describe('saved shipping address contracts (ACC-03, D-01, D-02, D-04)', () => {
       isDefault: true,
       createdAt: '2026-06-20T00:00:00.000Z',
       updatedAt: '2026-06-20T00:00:00.000Z'
+    });
+    expect(customerAddressToShippingAddress(mapped!)).toEqual({
+      recipientName: 'Taylor Customer',
+      phoneNumber: '+15551234567',
+      countryCode: 'US',
+      region: 'California',
+      locality: 'San Francisco',
+      addressLine1: '123 Market Street',
+      addressLine2: null,
+      postalCode: '94105'
     });
   });
 

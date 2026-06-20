@@ -1,6 +1,8 @@
 import {describe, expect, it} from 'vitest';
+import {diffMaterialQuotes} from '@/checkout/market-revalidation';
 import {diffCartQuotes, quoteCartIntent, type QuoteCatalogProduct} from '@/checkout/quote';
 import type {CartIntentLine} from '@/cart/types';
+import type {CartQuote} from '@/checkout/types';
 
 const now = '2026-06-15T00:00:00.000Z';
 
@@ -151,5 +153,60 @@ describe('cart quote hydration', () => {
 
     expect(quote.shipping).toEqual({status: 'no_shipping_required', amountMinor: 0, countryCode: null});
     expect(quote.status).toBe('ready');
+  });
+
+  it('treats saved-address destination shipping changes as material quote changes', async () => {
+    const before: CartQuote = {
+      status: 'ready',
+      locale: 'en',
+      market: 'intl',
+      currencyCode: 'USD',
+      lines: [
+        {
+          lineId: 'line-1',
+          productId: physical.productId,
+          variantId: physical.variants[0].variantId,
+          slug: physical.slug,
+          title: physical.title,
+          fulfillmentType: 'physical',
+          status: 'ready',
+          quantity: 1,
+          requestedQuantity: 1,
+          marketAtAdd: 'intl',
+          currencyCode: 'USD',
+          unitPriceMinor: 2400,
+          lineSubtotalMinor: 2400,
+          excludedSubtotalMinor: 0,
+          variantLabel: physical.variants[0].label,
+          imageUrl: null,
+          categoryIds: [],
+          collectionIds: [],
+          discountAllocationMinor: 0,
+          change: null
+        }
+      ],
+      subtotalMinor: 2400,
+      excludedSubtotalMinor: 0,
+      discount: {status: 'not_applied', amountMinor: 0},
+      shipping: {status: 'ready', amountMinor: 700, countryCode: 'US', firstItemLineId: 'line-1', chargeableUnitCount: 1},
+      totalMinor: 3100,
+      changes: [],
+      hash: 'saved-address-us-quote',
+      quotedAt: now
+    };
+    const after = {
+      ...before,
+      market: 'vn',
+      shipping: {status: 'ready', amountMinor: 0, countryCode: 'VN', firstItemLineId: 'line-1', chargeableUnitCount: 1},
+      totalMinor: 2400,
+      hash: 'saved-address-vn-quote'
+    } satisfies CartQuote;
+
+    expect(diffMaterialQuotes(before, after)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({type: 'market_changed', previousMarket: 'intl', currentMarket: 'vn'}),
+        expect.objectContaining({type: 'shipping_changed'})
+      ])
+    );
   });
 });

@@ -40,4 +40,12 @@ test.describe.skip('saved address retention (ACC-03, D-01, D-02, D-04)', () => {
     });
     await page.getByRole('button', {name: 'Delete'}).first().click();
   });
+
+  test('checkout can reuse a saved address and shows material quote changes before accepting', async ({page}) => {
+    await page.goto('/en/checkout');
+    await page.getByLabel('Saved address').selectOption({label: 'Vietnam studio - 2 Nguyen Hue, VN'});
+    await page.getByRole('button', {name: 'Use this address'}).click();
+    await expect(page.getByLabel('Country code')).toHaveValue('VN');
+    await expect(page.getByRole('dialog', {name: /quote changed/i})).toBeVisible();
+  });
 });
