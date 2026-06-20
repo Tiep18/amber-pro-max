@@ -261,5 +261,27 @@
       "inactive": "Access inactive",
       "error": "Pattern library could not be loaded."
     }
+  },
+  "guestAccess": {
+    "fields": {
+      "orderNumber": "Order number",
+      "email": "Email"
+    },
+    "genericSuccess": "If the order and email match, a secure link will arrive shortly.",
+    "reopen": {
+      "title": "Reopen guest order",
+      "intro": "Request a fresh 24-hour link for a guest order without revealing whether the order exists.",
+      "submit": "Send reopen link"
+    },
+    "claimEmail": {
+      "submit": "Send claim link"
+    },
+    "claim": {
+      "title": "Claim order",
+      "intro": "Attach this guest order to the signed-in account that uses the same email address.",
+      "submit": "Claim order",
+      "signedInOnly": "You must be signed in with the same email used at checkout.",
+      "genericDenied": "This claim link is invalid, expired, already used, or unavailable for this account."
+    }
   }
 }

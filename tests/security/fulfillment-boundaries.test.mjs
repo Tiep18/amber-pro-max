@@ -30,6 +30,17 @@ const fulfillmentAccountFiles = [
   'src/app/[locale]/tai-khoan/mau-pdf/page.tsx'
 ];
 
+const fulfillmentGuestClaimFiles = [
+  'src/fulfillment/order-claim.ts',
+  'src/fulfillment/guest-access.ts',
+  'src/components/fulfillment/guest-reopen-form.tsx',
+  'src/components/fulfillment/order-claim-panel.tsx',
+  'src/app/[locale]/guest-order/page.tsx',
+  'src/app/[locale]/don-hang-khach/page.tsx',
+  'src/app/[locale]/orders/[orderNumber]/claim/page.tsx',
+  'src/app/[locale]/don-hang/[orderNumber]/claim/page.tsx'
+];
+
 const fulfillmentAdminEntitlementFiles = [
   'src/fulfillment/entitlements.ts',
   'src/fulfillment/admin-entitlement-actions.ts',
@@ -108,6 +119,15 @@ test('account purchase library delegates downloads through the app route without
 
   assert.match(source, /\/api\/downloads/);
   assert.doesNotMatch(source, /createSignedUrl|signedUrl|token_hash|bucket_id|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+});
+
+test('guest reopen and order claim keep token material out of UI and durable payloads', () => {
+  const source = readExisting(fulfillmentGuestClaimFiles);
+
+  assert.match(source, /guest_order_reopen/);
+  assert.match(source, /guest_order_claim/);
+  assert.match(source, /hashGuestOrderAccessToken/);
+  assert.doesNotMatch(source, /console\.(log|error|warn)|rawToken.*payload|token_hash.*payload|signedUrl|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
 });
 
 test('admin entitlement actions keep revoke and reissue behind safe RPC and UI boundaries', () => {

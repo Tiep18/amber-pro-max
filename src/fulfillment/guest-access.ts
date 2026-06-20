@@ -1,5 +1,9 @@
-import {hashFulfillmentAccessToken} from '@/fulfillment/downloads';
-
-export function hashGuestDownloadAccessToken(rawToken: string) {
-  return hashFulfillmentAccessToken(rawToken);
-}
+﻿export {
+  buildGuestOrderCookieName,
+  getGuestOrderAccessHash,
+  getGuestOrderAccessHashFromServer,
+  hashGuestOrderAccessToken,
+  setGuestOrderAccessCookie,
+  setGuestOrderAccessCookieFromServer
+} from '@/payments/guest-access';
+export type {SetGuestOrderAccessCookieInput, SetGuestOrderAccessCookieResult} from '@/payments/guest-access';

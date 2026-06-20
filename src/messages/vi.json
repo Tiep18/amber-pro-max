@@ -261,5 +261,27 @@
       "inactive": "Quyen truy cap khong con hoat dong",
       "error": "Chua tai duoc thu vien mau PDF."
     }
+  },
+  "guestAccess": {
+    "fields": {
+      "orderNumber": "Ma don hang",
+      "email": "Email"
+    },
+    "genericSuccess": "Neu don hang va email khop nhau, lien ket an toan se duoc gui som.",
+    "reopen": {
+      "title": "Mo lai don hang khach",
+      "intro": "Yeu cau lien ket moi co thoi han 24 gio cho don hang khach ma khong tiet lo don hang co ton tai hay khong.",
+      "submit": "Gui lien ket mo lai"
+    },
+    "claimEmail": {
+      "submit": "Gui lien ket nhan don"
+    },
+    "claim": {
+      "title": "Nhan don hang",
+      "intro": "Gan don hang khach nay vao tai khoan da dang nhap co cung dia chi email.",
+      "submit": "Nhan don hang",
+      "signedInOnly": "Ban can dang nhap bang dung email da dung khi thanh toan.",
+      "genericDenied": "Lien ket nhan don khong hop le, da het han, da duoc dung, hoac khong kha dung cho tai khoan nay."
+    }
   }
 }
