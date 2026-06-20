@@ -321,6 +321,28 @@
       "error": "We could not save your changes. Check the highlighted fields and try again."
     }
   },
+  "accountWishlist": {
+    "title": "Wishlist",
+    "intro": "Saved products reload current price, stock, and market availability whenever you visit.",
+    "empty": "No products saved yet.",
+    "loadError": "Wishlist could not be loaded.",
+    "currentPrice": "Current price",
+    "unavailable": "Unavailable in this market",
+    "outOfStock": "Out of stock",
+    "inStock": "In stock",
+    "variantAvailable": "Variant available",
+    "variantUnavailable": "No variant available",
+    "actions": {
+      "viewProduct": "View product",
+      "addToCart": "Add to cart",
+      "remove": "Remove",
+      "removing": "Removing"
+    },
+    "status": {
+      "removed": "Wishlist item removed.",
+      "error": "We could not update your wishlist. Try again."
+    }
+  },
   "guestAccess": {
     "fields": {
       "orderNumber": "Order number",

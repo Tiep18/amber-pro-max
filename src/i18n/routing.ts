@@ -31,6 +31,10 @@ export const pathnames = {
     vi: '/tai-khoan/dia-chi',
     en: '/account/addresses'
   },
+  '/account/wishlist': {
+    vi: '/tai-khoan/yeu-thich',
+    en: '/account/wishlist'
+  },
   '/catalog': {
     vi: '/cua-hang',
     en: '/catalog'
@@ -115,6 +119,10 @@ export function getCheckoutPath(locale: Locale): `/${Locale}${string}` {
 
 export function getAccountAddressesPath(locale: Locale): `/${Locale}${string}` {
   return getLocalizedPath('/account/addresses', locale);
+}
+
+export function getAccountWishlistPath(locale: Locale): `/${Locale}${string}` {
+  return getLocalizedPath('/account/wishlist', locale);
 }
 
 export function getOrderPath(locale: Locale, orderNumber: string): `/${Locale}${string}` {

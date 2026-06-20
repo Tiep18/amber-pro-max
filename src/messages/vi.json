@@ -321,6 +321,28 @@
       "error": "Khong the luu thay doi. Kiem tra cac truong va thu lai."
     }
   },
+  "accountWishlist": {
+    "title": "Yeu thich",
+    "intro": "San pham da luu luon tai lai gia, ton kho va kha dung theo thi truong hien tai.",
+    "empty": "Chua co san pham yeu thich.",
+    "loadError": "Chua tai duoc danh sach yeu thich.",
+    "currentPrice": "Gia hien tai",
+    "unavailable": "Khong kha dung o thi truong nay",
+    "outOfStock": "Het hang",
+    "inStock": "Con hang",
+    "variantAvailable": "Co phien ban con hang",
+    "variantUnavailable": "Chua co phien ban kha dung",
+    "actions": {
+      "viewProduct": "Xem san pham",
+      "addToCart": "Them vao gio",
+      "remove": "Xoa",
+      "removing": "Dang xoa"
+    },
+    "status": {
+      "removed": "Da xoa san pham yeu thich.",
+      "error": "Khong the cap nhat danh sach yeu thich. Thu lai sau."
+    }
+  },
   "guestAccess": {
     "fields": {
       "orderNumber": "Ma don hang",

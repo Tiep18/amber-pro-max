@@ -91,18 +91,16 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
   });
 
   test('queries wishlist rows by server-owned user id and active locale/market', async () => {
-    const order = vi.fn(() => Promise.resolve({data: [availableRow], error: null}));
-    const eqUser = vi.fn(() => ({order}));
-    const select = vi.fn(() => ({eq: eqUser}));
-    const client = {from: vi.fn(() => ({select}))};
+    const client = {rpc: vi.fn(() => Promise.resolve({data: [availableRow], error: null}))};
 
     await expect(
       getCustomerWishlist({userId: ownerId, locale: 'en', market: 'intl', client: client as never})
     ).resolves.toMatchObject({status: 'success', items: [{productId, available: true}]});
 
-    expect(client.from).toHaveBeenCalledWith('wishlist_items');
-    expect(eqUser).toHaveBeenCalledWith('user_id', ownerId);
-    expect(order).toHaveBeenCalledWith('created_at', {ascending: false});
+    expect(client.rpc).toHaveBeenCalledWith('get_customer_wishlist', {
+      p_locale: 'en',
+      p_market: 'intl'
+    });
   });
 
   test('maps remove results without mutating cart state', async () => {

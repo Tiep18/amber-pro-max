@@ -2373,6 +2373,38 @@ export type Database = {
           },
         ]
       }
+      wishlist_items: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wishlist_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       admin_order_timelines: {
@@ -2628,6 +2660,27 @@ export type Database = {
           first_item_fee_minor: number
           product_id: string
           variant_id: string
+        }[]
+      }
+      get_customer_wishlist: {
+        Args: { p_locale: string; p_market: string }
+        Returns: {
+          available: boolean
+          created_at: string
+          currency_code: string
+          description: string
+          in_stock: boolean
+          price_minor: number
+          primary_image_alt: string
+          primary_image_bucket: string
+          primary_image_path: string
+          product_id: string
+          product_status: string
+          product_type: string
+          slug: string
+          title: string
+          variants: Json
+          wishlist_item_id: string
         }[]
       }
       get_order_payment_status: {
