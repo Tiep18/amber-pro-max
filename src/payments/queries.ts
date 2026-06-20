@@ -1,7 +1,7 @@
-import type {CustomerPaymentStatus, FulfillmentGateStatus, PaymentInternalStatus, PaymentProvider} from '@/payments/types';
+﻿import type {CustomerPaymentStatus, FulfillmentGateStatus, PaymentInternalStatus, PaymentProvider} from '@/payments/types';
 import {shippingAddressSchema, type ShippingAddress} from '@/checkout/shipping-address';
 import {maskEmailForAdmin, sanitizeEmailFailureCode} from '@/fulfillment/admin-email-actions';
-import type {Database, Json} from '@/types/supabase';
+import type {Json} from '@/types/supabase';
 
 type RpcClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
@@ -78,6 +78,28 @@ export type AdminOrderTimelineItem = {
   createdAt: string | null;
 };
 
+export type AdminDigitalEntitlementItem = {
+  id: string;
+  orderId: string;
+  productId: string;
+  variantId: string | null;
+  contactEmailMasked: string;
+  status: string;
+  version: number;
+  grantedAt: string | null;
+  updatedAt: string | null;
+  revokedAt: string | null;
+  revokeReason: string | null;
+};
+
+export type AdminEntitlementAuditItem = {
+  eventType: string;
+  actorType: string | null;
+  actorId: string | null;
+  metadata: Json | null;
+  createdAt: string | null;
+};
+
 export type AdminOrderDetail = AdminOrderQueueItem & {
   ownerUserId: string | null;
   paymentId: string | null;
@@ -95,6 +117,8 @@ export type AdminOrderDetail = AdminOrderQueueItem & {
   } | null;
   timeline: AdminOrderTimelineItem[];
   failedEmails: AdminFailedEmailQueueItem[];
+  digitalEntitlements: AdminDigitalEntitlementItem[];
+  entitlementAudit: AdminEntitlementAuditItem[];
 };
 
 export type AdminOrderQueueResult =
@@ -302,6 +326,73 @@ async function getFailedEmailCounts(client: QueryClient) {
   return counts;
 }
 
+function mapDigitalEntitlementRow(row: Record<string, unknown>): AdminDigitalEntitlementItem | null {
+  if (typeof row.id !== 'string' || typeof row.order_id !== 'string' || typeof row.product_id !== 'string') {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    productId: row.product_id,
+    variantId: typeof row.variant_id === 'string' ? row.variant_id : null,
+    contactEmailMasked: typeof row.contact_email === 'string' ? maskEmailForAdmin(row.contact_email) : 'masked',
+    status: typeof row.status === 'string' ? row.status : 'unknown',
+    version: typeof row.version === 'number' ? row.version : 0,
+    grantedAt: typeof row.created_at === 'string' ? row.created_at : null,
+    updatedAt: typeof row.updated_at === 'string' ? row.updated_at : null,
+    revokedAt: typeof row.revoked_at === 'string' ? row.revoked_at : null,
+    revokeReason: typeof row.revoke_reason === 'string' ? sanitizeEmailFailureCode(row.revoke_reason) : null
+  };
+}
+
+function mapEntitlementAuditRow(row: Record<string, unknown>): AdminEntitlementAuditItem | null {
+  if (typeof row.event_type !== 'string') {
+    return null;
+  }
+
+  return {
+    eventType: row.event_type,
+    actorType: typeof row.actor_type === 'string' ? row.actor_type : null,
+    actorId: typeof row.actor_id === 'string' ? row.actor_id : null,
+    metadata: (row.metadata ?? null) as Json | null,
+    createdAt: typeof row.created_at === 'string' ? row.created_at : null
+  };
+}
+
+async function getDigitalEntitlementsForOrder(client: QueryClient, orderId: string) {
+  const query = client.from('digital_entitlements').select(
+    'id,order_id,product_id,variant_id,contact_email,status,version,created_at,updated_at,revoked_at,revoke_reason'
+  ) as {
+    eq: (column: string, value: string) => {
+      order: (column: string, options?: Record<string, unknown>) => Promise<{data: unknown[] | null; error: unknown}>;
+    };
+  };
+  const {data, error} = await query.eq('order_id', orderId).order('created_at', {ascending: false});
+  if (error || !Array.isArray(data)) {
+    return [];
+  }
+  return data.filter(isRecord).map(mapDigitalEntitlementRow).filter((row): row is AdminDigitalEntitlementItem => Boolean(row));
+}
+
+async function getEntitlementAuditForOrder(client: QueryClient, orderId: string) {
+  const query = client.from('fulfillment_audit_events').select('event_type,actor_type,actor_id,metadata,created_at') as {
+    eq: (column: string, value: string) => {
+      in: (column: string, values: string[]) => {
+        order: (column: string, options?: Record<string, unknown>) => Promise<{data: unknown[] | null; error: unknown}>;
+      };
+    };
+  };
+  const {data, error} = await query
+    .eq('order_id', orderId)
+    .in('event_type', ['digital_entitlement_granted', 'digital_entitlement_revoked', 'digital_access_reissued', 'digital_access_resend_requested'])
+    .order('created_at', {ascending: false});
+  if (error || !Array.isArray(data)) {
+    return [];
+  }
+  return data.filter(isRecord).map(mapEntitlementAuditRow).filter((row): row is AdminEntitlementAuditItem => Boolean(row));
+}
+
 function mapTimelineItem(row: Record<string, unknown>): AdminOrderTimelineItem | null {
   if (typeof row.event_type !== 'string') {
     return null;
@@ -409,7 +500,9 @@ export async function getAdminOrderDetail({
             }
           : null,
       timeline: timelineData.filter(isRecord).map(mapTimelineItem).filter((row): row is AdminOrderTimelineItem => Boolean(row)),
-      failedEmails: await getFailedEmailsForOrder(client, base.orderId, base.orderNumber)
+      failedEmails: await getFailedEmailsForOrder(client, base.orderId, base.orderNumber),
+      digitalEntitlements: await getDigitalEntitlementsForOrder(client, base.orderId),
+      entitlementAudit: await getEntitlementAuditForOrder(client, base.orderId)
     }
   };
 }

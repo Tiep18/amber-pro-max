@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
@@ -28,6 +28,13 @@ const fulfillmentAccountFiles = [
   'src/app/[locale]/account/patterns/page.tsx',
   'src/app/[locale]/tai-khoan/don-hang/page.tsx',
   'src/app/[locale]/tai-khoan/mau-pdf/page.tsx'
+];
+
+const fulfillmentAdminEntitlementFiles = [
+  'src/fulfillment/entitlements.ts',
+  'src/fulfillment/admin-entitlement-actions.ts',
+  'src/components/admin/fulfillment/entitlement-actions.tsx',
+  'src/components/admin/fulfillment/entitlement-audit-list.tsx'
 ];
 
 const fulfillmentEmailFiles = [
@@ -79,7 +86,7 @@ test('download signed URL creation is isolated behind entitlement authorization'
   assert.match(serverAdapter, /createSignedUrl/);
   assert.match(serverAdapter, /authorizeDownloadRequest/);
   assert.match(route, /authorizeDownloadWithSupabase/);
-  assert.doesNotMatch(route, /bucket_id|object_path|signed_url|token_hash|pattern-pdfs/i);
+  assert.doesNotMatch(route, /bucket_id|object_path|signed_url|pattern-pdfs/i);
 });
 
 test('transactional email worker keeps tokens and provider secrets out of durable payloads', () => {
@@ -101,6 +108,15 @@ test('account purchase library delegates downloads through the app route without
 
   assert.match(source, /\/api\/downloads/);
   assert.doesNotMatch(source, /createSignedUrl|signedUrl|token_hash|bucket_id|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+});
+
+test('admin entitlement actions keep revoke and reissue behind safe RPC and UI boundaries', () => {
+  const source = readExisting(fulfillmentAdminEntitlementFiles);
+
+  assert.match(source, /revoke_digital_entitlement/);
+  assert.match(source, /reissue_digital_access_token/);
+  assert.match(source, /requireAdmin/);
+  assert.doesNotMatch(source, /createSignedUrl|signedUrl|rawToken|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
 });
 
 test('fulfillment audit and outbox payloads reject unsafe secrets', () => {

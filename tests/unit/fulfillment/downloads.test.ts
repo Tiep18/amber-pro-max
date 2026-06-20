@@ -1,5 +1,6 @@
-import {describe, expect, test, vi} from 'vitest';
+﻿import {describe, expect, test, vi} from 'vitest';
 import {authorizeDownloadRequest, hashFulfillmentAccessToken} from '@/fulfillment/downloads';
+import {reissueDigitalEntitlement, revokeDigitalEntitlement} from '@/fulfillment/entitlements';
 
 const activeEntitlement = {
   entitlementId: 'ent-1',
@@ -92,5 +93,55 @@ describe('fulfillment download authorization', () => {
 
     expect(result).toEqual({status: 'denied', code: 'download_not_available'});
     expect(fake.storage.createSignedUrl).not.toHaveBeenCalled();
+  });
+});
+
+describe('admin entitlement revoke and reissue wrappers', () => {
+  test('revoke maps RPC success and stale responses without exposing token details', async () => {
+    const client = {
+      rpc: vi.fn().mockResolvedValueOnce({data: {status: 'revoked', version: 3}, error: null}).mockResolvedValueOnce({data: {status: 'stale', version: 3}, error: null})
+    };
+
+    await expect(revokeDigitalEntitlement({entitlementId: '11111111-1111-4111-8111-111111111111', expectedVersion: 2, reason: 'customer refund'}, client)).resolves.toEqual({
+      status: 'revoked',
+      version: 3
+    });
+    await expect(revokeDigitalEntitlement({entitlementId: '11111111-1111-4111-8111-111111111111', expectedVersion: 2, reason: 'customer refund'}, client)).resolves.toEqual({
+      status: 'stale',
+      version: 3
+    });
+    expect(client.rpc).toHaveBeenCalledWith('revoke_digital_entitlement', {
+      p_entitlement_id: '11111111-1111-4111-8111-111111111111',
+      p_expected_version: 2,
+      p_reason: 'customer refund'
+    });
+  });
+
+  test('reissue passes a fresh token hash to the database RPC and never returns the raw token', async () => {
+    const client = {
+      rpc: vi.fn().mockResolvedValue({data: {status: 'reissued', version: 4}, error: null})
+    };
+
+    const result = await reissueDigitalEntitlement({entitlementId: '22222222-2222-4222-8222-222222222222', expectedVersion: 3}, client, () => 'fresh-raw-token');
+
+    expect(result).toEqual({status: 'reissued', version: 4});
+    expect(client.rpc).toHaveBeenCalledWith('reissue_digital_access_token', {
+      p_entitlement_id: '22222222-2222-4222-8222-222222222222',
+      p_expected_version: 3,
+      p_new_token_hash: hashFulfillmentAccessToken('fresh-raw-token')
+    });
+    expect(JSON.stringify(result)).not.toContain('fresh-raw-token');
+  });
+
+  test('invalid input and forbidden RPC responses fail safely', async () => {
+    const client = {
+      rpc: vi.fn().mockResolvedValue({data: {status: 'forbidden'}, error: null})
+    };
+
+    await expect(revokeDigitalEntitlement({entitlementId: 'not-a-uuid', expectedVersion: 1}, client)).resolves.toEqual({status: 'invalid', code: 'invalid_entitlement_action'});
+    await expect(reissueDigitalEntitlement({entitlementId: '33333333-3333-4333-8333-333333333333', expectedVersion: 1}, client, () => 'fresh-raw-token')).resolves.toEqual({
+      status: 'forbidden',
+      code: 'admin_required'
+    });
   });
 });

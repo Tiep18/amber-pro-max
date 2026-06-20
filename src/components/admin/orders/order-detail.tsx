@@ -1,7 +1,9 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
 
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {formatShippingAddressLines} from '@/checkout/shipping-address';
+import {EntitlementActions} from '@/components/admin/fulfillment/entitlement-actions';
+import {EntitlementAuditList} from '@/components/admin/fulfillment/entitlement-audit-list';
 import {FailedEmailQueue} from '@/components/admin/fulfillment/failed-email-queue';
 import type {AdminOrderDetail} from '@/payments/queries';
 import {formatAdminDate, formatAdminMoney, statusLabel} from './format';
@@ -79,6 +81,8 @@ export function OrderDetail({order}: {order: AdminOrderDetail}) {
         </Card>
       ) : null}
       <ProviderEvidencePanel order={order} />
+      <EntitlementActions orderId={order.orderId} entitlements={order.digitalEntitlements} />
+      <EntitlementAuditList items={order.entitlementAudit} />
       <FailedEmailQueue emails={order.failedEmails} />
       <VietQrEvidenceForm order={order} />
       <PaymentTimeline items={order.timeline} />
