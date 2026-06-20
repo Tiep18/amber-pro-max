@@ -22,7 +22,8 @@ vi.mock('server-only', () => ({}));
 
 const routeMocks = vi.hoisted(() => ({
   adminClient: null as unknown,
-  paypalVerificationStatus: 'SUCCESS' as 'SUCCESS' | 'FAILURE'
+  paypalVerificationStatus: 'SUCCESS' as 'SUCCESS' | 'FAILURE',
+  triggerTransactionalEmailOutboxNow: vi.fn(async () => ({status: 'processed', claimed: 1, sent: 1, retry: 0, failed: 0}))
 }));
 
 vi.mock('@/lib/env/server', () => ({
@@ -42,6 +43,10 @@ vi.mock('@/lib/env/server', () => ({
 
 vi.mock('@/lib/supabase/admin', () => ({
   createSupabaseAdminClient: () => routeMocks.adminClient
+}));
+
+vi.mock('@/fulfillment/email-outbox.server', () => ({
+  triggerTransactionalEmailOutboxNow: routeMocks.triggerTransactionalEmailOutboxNow
 }));
 
 const configuredPayPal = {
@@ -196,6 +201,7 @@ async function loadWebhookRoute() {
 
 beforeEach(() => {
   routeMocks.paypalVerificationStatus = 'SUCCESS';
+  routeMocks.triggerTransactionalEmailOutboxNow.mockClear();
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => {
@@ -395,6 +401,7 @@ describe('PayPal webhook route contract', () => {
       currencyCode: 'USD',
       verificationStatus: 'verified'
     });
+    expect(routeMocks.triggerTransactionalEmailOutboxNow).toHaveBeenCalledWith({reason: 'paypal_webhook_paid'});
   });
 
   test('duplicate event increments delivery history and does not repeat transition effects', async () => {
@@ -408,6 +415,7 @@ describe('PayPal webhook route contract', () => {
     expect(response.status).toBe(200);
     expect(body).toMatchObject({status: 'duplicate'});
     expect(state.rpc).not.toHaveBeenCalled();
+    expect(routeMocks.triggerTransactionalEmailOutboxNow).not.toHaveBeenCalled();
     expect(state.updates).toEqual([
       {
         table: 'payment_events',
@@ -429,6 +437,7 @@ describe('PayPal webhook route contract', () => {
     expect(state.inserts).toHaveLength(0);
     expect(state.updates).toHaveLength(0);
     expect(state.rpc).not.toHaveBeenCalled();
+    expect(routeMocks.triggerTransactionalEmailOutboxNow).not.toHaveBeenCalled();
   });
 
   test('pending out-of-order event records a verified no-op receipt without transition', async () => {
@@ -442,6 +451,7 @@ describe('PayPal webhook route contract', () => {
     expect(response.status).toBe(200);
     expect(body).toMatchObject({status: 'ignored', code: 'paypal_capture_pending'});
     expect(state.rpc).not.toHaveBeenCalled();
+    expect(routeMocks.triggerTransactionalEmailOutboxNow).not.toHaveBeenCalled();
     expect(state.inserts).toEqual([
       {
         table: 'payment_events',

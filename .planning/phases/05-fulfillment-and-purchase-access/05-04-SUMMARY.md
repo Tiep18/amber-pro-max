@@ -16,6 +16,7 @@ provides:
   - Plain TypeScript localized HTML/text transactional email renderer
   - Protected Vercel Cron-compatible email outbox worker route
   - Injected sender/repository worker service with retry/backoff handling
+  - Best-effort immediate outbox trigger after verified paid transitions
 affects: [phase-05, email-worker, digital-fulfillment, operations]
 tech-stack:
   added: [resend@6.14.0]
@@ -38,6 +39,7 @@ key-decisions:
   - "Installed the exact approved `resend@6.14.0` version from 05-03, with no floating caret in package.json or package-lock root dependency."
   - "Raw download and guest tokens are generated at send time, hashed into token tables, and used only in the outbound email body; outbox payloads remain free of raw token material."
   - "The worker route lazy-imports server-only Resend/Supabase adapters only after the worker secret is accepted, keeping route denial unit tests lightweight."
+  - "Verified paid transitions trigger the email worker immediately; the hosted scheduler remains the retry/fallback path rather than the primary customer wait path."
 patterns-established:
   - "Outbox processing uses a pure service with injected repository/sender and a separate server adapter for Supabase and Resend."
   - "Provider failures leave durable outbox intent intact; retry updates status/available_at without overwriting payload."
@@ -65,6 +67,7 @@ Implemented localized transactional email rendering and a protected outbox worke
 - Added pure `processTransactionalEmailBatch` service with injected repository and sender for unit coverage.
 - Added server adapter for Supabase outbox claim/update, send-time token issuance, and Resend `emails.send(..., {idempotencyKey})`.
 - Added protected POST route at `/api/fulfillment/email-outbox` with bearer or `x-worker-secret` authorization, body-size guard, typed unconfigured response, and bounded batch size.
+- Added a server-only immediate trigger path so PayPal paid capture/recheck, verified PayPal webhook, and VietQR admin confirmation drain due outbox work right after the paid transition commits.
 - Extended fulfillment security tests to cover email worker secrets, provider payloads, signed URLs, PDF paths, and attachment avoidance.
 
 ## Task Commits
@@ -77,6 +80,7 @@ Implemented localized transactional email rendering and a protected outbox worke
 - `src/fulfillment/email-outbox.ts` - Pure worker service and sender/repository contracts.
 - `src/fulfillment/email-outbox.server.ts` - Server-only Supabase and Resend adapters.
 - `src/app/api/fulfillment/email-outbox/route.ts` - Protected worker endpoint.
+- `src/app/api/paypal/orders/[paypalOrderId]/capture/route.ts`, `src/app/api/webhooks/paypal/route.ts`, and `src/payments/admin-actions.ts` - Immediate paid-transition outbox triggers.
 - `src/lib/env/server.ts` and `.env.example` - Transactional email configuration.
 - `package.json` and `package-lock.json` - Exact `resend@6.14.0` dependency.
 - `tests/unit/fulfillment/email-outbox.test.ts` - Renderer, worker, and route-secret contracts.
@@ -88,6 +92,7 @@ Implemented localized transactional email rendering and a protected outbox worke
 - Send-time token generation avoids storing raw download or guest tokens in durable outbox payloads while still allowing email links with 24-hour scoped tokens.
 - Retry and failed transitions preserve the original payload intent so provider failure cannot corrupt or erase pending work.
 - Real Resend configuration is optional at runtime: missing config returns typed unconfigured results and unit tests use an injected sender.
+- Successful paid transitions do not depend on the hosted scheduler interval in the happy path; if the immediate trigger is unconfigured or fails, durable outbox state remains available for the protected scheduler/manual worker route.
 
 ## Deviations from Plan
 

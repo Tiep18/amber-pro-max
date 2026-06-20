@@ -12,7 +12,8 @@ provides:
   - Database reset/lint/test/types evidence
   - Full unit, build, security, and e2e evidence
   - Final gate stabilization fixes
-  - Manual-only Resend/deployment notes
+  - Manual-only Resend/deployment retry notes
+  - Immediate paid-transition email trigger clarification
 affects: [phase-05, validation, ci]
 tech-stack:
   added: []
@@ -36,7 +37,7 @@ completed: 2026-06-20
 
 # Phase 05 Plan 11: Final Verification Summary
 
-Closed Phase 5 verification across database, unit, browser, security, build, and generated Supabase type checks. The full local gate is green, with Resend delivery and hosted worker scheduling remaining explicit provider/deployment checks.
+Closed Phase 5 verification across database, unit, browser, security, build, and generated Supabase type checks. The full local gate is green, with Resend delivery and hosted worker scheduling remaining explicit provider/deployment checks. Paid transitions now trigger the email worker immediately in the happy path; hosted scheduling remains the fallback retry path.
 
 ## Performance
 
@@ -54,6 +55,7 @@ Closed Phase 5 verification across database, unit, browser, security, build, and
 - Ran full Playwright suite locally.
 - Confirmed `src/types/supabase.ts` has no generated type drift.
 - Confirmed security scanner covers Phase 5 private PDF, token, service-role, signed URL, guest claim, admin entitlement, physical fulfillment, and customer tracking boundaries.
+- Clarified post-verification behavior: successful paid transitions should drain due transactional email work immediately, with hosted scheduler/manual worker calls retained for retry and operational recovery.
 
 ## Task Commits
 
@@ -118,7 +120,7 @@ Closed Phase 5 verification across database, unit, browser, security, build, and
 ## Remaining Manual Checks
 
 - Real Resend delivery: local automation verifies outbox rows, rendered email bodies, retry behavior, and worker boundaries, but provider inbox delivery requires configured Resend credentials.
-- Hosted scheduler: local automation verifies the protected worker route and batch processor behavior, but Vercel Cron or deployment scheduler configuration must be confirmed in the deployed environment.
+- Hosted scheduler fallback: local automation verifies the protected worker route and batch processor behavior, but Vercel Cron or deployment scheduler configuration must still be confirmed in the deployed environment for retry/recovery if the immediate trigger is unavailable.
 
 ## User Setup Required
 

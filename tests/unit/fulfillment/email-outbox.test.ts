@@ -1,4 +1,7 @@
 import {describe, expect, test, vi} from 'vitest';
+
+vi.mock('server-only', () => ({}));
+
 import {POST} from '@/app/api/fulfillment/email-outbox/route';
 import {
   buildDownloadResendIntent,
@@ -7,6 +10,7 @@ import {
   validateRetryCandidate
 } from '@/fulfillment/admin-email-actions';
 import {processTransactionalEmailBatch} from '@/fulfillment/email-outbox';
+import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
 import {renderTransactionalEmail} from '@/emails/transactional';
 
 const now = new Date('2026-06-19T10:00:00.000Z');
@@ -117,6 +121,19 @@ describe('transactional email outbox worker', () => {
 
     expect(result).toEqual({status: 'unconfigured', code: 'missing_transactional_email_config'});
     expect(repository.claimDueRows).not.toHaveBeenCalled();
+  });
+
+  test('immediate paid trigger is a safe no-op when transactional email is unconfigured', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://shop.example.test');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://supabase.example.test');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'publishable-key');
+    vi.stubEnv('RESEND_API_KEY', undefined);
+    vi.stubEnv('RESEND_FROM_EMAIL', undefined);
+
+    await expect(triggerTransactionalEmailOutboxNow({reason: 'paypal_webhook_paid'})).resolves.toEqual({
+      status: 'unconfigured',
+      code: 'missing_transactional_email_config'
+    });
   });
 });
 

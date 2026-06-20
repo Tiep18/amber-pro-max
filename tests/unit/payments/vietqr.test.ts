@@ -102,12 +102,17 @@ async function importAdminActions({
       return data;
     })
   }));
+  vi.doMock('@/fulfillment/email-outbox.server', () => ({
+    triggerTransactionalEmailOutboxNow: vi.fn(async () => ({status: 'processed', claimed: 1, sent: 1, retry: 0, failed: 0}))
+  }));
   const actions = await import('@/payments/admin-actions');
   const transitions = await import('@/payments/transitions');
+  const emailOutbox = await import('@/fulfillment/email-outbox.server');
   return {
     confirmVietQrPaymentAction: actions.confirmVietQrPaymentAction as (formData: FormData) => Promise<unknown>,
     rejectVietQrPaymentAction: actions.rejectVietQrPaymentAction as (formData: FormData) => Promise<unknown>,
     applyPaymentTransition: vi.mocked(transitions.applyPaymentTransition),
+    triggerTransactionalEmailOutboxNow: vi.mocked(emailOutbox.triggerTransactionalEmailOutboxNow),
     requireAdmin,
     client
   };
@@ -325,7 +330,7 @@ describe('VietQR instruction and evidence contract', () => {
   });
 
   test('admin actions authorize before parsing and delegate exact confirmation to the shared transition command', async () => {
-    const {confirmVietQrPaymentAction, applyPaymentTransition, requireAdmin, client} = await importAdminActions();
+    const {confirmVietQrPaymentAction, applyPaymentTransition, triggerTransactionalEmailOutboxNow, requireAdmin, client} = await importAdminActions();
 
     const result = await confirmVietQrPaymentAction(confirmForm());
 
@@ -341,6 +346,7 @@ describe('VietQR instruction and evidence contract', () => {
       }),
       client
     );
+    expect(triggerTransactionalEmailOutboxNow).toHaveBeenCalledWith({reason: 'vietqr_admin_paid'});
   });
 
   test('non-admin, stale and duplicate VietQR actions cannot create repeated or regressive effects', async () => {

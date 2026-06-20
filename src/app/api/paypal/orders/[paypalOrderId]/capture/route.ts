@@ -1,6 +1,7 @@
 import {NextResponse} from 'next/server';
 import {z} from 'zod';
 
+import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
@@ -152,7 +153,8 @@ async function reconcileAndTransition({
     code: transition.code
   }, transition.status === 'error' || transition.status === 'invalid' ? 'error' : transition.status === 'review_required' ? 'warn' : 'info');
 
-  if (transition.status === 'applied' || transition.status === 'duplicate') {
+  if ((transition.status === 'applied' || transition.status === 'duplicate') && transition.paymentStatus === 'paid') {
+    await triggerTransactionalEmailOutboxNow({reason: 'paypal_capture_paid'});
     return json(200, {status: 'paid', paymentStatus: transition.paymentStatus ?? 'paid'});
   }
   if (transition.status === 'review_required') {

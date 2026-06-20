@@ -4,7 +4,8 @@ import {randomUUID} from 'node:crypto';
 import {Resend} from 'resend';
 import type {TransactionalEmailRow} from '@/emails/transactional';
 import {hashFulfillmentAccessToken} from '@/fulfillment/downloads';
-import type {TransactionalEmailRepository, TransactionalEmailSender} from '@/fulfillment/email-outbox';
+import {processTransactionalEmailBatch, type TransactionalEmailRepository, type TransactionalEmailSender} from '@/fulfillment/email-outbox';
+import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 
 type SupabaseLike = {
@@ -157,4 +158,27 @@ export function createResendTransactionalEmailSender(apiKey: string): Transactio
 
 export function createProductionEmailOutboxRepository() {
   return createSupabaseEmailOutboxRepository(createSupabaseAdminClient() as unknown as SupabaseLike);
+}
+
+export type ImmediateEmailOutboxTriggerReason = 'paypal_capture_paid' | 'paypal_webhook_paid' | 'vietqr_admin_paid';
+
+export async function triggerTransactionalEmailOutboxNow(input: {reason: ImmediateEmailOutboxTriggerReason; batchSize?: number}) {
+  const env = getServerEnv();
+  if (env.transactionalEmail.status !== 'configured' || !env.transactionalEmail.resendApiKey) {
+    return {status: 'unconfigured' as const, code: env.transactionalEmail.code};
+  }
+
+  try {
+    return await processTransactionalEmailBatch({
+      repository: createProductionEmailOutboxRepository(),
+      sender: createResendTransactionalEmailSender(env.transactionalEmail.resendApiKey),
+      config: {
+        siteUrl: env.NEXT_PUBLIC_SITE_URL,
+        fromEmail: env.transactionalEmail.fromEmail,
+        batchSize: input.batchSize
+      }
+    });
+  } catch {
+    return {status: 'error' as const, code: 'transactional_email_worker_trigger_failed' as const};
+  }
 }

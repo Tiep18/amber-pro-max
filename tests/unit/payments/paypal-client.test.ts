@@ -225,9 +225,13 @@ async function importCaptureRoute({
   vi.doMock('@/payments/transitions', () => ({
     applyPaymentTransition: vi.fn(async () => ({status: 'applied', paymentStatus: 'paid', inventoryEffect: 'finalized'}))
   }));
+  vi.doMock('@/fulfillment/email-outbox.server', () => ({
+    triggerTransactionalEmailOutboxNow: vi.fn(async () => ({status: 'processed', claimed: 1, sent: 1, retry: 0, failed: 0}))
+  }));
   const route = await import('@/app/api/paypal/orders/[paypalOrderId]/capture/route');
   const clientModule = await import('@/payments/paypal/client');
   const transitions = await import('@/payments/transitions');
+  const emailOutbox = await import('@/fulfillment/email-outbox.server');
   const queries = await import('@/payments/queries');
   return {
     POST: route.POST as (request: Request, context: {params: Promise<{paypalOrderId: string}>}) => Promise<Response>,
@@ -235,6 +239,7 @@ async function importCaptureRoute({
     authClient,
     capturePayPalOrder: vi.mocked(clientModule.capturePayPalOrder),
     applyPaymentTransition: vi.mocked(transitions.applyPaymentTransition),
+    triggerTransactionalEmailOutboxNow: vi.mocked(emailOutbox.triggerTransactionalEmailOutboxNow),
     getAuthorizedOrderPayment: vi.mocked(queries.getAuthorizedOrderPayment)
   };
 }
@@ -508,7 +513,7 @@ describe('PayPal route contract', () => {
   });
 
   test('capture returns verifying on uncertain provider outcome', async () => {
-    const {POST, applyPaymentTransition} = await importCaptureRoute({
+    const {POST, applyPaymentTransition, triggerTransactionalEmailOutboxNow} = await importCaptureRoute({
       captureResult: {status: 'verifying', code: 'paypal_capture_uncertain', paypalOrderId: paypalFixtureIds.paypalOrderId}
     });
 
@@ -522,10 +527,11 @@ describe('PayPal route contract', () => {
       paypalOrderId: paypalFixtureIds.paypalOrderId
     });
     expect(applyPaymentTransition).not.toHaveBeenCalled();
+    expect(triggerTransactionalEmailOutboxNow).not.toHaveBeenCalled();
   });
 
   test('completed capture delegates paid state to applyPaymentTransition', async () => {
-    const {POST, authClient, applyPaymentTransition, getAuthorizedOrderPayment} = await importCaptureRoute();
+    const {POST, authClient, applyPaymentTransition, triggerTransactionalEmailOutboxNow, getAuthorizedOrderPayment} = await importCaptureRoute();
 
     const response = await POST(new Request('http://localhost/api/paypal/orders/id/capture', {method: 'POST'}), {
       params: Promise.resolve({paypalOrderId: paypalFixtureIds.paypalOrderId})
@@ -553,5 +559,6 @@ describe('PayPal route contract', () => {
       }),
       expect.any(Object)
     );
+    expect(triggerTransactionalEmailOutboxNow).toHaveBeenCalledWith({reason: 'paypal_capture_paid'});
   });
 });

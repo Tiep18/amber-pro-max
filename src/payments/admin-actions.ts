@@ -3,6 +3,7 @@
 import {revalidatePath} from 'next/cache';
 
 import {requireAdmin} from '@/auth/guards';
+import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
 import {createAdminOrderQueryClient, getAdminOrderDetail, type AdminOrderDetail} from '@/payments/queries';
 import {applyPaymentTransition} from '@/payments/transitions';
 import {
@@ -122,6 +123,9 @@ export async function confirmVietQrPaymentAction(formData: FormData): Promise<Vi
     buildVietQrConfirmTransition({expected: loaded.expected, evidence: parsed.data}),
     loaded.client
   );
+  if ((transition.status === 'applied' || transition.status === 'duplicate') && transition.paymentStatus === 'paid') {
+    await triggerTransactionalEmailOutboxNow({reason: 'vietqr_admin_paid'});
+  }
   revalidatePath('/admin/orders');
   return mapConfirmResult(transition.status, transition.paymentStatus);
 }

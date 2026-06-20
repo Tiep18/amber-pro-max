@@ -1,5 +1,6 @@
 import {NextResponse} from 'next/server';
 
+import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 import type {PayPalOrderSource} from '@/payments/paypal/client';
@@ -303,6 +304,9 @@ export async function POST(request: Request) {
       inventoryEffect: transition.inventoryEffect,
       code: transition.code
     }, transition.status === 'error' || transition.status === 'invalid' ? 'error' : transition.status === 'review_required' ? 'warn' : 'info');
+    if ((transition.status === 'applied' || transition.status === 'duplicate') && transition.paymentStatus === 'paid') {
+      await triggerTransactionalEmailOutboxNow({reason: 'paypal_webhook_paid'});
+    }
     return json(transition.status === 'error' ? 502 : 200, {status: 'accepted', result: transition.status, code: transition.code});
   }
 

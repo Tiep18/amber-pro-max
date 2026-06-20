@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: Awaiting Phase 04 provider UAT
 stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-06-19T11:01:18.900Z"
-last_activity: "2026-06-19 -- Completed quick task 260619-phase-4-docs-refresh: update Phase 4 docs only"
+last_updated: "2026-06-20T09:54:00.000+07:00"
+last_activity: "2026-06-20 -- Completed quick task 20260620-immediate-paid-email-trigger: trigger transactional email worker immediately after paid transitions"
 progress:
   total_phases: 7
   completed_phases: 4
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 4
 Plan: 10 of 10
 Status: Awaiting Phase 04 provider UAT
-Last activity: 2026-06-19 -- Completed quick task 260619-phase-4-docs-refresh: update Phase 4 docs only
+Last activity: 2026-06-20 -- Completed quick task 20260620-immediate-paid-email-trigger: trigger transactional email worker immediately after paid transitions
 
 Progress: [██████████] 100% of planned Phase 04 execution; phase verification requires human/provider UAT
 
@@ -139,6 +139,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260619-phase-4-docs-refresh | Update Phase 4 docs after checkout shipping-address/address-UX commits | 2026-06-19 | this commit | [260619-phase-4-docs-refresh](./quick/260619-phase-4-docs-refresh/) |
+| 20260620-immediate-paid-email-trigger | Trigger transactional email worker immediately after verified paid transitions | 2026-06-20 | this commit | [20260620-immediate-paid-email-trigger](./quick/20260620-immediate-paid-email-trigger/) |
 
 ## Deferred Items
 
