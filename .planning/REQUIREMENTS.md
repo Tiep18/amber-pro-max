@@ -78,7 +78,7 @@
 - [x] **ACC-01**: Customer can register, sign in, sign out, and reset a password.
 - [x] **ACC-02**: Signed-in customer can view only their own order history, order details, payments, downloads, and tracking.
 - [x] **ACC-03**: Customer can save, edit, and delete shipping addresses.
-- [ ] **ACC-04**: Customer can add and remove products from a wishlist.
+- [x] **ACC-04**: Customer can add and remove products from a wishlist.
 - [x] **ACC-05**: Guest customer can claim prior orders into an account after verifying control of the order email.
 
 ### Reviews, Discounts, and Newsletter
@@ -202,7 +202,7 @@
 | ACC-01 | Phase 1 | Complete |
 | ACC-02 | Phase 5 | Complete |
 | ACC-03 | Phase 6 | Complete |
-| ACC-04 | Phase 6 | Pending |
+| ACC-04 | Phase 6 | Complete |
 | ACC-05 | Phase 5 | Complete |
 | REV-01 | Phase 6 | Pending |
 | REV-02 | Phase 6 | Pending |
