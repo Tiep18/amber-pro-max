@@ -267,7 +267,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 06-01-PLAN.md - Implement saved-address account management
+- [x] 06-01-PLAN.md - Implement saved-address account management
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -342,5 +342,5 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
 | 5. Fulfillment and Purchase Access | 11/11 | Complete   | 2026-06-20 |
-| 6. Customer Retention and Trust | 0/10 | Not started | - |
+| 6. Customer Retention and Trust | 1/10 | In Progress|  |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |
