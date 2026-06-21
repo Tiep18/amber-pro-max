@@ -83,7 +83,7 @@
 
 ### Reviews, Discounts, and Newsletter
 
-- [ ] **REV-01**: Customer can review a product only when a paid order line proves purchase eligibility.
+- [x] **REV-01**: Customer can review a product only when a paid order line proves purchase eligibility.
 - [ ] **REV-02**: Admin can approve, hide, and respond to product reviews.
 - [x] **DISC-01**: Admin can create percentage or fixed-value discount codes.
 - [x] **DISC-02**: Admin can restrict a discount by dates, usage count, customer, market, minimum spend, product, category, or collection.
@@ -204,7 +204,7 @@
 | ACC-03 | Phase 6 | Complete |
 | ACC-04 | Phase 6 | Complete |
 | ACC-05 | Phase 5 | Complete |
-| REV-01 | Phase 6 | Pending |
+| REV-01 | Phase 6 | Complete |
 | REV-02 | Phase 6 | Pending |
 | DISC-01 | Phase 3 | Complete |
 | DISC-02 | Phase 3 | Complete |
