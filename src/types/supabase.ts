@@ -1303,6 +1303,83 @@ export type Database = {
           },
         ]
       }
+      newsletter_consent_events: {
+        Row: {
+          consent_source: string
+          event_type: string
+          id: string
+          ip_hash: string | null
+          locale: string
+          market: string
+          normalized_email: string
+          occurred_at: string
+          user_agent_hash: string | null
+        }
+        Insert: {
+          consent_source: string
+          event_type: string
+          id?: string
+          ip_hash?: string | null
+          locale: string
+          market: string
+          normalized_email: string
+          occurred_at?: string
+          user_agent_hash?: string | null
+        }
+        Update: {
+          consent_source?: string
+          event_type?: string
+          id?: string
+          ip_hash?: string | null
+          locale?: string
+          market?: string
+          normalized_email?: string
+          occurred_at?: string
+          user_agent_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_consent_events_normalized_email_fkey"
+            columns: ["normalized_email"]
+            isOneToOne: false
+            referencedRelation: "newsletter_subscribers"
+            referencedColumns: ["normalized_email"]
+          },
+        ]
+      }
+      newsletter_subscribers: {
+        Row: {
+          created_at: string
+          latest_locale: string
+          latest_market: string
+          normalized_email: string
+          status: string
+          subscribed_at: string
+          unsubscribed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          latest_locale: string
+          latest_market: string
+          normalized_email: string
+          status?: string
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          latest_locale?: string
+          latest_market?: string
+          normalized_email?: string
+          status?: string
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_events: {
         Row: {
           delivery_count: number
@@ -2935,6 +3012,17 @@ export type Database = {
           p_product_id: string
           p_rating: number
           p_title: string
+        }
+        Returns: Json
+      }
+      subscribe_newsletter: {
+        Args: {
+          p_email: string
+          p_ip_hash: string
+          p_locale: string
+          p_market: string
+          p_source: string
+          p_user_agent_hash: string
         }
         Returns: Json
       }

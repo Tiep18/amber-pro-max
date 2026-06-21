@@ -1,0 +1,37 @@
+'use server';
+
+import {headers} from 'next/headers';
+import {getRequestMarket} from '@/catalog/page-context';
+import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {
+  shapeConsentMetadata,
+  subscribeNewsletter,
+  type NewsletterSubscribeResult
+} from '@/newsletter/consent';
+
+function formString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === 'string' ? value : undefined;
+}
+
+export async function subscribeNewsletterAction(
+  _previousState: NewsletterSubscribeResult,
+  formData: FormData
+): Promise<NewsletterSubscribeResult> {
+  const requestHeaders = await headers();
+  const forwardedIp = requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim();
+  const evidence = shapeConsentMetadata({
+    ip: forwardedIp ?? requestHeaders.get('x-real-ip'),
+    userAgent: requestHeaders.get('user-agent')
+  });
+  const market = await getRequestMarket();
+  const client = await createSupabaseServerClient();
+
+  return subscribeNewsletter({
+    email: formString(formData, 'email'),
+    locale: formString(formData, 'locale'),
+    market,
+    source: 'footer',
+    ...evidence
+  }, client as never);
+}

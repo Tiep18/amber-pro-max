@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(82);
+select plan(83);
 
 select has_table('public', 'customer_shipping_addresses', 'customer shipping address table exists');
 select col_is_fk('public', 'customer_shipping_addresses', 'user_id', 'saved addresses belong to auth users');
@@ -641,6 +641,11 @@ select is_empty(
 
 reset role;
 
+delete from public.newsletter_consent_events
+where normalized_email in ('newsletter@example.test', 'visual-newsletter@example.test');
+delete from public.newsletter_subscribers
+where normalized_email in ('newsletter@example.test', 'visual-newsletter@example.test');
+
 select has_table('public', 'newsletter_subscribers', 'newsletter subscribers table exists');
 select has_table('public', 'newsletter_consent_events', 'newsletter consent events table exists');
 select col_is_pk('public', 'newsletter_subscribers', 'normalized_email', 'normalized email is the subscriber identity');
@@ -690,7 +695,7 @@ select is(
 reset role;
 
 select results_eq(
-  $$select normalized_email, latest_locale, latest_market, status from public.newsletter_subscribers$$,
+  $$select normalized_email, latest_locale, latest_market, status from public.newsletter_subscribers where normalized_email = 'newsletter@example.test'$$,
   $$values ('newsletter@example.test'::text, 'en'::text, 'intl'::text, 'subscribed'::text)$$,
   'subscriber state uses normalized email and latest preferences'
 );

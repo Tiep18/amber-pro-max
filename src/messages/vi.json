@@ -288,7 +288,17 @@
     }
   },
   "footer": {
-    "copyright": "Nen tang studio handmade tam thoi"
+    "copyright": "Nen tang studio handmade tam thoi",
+    "newsletter": {
+      "title": "Ban tin cua studio",
+      "consent": "Dang ky de nhan tin cua hang va huy dang ky tu bat ky email nao.",
+      "email": "Email",
+      "submit": "Dang ky nhan ban tin",
+      "pending": "Dang dang ky...",
+      "success": "Ban da dang ky.",
+      "invalid": "Nhap dia chi email hop le.",
+      "error": "Khong the hoan tat dang ky. Thu lai sau."
+    }
   },
   "accountPurchases": {
     "orders": {

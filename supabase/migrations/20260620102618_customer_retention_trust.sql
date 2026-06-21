@@ -822,3 +822,134 @@ grant execute on function public.moderate_product_review(uuid, integer, text, te
 grant execute on function public.upsert_review_admin_reply(uuid, integer, text, text) to authenticated;
 grant execute on function public.remove_review_admin_reply(uuid, integer, text, integer) to authenticated;
 grant execute on function public.get_admin_product_reviews(text) to authenticated;
+
+create table public.newsletter_subscribers (
+  normalized_email text primary key,
+  status text not null default 'subscribed' check (status in ('subscribed', 'unsubscribed')),
+  latest_locale text not null check (latest_locale in ('vi', 'en')),
+  latest_market text not null check (latest_market in ('vn', 'intl')),
+  subscribed_at timestamptz not null default now(),
+  unsubscribed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (normalized_email = lower(btrim(normalized_email))),
+  check (normalized_email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
+  check (
+    (status = 'subscribed' and unsubscribed_at is null)
+    or (status = 'unsubscribed' and unsubscribed_at is not null)
+  )
+);
+
+create table public.newsletter_consent_events (
+  id uuid primary key default gen_random_uuid(),
+  normalized_email text not null references public.newsletter_subscribers(normalized_email) on delete restrict,
+  event_type text not null check (event_type in ('subscribe', 'resubscribe', 'unsubscribe')),
+  consent_source text not null check (consent_source in ('footer', 'email_link')),
+  locale text not null check (locale in ('vi', 'en')),
+  market text not null check (market in ('vn', 'intl')),
+  ip_hash text check (ip_hash is null or ip_hash ~ '^[a-f0-9]{64}$'),
+  user_agent_hash text check (user_agent_hash is null or user_agent_hash ~ '^[a-f0-9]{64}$'),
+  occurred_at timestamptz not null default now()
+);
+
+create index newsletter_consent_events_subscriber_time_idx
+on public.newsletter_consent_events (normalized_email, occurred_at desc);
+
+alter table public.newsletter_subscribers enable row level security;
+alter table public.newsletter_consent_events enable row level security;
+
+revoke all on table public.newsletter_subscribers from public, anon, authenticated;
+revoke all on table public.newsletter_consent_events from public, anon, authenticated;
+grant select, insert, update on table public.newsletter_subscribers to service_role;
+grant select, insert on table public.newsletter_consent_events to service_role;
+
+create or replace function public.subscribe_newsletter(
+  p_email text,
+  p_locale text,
+  p_market text,
+  p_source text,
+  p_ip_hash text,
+  p_user_agent_hash text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  normalized text := lower(btrim(coalesce(p_email, '')));
+  previous_status text;
+  consent_event_type text;
+begin
+  if normalized !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+    or char_length(normalized) > 320
+    or p_locale not in ('vi', 'en')
+    or p_market not in ('vn', 'intl')
+    or p_source <> 'footer'
+    or (p_ip_hash is not null and p_ip_hash !~ '^[a-f0-9]{64}$')
+    or (p_user_agent_hash is not null and p_user_agent_hash !~ '^[a-f0-9]{64}$')
+  then
+    return jsonb_build_object('status', 'invalid');
+  end if;
+
+  select status into previous_status
+  from public.newsletter_subscribers
+  where normalized_email = normalized
+  for update;
+
+  consent_event_type := case when previous_status = 'unsubscribed' then 'resubscribe' else 'subscribe' end;
+
+  insert into public.newsletter_subscribers (
+    normalized_email,
+    status,
+    latest_locale,
+    latest_market,
+    subscribed_at,
+    unsubscribed_at,
+    updated_at
+  ) values (
+    normalized,
+    'subscribed',
+    p_locale,
+    p_market,
+    now(),
+    null,
+    now()
+  )
+  on conflict (normalized_email)
+  do update set
+    status = 'subscribed',
+    latest_locale = excluded.latest_locale,
+    latest_market = excluded.latest_market,
+    subscribed_at = now(),
+    unsubscribed_at = null,
+    updated_at = now();
+
+  insert into public.newsletter_consent_events (
+    normalized_email,
+    event_type,
+    consent_source,
+    locale,
+    market,
+    ip_hash,
+    user_agent_hash,
+    occurred_at
+  ) values (
+    normalized,
+    consent_event_type,
+    p_source,
+    p_locale,
+    p_market,
+    p_ip_hash,
+    p_user_agent_hash,
+    now()
+  );
+
+  return jsonb_build_object(
+    'status', case when consent_event_type = 'resubscribe' then 'resubscribed' else 'subscribed' end
+  );
+end;
+$$;
+
+revoke all on function public.subscribe_newsletter(text, text, text, text, text, text) from public;
+grant execute on function public.subscribe_newsletter(text, text, text, text, text, text) to anon, authenticated;

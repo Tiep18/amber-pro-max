@@ -288,7 +288,17 @@
     }
   },
   "footer": {
-    "copyright": "Provisional handmade studio foundation"
+    "copyright": "Provisional handmade studio foundation",
+    "newsletter": {
+      "title": "Studio newsletter",
+      "consent": "Subscribe explicitly for shop news and unsubscribe from any email.",
+      "email": "Email",
+      "submit": "Subscribe to newsletter",
+      "pending": "Subscribing...",
+      "success": "You're subscribed.",
+      "invalid": "Enter a valid email address.",
+      "error": "We could not complete the subscription. Try again."
+    }
   },
   "accountPurchases": {
     "orders": {
