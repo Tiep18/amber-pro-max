@@ -181,7 +181,8 @@ export default async function ProductPage({params}: {params: Params}) {
               title: t('reviews.title'),
               empty: t('reviews.empty'),
               verifiedPurchase: t('reviews.verifiedPurchase'),
-              ratingLabel: t('reviews.ratingLabel')
+              ratingLabel: t('reviews.ratingLabel'),
+              shopReply: t('reviews.shopReply')
             }}
           />
         ) : null}

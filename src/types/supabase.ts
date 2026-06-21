@@ -2096,6 +2096,48 @@ export type Database = {
         }
         Relationships: []
       }
+      review_admin_replies: {
+        Row: {
+          admin_user_id: string
+          body: string
+          created_at: string
+          review_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          admin_user_id: string
+          body: string
+          created_at?: string
+          review_id: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          admin_user_id?: string
+          body?: string
+          created_at?: string
+          review_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_admin_replies_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: true
+            referencedRelation: "approved_product_reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_admin_replies_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: true
+            referencedRelation: "product_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shipping_profiles: {
         Row: {
           active: boolean
@@ -2544,6 +2586,8 @@ export type Database = {
           masked_author: string | null
           product_id: string | null
           rating: number | null
+          shop_reply_body: string | null
+          shop_reply_updated_at: string | null
           title: string | null
           updated_at: string | null
           verified_purchase: boolean | null
@@ -2642,6 +2686,25 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      get_admin_product_reviews: {
+        Args: { p_status?: string }
+        Returns: {
+          customer_email: string
+          product_id: string
+          product_title: string
+          rating: number
+          reply_body: string
+          reply_updated_at: string
+          reply_version: number
+          review_body: string
+          review_id: string
+          review_status: string
+          review_title: string
+          review_version: number
+          submitted_at: string
+          updated_at: string
+        }[]
       }
       get_catalog_category_by_slug: {
         Args: { p_locale: string; p_market: string; p_slug: string }
@@ -2804,6 +2867,16 @@ export type Database = {
         }[]
       }
       mask_review_author: { Args: { value: string }; Returns: string }
+      moderate_product_review: {
+        Args: {
+          p_expected_status: string
+          p_expected_version: number
+          p_moderation_note: string
+          p_review_id: string
+          p_target_status: string
+        }
+        Returns: Json
+      }
       publish_catalog_product: {
         Args: { target_product_id: string }
         Returns: {
@@ -2815,6 +2888,15 @@ export type Database = {
           p_entitlement_id: string
           p_expected_version: number
           p_new_token_hash: string
+        }
+        Returns: Json
+      }
+      remove_review_admin_reply: {
+        Args: {
+          p_expected_reply_version: number
+          p_expected_review_status: string
+          p_expected_review_version: number
+          p_review_id: string
         }
         Returns: Json
       }
@@ -2853,6 +2935,15 @@ export type Database = {
           p_product_id: string
           p_rating: number
           p_title: string
+        }
+        Returns: Json
+      }
+      upsert_review_admin_reply: {
+        Args: {
+          p_body: string
+          p_expected_review_status: string
+          p_expected_review_version: number
+          p_review_id: string
         }
         Returns: Json
       }

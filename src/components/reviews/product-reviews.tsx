@@ -10,6 +10,7 @@ export function ProductReviews({
     empty: string;
     verifiedPurchase: string;
     ratingLabel: string;
+    shopReply: string;
   };
 }) {
   return (
@@ -32,6 +33,12 @@ export function ProductReviews({
               </p>
               {review.title ? <h3 className="mt-3 text-lg font-semibold">{review.title}</h3> : null}
               {review.body ? <p className="mt-2 text-[var(--muted-foreground)]">{review.body}</p> : null}
+              {review.shopReplyBody ? (
+                <div className="ml-3 mt-4 border-l-2 border-[var(--accent)] bg-[var(--surface-muted)] px-4 py-3">
+                  <p className="text-sm font-semibold">{labels.shopReply}</p>
+                  <p className="mt-1 text-sm text-[var(--muted-foreground)]">{review.shopReplyBody}</p>
+                </div>
+              ) : null}
             </article>
           ))}
         </div>

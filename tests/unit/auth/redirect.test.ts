@@ -33,7 +33,8 @@ describe('safeRedirect', () => {
     ['/en/reset-password', '/en/reset-password'],
     ['/vi/tai-khoan', '/vi/tai-khoan'],
     ['/en/account', '/en/account'],
-    ['/admin', '/admin']
+    ['/admin', '/admin'],
+    ['/admin/reviews', '/admin/reviews']
   ])('allows known localized route %s', (next, expected) => {
     expect(safeRedirect(next, 'vi')).toBe(expected);
   });

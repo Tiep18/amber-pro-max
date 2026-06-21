@@ -32,8 +32,8 @@ export async function requireUser({locale, next}: {locale: Locale; next: string}
   };
 }
 
-export async function requireAdmin(): Promise<AuthUser> {
-  const user = await requireUser({locale: 'en', next: '/admin'});
+export async function requireAdmin({next = '/admin'}: {next?: string} = {}): Promise<AuthUser> {
+  const user = await requireUser({locale: 'en', next});
   const supabase = await createSupabaseServerClient();
   const {data} = await supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle();
 

@@ -18,6 +18,8 @@ export type PublicProductReview = {
   maskedAuthor: string;
   verifiedPurchase: boolean;
   approvedAt: string;
+  shopReplyBody: string | null;
+  shopReplyUpdatedAt: string | null;
 };
 
 const productReviewInputSchema = z.object({
@@ -90,7 +92,9 @@ export function mapPublicReviewRows(rows: unknown[]): PublicProductReview[] {
       body: typeof row.body === 'string' ? row.body : null,
       maskedAuthor: row.masked_author,
       verifiedPurchase: row.verified_purchase,
-      approvedAt: row.approved_at
+      approvedAt: row.approved_at,
+      shopReplyBody: typeof row.shop_reply_body === 'string' ? row.shop_reply_body : null,
+      shopReplyUpdatedAt: typeof row.shop_reply_updated_at === 'string' ? row.shop_reply_updated_at : null
     }];
   });
 }

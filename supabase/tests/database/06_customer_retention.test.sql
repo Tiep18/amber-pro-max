@@ -309,8 +309,8 @@ select table_privs_are(
   'public',
   'product_reviews',
   'authenticated',
-  array['SELECT', 'INSERT', 'UPDATE'],
-  'authenticated customers can manage only their own reviews through RLS'
+  array['SELECT'],
+  'authenticated customers read their own reviews and write only through verified RPCs'
 );
 select has_function(
   'public',
@@ -473,6 +473,11 @@ select lives_ok(
   $$select public.submit_product_review('50000000-0000-0000-0000-000000000003', 5, 'Sweet bear', 'Well made')$$,
   'eligible customer can submit a review'
 );
+select set_config(
+  'test.review_id',
+  (select id::text from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+  true
+);
 select throws_ok(
   $$select public.submit_product_review('50000000-0000-0000-0000-000000000003', 6, 'Bad rating', 'Too high')$$,
   '23514',
@@ -539,7 +544,7 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select is(
   (public.moderate_product_review(
-    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    current_setting('test.review_id')::uuid,
     1,
     'pending',
     'approved',
@@ -553,7 +558,7 @@ select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000603
 
 select is(
   (public.moderate_product_review(
-    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    current_setting('test.review_id')::uuid,
     1,
     'pending',
     'approved',
@@ -569,7 +574,7 @@ select results_eq(
 );
 select is(
   (public.moderate_product_review(
-    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    current_setting('test.review_id')::uuid,
     1,
     'pending',
     'hidden',
@@ -580,7 +585,7 @@ select is(
 );
 select is(
   (public.upsert_review_admin_reply(
-    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    current_setting('test.review_id')::uuid,
     2,
     'approved',
     'Thank you for your review.'
@@ -589,7 +594,7 @@ select is(
   'admin can create one shop reply'
 );
 select is(
-  (select count(*)::integer from public.review_admin_replies),
+  (select count(*)::integer from public.approved_product_reviews where shop_reply_body is not null),
   1,
   'shop reply upsert creates only one row per review'
 );
@@ -600,7 +605,7 @@ select results_eq(
 );
 select is(
   (public.upsert_review_admin_reply(
-    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    current_setting('test.review_id')::uuid,
     2,
     'approved',
     'Updated shop reply.'
@@ -610,7 +615,7 @@ select is(
 );
 select is(
   (public.remove_review_admin_reply(
-    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    current_setting('test.review_id')::uuid,
     2,
     'approved',
     2
@@ -620,7 +625,7 @@ select is(
 );
 select is(
   (public.moderate_product_review(
-    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    current_setting('test.review_id')::uuid,
     2,
     'approved',
     'hidden',

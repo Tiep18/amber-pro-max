@@ -395,7 +395,7 @@ on public.product_reviews (product_id, status, approved_at desc);
 alter table public.product_reviews enable row level security;
 
 revoke all on table public.product_reviews from public, anon, authenticated;
-grant select, insert, update on table public.product_reviews to authenticated;
+grant select on table public.product_reviews to authenticated;
 grant select, insert, update on table public.product_reviews to service_role;
 
 create policy "product reviews are owner readable"
@@ -547,3 +547,278 @@ grant execute on function public.can_review_product(uuid) to authenticated;
 grant execute on function public.submit_product_review(uuid, integer, text, text) to authenticated;
 grant execute on function public.mask_review_author(text) to authenticated, service_role;
 grant select on table public.approved_product_reviews to anon, authenticated;
+
+create table public.review_admin_replies (
+  review_id uuid primary key references public.product_reviews(id) on delete cascade,
+  admin_user_id uuid not null references auth.users(id) on delete restrict,
+  body text not null check (char_length(btrim(body)) between 1 and 2000),
+  version integer not null default 1 check (version > 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.review_admin_replies enable row level security;
+
+revoke all on table public.review_admin_replies from public, anon, authenticated;
+grant select, insert, update, delete on table public.review_admin_replies to service_role;
+
+create or replace function public.moderate_product_review(
+  p_review_id uuid,
+  p_expected_version integer,
+  p_expected_status text,
+  p_target_status text,
+  p_moderation_note text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, private, pg_temp
+as $$
+declare
+  saved_version integer;
+  current_version integer;
+begin
+  if not private.is_admin() then
+    return jsonb_build_object('status', 'forbidden');
+  end if;
+
+  if p_target_status not in ('approved', 'hidden')
+    or p_expected_status not in ('pending', 'approved', 'rejected', 'hidden')
+    or p_expected_version < 1
+  then
+    return jsonb_build_object('status', 'invalid');
+  end if;
+
+  update public.product_reviews
+  set status = p_target_status,
+      version = version + 1,
+      approved_at = case when p_target_status = 'approved' then now() else null end,
+      hidden_at = case when p_target_status = 'hidden' then now() else null end,
+      moderation_note = nullif(left(btrim(p_moderation_note), 500), ''),
+      updated_at = now()
+  where id = p_review_id
+    and version = p_expected_version
+    and status = p_expected_status
+  returning version into saved_version;
+
+  if saved_version is null then
+    select version into current_version
+    from public.product_reviews
+    where id = p_review_id;
+
+    if current_version is null then
+      return jsonb_build_object('status', 'not_found');
+    end if;
+    return jsonb_build_object('status', 'stale', 'version', current_version);
+  end if;
+
+  return jsonb_build_object('status', p_target_status, 'version', saved_version);
+end;
+$$;
+
+create or replace function public.upsert_review_admin_reply(
+  p_review_id uuid,
+  p_expected_review_version integer,
+  p_expected_review_status text,
+  p_body text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, private, pg_temp
+as $$
+declare
+  current_review_version integer;
+  saved_reply_version integer;
+begin
+  if not private.is_admin() then
+    return jsonb_build_object('status', 'forbidden');
+  end if;
+
+  if p_expected_review_status <> 'approved'
+    or p_expected_review_version < 1
+    or char_length(btrim(coalesce(p_body, ''))) not between 1 and 2000
+  then
+    return jsonb_build_object('status', 'invalid');
+  end if;
+
+  select version into current_review_version
+  from public.product_reviews
+  where id = p_review_id
+    and version = p_expected_review_version
+    and status = p_expected_review_status;
+
+  if current_review_version is null then
+    select version into current_review_version
+    from public.product_reviews
+    where id = p_review_id;
+    return jsonb_build_object('status', 'stale', 'version', current_review_version);
+  end if;
+
+  insert into public.review_admin_replies (
+    review_id,
+    admin_user_id,
+    body,
+    version,
+    updated_at
+  ) values (
+    p_review_id,
+    auth.uid(),
+    btrim(p_body),
+    1,
+    now()
+  )
+  on conflict (review_id)
+  do update set
+    admin_user_id = excluded.admin_user_id,
+    body = excluded.body,
+    version = public.review_admin_replies.version + 1,
+    updated_at = now()
+  returning version into saved_reply_version;
+
+  return jsonb_build_object('status', 'saved', 'reply_version', saved_reply_version);
+end;
+$$;
+
+create or replace function public.remove_review_admin_reply(
+  p_review_id uuid,
+  p_expected_review_version integer,
+  p_expected_review_status text,
+  p_expected_reply_version integer
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, private, pg_temp
+as $$
+declare
+  current_review_version integer;
+  current_reply_version integer;
+  removed_id uuid;
+begin
+  if not private.is_admin() then
+    return jsonb_build_object('status', 'forbidden');
+  end if;
+
+  select version into current_review_version
+  from public.product_reviews
+  where id = p_review_id
+    and version = p_expected_review_version
+    and status = p_expected_review_status;
+
+  if current_review_version is null then
+    select version into current_review_version
+    from public.product_reviews
+    where id = p_review_id;
+    return jsonb_build_object('status', 'stale', 'version', current_review_version);
+  end if;
+
+  delete from public.review_admin_replies
+  where review_id = p_review_id
+    and version = p_expected_reply_version
+  returning review_id into removed_id;
+
+  if removed_id is null then
+    select version into current_reply_version
+    from public.review_admin_replies
+    where review_id = p_review_id;
+    return jsonb_build_object('status', 'stale', 'version', current_reply_version);
+  end if;
+
+  return jsonb_build_object('status', 'removed');
+end;
+$$;
+
+create or replace function public.get_admin_product_reviews(p_status text default null)
+returns table (
+  review_id uuid,
+  product_id uuid,
+  product_title text,
+  customer_email text,
+  rating integer,
+  review_title text,
+  review_body text,
+  review_status text,
+  review_version integer,
+  submitted_at timestamptz,
+  updated_at timestamptz,
+  reply_body text,
+  reply_version integer,
+  reply_updated_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = public, private, pg_temp
+as $$
+begin
+  if not private.is_admin() then
+    return;
+  end if;
+
+  if p_status is not null and p_status not in ('pending', 'approved', 'rejected', 'hidden') then
+    return;
+  end if;
+
+  return query
+  select
+    pr.id,
+    pr.product_id,
+    coalesce(pt.title, pr.product_id::text),
+    coalesce(u.email, '')::text,
+    pr.rating,
+    pr.title,
+    pr.body,
+    pr.status,
+    pr.version,
+    pr.created_at,
+    pr.updated_at,
+    rar.body,
+    rar.version,
+    rar.updated_at
+  from public.product_reviews pr
+  join auth.users u on u.id = pr.user_id
+  left join public.product_translations pt
+    on pt.product_id = pr.product_id
+   and pt.locale = 'en'
+  left join public.review_admin_replies rar on rar.review_id = pr.id
+  where p_status is null or pr.status = p_status
+  order by
+    case pr.status when 'pending' then 0 when 'approved' then 1 when 'hidden' then 2 else 3 end,
+    pr.updated_at desc;
+end;
+$$;
+
+create or replace view public.approved_product_reviews
+with (security_invoker = false)
+as
+select
+  pr.id,
+  pr.product_id,
+  pr.rating,
+  pr.title,
+  pr.body,
+  public.mask_review_author(coalesce(u.email, '')) as masked_author,
+  true as verified_purchase,
+  pr.approved_at,
+  pr.created_at,
+  pr.updated_at,
+  rar.body as shop_reply_body,
+  rar.updated_at as shop_reply_updated_at
+from public.product_reviews pr
+join auth.users u
+  on u.id = pr.user_id
+left join public.review_admin_replies rar
+  on rar.review_id = pr.id
+where pr.status = 'approved'
+  and pr.approved_at is not null;
+
+revoke all on function public.moderate_product_review(uuid, integer, text, text, text) from public, anon;
+revoke all on function public.upsert_review_admin_reply(uuid, integer, text, text) from public, anon;
+revoke all on function public.remove_review_admin_reply(uuid, integer, text, integer) from public, anon;
+revoke all on function public.get_admin_product_reviews(text) from public, anon;
+
+grant execute on function public.moderate_product_review(uuid, integer, text, text, text) to authenticated;
+grant execute on function public.upsert_review_admin_reply(uuid, integer, text, text) to authenticated;
+grant execute on function public.remove_review_admin_reply(uuid, integer, text, integer) to authenticated;
+grant execute on function public.get_admin_product_reviews(text) to authenticated;
