@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(64);
+select plan(82);
 
 select has_table('public', 'customer_shipping_addresses', 'customer shipping address table exists');
 select col_is_fk('public', 'customer_shipping_addresses', 'user_id', 'saved addresses belong to auth users');
@@ -637,6 +637,99 @@ select is(
 select is_empty(
   $$select title from public.approved_product_reviews where product_id = '50000000-0000-0000-0000-000000000003'$$,
   'hidden review disappears from public display'
+);
+
+reset role;
+
+select has_table('public', 'newsletter_subscribers', 'newsletter subscribers table exists');
+select has_table('public', 'newsletter_consent_events', 'newsletter consent events table exists');
+select col_is_pk('public', 'newsletter_subscribers', 'normalized_email', 'normalized email is the subscriber identity');
+select col_is_fk('public', 'newsletter_consent_events', 'normalized_email', 'consent events belong to subscriber state');
+select has_column('public', 'newsletter_consent_events', 'consent_source', 'consent source is recorded');
+select has_column('public', 'newsletter_consent_events', 'occurred_at', 'consent timestamp is recorded');
+select hasnt_column('public', 'newsletter_consent_events', 'raw_ip', 'raw IP is not stored');
+select hasnt_column('public', 'newsletter_consent_events', 'ip_address', 'IP address field is not stored');
+select hasnt_column('public', 'newsletter_consent_events', 'user_agent', 'raw user-agent is not stored');
+select hasnt_column('public', 'newsletter_consent_events', 'raw_headers', 'raw request headers are not stored');
+select table_privs_are(
+  'public',
+  'newsletter_subscribers',
+  'anon',
+  array[]::text[],
+  'anonymous visitors cannot read or mutate subscriber rows directly'
+);
+select table_privs_are(
+  'public',
+  'newsletter_consent_events',
+  'authenticated',
+  array[]::text[],
+  'authenticated users cannot inspect consent history directly'
+);
+select has_function(
+  'public',
+  'subscribe_newsletter',
+  array['text', 'text', 'text', 'text', 'text', 'text'],
+  'public subscribe RPC exists'
+);
+
+set local role anon;
+
+select is(
+  (public.subscribe_newsletter(
+    '  NEWSLETTER@Example.Test ',
+    'en',
+    'intl',
+    'footer',
+    repeat('a', 64),
+    repeat('b', 64)
+  )->>'status'),
+  'subscribed',
+  'anonymous visitor can explicitly subscribe'
+);
+
+reset role;
+
+select results_eq(
+  $$select normalized_email, latest_locale, latest_market, status from public.newsletter_subscribers$$,
+  $$values ('newsletter@example.test'::text, 'en'::text, 'intl'::text, 'subscribed'::text)$$,
+  'subscriber state uses normalized email and latest preferences'
+);
+select is(
+  (select count(*)::integer from public.newsletter_consent_events where normalized_email = 'newsletter@example.test'),
+  1,
+  'subscribe appends one consent event'
+);
+select results_eq(
+  $$select ip_hash, user_agent_hash from public.newsletter_consent_events where normalized_email = 'newsletter@example.test'$$,
+  $$values (repeat('a', 64)::text, repeat('b', 64)::text)$$,
+  'consent event retains hash-only request evidence'
+);
+
+update public.newsletter_subscribers
+set status = 'unsubscribed', unsubscribed_at = now(), updated_at = now()
+where normalized_email = 'newsletter@example.test';
+
+set local role anon;
+
+select is(
+  (public.subscribe_newsletter(
+    'newsletter@example.test',
+    'vi',
+    'vn',
+    'footer',
+    null,
+    null
+  )->>'status'),
+  'resubscribed',
+  'unsubscribed visitor can explicitly resubscribe'
+);
+
+reset role;
+
+select results_eq(
+  $$select latest_locale, latest_market, status from public.newsletter_subscribers where normalized_email = 'newsletter@example.test'$$,
+  $$values ('vi'::text, 'vn'::text, 'subscribed'::text)$$,
+  'resubscribe updates latest locale and market state'
 );
 
 select * from finish();
