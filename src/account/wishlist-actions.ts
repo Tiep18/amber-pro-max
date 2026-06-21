@@ -18,10 +18,22 @@ type DeleteClient = {
   };
 };
 
+type UpsertClient = {
+  from: (table: string) => {
+    upsert: (
+      values: Record<string, string>,
+      options: {onConflict: string; ignoreDuplicates: boolean}
+    ) => {
+      select: (columns: string) => Promise<{data: unknown[] | null; error: unknown}>;
+    };
+  };
+};
+
 const productIdSchema = z.string().uuid();
 
 export type WishlistActionState =
   | {status: 'idle'}
+  | {status: 'saved'}
   | {status: 'removed'}
   | {status: 'not_found'}
   | {status: 'invalid'; code: 'invalid_product_id'}
@@ -43,6 +55,37 @@ function formValue(formData: FormData, key: string) {
 function revalidateWishlistPages() {
   revalidatePath('/en/account/wishlist');
   revalidatePath('/vi/tai-khoan/yeu-thich');
+}
+
+function actionReturnPath(locale: Locale, formData: FormData) {
+  return formValue(formData, 'returnTo') ?? wishlistPath(locale);
+}
+
+export async function addCustomerWishlistItem({
+  userId,
+  productId,
+  client
+}: {
+  userId: string;
+  productId: string;
+  client: UpsertClient;
+}): Promise<WishlistActionState> {
+  if (!productIdSchema.safeParse(productId).success) {
+    return {status: 'invalid', code: 'invalid_product_id'};
+  }
+
+  const {data, error} = await client
+    .from('wishlist_items')
+    .upsert(
+      {user_id: userId, product_id: productId},
+      {onConflict: 'user_id,product_id', ignoreDuplicates: true}
+    )
+    .select('id');
+
+  if (error || !Array.isArray(data)) {
+    return {status: 'error', code: 'wishlist_action_failed'};
+  }
+  return {status: 'saved'};
 }
 
 export async function removeCustomerWishlistItem({
@@ -76,7 +119,7 @@ export async function removeCustomerWishlistItemAction(
   formData: FormData
 ): Promise<WishlistActionState> {
   const locale = localeFromForm(formData);
-  const user = await requireUser({locale, next: wishlistPath(locale)});
+  const user = await requireUser({locale, next: actionReturnPath(locale, formData)});
   const client = await createSupabaseServerClient();
   const result = await removeCustomerWishlistItem({
     userId: user.id,
@@ -84,5 +127,21 @@ export async function removeCustomerWishlistItemAction(
     client: client as unknown as DeleteClient
   });
   if (result.status === 'removed') revalidateWishlistPages();
+  return result;
+}
+
+export async function addCustomerWishlistItemAction(
+  _previousState: WishlistActionState,
+  formData: FormData
+): Promise<WishlistActionState> {
+  const locale = localeFromForm(formData);
+  const user = await requireUser({locale, next: actionReturnPath(locale, formData)});
+  const client = await createSupabaseServerClient();
+  const result = await addCustomerWishlistItem({
+    userId: user.id,
+    productId: formValue(formData, 'productId') ?? '',
+    client: client as unknown as UpsertClient
+  });
+  if (result.status === 'saved') revalidateWishlistPages();
   return result;
 }

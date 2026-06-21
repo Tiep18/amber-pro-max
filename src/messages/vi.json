@@ -34,7 +34,13 @@
     "inStock": "Con hang",
     "outOfStock": "Het hang",
     "categoryLabel": "Danh muc",
-    "collectionLabel": "Bo suu tap"
+    "collectionLabel": "Bo suu tap",
+    "wishlist": {
+      "save": "Luu {title} vao yeu thich",
+      "remove": "Xoa {title} khoi yeu thich",
+      "saving": "Dang luu vao yeu thich",
+      "removing": "Dang xoa khoi yeu thich"
+    }
   },
   "product": {
     "pdfPattern": "Mau PDF",
@@ -49,7 +55,13 @@
     "variants": "Tuy chon",
     "inStock": "Con hang",
     "outOfStock": "Het hang",
-    "selectVariant": "Chon tuy chon san pham"
+    "selectVariant": "Chon tuy chon san pham",
+    "wishlist": {
+      "save": "Luu {title} vao yeu thich",
+      "remove": "Xoa {title} khoi yeu thich",
+      "saving": "Dang luu vao yeu thich",
+      "removing": "Dang xoa khoi yeu thich"
+    }
   },
   "market": {
     "label": "Thi truong",

@@ -9,6 +9,7 @@ import {getCatalogProductBySlug} from '@/catalog/queries';
 import {ProductGallery} from '@/components/catalog/product-gallery';
 import {UnavailableMarket} from '@/components/catalog/unavailable-market';
 import {AddToCart} from '@/components/catalog/add-to-cart';
+import {WishlistHeart} from '@/components/catalog/wishlist-heart';
 import {VariantSelector, type PublicVariant} from '@/components/catalog/variant-selector';
 import {
   getProductPath,
@@ -104,6 +105,7 @@ export default async function ProductPage({params}: {params: Params}) {
   const otherMarket = product.other_market_code === 'vn' || product.other_market_code === 'intl'
     ? product.other_market_code
     : null;
+  const productPath = getProductPath(locale, product.slug);
 
   return (
     <main className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.8fr)] lg:px-10 xl:px-12">
@@ -113,7 +115,21 @@ export default async function ProductPage({params}: {params: Params}) {
           {typeLabel}
         </span>
         <div className="grid gap-3">
-          <h1 className="text-[32px] font-semibold leading-tight">{product.title}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-[32px] font-semibold leading-tight">{product.title}</h1>
+            <WishlistHeart
+              productId={product.product_id}
+              productTitle={product.title}
+              locale={locale}
+              returnTo={productPath}
+              labels={{
+                save: t('wishlist.save'),
+                remove: t('wishlist.remove'),
+                saving: t('wishlist.saving'),
+                removing: t('wishlist.removing')
+              }}
+            />
+          </div>
           <p className="text-[var(--muted-foreground)]">{product.description}</p>
         </div>
         {product.product_type === 'pdf_pattern' ? (
@@ -133,7 +149,7 @@ export default async function ProductPage({params}: {params: Params}) {
             title={t('unavailableTitle')}
             body={t('unavailableBody')}
             otherMarket={otherMarket}
-            returnTo={getProductPath(locale, product.slug)}
+            returnTo={productPath}
             switchLabel={otherMarket === 'vn' ? marketT('switchToVietnam') : marketT('switchToInternational')}
           />
         ) : product.currency_code && product.price_minor !== null ? (

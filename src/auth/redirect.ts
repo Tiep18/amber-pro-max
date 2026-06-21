@@ -22,6 +22,19 @@ function isAllowedAdminPath(pathname: string) {
   );
 }
 
+function isAllowedLocalizedDynamicPath(pathname: string) {
+  return (
+    /^\/en\/product\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname) ||
+    /^\/vi\/san-pham\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname) ||
+    /^\/en\/category\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname) ||
+    /^\/vi\/danh-muc\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname) ||
+    /^\/en\/collection\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname) ||
+    /^\/vi\/bo-suu-tap\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname) ||
+    /^\/en\/orders\/[A-Z0-9-]+$/i.test(pathname) ||
+    /^\/vi\/don-hang\/[A-Z0-9-]+$/i.test(pathname)
+  );
+}
+
 function fallbackFor(locale: Locale) {
   return getLocalizedPath('/', locale);
 }
@@ -32,7 +45,11 @@ function safeNestedNext(value: string | null) {
   }
 
   const normalized = value.replace(/\/$/, '') || '/';
-  return allowedPaths.has(normalized as `/${Locale}${string}`) || isAllowedAdminPath(normalized) ? normalized : null;
+  return allowedPaths.has(normalized as `/${Locale}${string}`) ||
+    isAllowedAdminPath(normalized) ||
+    isAllowedLocalizedDynamicPath(normalized)
+    ? normalized
+    : null;
 }
 
 export function safeRedirect(next: FormDataEntryValue | null | undefined, locale: Locale = 'vi') {
@@ -61,7 +78,11 @@ export function safeRedirect(next: FormDataEntryValue | null | undefined, locale
   }
 
   const normalizedPath = parsed.pathname.replace(/\/$/, '') || `/${routeLocale}`;
-  if (!allowedPaths.has(normalizedPath as `/${Locale}${string}`) && !isAllowedAdminPath(normalizedPath)) {
+  if (
+    !allowedPaths.has(normalizedPath as `/${Locale}${string}`) &&
+    !isAllowedAdminPath(normalizedPath) &&
+    !isAllowedLocalizedDynamicPath(normalizedPath)
+  ) {
     return fallbackFor(locale);
   }
 
@@ -73,4 +94,9 @@ export function safeRedirect(next: FormDataEntryValue | null | undefined, locale
 
   const queryString = query.toString();
   return queryString ? `${normalizedPath}?${queryString}` : normalizedPath;
+}
+
+export function wishlistSignInPath({locale, next}: {locale: Locale; next: string}) {
+  const signInPath = getLocalizedPath('/sign-in', locale);
+  return `${signInPath}?next=${encodeURIComponent(safeRedirect(next, locale))}`;
 }

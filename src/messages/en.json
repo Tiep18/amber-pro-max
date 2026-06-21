@@ -34,7 +34,13 @@
     "inStock": "In stock",
     "outOfStock": "Out of stock",
     "categoryLabel": "Category",
-    "collectionLabel": "Collection"
+    "collectionLabel": "Collection",
+    "wishlist": {
+      "save": "Save {title} to wishlist",
+      "remove": "Remove {title} from wishlist",
+      "saving": "Saving to wishlist",
+      "removing": "Removing from wishlist"
+    }
   },
   "product": {
     "pdfPattern": "PDF pattern",
@@ -49,7 +55,13 @@
     "variants": "Options",
     "inStock": "In stock",
     "outOfStock": "Out of stock",
-    "selectVariant": "Select a product option"
+    "selectVariant": "Select a product option",
+    "wishlist": {
+      "save": "Save {title} to wishlist",
+      "remove": "Remove {title} from wishlist",
+      "saving": "Saving to wishlist",
+      "removing": "Removing from wishlist"
+    }
   },
   "market": {
     "label": "Market",

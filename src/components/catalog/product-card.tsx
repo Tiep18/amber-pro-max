@@ -1,6 +1,7 @@
 import {getTranslations} from 'next-intl/server';
 import {formatMoney} from '@/catalog/money';
 import type {CatalogProduct} from '@/catalog/queries';
+import {WishlistHeart} from '@/components/catalog/wishlist-heart';
 import type {Locale} from '@/i18n/routing';
 import {getProductPath} from '@/i18n/routing';
 
@@ -17,13 +18,14 @@ export async function ProductCard({product, locale}: {product: CatalogProduct; l
   const imageUrl = publicImageUrl(product.primary_image_bucket, product.primary_image_path);
   const currencyCode = product.currency_code === 'VND' ? 'VND' : 'USD';
   const badge = product.product_type === 'pdf_pattern' ? t('pdfPattern') : t('finishedItem');
+  const productPath = getProductPath(locale, product.slug);
 
   return (
     <article
       aria-label={product.title}
       className="grid overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)]"
     >
-      <div className="aspect-[4/3] bg-[var(--surface-muted)]">
+      <div className="relative aspect-[4/3] bg-[var(--surface-muted)]">
         {imageUrl ? (
           // Public catalog images are admin-managed Supabase Storage objects.
           <img
@@ -32,6 +34,20 @@ export async function ProductCard({product, locale}: {product: CatalogProduct; l
             className="h-full w-full object-cover"
           />
         ) : null}
+        <div className="absolute right-3 top-3">
+          <WishlistHeart
+            productId={product.product_id}
+            productTitle={product.title}
+            locale={locale}
+            returnTo={productPath}
+            labels={{
+              save: t('wishlist.save'),
+              remove: t('wishlist.remove'),
+              saving: t('wishlist.saving'),
+              removing: t('wishlist.removing')
+            }}
+          />
+        </div>
       </div>
       <div className="grid gap-3 p-4">
         <div className="flex items-start justify-between gap-3">
@@ -51,7 +67,7 @@ export async function ProductCard({product, locale}: {product: CatalogProduct; l
             </p>
           </div>
           <a
-            href={getProductPath(locale, product.slug)}
+            href={productPath}
             className="inline-flex min-h-10 items-center rounded-[var(--radius-control)] bg-[var(--accent)] px-3 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
           >
             {t('viewProduct')}
