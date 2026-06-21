@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(28);
+select plan(44);
 
 select has_table('public', 'customer_shipping_addresses', 'customer shipping address table exists');
 select col_is_fk('public', 'customer_shipping_addresses', 'user_id', 'saved addresses belong to auth users');
@@ -277,6 +277,187 @@ select throws_ok(
   '42501',
   null,
   'customer cannot create a wishlist item for another owner'
+);
+
+reset role;
+
+select has_table('public', 'product_reviews', 'product reviews table exists');
+select col_is_fk('public', 'product_reviews', 'user_id', 'reviews belong to auth users');
+select col_is_fk('public', 'product_reviews', 'product_id', 'reviews belong to products');
+select col_type_is('public', 'product_reviews', 'rating', 'integer', 'review rating is an integer');
+select has_index(
+  'public',
+  'product_reviews',
+  'product_reviews_one_per_customer_product_idx',
+  'one customer can have one review per product'
+);
+select policies_are(
+  'public',
+  'product_reviews',
+  array[
+    'product reviews are owner readable',
+    'product reviews are owner insertable',
+    'product reviews are owner updatable'
+  ],
+  'reviews expose owner-only write policies'
+);
+select table_privs_are(
+  'public',
+  'product_reviews',
+  'authenticated',
+  array['SELECT', 'INSERT', 'UPDATE'],
+  'authenticated customers can manage only their own reviews through RLS'
+);
+select has_function(
+  'public',
+  'can_review_product',
+  array['uuid'],
+  'review eligibility function exists'
+);
+select has_function(
+  'public',
+  'submit_product_review',
+  array['uuid', 'integer', 'text', 'text'],
+  'review submit/update RPC exists'
+);
+select has_view('public', 'approved_product_reviews', 'approved reviews public projection exists');
+select col_type_is('public', 'approved_product_reviews', 'masked_author', 'text', 'public reviews expose masked author text');
+select col_type_is('public', 'approved_product_reviews', 'verified_purchase', 'boolean', 'public reviews expose verified purchase badge fact');
+
+insert into public.checkout_orders (
+  id,
+  order_number,
+  owner_user_id,
+  contact_email,
+  locale,
+  market,
+  currency_code,
+  payment_intent,
+  subtotal_minor,
+  total_minor,
+  accepted_quote_hash,
+  quote_snapshot,
+  cart_snapshot,
+  idempotency_actor,
+  idempotency_key,
+  reservation_expires_at,
+  payment_status,
+  paid_gate_status,
+  paid_at
+) values
+  (
+    '00000000-0000-4000-8000-000000000641',
+    'ATB-REVIEW-PAID',
+    '00000000-0000-4000-8000-000000000601',
+    'review-a@example.test',
+    'en',
+    'intl',
+    'USD',
+    'paypal_intent',
+    2800,
+    2800,
+    'review-paid-quote',
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'review-a',
+    'review-a-key',
+    now() + interval '1 day',
+    'paid',
+    'open',
+    now()
+  ),
+  (
+    '00000000-0000-4000-8000-000000000642',
+    'ATB-REVIEW-PENDING',
+    '00000000-0000-4000-8000-000000000602',
+    'review-b@example.test',
+    'en',
+    'intl',
+    'USD',
+    'paypal_intent',
+    2800,
+    2800,
+    'review-pending-quote',
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'review-b',
+    'review-b-key',
+    now() + interval '1 day',
+    'awaiting_payment',
+    'locked',
+    null
+  );
+
+insert into public.checkout_order_lines (
+  id,
+  order_id,
+  product_id,
+  line_id,
+  product_title,
+  fulfillment_type,
+  market,
+  currency_code,
+  quantity,
+  unit_price_minor,
+  line_subtotal_minor,
+  quote_line_snapshot
+) values
+  (
+    '00000000-0000-4000-8000-000000000643',
+    '00000000-0000-4000-8000-000000000641',
+    '50000000-0000-0000-0000-000000000003',
+    'review-paid-line',
+    'Both-market bear',
+    'physical',
+    'intl',
+    'USD',
+    1,
+    2800,
+    2800,
+    '{}'::jsonb
+  ),
+  (
+    '00000000-0000-4000-8000-000000000644',
+    '00000000-0000-4000-8000-000000000642',
+    '50000000-0000-0000-0000-000000000003',
+    'review-pending-line',
+    'Both-market bear',
+    'physical',
+    'intl',
+    'USD',
+    1,
+    2800,
+    2800,
+    '{}'::jsonb
+  );
+
+insert into public.payments (id, order_id, provider, status, amount_minor, currency_code, paid_gate_opened_at, paid_at)
+values
+  ('00000000-0000-4000-8000-000000000645', '00000000-0000-4000-8000-000000000641', 'paypal', 'paid', 2800, 'USD', now(), now()),
+  ('00000000-0000-4000-8000-000000000646', '00000000-0000-4000-8000-000000000642', 'paypal', 'pending', 2800, 'USD', null, null);
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000601', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+
+select is(
+  public.can_review_product('50000000-0000-0000-0000-000000000003'),
+  true,
+  'paid order-line owner can review purchased product'
+);
+select lives_ok(
+  $$select public.submit_product_review('50000000-0000-0000-0000-000000000003', 5, 'Sweet bear', 'Well made')$$,
+  'eligible customer can submit a review'
+);
+select throws_ok(
+  $$select public.submit_product_review('50000000-0000-0000-0000-000000000003', 6, 'Bad rating', 'Too high')$$,
+  '23514',
+  null,
+  'rating must be between one and five'
+);
+select is_empty(
+  $$select title from public.approved_product_reviews where product_id = '50000000-0000-0000-0000-000000000003'$$,
+  'pending review is hidden from public approved projection'
 );
 
 select * from finish();
