@@ -300,6 +300,17 @@
       "error": "We could not complete the subscription. Try again."
     }
   },
+  "newsletterUnsubscribe": {
+    "unsubscribedTitle": "You're unsubscribed",
+    "unsubscribedBody": "You will no longer receive the studio newsletter.",
+    "unavailableTitle": "This link is no longer available",
+    "unavailableBody": "It may have expired or already been used. Your current preference was not exposed.",
+    "invalidTitle": "This unsubscribe link is invalid",
+    "invalidBody": "Use the unsubscribe link from your newsletter email.",
+    "errorTitle": "We could not update your preference",
+    "errorBody": "Try the email link again later.",
+    "subscribeAgain": "Subscribe again"
+  },
   "accountPurchases": {
     "orders": {
       "title": "Order history",

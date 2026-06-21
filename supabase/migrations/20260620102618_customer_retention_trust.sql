@@ -863,6 +863,25 @@ revoke all on table public.newsletter_consent_events from public, anon, authenti
 grant select, insert, update on table public.newsletter_subscribers to service_role;
 grant select, insert on table public.newsletter_consent_events to service_role;
 
+create or replace function private.reject_unsafe_fulfillment_payload()
+returns trigger
+language plpgsql
+set search_path = private, public, pg_temp
+as $$
+begin
+  if tg_table_name = 'transactional_email_outbox' then
+    if not private.fulfillment_safe_json(new.payload) then
+      raise exception 'email outbox payload contains unsafe fulfillment material' using errcode = '23514';
+    end if;
+  elsif tg_table_name in ('physical_fulfillment_events', 'fulfillment_audit_events') then
+    if not private.fulfillment_safe_json(new.metadata) then
+      raise exception 'fulfillment metadata contains unsafe material' using errcode = '23514';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
 create or replace function public.subscribe_newsletter(
   p_email text,
   p_locale text,
@@ -945,6 +964,18 @@ begin
     now()
   );
 
+  insert into public.transactional_email_outbox (
+    event_type,
+    recipient_email,
+    locale,
+    payload
+  ) values (
+    'newsletter_subscribed',
+    normalized,
+    p_locale,
+    jsonb_build_object('consentSource', p_source)
+  );
+
   return jsonb_build_object(
     'status', case when consent_event_type = 'resubscribe' then 'resubscribed' else 'subscribed' end
   );
@@ -953,3 +984,109 @@ $$;
 
 revoke all on function public.subscribe_newsletter(text, text, text, text, text, text) from public;
 grant execute on function public.subscribe_newsletter(text, text, text, text, text, text) to anon, authenticated;
+
+alter table public.transactional_email_outbox
+drop constraint transactional_email_outbox_event_type_check;
+
+alter table public.transactional_email_outbox
+add constraint transactional_email_outbox_event_type_check
+check (event_type in (
+  'digital_access_granted',
+  'digital_access_revoked',
+  'digital_access_reissued',
+  'physical_shipped',
+  'guest_order_reopen',
+  'guest_order_claim',
+  'newsletter_subscribed'
+));
+
+create table public.newsletter_unsubscribe_tokens (
+  id uuid primary key default gen_random_uuid(),
+  normalized_email text not null references public.newsletter_subscribers(normalized_email) on delete cascade,
+  token_hash text not null unique check (token_hash ~ '^[a-f0-9]{64}$'),
+  expires_at timestamptz not null,
+  consumed_at timestamptz,
+  created_at timestamptz not null default now(),
+  check (expires_at > created_at),
+  check (consumed_at is null or consumed_at >= created_at)
+);
+
+create index newsletter_unsubscribe_tokens_subscriber_idx
+on public.newsletter_unsubscribe_tokens (normalized_email, expires_at desc);
+
+alter table public.newsletter_unsubscribe_tokens enable row level security;
+
+revoke all on table public.newsletter_unsubscribe_tokens from public, anon, authenticated;
+grant select, insert, update on table public.newsletter_unsubscribe_tokens to service_role;
+
+create or replace function public.unsubscribe_newsletter(p_token_hash text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  token_row public.newsletter_unsubscribe_tokens%rowtype;
+  subscriber_row public.newsletter_subscribers%rowtype;
+begin
+  if p_token_hash is null or p_token_hash !~ '^[a-f0-9]{64}$' then
+    return jsonb_build_object('status', 'invalid');
+  end if;
+
+  select * into token_row
+  from public.newsletter_unsubscribe_tokens
+  where token_hash = p_token_hash
+  for update;
+
+  if token_row.id is null then
+    return jsonb_build_object('status', 'invalid');
+  end if;
+
+  if token_row.consumed_at is not null or token_row.expires_at <= now() then
+    return jsonb_build_object('status', 'unavailable');
+  end if;
+
+  select * into subscriber_row
+  from public.newsletter_subscribers
+  where normalized_email = token_row.normalized_email
+  for update;
+
+  if subscriber_row.normalized_email is null or subscriber_row.status <> 'subscribed' then
+    update public.newsletter_unsubscribe_tokens
+    set consumed_at = now()
+    where id = token_row.id;
+    return jsonb_build_object('status', 'unavailable');
+  end if;
+
+  update public.newsletter_unsubscribe_tokens
+  set consumed_at = now()
+  where id = token_row.id;
+
+  update public.newsletter_subscribers
+  set status = 'unsubscribed',
+      unsubscribed_at = now(),
+      updated_at = now()
+  where normalized_email = token_row.normalized_email;
+
+  insert into public.newsletter_consent_events (
+    normalized_email,
+    event_type,
+    consent_source,
+    locale,
+    market,
+    occurred_at
+  ) values (
+    token_row.normalized_email,
+    'unsubscribe',
+    'email_link',
+    subscriber_row.latest_locale,
+    subscriber_row.latest_market,
+    now()
+  );
+
+  return jsonb_build_object('status', 'unsubscribed');
+end;
+$$;
+
+revoke all on function public.unsubscribe_newsletter(text) from public;
+grant execute on function public.unsubscribe_newsletter(text) to anon, authenticated;

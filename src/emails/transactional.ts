@@ -16,6 +16,7 @@ export type TransactionalEmailRenderContext = {
   siteUrl: string;
   downloadToken?: string | null;
   guestToken?: string | null;
+  newsletterToken?: string | null;
   expiresAt?: Date | string | null;
 };
 
@@ -54,6 +55,11 @@ function downloadPath(order: string, token?: string | null) {
   return `/api/downloads?${params.toString()}`;
 }
 
+function newsletterUnsubscribePath(locale: Locale, token?: string | null) {
+  const path = locale === 'vi' ? '/vi/ban-tin/huy-dang-ky' : '/en/newsletter/unsubscribe';
+  return token ? `${path}?token=${encodeURIComponent(token)}` : path;
+}
+
 function hoursCopy(locale: Locale, hours: unknown) {
   const value = typeof hours === 'number' && Number.isFinite(hours) ? hours : 24;
   return locale === 'vi' ? `${value} gio` : `${value} hours`;
@@ -77,6 +83,18 @@ export function renderTransactionalEmail(row: TransactionalEmailRow, context: Tr
   const order = orderNumber(row);
   const siteUrl = context.siteUrl;
   const expires = hoursCopy(locale, row.payload.expiresInHours);
+
+  if (row.eventType === 'newsletter_subscribed') {
+    const link = absoluteUrl(siteUrl, newsletterUnsubscribePath(locale, context.newsletterToken));
+    const subject = locale === 'vi' ? 'Ban da dang ky ban tin' : 'You subscribed to the newsletter';
+    const intro = locale === 'vi'
+      ? 'Dang ky ban tin cua ban da duoc ghi nhan.'
+      : 'Your newsletter subscription was recorded.';
+    const footer = locale === 'vi'
+      ? 'Ban co the huy dang ky bat ky luc nao bang lien ket nay.'
+      : 'You can unsubscribe at any time with this link.';
+    return messageShell(subject, intro, locale === 'vi' ? 'Huy dang ky' : 'Unsubscribe', link, footer);
+  }
 
   if (row.eventType === 'digital_access_granted' || row.eventType === 'digital_access_reissued') {
     const link = absoluteUrl(siteUrl, downloadPath(order, context.downloadToken));

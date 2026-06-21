@@ -814,11 +814,12 @@ select is(
 
 reset role;
 
-insert into public.newsletter_unsubscribe_tokens (normalized_email, token_hash, expires_at)
+insert into public.newsletter_unsubscribe_tokens (normalized_email, token_hash, expires_at, created_at)
 values (
   'newsletter@example.test',
   encode(extensions.digest('expired-newsletter-token', 'sha256'), 'hex'),
-  now() - interval '1 minute'
+  now() - interval '1 minute',
+  now() - interval '2 minutes'
 );
 
 set local role anon;

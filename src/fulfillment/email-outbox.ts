@@ -14,6 +14,7 @@ export type TransactionalEmailRepository = {
   claimDueRows: (limit: number, now: Date) => Promise<TransactionalEmailRow[]>;
   issueDownloadToken: (row: TransactionalEmailRow, now: Date) => Promise<{rawToken: string; expiresAt: string} | null>;
   issueGuestToken: (row: TransactionalEmailRow, purpose: 'reopen_order' | 'claim_order', now: Date) => Promise<{rawToken: string; expiresAt: string} | null>;
+  issueNewsletterToken?: (row: TransactionalEmailRow, now: Date) => Promise<{rawToken: string; expiresAt: string} | null>;
   markSent: (id: string, providerMessageId: string, now: Date) => Promise<void>;
   markRetry: (id: string, code: string, availableAt: Date) => Promise<void>;
   markFailed: (id: string, code: string, now: Date) => Promise<void>;
@@ -59,6 +60,13 @@ async function renderContextForRow(row: TransactionalEmailRow, repository: Trans
   if (row.eventType === 'guest_order_reopen' || row.eventType === 'guest_order_claim') {
     const token = await repository.issueGuestToken(row, row.eventType === 'guest_order_claim' ? 'claim_order' : 'reopen_order', now);
     return {siteUrl, guestToken: token?.rawToken ?? null, expiresAt: token?.expiresAt ?? null};
+  }
+  if (row.eventType === 'newsletter_subscribed') {
+    const token = await repository.issueNewsletterToken?.(row, now);
+    if (!token) {
+      throw new Error('newsletter unsubscribe token could not be issued');
+    }
+    return {siteUrl, newsletterToken: token.rawToken, expiresAt: token.expiresAt};
   }
   return {siteUrl};
 }

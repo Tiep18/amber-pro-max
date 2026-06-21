@@ -300,6 +300,17 @@
       "error": "Khong the hoan tat dang ky. Thu lai sau."
     }
   },
+  "newsletterUnsubscribe": {
+    "unsubscribedTitle": "Ban da huy dang ky",
+    "unsubscribedBody": "Ban se khong con nhan ban tin cua studio.",
+    "unavailableTitle": "Lien ket nay khong con kha dung",
+    "unavailableBody": "Lien ket co the da het han hoac da duoc dung. Trang thai hien tai cua ban khong bi tiet lo.",
+    "invalidTitle": "Lien ket huy dang ky khong hop le",
+    "invalidBody": "Hay dung lien ket huy dang ky trong email ban tin.",
+    "errorTitle": "Khong the cap nhat lua chon cua ban",
+    "errorBody": "Hay thu lai lien ket trong email sau.",
+    "subscribeAgain": "Dang ky lai"
+  },
   "accountPurchases": {
     "orders": {
       "title": "Lich su don hang",

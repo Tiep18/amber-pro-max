@@ -7,6 +7,7 @@ import {hashFulfillmentAccessToken} from '@/fulfillment/downloads';
 import {processTransactionalEmailBatch, type TransactionalEmailRepository, type TransactionalEmailSender} from '@/fulfillment/email-outbox';
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
+import {createNewsletterUnsubscribeToken, hashNewsletterUnsubscribeToken} from '@/newsletter/consent';
 
 type SupabaseLike = {
   from: (table: string) => unknown;
@@ -18,6 +19,10 @@ function newRawToken() {
 
 function tokenExpiry(now: Date) {
   return new Date(now.getTime() + 24 * 60 * 60 * 1000);
+}
+
+function newsletterTokenExpiry(now: Date) {
+  return new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 }
 
 function safeCode(value: string) {
@@ -108,6 +113,19 @@ export function createSupabaseEmailOutboxRepository(client: SupabaseLike): Trans
       });
       return error ? null : {rawToken, expiresAt: expiresAt.toISOString()};
     },
+    async issueNewsletterToken(row, now) {
+      const rawToken = createNewsletterUnsubscribeToken();
+      const expiresAt = newsletterTokenExpiry(now);
+      const insert = client.from('newsletter_unsubscribe_tokens') as {
+        insert: (value: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
+      };
+      const {error} = await insert.insert({
+        normalized_email: row.recipientEmail.trim().toLowerCase(),
+        token_hash: hashNewsletterUnsubscribeToken(rawToken),
+        expires_at: expiresAt.toISOString()
+      });
+      return error ? null : {rawToken, expiresAt: expiresAt.toISOString()};
+    },
     async markSent(id, providerMessageId, now) {
       const update = client.from('transactional_email_outbox') as {
         update: (value: Record<string, unknown>) => {eq: (column: string, value: string) => Promise<{data: unknown; error: unknown}>};
@@ -160,7 +178,7 @@ export function createProductionEmailOutboxRepository() {
   return createSupabaseEmailOutboxRepository(createSupabaseAdminClient() as unknown as SupabaseLike);
 }
 
-export type ImmediateEmailOutboxTriggerReason = 'paypal_capture_paid' | 'paypal_webhook_paid' | 'vietqr_admin_paid';
+export type ImmediateEmailOutboxTriggerReason = 'paypal_capture_paid' | 'paypal_webhook_paid' | 'vietqr_admin_paid' | 'newsletter_subscribed';
 
 export async function triggerTransactionalEmailOutboxNow(input: {reason: ImmediateEmailOutboxTriggerReason; batchSize?: number}) {
   const env = getServerEnv();

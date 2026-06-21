@@ -8,6 +8,7 @@ import {
   subscribeNewsletter,
   type NewsletterSubscribeResult
 } from '@/newsletter/consent';
+import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
 
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -27,11 +28,15 @@ export async function subscribeNewsletterAction(
   const market = await getRequestMarket();
   const client = await createSupabaseServerClient();
 
-  return subscribeNewsletter({
+  const result = await subscribeNewsletter({
     email: formString(formData, 'email'),
     locale: formString(formData, 'locale'),
     market,
     source: 'footer',
     ...evidence
   }, client as never);
+  if (result.status === 'subscribed') {
+    await triggerTransactionalEmailOutboxNow({reason: 'newsletter_subscribed'});
+  }
+  return result;
 }

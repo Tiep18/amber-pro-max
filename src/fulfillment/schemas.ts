@@ -29,7 +29,8 @@ export const transactionalEmailEventTypeSchema = z.enum([
   'digital_access_reissued',
   'physical_shipped',
   'guest_order_reopen',
-  'guest_order_claim'
+  'guest_order_claim',
+  'newsletter_subscribed'
 ]);
 
 export const transactionalEmailStatusSchema = z.enum([

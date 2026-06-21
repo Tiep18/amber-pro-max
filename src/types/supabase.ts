@@ -1380,6 +1380,41 @@ export type Database = {
         }
         Relationships: []
       }
+      newsletter_unsubscribe_tokens: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          normalized_email: string
+          token_hash: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          normalized_email: string
+          token_hash: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          normalized_email?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_unsubscribe_tokens_normalized_email_fkey"
+            columns: ["normalized_email"]
+            isOneToOne: false
+            referencedRelation: "newsletter_subscribers"
+            referencedColumns: ["normalized_email"]
+          },
+        ]
+      }
       payment_events: {
         Row: {
           delivery_count: number
@@ -3026,6 +3061,7 @@ export type Database = {
         }
         Returns: Json
       }
+      unsubscribe_newsletter: { Args: { p_token_hash: string }; Returns: Json }
       upsert_review_admin_reply: {
         Args: {
           p_body: string

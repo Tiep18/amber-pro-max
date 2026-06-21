@@ -39,7 +39,7 @@ export function SubscribeForm({
   const [state, action] = useActionState(subscribeNewsletterAction, initialState);
 
   return (
-    <form action={action} className="grid w-full max-w-xl gap-2">
+    <form id="newsletter" action={action} className="grid w-full max-w-xl gap-2">
       <input type="hidden" name="locale" value={locale} />
       <p className="font-semibold text-[var(--foreground)]">{labels.title}</p>
       <p>{labels.consent}</p>

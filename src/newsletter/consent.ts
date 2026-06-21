@@ -1,6 +1,6 @@
 import 'server-only';
 
-import {createHash} from 'node:crypto';
+import {createHash, randomBytes} from 'node:crypto';
 import {z} from 'zod';
 
 type RpcClient = {
@@ -41,6 +41,16 @@ export function shapeConsentMetadata({ip, userAgent}: {ip?: string | null; userA
 
 export type NewsletterSubscribeResult = {status: 'idle' | 'subscribed' | 'invalid' | 'error'};
 
+export type NewsletterUnsubscribeResult = {status: 'unsubscribed' | 'unavailable' | 'invalid' | 'error'};
+
+export function createNewsletterUnsubscribeToken() {
+  return randomBytes(32).toString('hex');
+}
+
+export function hashNewsletterUnsubscribeToken(rawToken: string) {
+  return createHash('sha256').update(rawToken, 'utf8').digest('hex');
+}
+
 export async function subscribeNewsletter(input: unknown, client: RpcClient): Promise<NewsletterSubscribeResult> {
   const parsed = subscribeInputSchema.safeParse(input);
   if (!parsed.success) {
@@ -64,4 +74,24 @@ export async function subscribeNewsletter(input: unknown, client: RpcClient): Pr
     : data.status === 'invalid'
       ? {status: 'invalid'}
       : {status: 'error'};
+}
+
+export async function unsubscribeNewsletter(
+  {rawToken}: {rawToken: unknown},
+  client: RpcClient
+): Promise<NewsletterUnsubscribeResult> {
+  if (typeof rawToken !== 'string' || !/^[a-f0-9]{64}$/.test(rawToken)) {
+    return {status: 'invalid'};
+  }
+
+  const {data, error} = await client.rpc('unsubscribe_newsletter', {
+    p_token_hash: hashNewsletterUnsubscribeToken(rawToken)
+  });
+  if (error || !isRecord(data)) {
+    return {status: 'error'};
+  }
+  if (data.status === 'unsubscribed' || data.status === 'unavailable' || data.status === 'invalid') {
+    return {status: data.status};
+  }
+  return {status: 'error'};
 }
