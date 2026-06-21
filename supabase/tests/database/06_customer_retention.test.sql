@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(101);
+select plan(105);
 
 select has_table('public', 'customer_shipping_addresses', 'customer shipping address table exists');
 select col_is_fk('public', 'customer_shipping_addresses', 'user_id', 'saved addresses belong to auth users');
@@ -670,6 +670,16 @@ select table_privs_are(
   array[]::text[],
   'authenticated users cannot inspect consent history directly'
 );
+select ok(
+  has_table_privilege('service_role', 'public.newsletter_subscribers', 'SELECT'),
+  'server-side admin can read subscriber state through service role'
+);
+select ok(
+  has_table_privilege('service_role', 'public.newsletter_consent_events', 'SELECT'),
+  'server-side admin can read consent history through service role'
+);
+select has_column('public', 'newsletter_consent_events', 'event_type', 'admin consent history includes event type');
+select has_column('public', 'newsletter_consent_events', 'ip_hash', 'admin consent history exposes only hash evidence');
 select has_function(
   'public',
   'subscribe_newsletter',
