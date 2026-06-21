@@ -287,7 +287,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 06-06-PLAN.md - Implement review moderation and one shop reply
+- [x] 06-06-PLAN.md - Implement review moderation and one shop reply
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
@@ -342,5 +342,5 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
 | 5. Fulfillment and Purchase Access | 11/11 | Complete   | 2026-06-20 |
-| 6. Customer Retention and Trust | 5/10 | In Progress|  |
+| 6. Customer Retention and Trust | 6/10 | In Progress|  |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |
