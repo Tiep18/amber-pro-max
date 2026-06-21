@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(83);
+select plan(101);
 
 select has_table('public', 'customer_shipping_addresses', 'customer shipping address table exists');
 select col_is_fk('public', 'customer_shipping_addresses', 'user_id', 'saved addresses belong to auth users');
@@ -735,6 +735,106 @@ select results_eq(
   $$select latest_locale, latest_market, status from public.newsletter_subscribers where normalized_email = 'newsletter@example.test'$$,
   $$values ('vi'::text, 'vn'::text, 'subscribed'::text)$$,
   'resubscribe updates latest locale and market state'
+);
+
+select has_table('public', 'newsletter_unsubscribe_tokens', 'newsletter unsubscribe tokens table exists');
+select col_is_fk('public', 'newsletter_unsubscribe_tokens', 'normalized_email', 'unsubscribe tokens belong to subscriber state');
+select has_column('public', 'newsletter_unsubscribe_tokens', 'token_hash', 'unsubscribe token hash is stored');
+select has_column('public', 'newsletter_unsubscribe_tokens', 'expires_at', 'unsubscribe token expiry is stored');
+select has_column('public', 'newsletter_unsubscribe_tokens', 'consumed_at', 'unsubscribe token consumption is stored');
+select hasnt_column('public', 'newsletter_unsubscribe_tokens', 'raw_token', 'raw unsubscribe token is never stored');
+select hasnt_column('public', 'newsletter_unsubscribe_tokens', 'token', 'raw unsubscribe token alias is never stored');
+select table_privs_are(
+  'public',
+  'newsletter_unsubscribe_tokens',
+  'anon',
+  array[]::text[],
+  'anonymous visitors have no direct unsubscribe token access'
+);
+select table_privs_are(
+  'public',
+  'newsletter_unsubscribe_tokens',
+  'authenticated',
+  array[]::text[],
+  'authenticated users have no direct unsubscribe token access'
+);
+select has_function(
+  'public',
+  'unsubscribe_newsletter',
+  array['text'],
+  'hash-only one-click unsubscribe RPC exists'
+);
+select throws_ok(
+  $$insert into public.newsletter_unsubscribe_tokens (normalized_email, token_hash, expires_at) values ('newsletter@example.test', 'short', now() + interval '1 day')$$,
+  '23514',
+  null,
+  'database rejects short unsubscribe token hashes'
+);
+select is(
+  (select count(*)::integer from public.transactional_email_outbox where event_type = 'newsletter_subscribed' and recipient_email = 'newsletter@example.test'),
+  2,
+  'subscribe and resubscribe enqueue localized confirmation emails'
+);
+
+insert into public.newsletter_unsubscribe_tokens (normalized_email, token_hash, expires_at)
+values (
+  'newsletter@example.test',
+  encode(extensions.digest('valid-newsletter-token', 'sha256'), 'hex'),
+  now() + interval '1 day'
+);
+
+set local role anon;
+
+select is(
+  (public.unsubscribe_newsletter(encode(extensions.digest('valid-newsletter-token', 'sha256'), 'hex'))->>'status'),
+  'unsubscribed',
+  'valid token unsubscribes without authentication'
+);
+
+reset role;
+
+select is(
+  (select status from public.newsletter_subscribers where normalized_email = 'newsletter@example.test'),
+  'unsubscribed',
+  'valid token updates subscriber state'
+);
+select isnt(
+  (select consumed_at from public.newsletter_unsubscribe_tokens where normalized_email = 'newsletter@example.test'),
+  null,
+  'valid token records consumption time'
+);
+
+set local role anon;
+
+select is(
+  (public.unsubscribe_newsletter(encode(extensions.digest('valid-newsletter-token', 'sha256'), 'hex'))->>'status'),
+  'unavailable',
+  'consumed token returns generic unavailable state'
+);
+
+reset role;
+
+insert into public.newsletter_unsubscribe_tokens (normalized_email, token_hash, expires_at)
+values (
+  'newsletter@example.test',
+  encode(extensions.digest('expired-newsletter-token', 'sha256'), 'hex'),
+  now() - interval '1 minute'
+);
+
+set local role anon;
+
+select is(
+  (public.unsubscribe_newsletter(encode(extensions.digest('expired-newsletter-token', 'sha256'), 'hex'))->>'status'),
+  'unavailable',
+  'expired token returns generic unavailable state'
+);
+
+reset role;
+
+select is(
+  (select count(*)::integer from public.newsletter_consent_events where normalized_email = 'newsletter@example.test' and event_type = 'unsubscribe'),
+  1,
+  'successful unsubscribe appends one consent event'
 );
 
 select * from finish();

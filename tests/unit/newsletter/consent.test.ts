@@ -1,12 +1,17 @@
+import {readFileSync} from 'node:fs';
 import {describe, expect, test, vi} from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
 import {
   normalizeNewsletterEmail,
+  createNewsletterUnsubscribeToken,
+  hashNewsletterUnsubscribeToken,
   shapeConsentMetadata,
-  subscribeNewsletter
+  subscribeNewsletter,
+  unsubscribeNewsletter
 } from '@/newsletter/consent';
+import {renderTransactionalEmail} from '@/emails/transactional';
 
 describe('newsletter consent contracts (NEWS-01, NEWS-02, D-13, D-16)', () => {
   test('normalizes email as the subscriber identity', () => {
@@ -66,5 +71,63 @@ describe('newsletter consent contracts (NEWS-01, NEWS-02, D-13, D-16)', () => {
     await expect(subscribeNewsletter({email: 'valid@example.com', locale: 'en', market: 'intl', source: 'footer'}, client)).resolves.toEqual({
       status: 'error'
     });
+  });
+});
+
+describe('newsletter unsubscribe contracts (NEWS-02, D-14, D-16)', () => {
+  test('creates high-entropy raw tokens and stable SHA-256 hashes', () => {
+    const rawToken = createNewsletterUnsubscribeToken();
+
+    expect(rawToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(hashNewsletterUnsubscribeToken(rawToken)).toMatch(/^[a-f0-9]{64}$/);
+    expect(hashNewsletterUnsubscribeToken(rawToken)).toBe(hashNewsletterUnsubscribeToken(rawToken));
+    expect(hashNewsletterUnsubscribeToken(rawToken)).not.toBe(rawToken);
+  });
+
+  test('valid unsubscribe hashes the raw token and maps success', async () => {
+    const rawToken = 'a'.repeat(64);
+    const client = {rpc: vi.fn().mockResolvedValue({data: {status: 'unsubscribed'}, error: null})};
+
+    await expect(unsubscribeNewsletter({rawToken}, client)).resolves.toEqual({status: 'unsubscribed'});
+    expect(client.rpc).toHaveBeenCalledWith('unsubscribe_newsletter', {
+      p_token_hash: hashNewsletterUnsubscribeToken(rawToken)
+    });
+  });
+
+  test('expired and consumed tokens share a generic unavailable result', async () => {
+    const client = {rpc: vi.fn().mockResolvedValue({data: {status: 'unavailable'}, error: null})};
+
+    await expect(unsubscribeNewsletter({rawToken: 'b'.repeat(64)}, client)).resolves.toEqual({status: 'unavailable'});
+  });
+
+  test('invalid raw token returns invalid without querying subscriber state', async () => {
+    const client = {rpc: vi.fn()};
+
+    await expect(unsubscribeNewsletter({rawToken: 'short'}, client)).resolves.toEqual({status: 'invalid'});
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  test('renders localized subscribe confirmation with one-click unsubscribe URL', () => {
+    const email = renderTransactionalEmail({
+      id: 'newsletter-email-1',
+      eventType: 'newsletter_subscribed' as never,
+      recipientEmail: 'subscriber@example.test',
+      locale: 'vi',
+      orderId: null,
+      entitlementId: null,
+      payload: {}
+    }, {
+      siteUrl: 'https://shop.example.test',
+      newsletterToken: 'raw-newsletter-token'
+    } as never);
+
+    expect(email.subject).toContain('ban tin');
+    expect(email.html).toContain('/vi/ban-tin/huy-dang-ky?token=raw-newsletter-token');
+    expect(email.text).not.toContain('token_hash');
+  });
+
+  test('newsletter public actions do not require authentication', () => {
+    const source = readFileSync('src/newsletter/actions.ts', 'utf8');
+    expect(source).not.toMatch(/requireUser|requireAdmin/);
   });
 });
