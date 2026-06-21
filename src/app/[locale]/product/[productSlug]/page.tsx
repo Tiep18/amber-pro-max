@@ -11,6 +11,8 @@ import {UnavailableMarket} from '@/components/catalog/unavailable-market';
 import {AddToCart} from '@/components/catalog/add-to-cart';
 import {WishlistHeart} from '@/components/catalog/wishlist-heart';
 import {VariantSelector, type PublicVariant} from '@/components/catalog/variant-selector';
+import {ProductReviews} from '@/components/reviews/product-reviews';
+import {getApprovedProductReviews} from '@/reviews/queries';
 import {
   getProductPath,
   type Locale
@@ -106,6 +108,7 @@ export default async function ProductPage({params}: {params: Params}) {
     ? product.other_market_code
     : null;
   const productPath = getProductPath(locale, product.slug);
+  const reviews = await getApprovedProductReviews({productId: product.product_id});
 
   return (
     <main className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.8fr)] lg:px-10 xl:px-12">
@@ -169,6 +172,17 @@ export default async function ProductPage({params}: {params: Params}) {
             available={product.available}
             inStock={product.in_stock}
             variants={variants}
+          />
+        ) : null}
+        {reviews.status === 'success' ? (
+          <ProductReviews
+            reviews={reviews.reviews}
+            labels={{
+              title: t('reviews.title'),
+              empty: t('reviews.empty'),
+              verifiedPurchase: t('reviews.verifiedPurchase'),
+              ratingLabel: t('reviews.ratingLabel')
+            }}
           />
         ) : null}
       </section>

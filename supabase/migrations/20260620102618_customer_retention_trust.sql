@@ -364,3 +364,186 @@ $$;
 
 revoke all on function public.get_customer_wishlist(text, text) from public, anon;
 grant execute on function public.get_customer_wishlist(text, text) to authenticated;
+
+create table public.product_reviews (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  product_id uuid not null references public.products(id) on delete cascade,
+  rating integer not null check (rating between 1 and 5),
+  title text check (title is null or char_length(btrim(title)) between 1 and 120),
+  body text check (body is null or char_length(btrim(body)) between 1 and 2000),
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected', 'hidden')),
+  version integer not null default 1 check (version > 0),
+  approved_at timestamptz,
+  hidden_at timestamptz,
+  moderation_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (
+    (status = 'approved' and approved_at is not null and hidden_at is null)
+    or (status = 'hidden' and hidden_at is not null)
+    or status in ('pending', 'rejected')
+  )
+);
+
+create unique index product_reviews_one_per_customer_product_idx
+on public.product_reviews (user_id, product_id);
+
+create index product_reviews_product_status_idx
+on public.product_reviews (product_id, status, approved_at desc);
+
+alter table public.product_reviews enable row level security;
+
+revoke all on table public.product_reviews from public, anon, authenticated;
+grant select, insert, update on table public.product_reviews to authenticated;
+grant select, insert, update on table public.product_reviews to service_role;
+
+create policy "product reviews are owner readable"
+on public.product_reviews
+for select
+to authenticated
+using ((select auth.uid()) = user_id);
+
+create policy "product reviews are owner insertable"
+on public.product_reviews
+for insert
+to authenticated
+with check ((select auth.uid()) = user_id);
+
+create policy "product reviews are owner updatable"
+on public.product_reviews
+for update
+to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
+
+create or replace function public.can_review_product(p_product_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select auth.uid() is not null
+    and exists (
+      select 1
+      from public.checkout_order_lines col
+      join public.checkout_orders co
+        on co.id = col.order_id
+      join public.payments p
+        on p.order_id = co.id
+      where co.owner_user_id = auth.uid()
+        and col.product_id = p_product_id
+        and co.paid_gate_status = 'open'
+        and co.payment_status in ('paid', 'partially_refunded', 'refunded')
+        and p.status in ('paid', 'partially_refunded', 'refunded')
+    );
+$$;
+
+create or replace function public.submit_product_review(
+  p_product_id uuid,
+  p_rating integer,
+  p_title text,
+  p_body text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  saved_id uuid;
+begin
+  if auth.uid() is null then
+    return jsonb_build_object('status', 'forbidden');
+  end if;
+
+  if p_rating not between 1 and 5 then
+    raise exception 'rating must be between one and five' using errcode = '23514';
+  end if;
+
+  if not public.can_review_product(p_product_id) then
+    return jsonb_build_object('status', 'not_eligible');
+  end if;
+
+  insert into public.product_reviews (
+    user_id,
+    product_id,
+    rating,
+    title,
+    body,
+    status,
+    version,
+    approved_at,
+    hidden_at,
+    updated_at
+  ) values (
+    auth.uid(),
+    p_product_id,
+    p_rating,
+    nullif(btrim(p_title), ''),
+    nullif(btrim(p_body), ''),
+    'pending',
+    1,
+    null,
+    null,
+    now()
+  )
+  on conflict (user_id, product_id)
+  do update set
+    rating = excluded.rating,
+    title = excluded.title,
+    body = excluded.body,
+    status = 'pending',
+    version = public.product_reviews.version + 1,
+    approved_at = null,
+    hidden_at = null,
+    updated_at = now()
+  returning id into saved_id;
+
+  return jsonb_build_object('status', 'pending', 'review_id', saved_id);
+end;
+$$;
+
+create or replace function public.mask_review_author(value text)
+returns text
+language sql
+immutable
+set search_path = public, pg_temp
+as $$
+  select case
+    when value ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+      then left(split_part(value, '@', 1), 1) || '***@' || split_part(value, '@', 2)
+    else 'Customer'
+  end;
+$$;
+
+create or replace view public.approved_product_reviews
+with (security_invoker = false)
+as
+select
+  pr.id,
+  pr.product_id,
+  pr.rating,
+  pr.title,
+  pr.body,
+  public.mask_review_author(coalesce(u.email, '')) as masked_author,
+  true as verified_purchase,
+  pr.approved_at,
+  pr.created_at,
+  pr.updated_at
+from public.product_reviews pr
+join auth.users u
+  on u.id = pr.user_id
+where pr.status = 'approved'
+  and pr.approved_at is not null;
+
+revoke all on function public.can_review_product(uuid) from public, anon;
+revoke all on function public.submit_product_review(uuid, integer, text, text) from public, anon;
+revoke all on function public.mask_review_author(text) from public, anon;
+revoke all on table public.approved_product_reviews from public;
+
+grant execute on function public.can_review_product(uuid) to authenticated;
+grant execute on function public.submit_product_review(uuid, integer, text, text) to authenticated;
+grant execute on function public.mask_review_author(text) to authenticated, service_role;
+grant select on table public.approved_product_reviews to anon, authenticated;

@@ -40,6 +40,20 @@
       "remove": "Xoa {title} khoi yeu thich",
       "saving": "Dang luu vao yeu thich",
       "removing": "Dang xoa khoi yeu thich"
+    },
+    "reviews": {
+      "title": "Danh gia cua khach hang",
+      "empty": "Danh gia da duyet tu khach mua hang se hien thi tai day.",
+      "verifiedPurchase": "Da mua hang",
+      "ratingLabel": "Diem danh gia",
+      "formTitle": "Viet danh gia",
+      "rating": "Diem danh gia",
+      "reviewTitle": "Tieu de danh gia",
+      "body": "Noi dung danh gia",
+      "submit": "Gui danh gia",
+      "pending": "Danh gia da gui va dang cho duyet.",
+      "notEligible": "Chi khach hang co don hang da thanh toan cho san pham nay moi co the danh gia.",
+      "error": "Khong the gui danh gia. Thu lai sau."
     }
   },
   "product": {

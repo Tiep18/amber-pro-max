@@ -40,6 +40,20 @@
       "remove": "Remove {title} from wishlist",
       "saving": "Saving to wishlist",
       "removing": "Removing from wishlist"
+    },
+    "reviews": {
+      "title": "Customer reviews",
+      "empty": "Approved verified-purchase reviews will appear here.",
+      "verifiedPurchase": "Verified purchase",
+      "ratingLabel": "Rating",
+      "formTitle": "Write a review",
+      "rating": "Rating",
+      "reviewTitle": "Review title",
+      "body": "Review body",
+      "submit": "Submit review",
+      "pending": "Review submitted and pending moderation.",
+      "notEligible": "Only customers with a paid order for this product can review it.",
+      "error": "We could not submit your review. Try again."
     }
   },
   "product": {

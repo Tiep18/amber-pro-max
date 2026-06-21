@@ -324,6 +324,24 @@ select has_view('public', 'approved_product_reviews', 'approved reviews public p
 select col_type_is('public', 'approved_product_reviews', 'masked_author', 'text', 'public reviews expose masked author text');
 select col_type_is('public', 'approved_product_reviews', 'verified_purchase', 'boolean', 'public reviews expose verified purchase badge fact');
 
+delete from public.payments
+where id in (
+    '00000000-0000-4000-8000-000000000645',
+    '00000000-0000-4000-8000-000000000646'
+  )
+  or order_id in (
+    '00000000-0000-4000-8000-000000000641',
+    '00000000-0000-4000-8000-000000000642'
+  );
+delete from public.checkout_order_lines where id in (
+  '00000000-0000-4000-8000-000000000643',
+  '00000000-0000-4000-8000-000000000644'
+);
+delete from public.checkout_orders where id in (
+  '00000000-0000-4000-8000-000000000641',
+  '00000000-0000-4000-8000-000000000642'
+);
+
 insert into public.checkout_orders (
   id,
   order_number,
@@ -431,10 +449,12 @@ insert into public.checkout_order_lines (
     '{}'::jsonb
   );
 
-insert into public.payments (id, order_id, provider, status, amount_minor, currency_code, paid_gate_opened_at, paid_at)
-values
-  ('00000000-0000-4000-8000-000000000645', '00000000-0000-4000-8000-000000000641', 'paypal', 'paid', 2800, 'USD', now(), now()),
-  ('00000000-0000-4000-8000-000000000646', '00000000-0000-4000-8000-000000000642', 'paypal', 'pending', 2800, 'USD', null, null);
+update public.payments
+set status = 'paid',
+    paid_gate_opened_at = now(),
+    paid_at = now(),
+    updated_at = now()
+where order_id = '00000000-0000-4000-8000-000000000641';
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000601', true);

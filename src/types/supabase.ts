@@ -1789,6 +1789,62 @@ export type Database = {
           },
         ]
       }
+      product_reviews: {
+        Row: {
+          approved_at: string | null
+          body: string | null
+          created_at: string
+          hidden_at: string | null
+          id: string
+          moderation_note: string | null
+          product_id: string
+          rating: number
+          status: string
+          title: string | null
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          approved_at?: string | null
+          body?: string | null
+          created_at?: string
+          hidden_at?: string | null
+          id?: string
+          moderation_note?: string | null
+          product_id: string
+          rating: number
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          approved_at?: string | null
+          body?: string | null
+          created_at?: string
+          hidden_at?: string | null
+          id?: string
+          moderation_note?: string | null
+          product_id?: string
+          rating?: number
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_shipping_profiles: {
         Row: {
           created_at: string
@@ -2479,6 +2535,29 @@ export type Database = {
           },
         ]
       }
+      approved_product_reviews: {
+        Row: {
+          approved_at: string | null
+          body: string | null
+          created_at: string | null
+          id: string | null
+          masked_author: string | null
+          product_id: string | null
+          rating: number | null
+          title: string | null
+          updated_at: string | null
+          verified_purchase: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_payment_statuses: {
         Row: {
           contact_email: string | null
@@ -2511,6 +2590,7 @@ export type Database = {
     }
     Functions: {
       apply_payment_transition: { Args: { p_payload: Json }; Returns: Json }
+      can_review_product: { Args: { p_product_id: string }; Returns: boolean }
       catalog_publish_issues: {
         Args: { target_product_id: string }
         Returns: {
@@ -2723,6 +2803,7 @@ export type Database = {
           title: string
         }[]
       }
+      mask_review_author: { Args: { value: string }; Returns: string }
       publish_catalog_product: {
         Args: { target_product_id: string }
         Returns: {
@@ -2766,6 +2847,15 @@ export type Database = {
         Returns: Json
       }
       submit_checkout: { Args: { p_payload: Json }; Returns: Json }
+      submit_product_review: {
+        Args: {
+          p_body: string
+          p_product_id: string
+          p_rating: number
+          p_title: string
+        }
+        Returns: Json
+      }
       validate_market_exception_grant: {
         Args: { p_token_hash: string }
         Returns: Json
