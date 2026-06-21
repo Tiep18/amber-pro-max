@@ -17,6 +17,7 @@ function isAllowedAdminPath(pathname: string) {
     pathname === '/admin/shipping' ||
     pathname === '/admin/discounts' ||
     pathname === '/admin/reviews' ||
+    pathname === '/admin/newsletter' ||
     /^\/admin\/catalog\/[0-9a-f-]+$/i.test(pathname) ||
     /^\/admin\/catalog\/[0-9a-f-]+\/media$/i.test(pathname) ||
     /^\/admin\/catalog\/[0-9a-f-]+\/variants$/i.test(pathname)

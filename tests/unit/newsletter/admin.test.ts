@@ -1,5 +1,7 @@
 import {describe, expect, test, vi} from 'vitest';
 
+vi.mock('server-only', () => ({}));
+
 import {getAdminNewsletterSubscribers} from '@/newsletter/admin-queries';
 
 function createQuery(data: unknown[]) {

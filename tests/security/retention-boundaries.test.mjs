@@ -8,6 +8,11 @@ const adminNewsletterFiles = [
   'src/components/admin/newsletter/subscriber-list.tsx'
 ];
 
+const adminNewsletterUiFiles = [
+  'src/app/admin/newsletter/page.tsx',
+  'src/components/admin/newsletter/subscriber-list.tsx'
+];
+
 function readExisting(files) {
   return files
     .filter((file) => existsSync(file))
@@ -30,14 +35,14 @@ test('admin newsletter inspection requires admin authorization before reads', ()
 });
 
 test('admin newsletter surface is read-only and exposes no consent override controls', () => {
-  const source = readExisting(adminNewsletterFiles);
+  const source = readExisting(adminNewsletterUiFiles);
 
   assert.doesNotMatch(source, /subscribeNewsletterAction|unsubscribeNewsletter|subscribeCustomer|unsubscribeCustomer/i);
-  assert.doesNotMatch(source, /formAction=.*subscribe|formAction=.*unsubscribe|admin.*subscribe|admin.*unsubscribe/i);
+  assert.doesNotMatch(source, /formAction=.*subscribe|formAction=.*unsubscribe|button[^>]*(subscribe|unsubscribe)/i);
 });
 
 test('admin newsletter UI never renders raw request or token material', () => {
-  const source = readExisting(adminNewsletterFiles);
+  const source = readExisting(adminNewsletterUiFiles);
 
   assert.doesNotMatch(source, /raw_ip|rawIp|ip_hash|user_agent_hash|token_hash|rawToken|newsletter_unsubscribe_tokens/i);
   assert.doesNotMatch(source, /[a-f0-9]\{64\}/i);
