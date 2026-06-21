@@ -11,7 +11,8 @@ import {
   wishlistItemCanCheckout,
   type WishlistHydrationRow
 } from '@/account/wishlist';
-import {removeCustomerWishlistItem} from '@/account/wishlist-actions';
+import {wishlistSignInPath} from '@/auth/redirect';
+import {addCustomerWishlistItem, removeCustomerWishlistItem} from '@/account/wishlist-actions';
 
 const ownerId = '22222222-2222-4222-8222-222222222222';
 const productId = '33333333-3333-4333-8333-333333333333';
@@ -117,5 +118,38 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
     expect(client.from).toHaveBeenCalledWith('wishlist_items');
     expect(eqUser).toHaveBeenCalledWith('user_id', ownerId);
     expect(eqProduct).toHaveBeenCalledWith('product_id', productId);
+  });
+
+  test('maps idempotent add results without accepting a browser owner id', async () => {
+    const select = vi.fn(() => Promise.resolve({data: [{id: wishlistId}], error: null}));
+    const upsert = vi.fn(() => ({select}));
+    const client = {from: vi.fn(() => ({upsert}))};
+
+    await expect(
+      addCustomerWishlistItem({userId: ownerId, productId, client: client as never})
+    ).resolves.toEqual({status: 'saved'});
+
+    expect(client.from).toHaveBeenCalledWith('wishlist_items');
+    expect(upsert).toHaveBeenCalledWith(
+      {user_id: ownerId, product_id: productId},
+      {onConflict: 'user_id,product_id', ignoreDuplicates: true}
+    );
+  });
+
+  test('shapes guest heart redirects to localized sign-in with a safe product return', () => {
+    expect(wishlistSignInPath({locale: 'en', next: '/en/product/pink-bunny'})).toBe(
+      '/en/sign-in?next=%2Fen%2Fproduct%2Fpink-bunny'
+    );
+    expect(wishlistSignInPath({locale: 'vi', next: '/vi/san-pham/tho-hong'})).toBe(
+      '/vi/dang-nhap?next=%2Fvi%2Fsan-pham%2Ftho-hong'
+    );
+    expect(wishlistSignInPath({locale: 'en', next: 'https://evil.example/product'})).toBe(
+      '/en/sign-in?next=%2Fen'
+    );
+  });
+
+  test('keeps guest wishlist intent out of persistent client storage contracts', () => {
+    expect(wishlistSignInPath({locale: 'en', next: '/en/account/wishlist'})).not.toContain('guestWishlist');
+    expect(wishlistSignInPath({locale: 'vi', next: '/vi/tai-khoan/yeu-thich'})).not.toContain('merge');
   });
 });

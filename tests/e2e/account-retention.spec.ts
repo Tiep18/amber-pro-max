@@ -75,3 +75,33 @@ test.describe.skip('account wishlist retention (ACC-04, D-05, D-06, D-07)', () =
     await expect(page.getByRole('status')).toContainText(/removed/i);
   });
 });
+
+// Plan 06-10 activates these contracts with authenticated customer fixtures.
+test.describe.skip('product surface wishlist hearts (ACC-04, D-07, D-08)', () => {
+  test('catalog cards expose stable accessible wishlist hearts', async ({page}) => {
+    await page.goto('/en/catalog');
+    const heart = page.getByRole('button', {name: /save .* to wishlist/i}).first();
+    await expect(heart).toHaveAttribute('aria-pressed', 'false');
+    await expect(heart).toHaveCSS('min-height', '44px');
+  });
+
+  test('signed-in customer can toggle a catalog card heart selected state', async ({page}) => {
+    await page.goto('/en/catalog');
+    const heart = page.getByRole('button', {name: /save .* to wishlist/i}).first();
+    await heart.click();
+    await expect(heart).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('product detail heart sits near purchase intent without replacing the buy CTA', async ({page}) => {
+    await page.goto('/en/product/pink-bunny');
+    await expect(page.getByRole('button', {name: /save .* to wishlist/i})).toBeVisible();
+    await expect(page.getByRole('button', {name: /add to cart/i})).toBeVisible();
+  });
+
+  test('guest card heart redirects to localized sign-in with product return and no guest merge UI', async ({page}) => {
+    await page.goto('/vi/cua-hang');
+    await page.getByRole('button', {name: /luu .* yeu thich/i}).first().click();
+    await expect(page).toHaveURL(/\/vi\/dang-nhap\?next=%2Fvi%2Fsan-pham%2F/);
+    await expect(page.getByText(/merge wishlist|guest wishlist/i)).toHaveCount(0);
+  });
+});
