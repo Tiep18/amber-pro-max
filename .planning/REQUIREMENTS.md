@@ -90,7 +90,7 @@
 - [x] **DISC-03**: Checkout validates a discount server-side and records its allocation on the order.
 - [x] **NEWS-01**: Visitor can explicitly subscribe to the newsletter in Vietnamese or English.
 - [x] **NEWS-02**: System records consent source and timestamp and provides a secure unsubscribe link.
-- [ ] **NEWS-03**: Admin can view subscribers and their subscription status.
+- [x] **NEWS-03**: Admin can view subscribers and their subscription status.
 
 ### Blog and SEO
 
@@ -211,7 +211,7 @@
 | DISC-03 | Phase 3 | Complete |
 | NEWS-01 | Phase 6 | Complete |
 | NEWS-02 | Phase 6 | Complete |
-| NEWS-03 | Phase 6 | Pending |
+| NEWS-03 | Phase 6 | Complete |
 | BLOG-01 | Phase 7 | Pending |
 | BLOG-02 | Phase 7 | Pending |
 | SEO-01 | Phase 2 | Complete |
