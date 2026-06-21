@@ -295,7 +295,7 @@ Plans:
 
 **Wave 8** *(blocked on Wave 7 completion)*
 
-- [ ] 06-08-PLAN.md - Implement confirmation email and one-click unsubscribe
+- [x] 06-08-PLAN.md - Implement confirmation email and one-click unsubscribe
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
@@ -342,5 +342,5 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
 | 5. Fulfillment and Purchase Access | 11/11 | Complete   | 2026-06-20 |
-| 6. Customer Retention and Trust | 7/10 | In Progress|  |
+| 6. Customer Retention and Trust | 8/10 | In Progress|  |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |
