@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(44);
+select plan(64);
 
 select has_table('public', 'customer_shipping_addresses', 'customer shipping address table exists');
 select col_is_fk('public', 'customer_shipping_addresses', 'user_id', 'saved addresses belong to auth users');
@@ -52,7 +52,11 @@ select results_eq(
 insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data)
 values
   ('00000000-0000-4000-8000-000000000601', 'authenticated', 'authenticated', 'address-a@example.test', '', now(), '{}'::jsonb, '{}'::jsonb),
-  ('00000000-0000-4000-8000-000000000602', 'authenticated', 'authenticated', 'address-b@example.test', '', now(), '{}'::jsonb, '{}'::jsonb);
+  ('00000000-0000-4000-8000-000000000602', 'authenticated', 'authenticated', 'address-b@example.test', '', now(), '{}'::jsonb, '{}'::jsonb),
+  ('00000000-0000-4000-8000-000000000603', 'authenticated', 'authenticated', 'review-admin@example.test', '', now(), '{}'::jsonb, '{}'::jsonb);
+
+insert into public.user_roles (user_id, role, note)
+values ('00000000-0000-4000-8000-000000000603', 'admin', 'review moderation test admin');
 
 insert into public.customer_shipping_addresses (
   id,
@@ -478,6 +482,156 @@ select throws_ok(
 select is_empty(
   $$select title from public.approved_product_reviews where product_id = '50000000-0000-0000-0000-000000000003'$$,
   'pending review is hidden from public approved projection'
+);
+
+reset role;
+
+select has_table('public', 'review_admin_replies', 'review admin replies table exists');
+select col_is_fk('public', 'review_admin_replies', 'review_id', 'shop replies belong to reviews');
+select has_index(
+  'public',
+  'review_admin_replies',
+  'review_admin_replies_pkey',
+  'each review has at most one shop reply'
+);
+select table_privs_are(
+  'public',
+  'review_admin_replies',
+  'authenticated',
+  array[]::text[],
+  'authenticated clients have no direct shop reply table access'
+);
+select table_privs_are(
+  'public',
+  'product_reviews',
+  'authenticated',
+  array['SELECT'],
+  'authenticated customers cannot bypass review submit or moderation RPCs'
+);
+select has_function(
+  'public',
+  'moderate_product_review',
+  array['uuid', 'integer', 'text', 'text', 'text'],
+  'stale-safe review moderation RPC exists'
+);
+select has_function(
+  'public',
+  'upsert_review_admin_reply',
+  array['uuid', 'integer', 'text', 'text'],
+  'one shop reply upsert RPC exists'
+);
+select has_function(
+  'public',
+  'remove_review_admin_reply',
+  array['uuid', 'integer', 'text', 'integer'],
+  'stale-safe shop reply removal RPC exists'
+);
+select has_function(
+  'public',
+  'get_admin_product_reviews',
+  array['text'],
+  'protected admin review queue RPC exists'
+);
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000601', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+
+select is(
+  (public.moderate_product_review(
+    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    1,
+    'pending',
+    'approved',
+    null
+  )->>'status'),
+  'forbidden',
+  'customer cannot moderate their own review'
+);
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000603', true);
+
+select is(
+  (public.moderate_product_review(
+    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    1,
+    'pending',
+    'approved',
+    'verified fixture'
+  )->>'status'),
+  'approved',
+  'admin can approve a pending verified review'
+);
+select results_eq(
+  $$select title from public.approved_product_reviews where product_id = '50000000-0000-0000-0000-000000000003'$$,
+  $$values ('Sweet bear'::text)$$,
+  'approved review becomes public'
+);
+select is(
+  (public.moderate_product_review(
+    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    1,
+    'pending',
+    'hidden',
+    null
+  )->>'status'),
+  'stale',
+  'stale review moderation is rejected'
+);
+select is(
+  (public.upsert_review_admin_reply(
+    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    2,
+    'approved',
+    'Thank you for your review.'
+  )->>'status'),
+  'saved',
+  'admin can create one shop reply'
+);
+select is(
+  (select count(*)::integer from public.review_admin_replies),
+  1,
+  'shop reply upsert creates only one row per review'
+);
+select results_eq(
+  $$select shop_reply_body from public.approved_product_reviews where product_id = '50000000-0000-0000-0000-000000000003'$$,
+  $$values ('Thank you for your review.'::text)$$,
+  'approved public review includes the shop reply'
+);
+select is(
+  (public.upsert_review_admin_reply(
+    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    2,
+    'approved',
+    'Updated shop reply.'
+  )->>'reply_version'),
+  '2',
+  'editing the shop reply updates the same row version'
+);
+select is(
+  (public.remove_review_admin_reply(
+    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    2,
+    'approved',
+    2
+  )->>'status'),
+  'removed',
+  'admin can remove the current shop reply'
+);
+select is(
+  (public.moderate_product_review(
+    (select id from public.product_reviews where user_id = '00000000-0000-4000-8000-000000000601'),
+    2,
+    'approved',
+    'hidden',
+    'storefront removal'
+  )->>'status'),
+  'hidden',
+  'admin can hide an approved review'
+);
+select is_empty(
+  $$select title from public.approved_product_reviews where product_id = '50000000-0000-0000-0000-000000000003'$$,
+  'hidden review disappears from public display'
 );
 
 select * from finish();

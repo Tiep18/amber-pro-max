@@ -11,6 +11,11 @@ import {
   maskReviewIdentity,
   parseProductReviewInput
 } from '@/reviews/eligibility';
+import {
+  moderateProductReview,
+  removeReviewReply,
+  upsertReviewReply
+} from '@/reviews/actions';
 
 const productId = '33333333-3333-4333-8333-333333333333';
 
@@ -81,5 +86,87 @@ describe('verified product review contracts (REV-01, D-09, D-10, D-11)', () => {
         verifiedPurchase: true
       })
     ]);
+  });
+});
+
+describe('admin review moderation contracts (REV-02, D-12)', () => {
+  test('approve and hide send expected version and status to the moderation RPC', async () => {
+    const client = {
+      rpc: vi.fn()
+        .mockResolvedValueOnce({data: {status: 'approved', version: 3}, error: null})
+        .mockResolvedValueOnce({data: {status: 'hidden', version: 4}, error: null})
+    };
+
+    await expect(moderateProductReview({
+      reviewId: productId,
+      expectedVersion: 2,
+      expectedStatus: 'pending',
+      targetStatus: 'approved'
+    }, client)).resolves.toEqual({status: 'approved', version: 3});
+    await expect(moderateProductReview({
+      reviewId: productId,
+      expectedVersion: 3,
+      expectedStatus: 'approved',
+      targetStatus: 'hidden'
+    }, client)).resolves.toEqual({status: 'hidden', version: 4});
+
+    expect(client.rpc).toHaveBeenNthCalledWith(1, 'moderate_product_review', expect.objectContaining({
+      p_expected_version: 2,
+      p_expected_status: 'pending',
+      p_target_status: 'approved'
+    }));
+  });
+
+  test('moderation maps stale and forbidden results without treating them as success', async () => {
+    const client = {
+      rpc: vi.fn()
+        .mockResolvedValueOnce({data: {status: 'stale', version: 7}, error: null})
+        .mockResolvedValueOnce({data: {status: 'forbidden'}, error: null})
+    };
+    const input = {
+      reviewId: productId,
+      expectedVersion: 2,
+      expectedStatus: 'pending' as const,
+      targetStatus: 'approved' as const
+    };
+
+    await expect(moderateProductReview(input, client)).resolves.toEqual({status: 'stale', version: 7});
+    await expect(moderateProductReview(input, client)).resolves.toEqual({status: 'forbidden'});
+  });
+
+  test('shop reply create and edit use one upsert action with stale review checks', async () => {
+    const client = {rpc: vi.fn().mockResolvedValue({data: {status: 'saved', reply_version: 2}, error: null})};
+
+    await expect(upsertReviewReply({
+      reviewId: productId,
+      expectedReviewVersion: 3,
+      expectedReviewStatus: 'approved',
+      body: 'Thank you for your review.'
+    }, client)).resolves.toEqual({status: 'saved', replyVersion: 2});
+
+    expect(client.rpc).toHaveBeenCalledWith('upsert_review_admin_reply', expect.objectContaining({
+      p_expected_review_version: 3,
+      p_expected_review_status: 'approved',
+      p_body: 'Thank you for your review.'
+    }));
+  });
+
+  test('shop reply removal maps removed, stale, and forbidden results', async () => {
+    const client = {
+      rpc: vi.fn()
+        .mockResolvedValueOnce({data: {status: 'removed'}, error: null})
+        .mockResolvedValueOnce({data: {status: 'stale', version: 4}, error: null})
+        .mockResolvedValueOnce({data: {status: 'forbidden'}, error: null})
+    };
+    const input = {
+      reviewId: productId,
+      expectedReviewVersion: 3,
+      expectedReviewStatus: 'approved' as const,
+      expectedReplyVersion: 1
+    };
+
+    await expect(removeReviewReply(input, client)).resolves.toEqual({status: 'removed'});
+    await expect(removeReviewReply(input, client)).resolves.toEqual({status: 'stale', version: 4});
+    await expect(removeReviewReply(input, client)).resolves.toEqual({status: 'forbidden'});
   });
 });
