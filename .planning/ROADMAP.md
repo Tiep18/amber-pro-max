@@ -328,7 +328,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 07-02: Build protected blog admin authoring workflow
+- [x] 07-02: Build protected blog admin authoring workflow
 - [ ] 07-06: Build safe operational error redaction queue
 - [ ] 07-08: Publish bilingual policy pages
 
