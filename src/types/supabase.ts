@@ -34,6 +34,266 @@ export type Database = {
   }
   public: {
     Tables: {
+      blog_categories: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      blog_category_translations: {
+        Row: {
+          category_id: string
+          description: string
+          id: string
+          locale: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          category_id: string
+          description?: string
+          id?: string
+          locale: string
+          name: string
+          slug: string
+        }
+        Update: {
+          category_id?: string
+          description?: string
+          id?: string
+          locale?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_category_translations_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "blog_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_post_tags: {
+        Row: {
+          post_id: string
+          tag_id: string
+        }
+        Insert: {
+          post_id: string
+          tag_id: string
+        }
+        Update: {
+          post_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_post_tags_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_post_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "blog_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_post_translations: {
+        Row: {
+          body: string
+          created_at: string
+          description: string
+          id: string
+          locale: string
+          post_id: string
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          social_image_bucket: string | null
+          social_image_path: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          description?: string
+          id?: string
+          locale: string
+          post_id: string
+          seo_description?: string | null
+          seo_title?: string | null
+          slug: string
+          social_image_bucket?: string | null
+          social_image_path?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          description?: string
+          id?: string
+          locale?: string
+          post_id?: string
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string
+          social_image_bucket?: string | null
+          social_image_path?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_post_translations_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_posts: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          published_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          published_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          published_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_posts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "blog_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_related_products: {
+        Row: {
+          display_order: number
+          post_id: string
+          product_id: string
+        }
+        Insert: {
+          display_order?: number
+          post_id: string
+          product_id: string
+        }
+        Update: {
+          display_order?: number
+          post_id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_related_products_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_related_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_tag_translations: {
+        Row: {
+          id: string
+          locale: string
+          name: string
+          slug: string
+          tag_id: string
+        }
+        Insert: {
+          id?: string
+          locale: string
+          name: string
+          slug: string
+          tag_id: string
+        }
+        Update: {
+          id?: string
+          locale?: string
+          name?: string
+          slug?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_tag_translations_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "blog_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_tags: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -2746,6 +3006,14 @@ export type Database = {
     }
     Functions: {
       apply_payment_transition: { Args: { p_payload: Json }; Returns: Json }
+      blog_publish_issues: {
+        Args: { target_post_id: string }
+        Returns: {
+          detail: string
+          issue_code: string
+          locale: string
+        }[]
+      }
       can_review_product: { Args: { p_product_id: string }; Returns: boolean }
       catalog_publish_issues: {
         Args: { target_product_id: string }
@@ -2942,6 +3210,19 @@ export type Database = {
         Args: { p_guest_secret_hash?: string; p_order_number: string }
         Returns: Json
       }
+      get_published_blog_post_by_slug: {
+        Args: { target_locale: string; target_slug: string }
+        Returns: {
+          body: string
+          category_name: string
+          category_slug: string
+          description: string
+          post_id: string
+          published_at: string
+          slug: string
+          title: string
+        }[]
+      }
       list_catalog_facets: {
         Args: { p_locale: string; p_market: string }
         Returns: {
@@ -2978,6 +3259,18 @@ export type Database = {
           title: string
         }[]
       }
+      list_published_blog_posts: {
+        Args: { target_locale: string }
+        Returns: {
+          category_name: string
+          category_slug: string
+          description: string
+          post_id: string
+          published_at: string
+          slug: string
+          title: string
+        }[]
+      }
       mask_review_author: { Args: { value: string }; Returns: string }
       moderate_product_review: {
         Args: {
@@ -2988,6 +3281,12 @@ export type Database = {
           p_target_status: string
         }
         Returns: Json
+      }
+      publish_blog_post: {
+        Args: { target_post_id: string; target_published_at?: string }
+        Returns: {
+          published: boolean
+        }[]
       }
       publish_catalog_product: {
         Args: { target_product_id: string }
