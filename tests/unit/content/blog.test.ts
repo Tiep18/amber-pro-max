@@ -1,5 +1,19 @@
-import {describe, expect, it} from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
 
+const {createSupabaseServerClientMock, requireAdminMock} = vi.hoisted(() => ({
+  createSupabaseServerClientMock: vi.fn(),
+  requireAdminMock: vi.fn()
+}));
+
+vi.mock('server-only', () => ({}));
+vi.mock('@/auth/guards', () => ({
+  requireAdmin: requireAdminMock
+}));
+vi.mock('@/lib/supabase/server', () => ({
+  createSupabaseServerClient: createSupabaseServerClientMock
+}));
+
+import {publishBlogPostAction, saveBlogPostDraftAction} from '@/content/blog/actions';
 import {blogPostDraftSchema} from '@/content/blog/schemas';
 import type {BlogPostDraftInput} from '@/content/blog/schemas';
 
@@ -57,5 +71,47 @@ describe('blog post schema - BLOG-01 D-01 D-02', () => {
     draft.translations.vi.body = '';
 
     expect(blogPostDraftSchema.safeParse(draft).success).toBe(false);
+  });
+});
+
+describe('blog admin actions - BLOG-02 D-01 D-03', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireAdminMock.mockResolvedValue({id: '11111111-1111-4111-8111-111111111111'});
+  });
+
+  it('checks admin authorization before opening a database client', async () => {
+    requireAdminMock.mockRejectedValue(new Error('forbidden'));
+
+    await expect(saveBlogPostDraftAction(validDraft())).rejects.toThrow('forbidden');
+
+    expect(createSupabaseServerClientMock).not.toHaveBeenCalled();
+  });
+
+  it('maps database publish blockers without returning raw issue details', async () => {
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({data: [{published: false}], error: null})
+      .mockResolvedValueOnce({
+        data: [
+          {issue_code: 'missing_category', locale: null, detail: 'category is required'},
+          {issue_code: 'missing_social_image', locale: 'en', detail: 'raw storage path detail'},
+          {issue_code: 'unexpected_internal_code', locale: null, detail: 'do not expose this'}
+        ],
+        error: null
+      });
+    createSupabaseServerClientMock.mockResolvedValue({rpc});
+
+    const result = await publishBlogPostAction('44444444-4444-4444-8444-444444444444');
+
+    expect(result).toEqual({
+      status: 'blocked',
+      postId: '44444444-4444-4444-8444-444444444444',
+      issues: [
+        {code: 'missing_category', group: 'taxonomy', field: 'categoryId'},
+        {code: 'missing_social_image', group: 'media', field: 'socialImage', locale: 'en'},
+        {code: 'publish_requirement', group: 'general', field: 'blogPost'}
+      ]
+    });
   });
 });
