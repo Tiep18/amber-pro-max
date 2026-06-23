@@ -8,6 +8,8 @@ import {
   type CatalogProductType,
   type CatalogSort
 } from '@/catalog/queries';
+import {getWishlistedProductIds} from '@/account/wishlist';
+import {createSupabaseServerClient} from '@/lib/supabase/server';
 import type {Locale} from '@/i18n/routing';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -47,6 +49,13 @@ export default async function CatalogPage({
     collectionSlug: first(query.collection),
     sort
   });
+  const supabase = await createSupabaseServerClient();
+  const {data: authUser} = await supabase.auth.getUser();
+  const wishlistedProductIds = await getWishlistedProductIds({
+    userId: authUser.user?.id,
+    productIds: products.map((product) => product.product_id),
+    client: supabase as never
+  });
 
   return (
     <main className="mx-auto grid w-full max-w-[1200px] gap-7 px-4 py-10 sm:px-6 lg:px-10 xl:px-12">
@@ -58,7 +67,12 @@ export default async function CatalogPage({
       {products.length ? (
         <section aria-label={t('title')} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((product) => (
-            <ProductCard key={product.product_id} product={product} locale={locale} />
+            <ProductCard
+              key={product.product_id}
+              product={product}
+              locale={locale}
+              initiallyWishlisted={wishlistedProductIds.has(product.product_id)}
+            />
           ))}
         </section>
       ) : (

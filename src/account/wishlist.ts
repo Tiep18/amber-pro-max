@@ -7,6 +7,16 @@ type RpcClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
 };
 
+type WishlistLookupClient = {
+  from: (table: 'wishlist_items') => {
+    select: (columns: 'product_id') => {
+      eq: (column: 'user_id', value: string) => {
+        in: (column: 'product_id', values: string[]) => Promise<{data: unknown[] | null; error: unknown}>;
+      };
+    };
+  };
+};
+
 export type WishlistVariantState = 'none' | 'available' | 'unavailable';
 
 export type CustomerWishlistItem = {
@@ -229,6 +239,37 @@ export function mapWishlistRows(
 
 export function wishlistItemCanCheckout(item: CustomerWishlistItem) {
   return item.available && item.inStock && item.currencyCode !== null && item.priceMinor !== null;
+}
+
+export async function getWishlistedProductIds({
+  userId,
+  productIds,
+  client
+}: {
+  userId: string | null | undefined;
+  productIds: string[];
+  client: WishlistLookupClient;
+}) {
+  const uniqueProductIds = [...new Set(productIds)].filter(Boolean);
+  if (!userId || uniqueProductIds.length === 0) {
+    return new Set<string>();
+  }
+
+  const {data, error} = await client
+    .from('wishlist_items')
+    .select('product_id')
+    .eq('user_id', userId)
+    .in('product_id', uniqueProductIds);
+
+  if (error || !Array.isArray(data)) {
+    return new Set<string>();
+  }
+
+  return new Set(
+    data.flatMap((row) => (
+      isRecord(row) && typeof row.product_id === 'string' ? [row.product_id] : []
+    ))
+  );
 }
 
 export async function getCustomerWishlist({

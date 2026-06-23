@@ -16,7 +16,7 @@ The project grows through seven vertical MVP phases. Each phase leaves a usable 
 - [x] **Phase 3: Mixed Cart and Checkout** - Customers can build a mixed order with authoritative pricing, shipping, discounts, inventory reservation, and exception handling. (completed 2026-06-15)
 - [ ] **Phase 4: Trusted Payments and Orders** - PayPal and VietQR safely move orders through auditable, idempotent payment and inventory states. (implementation complete; awaiting provider/manual UAT)
 - [x] **Phase 5: Fulfillment and Purchase Access** - Paid customers receive secure PDFs and can follow physical fulfillment without conflating the two workflows. (completed 2026-06-20)
-- [ ] **Phase 6: Customer Retention and Trust** - Customers can manage repeat-purchase data, wishlists, reviews, and newsletter relationships.
+- [x] **Phase 6: Customer Retention and Trust** - Customers can manage repeat-purchase data, wishlists, reviews, and newsletter relationships. (completed 2026-06-23)
 - [ ] **Phase 7: Content, SEO, and Launch Readiness** - The bilingual store is discoverable, operable, policy-complete, monitored, and verified for launch.
 
 ## Phase Details
@@ -303,7 +303,7 @@ Plans:
 
 **Wave 10** *(blocked on Wave 9 completion)*
 
-- [ ] 06-10-PLAN.md - Run authenticated final verification and UI checkpoint
+- [x] 06-10-PLAN.md - Run authenticated final verification and UI checkpoint
 
 ### Phase 7: Content, SEO, and Launch Readiness
 
@@ -342,5 +342,5 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 3. Mixed Cart and Checkout | 5/5 | Complete   | 2026-06-15 |
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
 | 5. Fulfillment and Purchase Access | 11/11 | Complete   | 2026-06-20 |
-| 6. Customer Retention and Trust | 9/10 | In Progress|  |
+| 6. Customer Retention and Trust | 10/10 | Complete    | 2026-06-23 |
 | 7. Content, SEO, and Launch Readiness | 0/5 | Not started | - |

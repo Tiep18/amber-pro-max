@@ -47,7 +47,11 @@ export function ReviewModerationList({
         ) : (
           <div className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
             {reviews.map((review) => (
-              <section key={review.reviewId} className="grid gap-4 py-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.55fr)]">
+              <section
+                key={review.reviewId}
+                aria-label={`${review.title ?? 'Untitled review'} for ${review.productTitle}`}
+                className="grid gap-4 py-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.55fr)]"
+              >
                 <div className="grid gap-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>

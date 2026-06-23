@@ -74,7 +74,7 @@ export function ReviewActions({
   const [hideState, hideAction] = useActionState(hideProductReviewAction, initialState);
   const [replyState, replyAction] = useActionState(upsertReviewReplyAction, initialState);
   const [removeState, removeAction] = useActionState(removeReviewReplyAction, initialState);
-  const visibleResult = [approveState, hideState, replyState, removeState].find((result) => result.status !== 'idle');
+  const visibleResult = [removeState, replyState, hideState, approveState].find((result) => result.status !== 'idle');
 
   return (
     <div className="grid gap-3">

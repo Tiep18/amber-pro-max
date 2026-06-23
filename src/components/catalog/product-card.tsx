@@ -13,7 +13,15 @@ function publicImageUrl(bucket: string | null, path: string | null) {
   return `${base}/storage/v1/object/public/${bucket}/${path}`;
 }
 
-export async function ProductCard({product, locale}: {product: CatalogProduct; locale: Locale}) {
+export async function ProductCard({
+  product,
+  locale,
+  initiallyWishlisted = false
+}: {
+  product: CatalogProduct;
+  locale: Locale;
+  initiallyWishlisted?: boolean;
+}) {
   const t = await getTranslations('catalog');
   const imageUrl = publicImageUrl(product.primary_image_bucket, product.primary_image_path);
   const currencyCode = product.currency_code === 'VND' ? 'VND' : 'USD';
@@ -40,9 +48,10 @@ export async function ProductCard({product, locale}: {product: CatalogProduct; l
             productTitle={product.title}
             locale={locale}
             returnTo={productPath}
+            initiallySaved={initiallyWishlisted}
             labels={{
-              save: t('wishlist.save'),
-              remove: t('wishlist.remove'),
+              save: t('wishlist.save', {title: product.title}),
+              remove: t('wishlist.remove', {title: product.title}),
               saving: t('wishlist.saving'),
               removing: t('wishlist.removing')
             }}

@@ -343,43 +343,97 @@ exception
 end;
 $$;
 
-create or replace view public.order_payment_statuses
-with (security_invoker = true)
-as
-select
-  co.id as order_id,
-  co.order_number,
-  co.owner_user_id,
-  co.guest_secret_hash,
-  co.contact_email,
-  co.locale,
-  co.market,
-  co.payment_intent,
-  co.currency_code,
-  co.total_minor,
-  co.reservation_expires_at,
-  p.id as payment_id,
-  p.provider,
-  effective.status as payment_status,
-  private.payment_customer_status(effective.status) as customer_payment_status,
-  case
-    when effective.status in ('paid', 'partially_refunded', 'refunded') then 'eligible'
-    when effective.status = 'review_required' then 'review_required'
-    else 'locked'
-  end as fulfillment_gate_status,
-  p.digital_fulfillment_status,
-  p.physical_fulfillment_status,
-  p.refund_status,
-  p.refunded_amount_minor,
-  coalesce(p.review_reason, co.review_reason) as review_reason,
-  p.created_at,
-  p.updated_at,
-  co.shipping_address
-from public.checkout_orders co
-join public.payments p on p.order_id = co.id
-cross join lateral (
-  select private.payment_effective_status(p.status, co.paid_gate_status, coalesce(p.review_reason, co.review_reason)) as status
-) effective;
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'order_payment_statuses'
+      and column_name = 'payment_intent'
+  ) then
+    execute $view$
+      create or replace view public.order_payment_statuses
+      with (security_invoker = true)
+      as
+      select
+        co.id as order_id,
+        co.order_number,
+        co.owner_user_id,
+        co.guest_secret_hash,
+        co.contact_email,
+        co.locale,
+        co.market,
+        co.payment_intent,
+        co.currency_code,
+        co.total_minor,
+        co.reservation_expires_at,
+        p.id as payment_id,
+        p.provider,
+        effective.status as payment_status,
+        private.payment_customer_status(effective.status) as customer_payment_status,
+        case
+          when effective.status in ('paid', 'partially_refunded', 'refunded') then 'eligible'
+          when effective.status = 'review_required' then 'review_required'
+          else 'locked'
+        end as fulfillment_gate_status,
+        p.digital_fulfillment_status,
+        p.physical_fulfillment_status,
+        p.refund_status,
+        p.refunded_amount_minor,
+        coalesce(p.review_reason, co.review_reason) as review_reason,
+        p.created_at,
+        p.updated_at,
+        co.shipping_address
+      from public.checkout_orders co
+      join public.payments p on p.order_id = co.id
+      cross join lateral (
+        select private.payment_effective_status(p.status, co.paid_gate_status, coalesce(p.review_reason, co.review_reason)) as status
+      ) effective
+    $view$;
+  else
+    execute $view$
+      create or replace view public.order_payment_statuses
+      with (security_invoker = true)
+      as
+      select
+        co.id as order_id,
+        co.order_number,
+        co.owner_user_id,
+        co.guest_secret_hash,
+        co.contact_email,
+        co.locale,
+        co.market,
+        co.currency_code,
+        co.total_minor,
+        co.reservation_expires_at,
+        p.id as payment_id,
+        p.provider,
+        effective.status as payment_status,
+        private.payment_customer_status(effective.status) as customer_payment_status,
+        case
+          when effective.status in ('paid', 'partially_refunded', 'refunded') then 'eligible'
+          when effective.status = 'review_required' then 'review_required'
+          else 'locked'
+        end as fulfillment_gate_status,
+        p.digital_fulfillment_status,
+        p.physical_fulfillment_status,
+        p.refund_status,
+        p.refunded_amount_minor,
+        coalesce(p.review_reason, co.review_reason) as review_reason,
+        p.created_at,
+        p.updated_at,
+        co.payment_intent,
+        co.shipping_address
+      from public.checkout_orders co
+      join public.payments p on p.order_id = co.id
+      cross join lateral (
+        select private.payment_effective_status(p.status, co.paid_gate_status, coalesce(p.review_reason, co.review_reason)) as status
+      ) effective
+    $view$;
+  end if;
+end;
+$$;
 
 create or replace function public.get_order_payment_status(p_order_number text, p_guest_secret_hash text default null)
 returns jsonb

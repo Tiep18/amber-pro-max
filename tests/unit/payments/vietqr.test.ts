@@ -36,7 +36,7 @@ const order: VietQrInstructionOrder = {
   paymentIntent: 'vietqr_intent',
   paymentStatus: 'pending',
   amountMinor: vietQrInstructionContract.amountMinor,
-  reservationExpiresAt: '2026-06-21T09:00:00.000Z'
+  reservationExpiresAt: '2099-06-21T09:00:00.000Z'
 };
 
 const expectedPayment: VietQrExpectedPayment = {

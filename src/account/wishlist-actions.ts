@@ -57,6 +57,14 @@ function revalidateWishlistPages() {
   revalidatePath('/vi/tai-khoan/yeu-thich');
 }
 
+function revalidateWishlistSurfaces(locale: Locale, formData: FormData) {
+  revalidateWishlistPages();
+  const returnTo = actionReturnPath(locale, formData);
+  if (returnTo.startsWith('/')) {
+    revalidatePath(returnTo);
+  }
+}
+
 function actionReturnPath(locale: Locale, formData: FormData) {
   return formValue(formData, 'returnTo') ?? wishlistPath(locale);
 }
@@ -126,7 +134,7 @@ export async function removeCustomerWishlistItemAction(
     productId: formValue(formData, 'productId') ?? '',
     client: client as unknown as DeleteClient
   });
-  if (result.status === 'removed') revalidateWishlistPages();
+  if (result.status === 'removed') revalidateWishlistSurfaces(locale, formData);
   return result;
 }
 
@@ -142,6 +150,6 @@ export async function addCustomerWishlistItemAction(
     productId: formValue(formData, 'productId') ?? '',
     client: client as unknown as UpsertClient
   });
-  if (result.status === 'saved') revalidateWishlistPages();
+  if (result.status === 'saved') revalidateWishlistSurfaces(locale, formData);
   return result;
 }

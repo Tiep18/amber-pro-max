@@ -1,7 +1,7 @@
 'use client';
 
 import {Heart} from 'lucide-react';
-import {useActionState} from 'react';
+import {useActionState, useEffect, useState} from 'react';
 import {
   addCustomerWishlistItemAction,
   removeCustomerWishlistItemAction,
@@ -35,11 +35,17 @@ export function WishlistHeart({
 }) {
   const [addState, addAction, adding] = useActionState(addCustomerWishlistItemAction, initialState);
   const [removeState, removeAction, removing] = useActionState(removeCustomerWishlistItemAction, initialState);
-  const selected = addState.status === 'saved' || (initiallySaved && removeState.status !== 'removed');
-  const pending = selected ? removing : adding;
-  const action = selected ? removeAction : addAction;
+  const serverSelected = addState.status === 'saved' || (initiallySaved && removeState.status !== 'removed' && removeState.status !== 'not_found');
+  const [optimisticSelected, setOptimisticSelected] = useState<boolean | null>(null);
+  const selected = optimisticSelected ?? serverSelected;
+  const pending = adding || removing;
+  const action = serverSelected ? removeAction : addAction;
   const labelTemplate = selected ? labels.remove : labels.save;
   const label = labelTemplate.replace('{title}', productTitle);
+
+  useEffect(() => {
+    setOptimisticSelected(null);
+  }, [serverSelected, addState.status, removeState.status]);
 
   return (
     <form action={action} className="contents">
@@ -48,7 +54,8 @@ export function WishlistHeart({
       <input type="hidden" name="returnTo" value={returnTo} />
       <button
         type="submit"
-        aria-label={pending ? (selected ? labels.removing : labels.saving) : label}
+        onClick={() => setOptimisticSelected(!serverSelected)}
+        aria-label={pending ? (serverSelected ? labels.removing : labels.saving) : label}
         aria-pressed={selected}
         disabled={pending}
         className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] shadow-sm transition hover:bg-[var(--surface-muted)] disabled:cursor-wait disabled:opacity-70"

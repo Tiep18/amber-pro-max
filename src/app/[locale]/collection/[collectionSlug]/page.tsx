@@ -4,8 +4,10 @@ import {notFound} from 'next/navigation';
 import {localizedMetadata, publicStorageUrl} from '@/catalog/metadata';
 import {getRequestMarket} from '@/catalog/page-context';
 import {getCatalogCollectionBySlug, listCatalogProducts} from '@/catalog/queries';
+import {getWishlistedProductIds} from '@/account/wishlist';
 import {ProductCard} from '@/components/catalog/product-card';
 import {getCollectionPath, type Locale} from '@/i18n/routing';
+import {createSupabaseServerClient} from '@/lib/supabase/server';
 import type {Json} from '@/types/supabase';
 
 type Params = Promise<{locale: Locale; collectionSlug: string}>;
@@ -55,6 +57,13 @@ export default async function CollectionPage({
   if (!collection) {
     notFound();
   }
+  const supabase = await createSupabaseServerClient();
+  const {data: authUser} = await supabase.auth.getUser();
+  const wishlistedProductIds = await getWishlistedProductIds({
+    userId: authUser.user?.id,
+    productIds: products.map((product) => product.product_id),
+    client: supabase as never
+  });
 
   return (
     <main className="mx-auto grid w-full max-w-[1200px] gap-7 px-4 py-10 sm:px-6 lg:px-10 xl:px-12">
@@ -64,7 +73,12 @@ export default async function CollectionPage({
       </header>
       <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {products.map((product) => (
-          <ProductCard key={product.product_id} product={product} locale={locale} />
+          <ProductCard
+            key={product.product_id}
+            product={product}
+            locale={locale}
+            initiallyWishlisted={wishlistedProductIds.has(product.product_id)}
+          />
         ))}
       </section>
     </main>
