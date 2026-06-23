@@ -387,22 +387,19 @@ export default function robots() {
 | A4 | Sitemap leaks usually come from filesystem route walking. | Common Pitfalls | If implemented from DB projections, this risk is already mitigated. |
 | A5 | Warning signs listed for pitfalls are inferred from engineering practice. | Common Pitfalls | Planner should validate these through tests rather than treating them as known current defects. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Final legal/tax content owner**
    - What we know: LEGAL-01 and LEGAL-02 require published policies and seller-approved tax/consumer decisions. [VERIFIED: REQUIREMENTS.md]
-   - What's unclear: The actual legal policy copy and tax stance require seller/professional approval. [ASSUMED]
-   - Recommendation: Planner should create implementation tasks for editable structure and launch gates, plus human UAT/checkpoint for final policy/tax approval.
+   - Resolution: Phase 07 plans implement editable bilingual policy structure and structured launch settings, while final policy/tax approval remains a blocking human verification checkpoint before launch readiness can pass.
 
 2. **Production brand identity**
    - What we know: Organization/WebSite JSON-LD needs stable name, URL, logo/social facts to be useful. [CITED: https://developers.google.com/search/docs/appearance/structured-data/organization]
-   - What's unclear: Final brand name/logo/social profiles are not locked in the Phase 7 context. [VERIFIED: STATE.md]
-   - Recommendation: Store configurable organization facts and block launch readiness if required brand fields are missing.
+   - Resolution: Phase 07 plans store configurable organization/brand facts in launch settings and make launch readiness fail closed when required brand fields are missing.
 
 3. **PayPal/VietQR UAT completion source**
    - What we know: D-15 requires provider/manual UAT completion before Phase 7 is done. [VERIFIED: 07-CONTEXT.md]
-   - What's unclear: Whether this is recorded manually in launch settings or imported from verification notes. [ASSUMED]
-   - Recommendation: Use structured launch checklist rows with manual evidence fields.
+   - Resolution: Phase 07 plans record PayPal sandbox and seller-approved VietQR UAT as structured launch checklist evidence, with the final verification plan blocking completion until evidence is present.
 
 ## Environment Availability
 

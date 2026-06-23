@@ -320,15 +320,41 @@ Plans:
   4. Customers can read approved bilingual privacy, sale, return, and digital-download policies before purchase.
   5. Launch checks cover enabled countries, seller-approved policy/tax decisions, error monitoring, redacted logs, and automated critical journeys.
 
-**Plans**: 5 plans
-
+**Plans**: 10 plans
 Plans:
+**Wave 1**
 
-- [ ] 07-01: Build bilingual blog authoring, scheduling, taxonomy, and related products
-- [ ] 07-02: Complete localized technical SEO, structured data, sitemaps, and robots
-- [ ] 07-03: Complete unified admin operations and safe observability
-- [ ] 07-04: Publish bilingual policies and codify country/tax/consumer launch decisions
-- [ ] 07-05: Run security, accessibility, performance, SEO, and end-to-end launch verification
+- [ ] 07-01: Add blog database and publish contracts
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 07-02: Build protected blog admin authoring workflow
+- [ ] 07-06: Build safe operational error redaction queue
+- [ ] 07-08: Publish bilingual policy pages
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 07-03: Render public localized blog pages and taxonomy
+- [ ] 07-07: Complete admin dashboard and navigation
+- [ ] 07-09: Codify launch settings and fail-closed readiness gates
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 07-04: Complete localized metadata and safe JSON-LD
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 07-05: Publish sitemap index, localized sitemaps, robots, and private URL exclusions
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 07-10: Run final launch verification and UAT evidence review
+
+**Cross-cutting constraints:**
+
+- This plan preserves Phase 07 locked decisions: D-01, D-02, D-03, D-04.
+- Admin-only surfaces and mutations use server-side requireAdmin plus RLS where data is privileged.
+- Public surfaces use published/public projections only and fail closed for missing launch facts.
 
 ## Progress
 
