@@ -2047,6 +2047,89 @@ export type Database = {
           },
         ]
       }
+      policy_page_translations: {
+        Row: {
+          body: string
+          id: string
+          locale: string
+          policy_id: string
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          social_image_bucket: string | null
+          social_image_path: string | null
+          summary: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          id?: string
+          locale: string
+          policy_id: string
+          seo_description?: string | null
+          seo_title?: string | null
+          slug: string
+          social_image_bucket?: string | null
+          social_image_path?: string | null
+          summary?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          id?: string
+          locale?: string
+          policy_id?: string
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string
+          social_image_bucket?: string | null
+          social_image_path?: string | null
+          summary?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_page_translations_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policy_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policy_pages: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          policy_kind: string
+          published_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          policy_kind: string
+          published_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          policy_kind?: string
+          published_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_categories: {
         Row: {
           category_id: string
@@ -3274,6 +3357,24 @@ export type Database = {
           title: string
         }[]
       }
+      get_published_policy_page_by_slug: {
+        Args: { target_locale: string; target_slug: string }
+        Returns: {
+          body: string
+          locale: string
+          localized_slugs: Json
+          policy_id: string
+          policy_kind: string
+          published_at: string
+          seo_description: string
+          seo_title: string
+          slug: string
+          social_image_bucket: string
+          social_image_path: string
+          summary: string
+          title: string
+        }[]
+      }
       list_catalog_facets: {
         Args: { p_locale: string; p_market: string }
         Returns: {
@@ -3333,6 +3434,14 @@ export type Database = {
         }
         Returns: Json
       }
+      policy_publish_issues: {
+        Args: { target_policy_id: string }
+        Returns: {
+          detail: string
+          issue_code: string
+          locale: string
+        }[]
+      }
       publish_blog_post: {
         Args: { target_post_id: string; target_published_at?: string }
         Returns: {
@@ -3341,6 +3450,12 @@ export type Database = {
       }
       publish_catalog_product: {
         Args: { target_product_id: string }
+        Returns: {
+          published: boolean
+        }[]
+      }
+      publish_policy_page: {
+        Args: { target_policy_id: string }
         Returns: {
           published: boolean
         }[]
