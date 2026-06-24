@@ -344,7 +344,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 07-05: Publish sitemap index, localized sitemaps, robots, and private URL exclusions
+- [x] 07-05: Publish sitemap index, localized sitemaps, robots, and private URL exclusions
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
@@ -369,4 +369,4 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
 | 5. Fulfillment and Purchase Access | 11/11 | Complete   | 2026-06-20 |
 | 6. Customer Retention and Trust | 10/10 | Complete    | 2026-06-23 |
-| 7. Content, SEO, and Launch Readiness | 8/10 | In Progress|  |
+| 7. Content, SEO, and Launch Readiness | 9/10 | In Progress|  |
