@@ -1675,6 +1675,57 @@ export type Database = {
           },
         ]
       }
+      operational_errors: {
+        Row: {
+          area: string
+          created_at: string
+          error_code: string
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          occurrence_count: number
+          resolved_at: string | null
+          resolved_by: string | null
+          sanitized_facts: Json
+          severity: string
+          status: string
+          summary: string
+          updated_at: string
+        }
+        Insert: {
+          area: string
+          created_at?: string
+          error_code: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          occurrence_count?: number
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sanitized_facts?: Json
+          severity?: string
+          status?: string
+          summary: string
+          updated_at?: string
+        }
+        Update: {
+          area?: string
+          created_at?: string
+          error_code?: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          occurrence_count?: number
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sanitized_facts?: Json
+          severity?: string
+          status?: string
+          summary?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_events: {
         Row: {
           delivery_count: number
