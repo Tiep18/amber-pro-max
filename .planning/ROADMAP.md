@@ -340,7 +340,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 07-04: Complete localized metadata and safe JSON-LD
+- [x] 07-04: Complete localized metadata and safe JSON-LD
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -369,4 +369,4 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
 | 5. Fulfillment and Purchase Access | 11/11 | Complete   | 2026-06-20 |
 | 6. Customer Retention and Trust | 10/10 | Complete    | 2026-06-23 |
-| 7. Content, SEO, and Launch Readiness | 7/10 | In Progress|  |
+| 7. Content, SEO, and Launch Readiness | 8/10 | In Progress|  |
