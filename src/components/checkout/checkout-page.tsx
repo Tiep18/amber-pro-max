@@ -31,7 +31,8 @@ const copy = {
     stale: 'The quote changed. Review the updated total and try again.',
     conflict: 'Checkout could not reserve the current items. Review your cart and try again.',
     success: 'Order is awaiting payment.',
-    deadline: 'Reservation deadline'
+    deadline: 'Reservation deadline',
+    policies: 'Review store policies before payment'
   },
   vi: {
     title: 'Thanh toan',
@@ -46,7 +47,8 @@ const copy = {
     stale: 'Bao gia da thay doi. Hay xem lai tong tien va thu lai.',
     conflict: 'Checkout khong the giu cac san pham hien tai. Hay xem lai gio hang va thu lai.',
     success: 'Don hang dang cho thanh toan.',
-    deadline: 'Han giu hang'
+    deadline: 'Han giu hang',
+    policies: 'Xem chinh sach cua cua hang truoc khi thanh toan'
   }
 } as const;
 
@@ -61,7 +63,21 @@ const emptyShippingAddress: ShippingAddress = {
   postalCode: null
 };
 
-export function CheckoutPage({locale, savedAddresses = []}: {locale: Locale; savedAddresses?: CustomerShippingAddress[]}) {
+type CheckoutPolicyLink = {
+  policyKind: string;
+  title: string;
+  href: string;
+};
+
+export function CheckoutPage({
+  locale,
+  savedAddresses = [],
+  policyLinks = []
+}: {
+  locale: Locale;
+  savedAddresses?: CustomerShippingAddress[];
+  policyLinks?: CheckoutPolicyLink[];
+}) {
   const t = copy[locale];
   const router = useRouter();
   const {quote, cart} = useCart();
@@ -197,6 +213,18 @@ export function CheckoutPage({locale, savedAddresses = []}: {locale: Locale; sav
         <Button disabled={!readyToSubmit} onClick={submit}>
           {submitting ? t.submitting : t.handoff}
         </Button>
+        {policyLinks.length > 0 ? (
+          <div className="grid gap-2 text-sm text-[var(--muted-foreground)]">
+            <p className="font-semibold text-[var(--foreground)]">{t.policies}</p>
+            <div className="flex flex-wrap gap-3">
+              {policyLinks.map((policy) => (
+                <a key={policy.policyKind} href={policy.href} className="font-semibold text-[var(--accent)]">
+                  {policy.title}
+                </a>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
       <OrderSummary quote={acceptedQuote} locale={locale} />
     </main>

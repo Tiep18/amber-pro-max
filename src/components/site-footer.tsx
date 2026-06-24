@@ -1,11 +1,12 @@
 import {getTranslations} from 'next-intl/server';
 import {Suspense} from 'react';
 import {type Locale} from '@/i18n/routing';
+import {getPublishedRequiredPolicyLinks} from '@/launch/settings';
 import {SubscribeForm} from '@/components/newsletter/subscribe-form';
 import {LocaleSwitcher} from './locale-switcher';
 
 export async function SiteFooter({locale}: {locale: Locale}) {
-  const t = await getTranslations('footer');
+  const [t, policyLinks] = await Promise.all([getTranslations('footer'), getPublishedRequiredPolicyLinks(locale)]);
 
   return (
     <footer className="border-t border-[var(--border)] bg-[var(--surface)]">
@@ -24,6 +25,11 @@ export async function SiteFooter({locale}: {locale: Locale}) {
           }}
         />
         <div className="flex flex-wrap items-center gap-4 lg:justify-end">
+          {policyLinks.map((policy) => (
+            <a key={policy.policyKind} href={policy.href} className="font-semibold text-[var(--foreground)] hover:text-[var(--accent)]">
+              {policy.title}
+            </a>
+          ))}
           <p>{t('copyright')}</p>
           <Suspense fallback={null}>
             <LocaleSwitcher locale={locale} />

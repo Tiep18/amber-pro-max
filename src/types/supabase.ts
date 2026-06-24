@@ -1404,6 +1404,51 @@ export type Database = {
           },
         ]
       }
+      launch_settings: {
+        Row: {
+          brand_name: string | null
+          created_at: string
+          e2e_evidence: string | null
+          enabled_country_codes: string[]
+          monitoring_ready: boolean
+          paypal_sandbox_evidence: string | null
+          redaction_ready: boolean
+          seller_policy_approval: string | null
+          singleton_id: boolean
+          tax_stance: string | null
+          updated_at: string
+          vietqr_bank_evidence: string | null
+        }
+        Insert: {
+          brand_name?: string | null
+          created_at?: string
+          e2e_evidence?: string | null
+          enabled_country_codes?: string[]
+          monitoring_ready?: boolean
+          paypal_sandbox_evidence?: string | null
+          redaction_ready?: boolean
+          seller_policy_approval?: string | null
+          singleton_id?: boolean
+          tax_stance?: string | null
+          updated_at?: string
+          vietqr_bank_evidence?: string | null
+        }
+        Update: {
+          brand_name?: string | null
+          created_at?: string
+          e2e_evidence?: string | null
+          enabled_country_codes?: string[]
+          monitoring_ready?: boolean
+          paypal_sandbox_evidence?: string | null
+          redaction_ready?: boolean
+          seller_policy_approval?: string | null
+          singleton_id?: boolean
+          tax_stance?: string | null
+          updated_at?: string
+          vietqr_bank_evidence?: string | null
+        }
+        Relationships: []
+      }
       market_exception_grants: {
         Row: {
           consumed_at: string | null
@@ -3427,6 +3472,14 @@ export type Database = {
           slug: string
           social_image_bucket: string
           social_image_path: string
+          title: string
+        }[]
+      }
+      list_published_required_policy_links: {
+        Args: { target_locale: string }
+        Returns: {
+          policy_kind: string
+          slug: string
           title: string
         }[]
       }

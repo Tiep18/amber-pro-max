@@ -16,6 +16,7 @@ function isAllowedAdminPath(pathname: string) {
     pathname === '/admin/blog/new' ||
     pathname === '/admin/catalog' ||
     pathname === '/admin/catalog/new' ||
+    pathname === '/admin/launch' ||
     pathname === '/admin/operations' ||
     pathname === '/admin/policies' ||
     pathname === '/admin/shipping' ||
