@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import {setRequestLocale} from 'next-intl/server';
 import {notFound} from 'next/navigation';
 import {localizedMetadata, publicStorageUrl} from '@/catalog/metadata';
+import {JsonLd, articleJsonLd, breadcrumbJsonLd} from '@/content/seo/json-ld';
 import {getBlogPostPath, getProductPath, type Locale} from '@/i18n/routing';
 import {getPublishedBlogPostBySlug} from '@/content/blog/queries';
 
@@ -35,8 +36,27 @@ export default async function BlogPostPage({params}: {params: Params}) {
   }
   const imageUrl = publicStorageUrl(post.socialImageBucket, post.socialImagePath);
 
+  const postPath = getBlogPostPath(locale, post.slug);
+
   return (
-    <main className="mx-auto grid w-full max-w-[940px] gap-8 px-4 py-10 sm:px-6 lg:px-10">
+    <>
+      <JsonLd
+        data={[
+          articleJsonLd({
+            headline: post.title,
+            description: post.description,
+            path: postPath,
+            image: imageUrl,
+            datePublished: post.publishedAt
+          }),
+          breadcrumbJsonLd([
+            {name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}`},
+            {name: locale === 'vi' ? 'Bai viet' : 'Blog', path: locale === 'vi' ? '/vi/bai-viet' : '/en/blog'},
+            {name: post.title, path: postPath}
+          ])
+        ]}
+      />
+      <main className="mx-auto grid w-full max-w-[940px] gap-8 px-4 py-10 sm:px-6 lg:px-10">
       <article className="grid gap-6">
         <div className="grid gap-3">
           <p className="text-sm font-semibold uppercase text-[var(--accent)]">{post.categoryName}</p>
@@ -77,6 +97,7 @@ export default async function BlogPostPage({params}: {params: Params}) {
           </div>
         </section>
       ) : null}
-    </main>
+      </main>
+    </>
   );
 }

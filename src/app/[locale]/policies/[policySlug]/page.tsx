@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import {setRequestLocale} from 'next-intl/server';
 import {notFound} from 'next/navigation';
 import {localizedMetadata, publicStorageUrl} from '@/catalog/metadata';
+import {JsonLd, breadcrumbJsonLd} from '@/content/seo/json-ld';
 import {getPublishedPolicyPageBySlug} from '@/policies/queries';
 import type {Locale} from '@/i18n/routing';
 
@@ -38,8 +39,17 @@ export default async function PolicyPage({params}: {params: Params}) {
     notFound();
   }
 
+  const currentPath = policyPath(locale, policy.slug);
+
   return (
-    <main className="mx-auto grid w-full max-w-[860px] gap-6 px-4 py-10 sm:px-6 lg:px-10">
+    <>
+      <JsonLd
+        data={breadcrumbJsonLd([
+          {name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}`},
+          {name: policy.title, path: currentPath}
+        ])}
+      />
+      <main className="mx-auto grid w-full max-w-[860px] gap-6 px-4 py-10 sm:px-6 lg:px-10">
       <div className="grid gap-3">
         <p className="text-sm font-semibold uppercase text-[var(--accent)]">{policy.policyKind.replaceAll('_', ' ')}</p>
         <h1 className="text-[28px] font-semibold leading-tight">{policy.title}</h1>
@@ -50,6 +60,7 @@ export default async function PolicyPage({params}: {params: Params}) {
           <p key={paragraph}>{paragraph}</p>
         ))}
       </article>
-    </main>
+      </main>
+    </>
   );
 }

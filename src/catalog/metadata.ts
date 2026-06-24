@@ -1,9 +1,8 @@
 import type {Metadata} from 'next';
 import type {Locale} from '@/i18n/routing';
+import {absoluteUrl, localizedAlternates, siteUrl} from '@/content/seo/metadata';
 
-export function siteUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? 'http://127.0.0.1:3210';
-}
+export {siteUrl};
 
 export function publicStorageUrl(bucket: string | null, path: string | null) {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -26,17 +25,14 @@ export function localizedMetadata({
   alternatePaths: Record<Locale, string>;
   socialImage?: string;
 }): Metadata {
-  const base = siteUrl();
-  const canonical = new URL(canonicalPath, base).toString();
+  const canonical = absoluteUrl(canonicalPath);
+  const languages = localizedAlternates(alternatePaths);
   return {
     title,
     description,
     alternates: {
       canonical,
-      languages: {
-        vi: new URL(alternatePaths.vi, base).toString(),
-        en: new URL(alternatePaths.en, base).toString()
-      }
+      languages
     },
     openGraph: {
       title,

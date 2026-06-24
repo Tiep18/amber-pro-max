@@ -4,6 +4,7 @@ import {notFound} from 'next/navigation';
 import type {Json} from '@/types/supabase';
 import {formatMoney} from '@/catalog/money';
 import {localizedMetadata, publicStorageUrl} from '@/catalog/metadata';
+import {JsonLd, breadcrumbJsonLd, organizationJsonLd, productJsonLd, websiteJsonLd} from '@/content/seo/json-ld';
 import {getRequestMarket} from '@/catalog/page-context';
 import {getCatalogProductBySlug} from '@/catalog/queries';
 import {getWishlistedProductIds} from '@/account/wishlist';
@@ -127,7 +128,27 @@ export default async function ProductPage({params}: {params: Params}) {
   const canWriteReview = Boolean(authUser.user) && reviewEligibility.status === 'eligible';
 
   return (
-    <main className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.8fr)] lg:px-10 xl:px-12">
+    <>
+      <JsonLd
+        data={[
+          organizationJsonLd(),
+          websiteJsonLd(),
+          productJsonLd({
+            name: product.title,
+            description: product.description,
+            path: productPath,
+            image: imageUrl,
+            currency: product.currency_code === 'VND' || product.currency_code === 'USD' ? product.currency_code : null,
+            priceMinor: product.price_minor,
+            available: product.available && product.in_stock
+          }),
+          breadcrumbJsonLd([
+            {name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}`},
+            {name: product.title, path: productPath}
+          ])
+        ]}
+      />
+      <main className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.8fr)] lg:px-10 xl:px-12">
       <ProductGallery imageUrl={imageUrl} alt={product.primary_image_alt || product.title} />
       <section className="grid content-start gap-5">
         <span className="w-fit rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-2 py-1 text-sm font-semibold text-[var(--accent)]">
@@ -221,6 +242,7 @@ export default async function ProductPage({params}: {params: Params}) {
           />
         ) : null}
       </section>
-    </main>
+      </main>
+    </>
   );
 }
