@@ -9,7 +9,7 @@ function read(path) {
   return readFileSync(join(root, path), 'utf8');
 }
 
-test('sitemaps are generated from public projections, not filesystem route walking', () => {
+test('SEO-02 SEO-04 D-08 sitemaps use public projections instead of filesystem route walking', () => {
   const source = read('src/app/sitemaps/[locale]/route.ts');
 
   assert.match(source, /listCatalogProducts/);
@@ -18,7 +18,7 @@ test('sitemaps are generated from public projections, not filesystem route walki
   assert.doesNotMatch(source, /readdir|glob|admin|operations|download/i);
 });
 
-test('robots excludes private checkout, account, API, and admin surfaces', () => {
+test('SEO-04 D-08 robots excludes private checkout, account, API, and admin surfaces', () => {
   const source = read('src/app/robots.ts');
 
   assert.match(source, /\/admin/);

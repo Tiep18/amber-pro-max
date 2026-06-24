@@ -31,7 +31,7 @@ test('Phase 7 operations contract files exist', () => {
   );
 });
 
-test('admin operations inspection requires admin authorization before reads or resolves', () => {
+test('ADM-01 OPS-03 D-11 admin operations inspection requires authorization before reads or resolves', () => {
   const source = readExisting(operationsFiles);
 
   assert.match(source, /requireAdmin/);
@@ -39,14 +39,14 @@ test('admin operations inspection requires admin authorization before reads or r
   assert.match(source, /markOperationalErrorResolved/);
 });
 
-test('operations UI never renders raw operational evidence fields', () => {
+test('OPS-03 D-11 operations UI never renders raw operational evidence fields', () => {
   const source = readExisting(operationsUiFiles);
 
   assert.doesNotMatch(source, /raw_payload|rawPayload|authorizationHeader|providerSignature|accessToken|tokenHash|signedUrl|stackTrace/i);
   assert.doesNotMatch(source, /customerEmail|shippingAddress|phoneNumber/i);
 });
 
-test('operations redaction drops unsafe fact keys and values before storage', () => {
+test('OPS-03 D-11 operations redaction drops unsafe fact keys and values before storage', () => {
   const source = readFileSync('src/operations/redaction.ts', 'utf8');
 
   assert.match(source, /sanitizeOperationalErrorInput/);

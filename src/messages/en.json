@@ -292,7 +292,7 @@
     "newsletter": {
       "title": "Studio newsletter",
       "consent": "Subscribe explicitly for shop news and unsubscribe from any email.",
-      "email": "Email",
+      "email": "Newsletter address",
       "submit": "Subscribe to newsletter",
       "pending": "Subscribing...",
       "success": "You're subscribed.",

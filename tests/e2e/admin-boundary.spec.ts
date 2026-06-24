@@ -116,7 +116,8 @@ test('database-owned admin role can enter admin shell', async ({page}) => {
   await page.getByRole('button', {name: 'Sign in'}).click();
 
   await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByRole('heading', {name: 'Admin boundary'})).toBeVisible();
-  await expect(page.getByText(admin.email)).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Operational dashboard'})).toBeVisible();
+  await expect(page.getByText('Admin work queue')).toBeVisible();
+  await expect(page.getByText(admin.email)).toHaveCount(0);
   await expect(page.getByText(/project|token|service key|provider payload/i)).toHaveCount(0);
 });

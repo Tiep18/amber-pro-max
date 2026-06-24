@@ -16,7 +16,7 @@ test.afterAll(async () => {
 test.describe('localized newsletter subscribe (NEWS-01, NEWS-02, D-13, D-16)', () => {
   test('English footer explicitly subscribes without requiring an account', async ({page}) => {
     await page.goto('/en');
-    await page.getByLabel('Email').last().fill(`newsletter-en-${Date.now()}@example.test`);
+    await page.locator('#newsletter input[name="email"]').fill(`newsletter-en-${Date.now()}@example.test`);
     await page.getByRole('button', {name: 'Subscribe to newsletter'}).click();
     await expect(page.getByRole('status')).toContainText("You're subscribed");
     await expect(page).toHaveURL(/\/en/);
@@ -24,7 +24,7 @@ test.describe('localized newsletter subscribe (NEWS-01, NEWS-02, D-13, D-16)', (
 
   test('Vietnamese footer explicitly subscribes with localized consent copy', async ({page}) => {
     await page.goto('/vi');
-    await page.getByLabel('Email').last().fill(`newsletter-vi-${Date.now()}@example.test`);
+    await page.locator('#newsletter input[name="email"]').fill(`newsletter-vi-${Date.now()}@example.test`);
     await page.getByRole('button', {name: 'Dang ky nhan ban tin'}).click();
     await expect(page.getByRole('status')).toContainText('Ban da dang ky');
   });
