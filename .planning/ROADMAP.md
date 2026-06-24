@@ -334,7 +334,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 07-03: Render public localized blog pages and taxonomy
+- [x] 07-03: Render public localized blog pages and taxonomy
 - [ ] 07-07: Complete admin dashboard and navigation
 - [ ] 07-09: Codify launch settings and fail-closed readiness gates
 
@@ -369,4 +369,4 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 4. Trusted Payments and Orders | 10/10 | Awaiting provider UAT | - |
 | 5. Fulfillment and Purchase Access | 11/11 | Complete   | 2026-06-20 |
 | 6. Customer Retention and Trust | 10/10 | Complete    | 2026-06-23 |
-| 7. Content, SEO, and Launch Readiness | 1/10 | In Progress|  |
+| 7. Content, SEO, and Launch Readiness | 5/10 | In Progress|  |
