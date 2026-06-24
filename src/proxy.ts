@@ -50,6 +50,7 @@ function isUnprefixedCustomerPath(pathname: string) {
     !isLocale(firstSegment) &&
     !pathname.startsWith('/api') &&
     !pathname.startsWith('/admin') &&
+    !pathname.startsWith('/sitemaps') &&
     !PUBLIC_FILE.test(pathname)
   );
 }
@@ -58,6 +59,7 @@ export default async function proxy(request: NextRequest) {
   const {pathname, search} = request.nextUrl;
 
   if (
+    pathname.startsWith('/sitemaps') ||
     PHYSICAL_AUTH_SLUGS.has(pathname) ||
     PHYSICAL_PROTECTED_SLUGS.has(pathname) ||
     PHYSICAL_CART_SLUGS.has(pathname) ||
