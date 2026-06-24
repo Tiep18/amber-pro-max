@@ -3351,9 +3351,14 @@ export type Database = {
           category_name: string
           category_slug: string
           description: string
+          localized_slugs: Json
           post_id: string
           published_at: string
+          related_products: Json
           slug: string
+          social_image_bucket: string
+          social_image_path: string
+          tags: Json
           title: string
         }[]
       }
@@ -3420,6 +3425,8 @@ export type Database = {
           post_id: string
           published_at: string
           slug: string
+          social_image_bucket: string
+          social_image_path: string
           title: string
         }[]
       }

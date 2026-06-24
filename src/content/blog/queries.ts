@@ -2,7 +2,9 @@ import 'server-only';
 
 import {notFound} from 'next/navigation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import type {Json} from '@/types/supabase';
 import type {BlogPostFormInitial, BlogSelectOption} from '@/components/admin/blog/blog-post-form';
+import type {BlogLocale} from './schemas';
 
 type BlogTranslationRow = {
   locale: string;
@@ -16,8 +18,76 @@ type BlogTranslationRow = {
   social_image_path: string | null;
 };
 
+export type PublicBlogPostListItem = {
+  postId: string;
+  slug: string;
+  title: string;
+  description: string;
+  publishedAt: string | null;
+  categorySlug: string;
+  categoryName: string;
+  socialImageBucket: string | null;
+  socialImagePath: string | null;
+};
+
+export type PublicBlogPostDetail = PublicBlogPostListItem & {
+  body: string;
+  localizedSlugs: {vi?: string; en?: string};
+  tags: Array<{slug: string; name: string}>;
+  relatedProducts: Array<{productId: string; title: string; slug: string; displayOrder: number}>;
+};
+
 function normalizeStatus(status: string): BlogPostFormInitial['status'] {
   return status === 'published' || status === 'archived' ? status : 'draft';
+}
+
+function cleanSlug(value: string) {
+  const slug = value.trim();
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) ? slug : null;
+}
+
+function localizedSlugs(value: Json): {vi?: string; en?: string} {
+  if (!value || Array.isArray(value) || typeof value !== 'object') {
+    return {};
+  }
+  const record = value as Record<string, Json | undefined>;
+  return {
+    vi: typeof record.vi === 'string' ? record.vi : undefined,
+    en: typeof record.en === 'string' ? record.en : undefined
+  };
+}
+
+function publicTags(value: Json): PublicBlogPostDetail['tags'] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (!item || Array.isArray(item) || typeof item !== 'object') {
+      return [];
+    }
+    const row = item as Record<string, Json | undefined>;
+    return typeof row.slug === 'string' && typeof row.name === 'string'
+      ? [{slug: row.slug, name: row.name}]
+      : [];
+  });
+}
+
+function publicRelatedProducts(value: Json): PublicBlogPostDetail['relatedProducts'] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (!item || Array.isArray(item) || typeof item !== 'object') {
+      return [];
+    }
+    const row = item as Record<string, Json | undefined>;
+    return typeof row.productId === 'string' &&
+      typeof row.title === 'string' &&
+      typeof row.slug === 'string' &&
+      typeof row.displayOrder === 'number'
+      ? [{productId: row.productId, title: row.title, slug: row.slug, displayOrder: row.displayOrder}]
+      : [];
+  });
 }
 
 async function localizedOptions(
@@ -125,5 +195,67 @@ export async function getBlogPostForForm(postId: string): Promise<BlogPostFormIn
       productId: row.product_id,
       displayOrder: row.display_order
     }))
+  };
+}
+
+export async function listPublishedBlogPosts(locale: BlogLocale): Promise<PublicBlogPostListItem[]> {
+  const supabase = await createSupabaseServerClient();
+  const {data, error} = await supabase.rpc('list_published_blog_posts', {target_locale: locale});
+  if (error) {
+    throw new Error('blog_list_query_failed');
+  }
+
+  return (data ?? []).map((post) => ({
+    postId: post.post_id,
+    slug: post.slug,
+    title: post.title,
+    description: post.description,
+    publishedAt: post.published_at,
+    categorySlug: post.category_slug,
+    categoryName: post.category_name,
+    socialImageBucket: post.social_image_bucket,
+    socialImagePath: post.social_image_path
+  }));
+}
+
+export async function getPublishedBlogPostBySlug({
+  locale,
+  slug
+}: {
+  locale: BlogLocale;
+  slug: string;
+}): Promise<PublicBlogPostDetail | null> {
+  const cleanedSlug = cleanSlug(slug);
+  if (!cleanedSlug) {
+    return null;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {data, error} = await supabase.rpc('get_published_blog_post_by_slug', {
+    target_locale: locale,
+    target_slug: cleanedSlug
+  });
+  if (error) {
+    throw new Error('blog_detail_query_failed');
+  }
+  const post = data?.[0];
+  if (!post) {
+    return null;
+  }
+
+  return {
+    postId: post.post_id,
+    slug: post.slug,
+    title: post.title,
+    description: post.description,
+    body: post.body,
+    publishedAt: post.published_at,
+    categorySlug: post.category_slug,
+    categoryName: post.category_name,
+    socialImageBucket: post.social_image_bucket,
+    socialImagePath: post.social_image_path,
+    localizedSlugs: localizedSlugs(post.localized_slugs),
+    tags: publicTags(post.tags),
+    relatedProducts: publicRelatedProducts(post.related_products)
   };
 }

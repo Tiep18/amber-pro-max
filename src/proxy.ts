@@ -40,6 +40,10 @@ function isPhysicalVietnameseCatalogPath(pathname: string) {
   );
 }
 
+function isPhysicalVietnameseBlogPath(pathname: string) {
+  return pathname === '/vi/bai-viet' || pathname.startsWith('/vi/bai-viet/');
+}
+
 function isUnprefixedCustomerPath(pathname: string) {
   const firstSegment = pathname.split('/')[1];
   return (
@@ -58,7 +62,8 @@ export default async function proxy(request: NextRequest) {
     PHYSICAL_PROTECTED_SLUGS.has(pathname) ||
     PHYSICAL_CART_SLUGS.has(pathname) ||
     isPhysicalOrderPath(pathname) ||
-    isPhysicalVietnameseCatalogPath(pathname)
+    isPhysicalVietnameseCatalogPath(pathname) ||
+    isPhysicalVietnameseBlogPath(pathname)
   ) {
     return updateSession(request, applyMarketSuggestionCookie(request, NextResponse.next()));
   }
