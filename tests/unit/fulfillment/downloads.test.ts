@@ -7,7 +7,7 @@ const activeEntitlement = {
   orderNumber: 'ATB-20260619-0001',
   ownerUserId: '11111111-1111-4111-8111-111111111111',
   status: 'active',
-  productId: 'product-1',
+  productId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   tokenHash: hashFulfillmentAccessToken('raw-token'),
   tokenStatus: 'active',
   tokenExpiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -22,7 +22,7 @@ function deps(overrides: Partial<typeof activeEntitlement> = {}) {
   const entitlement = {...activeEntitlement, ...overrides};
   return {
     repository: {
-      findActiveEntitlementForOrder: vi.fn().mockResolvedValue(entitlement)
+      findActiveEntitlementsForOrder: vi.fn().mockResolvedValue([entitlement])
     },
     storage: {
       createSignedUrl: vi.fn().mockResolvedValue({url: 'https://signed.example.test/pattern.pdf'})
@@ -47,12 +47,12 @@ describe('fulfillment download authorization', () => {
     const result = await authorizeDownloadRequest({orderNumber: activeEntitlement.orderNumber, rawGuestToken: 'raw-token'}, fake);
 
     expect(result.status).toBe('authorized');
-    expect(fake.repository.findActiveEntitlementForOrder).toHaveBeenCalledWith(activeEntitlement.orderNumber);
+    expect(fake.repository.findActiveEntitlementsForOrder).toHaveBeenCalledWith(activeEntitlement.orderNumber);
   });
 
   test('unpaid or missing entitlement does not call storage', async () => {
     const fake = deps();
-    fake.repository.findActiveEntitlementForOrder.mockResolvedValue(null);
+    fake.repository.findActiveEntitlementsForOrder.mockResolvedValue([]);
 
     const result = await authorizeDownloadRequest({orderNumber: activeEntitlement.orderNumber, userId: activeEntitlement.ownerUserId}, fake);
 
@@ -93,6 +93,47 @@ describe('fulfillment download authorization', () => {
 
     expect(result).toEqual({status: 'denied', code: 'download_not_available'});
     expect(fake.storage.createSignedUrl).not.toHaveBeenCalled();
+  });
+
+  test('product-scoped requests choose the matching entitlement when one order has multiple digital items', async () => {
+    const matching = {
+      ...activeEntitlement,
+      entitlementId: 'ent-2',
+      productId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      asset: {
+        bucketId: 'pattern-pdfs',
+        objectPath: 'patterns/product-2/pattern.pdf',
+        fileName: 'pattern-2.pdf'
+      }
+    };
+    const fake = {
+      repository: {
+        findActiveEntitlementsForOrder: vi.fn().mockResolvedValue([
+          {...activeEntitlement, ownerUserId: '99999999-9999-4999-8999-999999999999'},
+          matching
+        ])
+      },
+      storage: {
+        createSignedUrl: vi.fn().mockResolvedValue({url: 'https://signed.example.test/pattern-2.pdf'})
+      },
+      now: () => new Date()
+    };
+
+    const result = await authorizeDownloadRequest(
+      {
+        orderNumber: activeEntitlement.orderNumber,
+        productId: matching.productId,
+        userId: activeEntitlement.ownerUserId
+      },
+      fake
+    );
+
+    expect(result).toEqual({
+      status: 'authorized',
+      url: 'https://signed.example.test/pattern-2.pdf',
+      fileName: 'pattern-2.pdf'
+    });
+    expect(fake.storage.createSignedUrl).toHaveBeenCalledWith('pattern-pdfs', 'patterns/product-2/pattern.pdf', 300);
   });
 });
 

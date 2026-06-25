@@ -12,11 +12,16 @@ type DownloadPanelLabels = {
 
 type DownloadPanelProps = {
   orderNumber: string;
+  productId?: string | null;
   eligible: boolean;
   labels: DownloadPanelLabels;
 };
 
-export function DownloadPanel({orderNumber, eligible, labels}: DownloadPanelProps) {
+export function DownloadPanel({orderNumber, productId = null, eligible, labels}: DownloadPanelProps) {
+  const action = `/api/downloads?orderNumber=${encodeURIComponent(orderNumber)}${
+    productId ? `&productId=${encodeURIComponent(productId)}` : ''
+  }`;
+
   return (
     <Card>
       <CardHeader>
@@ -25,7 +30,7 @@ export function DownloadPanel({orderNumber, eligible, labels}: DownloadPanelProp
       <CardContent>
         <p className="text-sm leading-6 text-[var(--muted-foreground)]">{eligible ? labels.readyBody : labels.lockedBody}</p>
         {eligible ? (
-          <form action={`/api/downloads?orderNumber=${encodeURIComponent(orderNumber)}`} method="post">
+          <form action={action} method="post">
             <Button type="submit" className="gap-2">
               <Download aria-hidden="true" className="size-4" />
               {labels.action}

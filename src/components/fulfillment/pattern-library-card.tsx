@@ -19,7 +19,10 @@ export function PatternLibraryCard({pattern, labels}: {pattern: CustomerPatternL
         <p className="text-sm text-[var(--muted-foreground)]">{labels.latest}: {formatAdminDate(pattern.latestPurchaseAt)}</p>
       </div>
       {pattern.active ? (
-        <form action={`/api/downloads?orderNumber=${encodeURIComponent(pattern.latestOrderNumber)}`} method="post">
+        <form
+          action={`/api/downloads?orderNumber=${encodeURIComponent(pattern.latestOrderNumber)}&productId=${encodeURIComponent(pattern.productId)}`}
+          method="post"
+        >
           <Button type="submit" className="gap-2">
             <Download aria-hidden="true" className="size-4" />
             {labels.download}

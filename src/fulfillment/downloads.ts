@@ -5,6 +5,7 @@ const SIGNED_URL_TTL_SECONDS = 300;
 
 const downloadRequestSchema = z.object({
   orderNumber: z.string().trim().min(1).max(80),
+  productId: z.uuid().nullable().optional(),
   userId: z.uuid().nullable().optional(),
   rawGuestToken: z.string().trim().min(1).max(512).nullable().optional(),
   guestTokenHash: z.string().trim().length(64).nullable().optional()
@@ -34,7 +35,7 @@ export type DownloadAuthorizationResult =
   | {status: 'error'; code: 'download_lookup_failed' | 'signed_url_failed'};
 
 export type DownloadRepository = {
-  findActiveEntitlementForOrder: (orderNumber: string) => Promise<EntitlementDownloadRecord | null>;
+  findActiveEntitlementsForOrder: (orderNumber: string) => Promise<EntitlementDownloadRecord[]>;
 };
 
 export type DownloadStorage = {
@@ -77,30 +78,39 @@ export async function authorizeDownloadRequest(
     return denied();
   }
 
-  let record: EntitlementDownloadRecord | null;
+  let records: EntitlementDownloadRecord[];
   try {
-    record = await deps.repository.findActiveEntitlementForOrder(parsed.data.orderNumber);
+    records = await deps.repository.findActiveEntitlementsForOrder(parsed.data.orderNumber);
   } catch {
     return {status: 'error', code: 'download_lookup_failed'};
   }
 
-  if (!record || record.status !== 'active' || !record.asset) {
-    return denied();
-  }
-
   const now = deps.now?.() ?? new Date();
-  if (!isOwner(record, parsed.data.userId) && !isTokenUsable(record, parsed.data.rawGuestToken, parsed.data.guestTokenHash, now)) {
-    return denied();
-  }
+  const scopedRecords =
+    parsed.data.productId && parsed.data.productId.length > 0
+      ? records.filter((record) => record.productId === parsed.data.productId)
+      : records;
 
-  try {
-    const signed = await deps.storage.createSignedUrl(record.asset.bucketId, record.asset.objectPath, SIGNED_URL_TTL_SECONDS);
-    if (!signed?.url) {
+  for (const record of scopedRecords) {
+    if (record.status !== 'active' || !record.asset) {
+      continue;
+    }
+
+    if (!isOwner(record, parsed.data.userId) && !isTokenUsable(record, parsed.data.rawGuestToken, parsed.data.guestTokenHash, now)) {
+      continue;
+    }
+
+    try {
+      const signed = await deps.storage.createSignedUrl(record.asset.bucketId, record.asset.objectPath, SIGNED_URL_TTL_SECONDS);
+      if (!signed?.url) {
+        return {status: 'error', code: 'signed_url_failed'};
+      }
+      return {status: 'authorized', url: signed.url, fileName: record.asset.fileName};
+    } catch {
       return {status: 'error', code: 'signed_url_failed'};
     }
-    return {status: 'authorized', url: signed.url, fileName: record.asset.fileName};
-  } catch {
-    return {status: 'error', code: 'signed_url_failed'};
   }
+
+  return denied();
 }
 

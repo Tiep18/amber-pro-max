@@ -9,6 +9,7 @@ import {
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 
 type MaybeSingleResult<T> = Promise<{data: T | null; error: unknown}>;
+type ManyResult<T> = Promise<{data: T[] | null; error: unknown}>;
 
 type SupabaseLike = {
   from: (table: string) => unknown;
@@ -26,51 +27,61 @@ function maybeSingle<T>(query: unknown): MaybeSingleResult<T> {
   return (query as {maybeSingle: () => MaybeSingleResult<T>}).maybeSingle();
 }
 
+function many<T>(query: unknown): ManyResult<T> {
+  return query as ManyResult<T>;
+}
+
 export function createSupabaseDownloadRepository(client: SupabaseLike): DownloadRepository {
   return {
-    async findActiveEntitlementForOrder(orderNumber) {
+    async findActiveEntitlementsForOrder(orderNumber) {
       const orderQuery = (client.from('checkout_orders') as {select: (columns: string) => unknown})
         .select('id,order_number,owner_user_id,paid_gate_status') as {eq: (column: string, value: string) => unknown};
       const {data: order, error: orderError} = await maybeSingle<OrderRow>(orderQuery.eq('order_number', orderNumber));
       if (orderError || !order || order.paid_gate_status !== 'open') {
-        return null;
+        return [];
       }
 
       const entitlementQuery = (client.from('digital_entitlements') as {select: (columns: string) => unknown})
         .select('id,order_id,owner_user_id,status,product_id') as {eq: (column: string, value: string) => unknown};
       const entitlementByOrder = entitlementQuery.eq('order_id', order.id) as {eq: (column: string, value: string) => unknown};
-      const {data: entitlement, error: entitlementError} = await maybeSingle<EntitlementRow>(entitlementByOrder.eq('status', 'active'));
-      if (entitlementError || !entitlement) {
-        return null;
+      const {data: entitlements, error: entitlementError} = await many<EntitlementRow>(entitlementByOrder.eq('status', 'active'));
+      if (entitlementError || !entitlements?.length) {
+        return [];
       }
 
-      const tokenQuery = (client.from('digital_access_tokens') as {select: (columns: string) => unknown})
-        .select('token_hash,status,expires_at') as {eq: (column: string, value: string) => unknown};
-      const tokenByEntitlement = tokenQuery.eq('entitlement_id', entitlement.id) as {eq: (column: string, value: string) => unknown};
-      const {data: token} = await maybeSingle<TokenRow>(tokenByEntitlement.eq('status', 'active'));
+      const records = await Promise.all(
+        entitlements.map(async (entitlement) => {
+          const tokenQuery = (client.from('digital_access_tokens') as {select: (columns: string) => unknown})
+            .select('token_hash,status,expires_at') as {eq: (column: string, value: string) => unknown};
+          const tokenByEntitlement = tokenQuery.eq('entitlement_id', entitlement.id) as {eq: (column: string, value: string) => unknown};
+          const {data: token} = await maybeSingle<TokenRow>(tokenByEntitlement.eq('status', 'active'));
 
-      const assetQuery = (client.from('product_digital_assets') as {select: (columns: string) => unknown})
-        .select('bucket_id,object_path,file_name') as {eq: (column: string, value: string) => unknown};
-      const {data: asset, error: assetError} = await maybeSingle<AssetRow>(assetQuery.eq('product_id', entitlement.product_id));
-      if (assetError || !asset) {
-        return null;
-      }
+          const assetQuery = (client.from('product_digital_assets') as {select: (columns: string) => unknown})
+            .select('bucket_id,object_path,file_name') as {eq: (column: string, value: string) => unknown};
+          const {data: asset, error: assetError} = await maybeSingle<AssetRow>(assetQuery.eq('product_id', entitlement.product_id));
+          if (assetError || !asset) {
+            return null;
+          }
 
-      return {
-        entitlementId: entitlement.id,
-        orderNumber: order.order_number,
-        ownerUserId: entitlement.owner_user_id ?? order.owner_user_id,
-        status: entitlement.status,
-        productId: entitlement.product_id,
-        tokenHash: token?.token_hash ?? null,
-        tokenStatus: token?.status ?? null,
-        tokenExpiresAt: token?.expires_at ?? null,
-        asset: {
-          bucketId: asset.bucket_id,
-          objectPath: asset.object_path,
-          fileName: asset.file_name
-        }
-      };
+          return {
+            entitlementId: entitlement.id,
+            orderNumber: order.order_number,
+            ownerUserId: entitlement.owner_user_id ?? order.owner_user_id,
+            status: entitlement.status,
+            productId: entitlement.product_id,
+            tokenHash: token?.token_hash ?? null,
+            tokenStatus: token?.status ?? null,
+            tokenExpiresAt: token?.expires_at ?? null,
+            asset: {
+              bucketId: asset.bucket_id,
+              objectPath: asset.object_path,
+              fileName: asset.file_name
+            }
+          };
+        })
+      );
+
+      return records.flatMap((record) => (record ? [record] : []));
     }
   };
 }

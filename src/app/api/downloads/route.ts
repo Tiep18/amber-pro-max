@@ -18,12 +18,14 @@ async function currentUserId() {
 async function handleDownload(request: NextRequest) {
   const url = new URL(request.url);
   const orderNumber = url.searchParams.get('orderNumber') ?? '';
+  const productId = url.searchParams.get('productId');
   const rawGuestToken = url.searchParams.get('token');
   const cookieHash = orderNumber ? await getGuestOrderAccessHashFromServer(orderNumber) : null;
   const userId = await currentUserId();
 
   const result = await authorizeDownloadWithSupabase({
     orderNumber,
+    productId: productId ?? null,
     userId,
     rawGuestToken: rawGuestToken ?? null,
     guestTokenHash: cookieHash
