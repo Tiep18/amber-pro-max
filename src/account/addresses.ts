@@ -1,7 +1,7 @@
 import {z} from 'zod';
 import {shippingAddressSchema, type ShippingAddress} from '@/checkout/shipping-address';
 
-const customerShippingAddressInputSchema = shippingAddressSchema.extend({
+export const customerShippingAddressInputSchema = shippingAddressSchema.extend({
   label: z.string().trim().min(1).max(80),
   isDefault: z.boolean().default(false)
 });

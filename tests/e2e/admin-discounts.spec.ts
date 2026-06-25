@@ -69,8 +69,9 @@ test('admin creates a reusable discount code with market and schedule preview', 
   await page.getByLabel('Usage limit').fill('25');
   await page.getByRole('button', {name: 'Create discount'}).click();
 
-  await expect(page.getByRole('heading', {name: code})).toBeVisible();
-  await expect(page.getByText('10% off / intl / minimum $20.00')).toBeVisible();
+  const discountCard = page.locator('section section').filter({has: page.getByRole('heading', {name: code})});
+  await expect(discountCard).toBeVisible();
+  await expect(discountCard.getByText('10% off / intl / minimum $20.00')).toBeVisible();
   await expect(page.getByRole('button', {name: 'Disable'}).first()).toBeVisible();
   await expect(page.getByText(/service_role|access_token|refresh_token/i)).toHaveCount(0);
 });

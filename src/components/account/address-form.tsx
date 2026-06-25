@@ -1,14 +1,21 @@
 'use client';
 
-import {useActionState} from 'react';
+import {startTransition, useActionState} from 'react';
+import {useForm} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
 import {
   createCustomerShippingAddressAction,
   updateCustomerShippingAddressAction,
   type AddressActionState
 } from '@/account/address-actions';
-import type {CustomerShippingAddress} from '@/account/addresses';
+import {
+  customerShippingAddressInputSchema,
+  type CustomerShippingAddress
+} from '@/account/addresses';
 import {Button} from '@/components/ui/button';
 import type {Locale} from '@/i18n/routing';
+import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
 
 export type AddressFormLabels = {
   fields: {
@@ -53,125 +60,220 @@ export function AddressForm({
   const [state, formAction, pending] = useActionState(action, initialState);
   const message = statusMessage(state, labels);
 
+  const form = useForm({
+    resolver: zodResolver(customerShippingAddressInputSchema),
+    defaultValues: {
+      label: address?.label ?? '',
+      recipientName: address?.recipientName ?? '',
+      phoneNumber: address?.phoneNumber ?? '',
+      countryCode: address?.countryCode ?? '',
+      region: address?.region ?? '',
+      locality: address?.locality ?? '',
+      addressLine1: address?.addressLine1 ?? '',
+      addressLine2: address?.addressLine2 ?? '',
+      postalCode: address?.postalCode ?? '',
+      isDefault: address?.isDefault ?? false
+    }
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onSubmit = (values: any) => {
+    const formData = new FormData();
+    formData.append('locale', locale);
+    if (address) {
+      formData.append('addressId', address.id);
+    }
+    formData.append('label', values.label);
+    formData.append('recipientName', values.recipientName);
+    formData.append('phoneNumber', values.phoneNumber);
+    formData.append('countryCode', values.countryCode);
+    if (values.region) formData.append('region', values.region);
+    if (values.locality) formData.append('locality', values.locality);
+    formData.append('addressLine1', values.addressLine1);
+    if (values.addressLine2) formData.append('addressLine2', values.addressLine2);
+    if (values.postalCode) formData.append('postalCode', values.postalCode);
+    if (values.isDefault) {
+      formData.append('isDefault', 'on');
+    }
+    startTransition(() => {
+      formAction(formData);
+    });
+  };
+
   return (
-    <form action={formAction} className="grid gap-4">
-      <input type="hidden" name="locale" value={locale} />
-      {address ? <input type="hidden" name="addressId" value={address.id} /> : null}
-      {message ? (
-        <p role={state.status === 'saved' ? 'status' : 'alert'} className={state.status === 'saved' ? 'text-sm font-semibold text-[var(--success)]' : 'text-sm font-semibold text-[var(--destructive)]'}>
-          {message}
-        </p>
-      ) : null}
-      <label className="grid gap-2">
-        <span className="text-sm font-semibold">{labels.fields.label}</span>
-        <input
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+        {message ? (
+          <p role={state.status === 'saved' ? 'status' : 'alert'} className={state.status === 'saved' ? 'text-sm font-semibold text-[var(--success)]' : 'text-sm font-semibold text-[var(--destructive)]'}>
+            {message}
+          </p>
+        ) : null}
+
+        <FormField
+          control={form.control}
           name="label"
-          required
-          maxLength={80}
-          defaultValue={address?.label ?? ''}
-          className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+          render={({field}) => (
+            <FormItem>
+              <FormLabel>{labels.fields.label}</FormLabel>
+              <FormControl>
+                <Input {...field} maxLength={80} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </label>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-2">
-          <span className="text-sm font-semibold">{labels.fields.recipientName}</span>
-          <input
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            control={form.control}
             name="recipientName"
-            required
-            maxLength={120}
-            autoComplete="name"
-            defaultValue={address?.recipientName ?? ''}
-            className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+            render={({field}) => (
+              <FormItem>
+                <FormLabel>{labels.fields.recipientName}</FormLabel>
+                <FormControl>
+                  <Input {...field} maxLength={120} autoComplete="name" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </label>
-        <label className="grid gap-2">
-          <span className="text-sm font-semibold">{labels.fields.phoneNumber}</span>
-          <input
+
+          <FormField
+            control={form.control}
             name="phoneNumber"
-            required
-            minLength={5}
-            maxLength={40}
-            autoComplete="tel"
-            defaultValue={address?.phoneNumber ?? ''}
-            className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+            render={({field}) => (
+              <FormItem>
+                <FormLabel>{labels.fields.phoneNumber}</FormLabel>
+                <FormControl>
+                  <Input {...field} minLength={5} maxLength={40} autoComplete="tel" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </label>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-2">
-          <span className="text-sm font-semibold">{labels.fields.countryCode}</span>
-          <input
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            control={form.control}
             name="countryCode"
-            required
-            minLength={2}
-            maxLength={2}
-            autoComplete="country"
-            defaultValue={address?.countryCode ?? ''}
-            className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] px-3 uppercase"
+            render={({field}) => (
+              <FormItem>
+                <FormLabel>{labels.fields.countryCode}</FormLabel>
+                <FormControl>
+                  <Input {...field} minLength={2} maxLength={2} autoComplete="country" className="uppercase" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </label>
-        <label className="grid gap-2">
-          <span className="text-sm font-semibold">{labels.fields.postalCode}</span>
-          <input
+
+          <FormField
+            control={form.control}
             name="postalCode"
-            maxLength={200}
-            autoComplete="postal-code"
-            defaultValue={address?.postalCode ?? ''}
-            className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+            render={({field}) => (
+              <FormItem>
+                <FormLabel>{labels.fields.postalCode}</FormLabel>
+                <FormControl>
+                  <Input {...field} value={field.value || ''} maxLength={200} autoComplete="postal-code" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </label>
-      </div>
-      <label className="grid gap-2">
-        <span className="text-sm font-semibold">{labels.fields.addressLine1}</span>
-        <input
+        </div>
+
+        <FormField
+          control={form.control}
           name="addressLine1"
-          required
-          maxLength={200}
-          autoComplete="address-line1"
-          defaultValue={address?.addressLine1 ?? ''}
-          className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+          render={({field}) => (
+            <FormItem>
+              <FormLabel>{labels.fields.addressLine1}</FormLabel>
+              <FormControl>
+                <Input {...field} maxLength={200} autoComplete="address-line1" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </label>
-      <label className="grid gap-2">
-        <span className="text-sm font-semibold">{labels.fields.addressLine2}</span>
-        <input
+
+        <FormField
+          control={form.control}
           name="addressLine2"
-          maxLength={200}
-          autoComplete="address-line2"
-          defaultValue={address?.addressLine2 ?? ''}
-          className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+          render={({field}) => (
+            <FormItem>
+              <FormLabel>{labels.fields.addressLine2}</FormLabel>
+              <FormControl>
+                <Input {...field} value={field.value || ''} maxLength={200} autoComplete="address-line2" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </label>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-2">
-          <span className="text-sm font-semibold">{labels.fields.locality}</span>
-          <input
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            control={form.control}
             name="locality"
-            maxLength={200}
-            autoComplete="address-level2"
-            defaultValue={address?.locality ?? ''}
-            className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+            render={({field}) => (
+              <FormItem>
+                <FormLabel>{labels.fields.locality}</FormLabel>
+                <FormControl>
+                  <Input {...field} value={field.value || ''} maxLength={200} autoComplete="address-level2" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </label>
-        <label className="grid gap-2">
-          <span className="text-sm font-semibold">{labels.fields.region}</span>
-          <input
+
+          <FormField
+            control={form.control}
             name="region"
-            maxLength={200}
-            autoComplete="address-level1"
-            defaultValue={address?.region ?? ''}
-            className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+            render={({field}) => (
+              <FormItem>
+                <FormLabel>{labels.fields.region}</FormLabel>
+                <FormControl>
+                  <Input {...field} value={field.value || ''} maxLength={200} autoComplete="address-level1" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </label>
-      </div>
-      <label className="flex min-h-11 items-center gap-3 text-sm font-semibold">
-        <input name="isDefault" type="checkbox" defaultChecked={address?.isDefault ?? false} className="size-5" />
-        {labels.fields.isDefault}
-      </label>
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={pending}>{pending ? labels.saving : labels.save}</Button>
-        {onCancel ? <Button type="button" variant="secondary" onClick={onCancel}>{labels.cancel}</Button> : null}
-      </div>
-    </form>
+        </div>
+
+        <FormField
+          control={form.control}
+          name="isDefault"
+          render={({field}) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-[var(--surface)]">
+              <FormControl>
+                <input
+                  type="checkbox"
+                  checked={field.value}
+                  onChange={field.onChange}
+                  className="size-5 cursor-pointer mt-0.5"
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel className="cursor-pointer text-sm font-semibold">
+                  {labels.fields.isDefault}
+                </FormLabel>
+              </div>
+            </FormItem>
+          )}
+        />
+
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={pending} className="cursor-pointer">
+            {pending ? labels.saving : labels.save}
+          </Button>
+          {onCancel ? (
+            <Button type="button" variant="secondary" onClick={onCancel} className="cursor-pointer">
+              {labels.cancel}
+            </Button>
+          ) : null}
+        </div>
+      </form>
+    </Form>
   );
 }

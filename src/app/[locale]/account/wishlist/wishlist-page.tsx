@@ -1,5 +1,4 @@
 import {getTranslations, setRequestLocale} from 'next-intl/server';
-import {notFound} from 'next/navigation';
 import {getRequestMarket} from '@/catalog/page-context';
 import {getCustomerWishlist} from '@/account/wishlist';
 import {requireUser} from '@/auth/guards';
@@ -14,14 +13,11 @@ function wishlistPath(locale: Locale) {
 }
 
 export async function renderWishlistPage({
-  params,
-  expectedLocale
+  params
 }: {
   params: Promise<{locale: Locale}>;
-  expectedLocale: Locale;
 }) {
   const {locale} = await params;
-  if (locale !== expectedLocale) notFound();
 
   setRequestLocale(locale);
   const user = await requireUser({locale, next: wishlistPath(locale)});

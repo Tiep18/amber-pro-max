@@ -1,15 +1,11 @@
 import {getTranslations, setRequestLocale} from 'next-intl/server';
-import {notFound} from 'next/navigation';
 import {GuestReopenForm} from '@/components/fulfillment/guest-reopen-form';
 import type {Locale} from '@/i18n/routing';
 
 export const dynamic = 'force-dynamic';
 
-export async function renderGuestOrderPage({params, expectedLocale}: {params: Promise<{locale: Locale}>; expectedLocale: Locale}) {
+export async function renderGuestOrderPage({params}: {params: Promise<{locale: Locale}>}) {
   const {locale} = await params;
-  if (locale !== expectedLocale) {
-    notFound();
-  }
   setRequestLocale(locale);
   const t = await getTranslations({locale, namespace: 'guestAccess'});
 

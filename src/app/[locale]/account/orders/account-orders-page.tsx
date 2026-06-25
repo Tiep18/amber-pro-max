@@ -1,20 +1,16 @@
 import {getTranslations, setRequestLocale} from 'next-intl/server';
-import {notFound} from 'next/navigation';
 import {requireUser} from '@/auth/guards';
 import {AccountOrderHistory} from '@/components/fulfillment/account-order-history';
 import {getCustomerOrderHistory} from '@/fulfillment/account-queries';
-import {getLocalizedPath, type Locale} from '@/i18n/routing';
+import {getAccountOrdersPath, type Locale} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function renderAccountOrdersPage({params, expectedLocale}: {params: Promise<{locale: Locale}>; expectedLocale: Locale}) {
+export async function renderAccountOrdersPage({params}: {params: Promise<{locale: Locale}>}) {
   const {locale} = await params;
-  if (locale !== expectedLocale) {
-    notFound();
-  }
   setRequestLocale(locale);
-  const user = await requireUser({locale, next: `${getLocalizedPath('/account', locale)}/orders`});
+  const user = await requireUser({locale, next: getAccountOrdersPath(locale)});
   const t = await getTranslations({locale, namespace: 'accountPurchases.orders'});
   const client = await createSupabaseServerClient();
   const result = await getCustomerOrderHistory({userId: user.id, client: client as never});

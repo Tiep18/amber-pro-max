@@ -30,7 +30,7 @@ export function MarketSwitcher({
     <nav
       aria-label={labels.label}
       className={cn(
-        'inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-1',
+        'inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-1 gap-1',
         className
       )}
     >
@@ -45,7 +45,7 @@ export function MarketSwitcher({
         {markets.map((market) => {
           const active = market === activeMarket;
           return (
-            <form key={market} action={setActiveMarketAction}>
+            <form key={market} action={setActiveMarketAction} className="contents">
               <input type="hidden" name="market" value={market} />
               <input type="hidden" name="returnTo" value={pathname} />
               <button
@@ -53,10 +53,10 @@ export function MarketSwitcher({
                 aria-label={labels.switchTo[market]}
                 aria-pressed={active}
                 className={cn(
-                  'inline-flex min-h-9 min-w-9 items-center justify-center rounded-[calc(var(--radius-control)-2px)] px-2 text-xs font-semibold transition-colors',
+                  'inline-flex items-center justify-center min-h-9 min-w-9 rounded-[calc(var(--radius-control)-2px)] px-2.5 text-xs font-semibold cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]',
                   active
                     ? 'bg-[var(--surface-muted)] text-[var(--accent)]'
-                    : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+                    : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]'
                 )}
               >
                 {labels.short[market]}

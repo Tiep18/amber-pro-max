@@ -35,6 +35,14 @@ export const pathnames = {
     vi: '/tai-khoan/yeu-thich',
     en: '/account/wishlist'
   },
+  '/account/orders': {
+    vi: '/tai-khoan/don-hang',
+    en: '/account/orders'
+  },
+  '/account/patterns': {
+    vi: '/tai-khoan/mau-pdf',
+    en: '/account/patterns'
+  },
   '/catalog': {
     vi: '/cua-hang',
     en: '/catalog'
@@ -70,6 +78,18 @@ export const pathnames = {
   '/orders/[orderNumber]': {
     vi: '/don-hang/[orderNumber]',
     en: '/orders/[orderNumber]'
+  },
+  '/newsletter/unsubscribe': {
+    vi: '/ban-tin/huy-dang-ky',
+    en: '/newsletter/unsubscribe'
+  },
+  '/exception-request': {
+    vi: '/yeu-cau-ngoai-le',
+    en: '/exception-request'
+  },
+  '/guest-order': {
+    vi: '/don-hang-khach',
+    en: '/guest-order'
   }
 } as const;
 
@@ -141,8 +161,28 @@ export function getAccountWishlistPath(locale: Locale): `/${Locale}${string}` {
   return getLocalizedPath('/account/wishlist', locale);
 }
 
+export function getAccountOrdersPath(locale: Locale): `/${Locale}${string}` {
+  return getLocalizedPath('/account/orders', locale);
+}
+
+export function getAccountPatternsPath(locale: Locale): `/${Locale}${string}` {
+  return getLocalizedPath('/account/patterns', locale);
+}
+
 export function getOrderPath(locale: Locale, orderNumber: string): `/${Locale}${string}` {
   return `/${locale}/${locale === 'vi' ? 'don-hang' : 'orders'}/${encodeURIComponent(orderNumber)}`;
+}
+
+export function getNewsletterUnsubscribePath(locale: Locale): `/${Locale}${string}` {
+  return getLocalizedPath('/newsletter/unsubscribe', locale);
+}
+
+export function getExceptionRequestPath(locale: Locale): `/${Locale}${string}` {
+  return getLocalizedPath('/exception-request', locale);
+}
+
+export function getGuestOrderPath(locale: Locale): `/${Locale}${string}` {
+  return getLocalizedPath('/guest-order', locale);
 }
 
 export function getEquivalentLocalizedPath(

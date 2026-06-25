@@ -14,7 +14,6 @@ const contractFiles = [
 const fulfillmentSurfaceFiles = [
   'src/lib/supabase/admin.ts',
   'src/app/[locale]/orders/[orderNumber]/page.tsx',
-  'src/app/[locale]/don-hang/[orderNumber]/page.tsx',
   'src/components/payments/order-payment-page.tsx',
   'src/components/fulfillment/download-panel.tsx'
 ];
@@ -25,9 +24,7 @@ const fulfillmentAccountFiles = [
   'src/components/fulfillment/pattern-library.tsx',
   'src/components/fulfillment/pattern-library-card.tsx',
   'src/app/[locale]/account/orders/page.tsx',
-  'src/app/[locale]/account/patterns/page.tsx',
-  'src/app/[locale]/tai-khoan/don-hang/page.tsx',
-  'src/app/[locale]/tai-khoan/mau-pdf/page.tsx'
+  'src/app/[locale]/account/patterns/page.tsx'
 ];
 
 const fulfillmentCustomerTrackingFiles = [
@@ -49,9 +46,7 @@ const fulfillmentGuestClaimFiles = [
   'src/components/fulfillment/guest-reopen-form.tsx',
   'src/components/fulfillment/order-claim-panel.tsx',
   'src/app/[locale]/guest-order/page.tsx',
-  'src/app/[locale]/don-hang-khach/page.tsx',
-  'src/app/[locale]/orders/[orderNumber]/claim/page.tsx',
-  'src/app/[locale]/don-hang/[orderNumber]/claim/page.tsx'
+  'src/app/[locale]/orders/[orderNumber]/claim/page.tsx'
 ];
 
 const fulfillmentAdminEntitlementFiles = [

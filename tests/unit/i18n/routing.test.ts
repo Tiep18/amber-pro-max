@@ -40,6 +40,10 @@ describe('localized routing contract', () => {
     expect(getEquivalentLocalizedPath('/vi/dang-nhap', 'en')).toBe('/en/sign-in');
     expect(getEquivalentLocalizedPath('/en/sign-in', 'vi')).toBe('/vi/dang-nhap');
     expect(getEquivalentLocalizedPath('/vi/tai-khoan', 'en')).toBe('/en/account');
+    expect(getLocalizedPath('/account/orders', 'vi')).toBe('/vi/tai-khoan/don-hang');
+    expect(getLocalizedPath('/account/orders', 'en')).toBe('/en/account/orders');
+    expect(getLocalizedPath('/account/patterns', 'vi')).toBe('/vi/tai-khoan/mau-pdf');
+    expect(getLocalizedPath('/account/patterns', 'en')).toBe('/en/account/patterns');
   });
 
   it('chooses Vietnamese only when Vietnamese is preferred', () => {

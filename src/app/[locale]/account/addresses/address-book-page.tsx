@@ -1,5 +1,4 @@
 import {getTranslations, setRequestLocale} from 'next-intl/server';
-import {notFound} from 'next/navigation';
 import {getCustomerShippingAddresses} from '@/account/addresses';
 import {requireUser} from '@/auth/guards';
 import {AddressBook} from '@/components/account/address-book';
@@ -13,14 +12,11 @@ function addressPath(locale: Locale) {
 }
 
 export async function renderAddressBookPage({
-  params,
-  expectedLocale
+  params
 }: {
   params: Promise<{locale: Locale}>;
-  expectedLocale: Locale;
 }) {
   const {locale} = await params;
-  if (locale !== expectedLocale) notFound();
 
   setRequestLocale(locale);
   const user = await requireUser({locale, next: addressPath(locale)});

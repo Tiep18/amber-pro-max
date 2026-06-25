@@ -1,10 +1,16 @@
 'use client';
 
-import {useState, useTransition} from 'react';
+import {startTransition, useActionState, useEffect} from 'react';
+import {useForm} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {z} from 'zod';
 import {createExceptionRequestAction, type CreateExceptionRequestResult} from '@/checkout/exception-actions';
 import type {Locale} from '@/i18n/routing';
 import {Alert} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
+import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Textarea} from '@/components/ui/textarea';
 
 const copy = {
   en: {
@@ -33,58 +39,148 @@ const copy = {
   }
 } as const;
 
+const exceptionRequestFormSchema = z.object({
+  email: z.string().trim().email({message: 'Invalid email address'}).max(320),
+  productId: z.guid(),
+  variantId: z.string().trim().uuid().or(z.literal('')).optional().nullable(),
+  countryCode: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, {message: 'Must be a 2-letter country code'}),
+  note: z.string().trim().max(1000).optional()
+});
+
+type ExceptionRequestFormValues = z.infer<typeof exceptionRequestFormSchema>;
+
 export function ExceptionRequestForm({locale}: {locale: Locale}) {
   const t = copy[locale];
-  const [result, setResult] = useState<CreateExceptionRequestResult | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [result, action, pending] = useActionState(
+    async (_state: CreateExceptionRequestResult | null, formData: FormData): Promise<CreateExceptionRequestResult> => {
+      return createExceptionRequestAction({
+        locale,
+        market: locale === 'vi' ? 'vn' : 'intl',
+        contactEmail: formData.get('email'),
+        productId: formData.get('productId'),
+        variantId: formData.get('variantId') || null,
+        destinationCountryCode: String(formData.get('countryCode') ?? '').toUpperCase(),
+        customerNote: formData.get('note') ?? ''
+      });
+    },
+    null
+  );
+
+  const form = useForm<ExceptionRequestFormValues>({
+    resolver: zodResolver(exceptionRequestFormSchema),
+    defaultValues: {
+      email: '',
+      productId: '',
+      variantId: '',
+      countryCode: '',
+      note: ''
+    }
+  });
+
+  useEffect(() => {
+    if (result?.status === 'created') {
+      form.reset({
+        email: '',
+        productId: '',
+        variantId: '',
+        countryCode: '',
+        note: ''
+      });
+    }
+  }, [result, form]);
+
+  const onSubmit = (values: ExceptionRequestFormValues) => {
+    const formData = new FormData();
+    formData.append('email', values.email);
+    formData.append('productId', values.productId);
+    formData.append('variantId', values.variantId || '');
+    formData.append('countryCode', values.countryCode);
+    formData.append('note', values.note || '');
+    startTransition(() => {
+      action(formData);
+    });
+  };
 
   return (
-    <form
-      className="grid gap-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const form = event.currentTarget;
-        const formData = new FormData(form);
-        startTransition(async () => {
-          const actionResult = await createExceptionRequestAction({
-            locale,
-            market: locale === 'vi' ? 'vn' : 'intl',
-            contactEmail: formData.get('email'),
-            productId: formData.get('productId'),
-            variantId: formData.get('variantId') || null,
-            destinationCountryCode: String(formData.get('countryCode') ?? '').toUpperCase(),
-            customerNote: formData.get('note') ?? ''
-          });
-          setResult(actionResult);
-          if (actionResult.status === 'created') {
-            form.reset();
-          }
-        });
-      }}
-    >
-      {result?.status === 'created' ? <Alert variant="success">{t.created}</Alert> : null}
-      {result && result.status !== 'created' ? <Alert variant="destructive">{t.invalid}</Alert> : null}
-      <label className="space-y-2">
-        <span className="font-semibold">{t.email}</span>
-        <input name="email" inputMode="email" className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3" />
-      </label>
-      <label className="space-y-2">
-        <span className="font-semibold">{t.productId}</span>
-        <input name="productId" className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3" />
-      </label>
-      <label className="space-y-2">
-        <span className="font-semibold">{t.variantId}</span>
-        <input name="variantId" className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3" />
-      </label>
-      <label className="space-y-2">
-        <span className="font-semibold">{t.country}</span>
-        <input name="countryCode" maxLength={2} className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 uppercase" />
-      </label>
-      <label className="space-y-2">
-        <span className="font-semibold">{t.note}</span>
-        <textarea name="note" className="min-h-24 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2" />
-      </label>
-      <Button type="submit" disabled={pending}>{pending ? t.pending : t.submit}</Button>
-    </form>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+        {result?.status === 'created' ? <Alert variant="success">{t.created}</Alert> : null}
+        {result && result.status !== 'created' ? <Alert variant="destructive">{t.invalid}</Alert> : null}
+
+        <FormField
+          control={form.control}
+          name="email"
+          render={({field}) => (
+            <FormItem>
+              <FormLabel className="font-semibold">{t.email}</FormLabel>
+              <FormControl>
+                <Input {...field} inputMode="email" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="productId"
+          render={({field}) => (
+            <FormItem>
+              <FormLabel className="font-semibold">{t.productId}</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="variantId"
+          render={({field}) => (
+            <FormItem>
+              <FormLabel className="font-semibold">{t.variantId}</FormLabel>
+              <FormControl>
+                <Input {...field} value={field.value || ''} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="countryCode"
+          render={({field}) => (
+            <FormItem>
+              <FormLabel className="font-semibold">{t.country}</FormLabel>
+              <FormControl>
+                <Input {...field} maxLength={2} className="uppercase" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="note"
+          render={({field}) => (
+            <FormItem>
+              <FormLabel className="font-semibold">{t.note}</FormLabel>
+              <FormControl>
+                <Textarea {...field} className="min-h-24" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Button type="submit" disabled={pending} className="cursor-pointer">
+          {pending ? t.pending : t.submit}
+        </Button>
+      </form>
+    </Form>
   );
 }

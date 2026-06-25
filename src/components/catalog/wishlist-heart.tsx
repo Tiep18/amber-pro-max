@@ -8,6 +8,7 @@ import {
   type WishlistActionState
 } from '@/account/wishlist-actions';
 import type {Locale} from '@/i18n/routing';
+import {Toggle} from '@/components/ui/toggle';
 
 type WishlistHeartLabels = {
   save: string;
@@ -52,19 +53,19 @@ export function WishlistHeart({
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="productId" value={productId} />
       <input type="hidden" name="returnTo" value={returnTo} />
-      <button
+      <Toggle
         type="submit"
-        onClick={() => setOptimisticSelected(!serverSelected)}
+        pressed={selected}
+        onPressedChange={() => setOptimisticSelected(!serverSelected)}
         aria-label={pending ? (serverSelected ? labels.removing : labels.saving) : label}
-        aria-pressed={selected}
         disabled={pending}
-        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] shadow-sm transition hover:bg-[var(--surface-muted)] disabled:cursor-wait disabled:opacity-70"
+        className="rounded-full min-h-11 min-w-11 px-0 shadow-sm border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-muted)]"
       >
         <Heart
           aria-hidden="true"
           className={selected ? 'h-5 w-5 fill-[var(--accent)] text-[var(--accent)]' : 'h-5 w-5'}
         />
-      </button>
+      </Toggle>
     </form>
   );
 }

@@ -1,5 +1,4 @@
 import {getTranslations, setRequestLocale} from 'next-intl/server';
-import {notFound} from 'next/navigation';
 import {AuthTextLink} from '@/components/auth/auth-page';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {signOutAction} from '@/auth/actions';
@@ -7,11 +6,8 @@ import {requireUser} from '@/auth/guards';
 import {getLocalizedPath, type Locale} from '@/i18n/routing';
 import {Button} from '@/components/ui/button';
 
-export async function renderAccountOverview({params, expectedLocale}: {params: Promise<{locale: Locale}>; expectedLocale: Locale}) {
+export async function renderAccountOverview({params}: {params: Promise<{locale: Locale}>}) {
   const {locale} = await params;
-  if (locale !== expectedLocale) {
-    notFound();
-  }
 
   setRequestLocale(locale);
   const user = await requireUser({locale, next: getLocalizedPath('/account', locale)});

@@ -1,5 +1,6 @@
 import {getTranslations, setRequestLocale} from 'next-intl/server';
 import {notFound} from 'next/navigation';
+
 import {AuthPage, AuthTextLink} from '@/components/auth/auth-page';
 import {ForgotPasswordForm, RegisterForm, ResetPasswordForm, SignInForm} from '@/components/auth/auth-forms';
 import {Alert} from '@/components/ui/alert';
@@ -23,12 +24,11 @@ async function authMessages(kind: AuthKind) {
   };
 }
 
-export async function renderSignInPage({params, searchParams, expectedLocale}: {params: PageParams; searchParams: SearchParams; expectedLocale: Locale}) {
+export async function renderSignInPage({params, searchParams, expectedLocale}: {params: PageParams; searchParams: SearchParams; expectedLocale?: Locale}) {
   const {locale} = await params;
-  if (locale !== expectedLocale) {
+  if (expectedLocale && locale !== expectedLocale) {
     notFound();
   }
-
   setRequestLocale(locale);
   const [t, search, messages] = await Promise.all([getTranslations('auth.signIn'), searchParams, authMessages('signIn')]);
 
@@ -50,12 +50,11 @@ export async function renderSignInPage({params, searchParams, expectedLocale}: {
   );
 }
 
-export async function renderRegisterPage({params, searchParams, expectedLocale}: {params: PageParams; searchParams: SearchParams; expectedLocale: Locale}) {
+export async function renderRegisterPage({params, searchParams, expectedLocale}: {params: PageParams; searchParams: SearchParams; expectedLocale?: Locale}) {
   const {locale} = await params;
-  if (locale !== expectedLocale) {
+  if (expectedLocale && locale !== expectedLocale) {
     notFound();
   }
-
   setRequestLocale(locale);
   const [t, search, messages] = await Promise.all([getTranslations('auth.register'), searchParams, authMessages('register')]);
 
@@ -76,12 +75,11 @@ export async function renderRegisterPage({params, searchParams, expectedLocale}:
   );
 }
 
-export async function renderForgotPasswordPage({params, expectedLocale}: {params: PageParams; expectedLocale: Locale}) {
+export async function renderForgotPasswordPage({params, expectedLocale}: {params: PageParams; expectedLocale?: Locale}) {
   const {locale} = await params;
-  if (locale !== expectedLocale) {
+  if (expectedLocale && locale !== expectedLocale) {
     notFound();
   }
-
   setRequestLocale(locale);
   const [t, messages] = await Promise.all([getTranslations('auth.forgotPassword'), authMessages('forgotPassword')]);
 
@@ -97,12 +95,11 @@ export async function renderForgotPasswordPage({params, expectedLocale}: {params
   );
 }
 
-export async function renderResetPasswordPage({params, searchParams, expectedLocale}: {params: PageParams; searchParams: SearchParams; expectedLocale: Locale}) {
+export async function renderResetPasswordPage({params, searchParams, expectedLocale}: {params: PageParams; searchParams: SearchParams; expectedLocale?: Locale}) {
   const {locale} = await params;
-  if (locale !== expectedLocale) {
+  if (expectedLocale && locale !== expectedLocale) {
     notFound();
   }
-
   setRequestLocale(locale);
   const [t, search, messages] = await Promise.all([getTranslations('auth.resetPassword'), searchParams, authMessages('resetPassword')]);
   const hasRecoverySession = search.recovery === '1';

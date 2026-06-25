@@ -8,5 +8,5 @@ export default async function ResetPasswordPage({
   params: Promise<{locale: Locale}>;
   searchParams: Promise<{next?: string; recovery?: string}>;
 }) {
-  return renderResetPasswordPage({params, searchParams, expectedLocale: 'en'});
+  return renderResetPasswordPage({params, searchParams});
 }

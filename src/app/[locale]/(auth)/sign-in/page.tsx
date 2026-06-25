@@ -8,5 +8,5 @@ export default async function SignInPage({
   params: Promise<{locale: Locale}>;
   searchParams: Promise<{next?: string}>;
 }) {
-  return renderSignInPage({params, searchParams, expectedLocale: 'en'});
+  return renderSignInPage({params, searchParams});
 }

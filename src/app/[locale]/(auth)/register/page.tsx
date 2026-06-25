@@ -8,5 +8,5 @@ export default async function RegisterPage({
   params: Promise<{locale: Locale}>;
   searchParams: Promise<{next?: string}>;
 }) {
-  return renderRegisterPage({params, searchParams, expectedLocale: 'en'});
+  return renderRegisterPage({params, searchParams});
 }

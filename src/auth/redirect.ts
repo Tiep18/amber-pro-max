@@ -30,17 +30,29 @@ function isAllowedAdminPath(pathname: string) {
   );
 }
 
+// Dynamic routes with slugs cannot be statically enumerated in allowedPaths.
+// Each entry pairs an internal pathname with a regex that validates the slug segment.
+// Slug prefixes are derived at runtime from pathnames config via getLocalizedPath(),
+// so renaming a Vietnamese slug in routing.ts automatically updates this whitelist.
+const DYNAMIC_ROUTE_PATTERNS: Array<[InternalPathname, RegExp]> = [
+  ['/product/[productSlug]',       /^[a-z0-9]+(?:-[a-z0-9]+)*$/i],
+  ['/category/[categorySlug]',     /^[a-z0-9]+(?:-[a-z0-9]+)*$/i],
+  ['/collection/[collectionSlug]', /^[a-z0-9]+(?:-[a-z0-9]+)*$/i],
+  ['/orders/[orderNumber]',        /^[A-Z0-9-]+$/i],
+  ['/blog/[postSlug]',             /^[a-z0-9]+(?:-[a-z0-9]+)*$/i],
+];
+
 function isAllowedLocalizedDynamicPath(pathname: string) {
-  return (
-    /^\/en\/product\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname) ||
-    /^\/vi\/san-pham\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname) ||
-    /^\/en\/category\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname) ||
-    /^\/vi\/danh-muc\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname) ||
-    /^\/en\/collection\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname) ||
-    /^\/vi\/bo-suu-tap\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname) ||
-    /^\/en\/orders\/[A-Z0-9-]+$/i.test(pathname) ||
-    /^\/vi\/don-hang\/[A-Z0-9-]+$/i.test(pathname)
-  );
+  for (const [internalPath, slugPattern] of DYNAMIC_ROUTE_PATTERNS) {
+    for (const locale of locales) {
+      const localizedBase = getLocalizedPath(internalPath, locale);
+      const prefix = localizedBase.replace(/\/\[.*?\]$/, '/');
+      if (pathname.startsWith(prefix) && slugPattern.test(pathname.slice(prefix.length))) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function fallbackFor(locale: Locale) {
