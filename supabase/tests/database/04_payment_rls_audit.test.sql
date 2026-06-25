@@ -1,6 +1,6 @@
 begin;
 
-select plan(37);
+select plan(40);
 
 select policies_are(
   'public',
@@ -104,6 +104,17 @@ select table_privs_are('public', 'commerce_audit_events', 'service_role', array[
 select table_privs_are('public', 'commerce_audit_events', 'service_role', array['SELECT', 'INSERT'], 'service role is not granted audit update or delete');
 select table_privs_are('public', 'payment_events', 'service_role', array['SELECT', 'INSERT', 'UPDATE'], 'service role may append provider events and update duplicate delivery counters');
 select table_privs_are('public', 'payment_transitions', 'service_role', array['SELECT', 'INSERT'], 'service role may append transition rows');
+select table_privs_are('public', 'order_payment_statuses', 'service_role', array['SELECT', 'REFERENCES', 'TRIGGER', 'TRUNCATE'], 'service role may read admin order queue projection');
+select table_privs_are('public', 'admin_order_timelines', 'service_role', array['SELECT', 'REFERENCES', 'TRIGGER', 'TRUNCATE'], 'service role may read admin order timeline projection');
+
+select function_privs_are(
+  'public',
+  'get_admin_order_timeline',
+  array['uuid'],
+  'service_role',
+  array['EXECUTE'],
+  'service role may call admin timeline RPC for server-rendered admin order detail'
+);
 
 select lives_ok(
   $$select private.is_admin()$$,
