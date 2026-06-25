@@ -1,6 +1,6 @@
 begin;
 
-select plan(40);
+select plan(43);
 
 select policies_are(
   'public',
@@ -106,6 +106,28 @@ select table_privs_are('public', 'payment_events', 'service_role', array['SELECT
 select table_privs_are('public', 'payment_transitions', 'service_role', array['SELECT', 'INSERT'], 'service role may append transition rows');
 select table_privs_are('public', 'order_payment_statuses', 'service_role', array['SELECT', 'REFERENCES', 'TRIGGER', 'TRUNCATE'], 'service role may read admin order queue projection');
 select table_privs_are('public', 'admin_order_timelines', 'service_role', array['SELECT', 'REFERENCES', 'TRIGGER', 'TRUNCATE'], 'service role may read admin order timeline projection');
+
+select results_eq(
+  $$select has_schema_privilege('service_role', 'private', 'USAGE')$$,
+  $$values (true)$$,
+  'service role may resolve private helpers used by security-invoker payment projections'
+);
+
+select function_privs_are(
+  'private',
+  'payment_customer_status',
+  array['text'],
+  'service_role',
+  array['EXECUTE'],
+  'service role may execute customer-safe payment status mapper used by admin order projection'
+);
+
+set local role service_role;
+select lives_ok(
+  $$select order_id, order_number, customer_payment_status from public.order_payment_statuses limit 1$$,
+  'service role can load the admin order queue projection through PostgREST-equivalent privileges'
+);
+reset role;
 
 select function_privs_are(
   'public',
