@@ -45,7 +45,7 @@ export function buildAdminDashboardItems(counts: AdminDashboardCounts): AdminDas
       label: 'Active subscribers',
       description: 'Current newsletter audience for launch communications.',
       count: counts.activeSubscribers,
-      href: '/admin/newsletter?status=active'
+      href: '/admin/newsletter?status=subscribed'
     },
     {
       id: 'blog',

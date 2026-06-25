@@ -61,7 +61,7 @@ export async function getAdminDashboard({
         countRows(client, 'payments', [{column: 'status', operator: 'in', value: ['pending', 'verifying', 'review_required']}]),
         countRows(client, 'transactional_email_outbox', [{column: 'status', operator: 'eq', value: 'failed'}]),
         countRows(client, 'product_reviews', [{column: 'status', operator: 'eq', value: 'pending'}]),
-        countRows(client, 'newsletter_subscribers', [{column: 'status', operator: 'eq', value: 'active'}]),
+        countRows(client, 'newsletter_subscribers', [{column: 'status', operator: 'eq', value: 'subscribed'}]),
         countRows(client, 'blog_posts', [{column: 'status', operator: 'eq', value: 'draft'}]),
         countRows(client, 'blog_posts', [
           {column: 'status', operator: 'eq', value: 'published'},

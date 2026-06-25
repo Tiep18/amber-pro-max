@@ -30,7 +30,7 @@ describe('admin dashboard (ADM-01, D-09, D-10, D-12)', () => {
       '/admin/orders',
       '/admin/orders',
       '/admin/reviews?status=pending',
-      '/admin/newsletter?status=active',
+      '/admin/newsletter?status=subscribed',
       '/admin/blog',
       '/admin/blog',
       '/admin/operations?status=unresolved&area=all',
