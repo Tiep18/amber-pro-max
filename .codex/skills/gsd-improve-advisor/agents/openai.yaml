@@ -1,0 +1,4 @@
+interface:
+  display_name: "GSD Improve Advisor"
+  short_description: "Route shadcn/improve audit output into GSD workflows."
+  default_prompt: "Use improve as an advisor, then route findings through GSD."

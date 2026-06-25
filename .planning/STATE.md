@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 07 (content-seo-and-launch-readiness)
 Plan: 07-05 completed
 Status: Ready for Wave 6 final launch verification
-Last activity: 2026-06-24 -- Completed Phase 07 Plan 05 sitemaps, robots, and private URL exclusion
+Last activity: 2026-06-25 - Completed quick task 260625-its: Create an internal gsd-improve-advisor skill
 
 Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and Wave 6 can begin.
 
@@ -149,6 +149,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 260619-phase-4-docs-refresh | Update Phase 4 docs after checkout shipping-address/address-UX commits | 2026-06-19 | this commit | [260619-phase-4-docs-refresh](./quick/260619-phase-4-docs-refresh/) |
 | 20260620-immediate-paid-email-trigger | Trigger transactional email worker immediately after verified paid transitions | 2026-06-20 | this commit | [20260620-immediate-paid-email-trigger](./quick/20260620-immediate-paid-email-trigger/) |
+| 260625-its | Create an internal gsd-improve-advisor skill | 2026-06-25 | this commit | [260625-its-create-an-internal-gsd-improve-advisor-s](./quick/260625-its-create-an-internal-gsd-improve-advisor-s/) |
 
 ## Deferred Items
 
