@@ -1,6 +1,6 @@
 # Amigurumi Pattern & Handmade Store
 
-Phase 1 delivers a secure bilingual foundation for Vietnamese and English routes, Supabase Auth, RLS-backed roles, localized auth pages, and protected account/admin shells.
+The store now includes the Phase 1-7 application surface: bilingual storefront routes, market-aware catalog, mixed checkout, PayPal and VietQR payment flows, secure digital fulfillment, customer retention features, blog and policy publishing, and launch-readiness admin tooling. Remaining launch work is limited to manual provider and production-readiness evidence recorded in the Phase 4 and Phase 7 UAT artifacts.
 
 ## Local Setup
 
@@ -34,9 +34,16 @@ npm run test:security
 npm run test:e2e
 ```
 
-## Phase Boundary
+## Current Surface
 
-This foundation intentionally does not include catalog, cart, checkout, payments, orders, fulfillment, reviews, newsletter, shipping, or blog features. Those belong to later phases.
+Implemented modules include:
+
+- Catalog, search, product detail, category and collection discovery
+- Mixed cart and checkout with market-aware pricing and shipping
+- Trusted payments and orders for PayPal and VietQR
+- Digital entitlements, downloads, transactional email, and physical fulfillment tracking
+- Saved addresses, wishlist, verified reviews, and newsletter consent flows
+- Blog publishing, public content SEO, policy publishing, operations queue, and launch gates
 
 ## Hosted Setup Checklist
 
@@ -60,4 +67,4 @@ The full local gate is:
 npm run ci
 ```
 
-Browser checks cover `/vi`, `/en`, localized auth routes, localized account routes, and `/admin`. Secret checks scan source and `.next/static` for privileged Supabase indicators.
+Browser and security checks cover localized storefront, auth, checkout, order, account, admin, sitemap/robots, and secret-boundary flows. Phase 4 and Phase 7 still require separate manual UAT evidence for provider delivery and final production launch approvals.
