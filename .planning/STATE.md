@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-06-27 -- Completed quick task 260627-account-pages-ux: upgrade account pages UI/UX
+last_activity: 2026-06-27 -- Completed quick task 260627-admin-pages-ux: upgrade admin pages UI/UX
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 07 (content-seo-and-launch-readiness)
 Plan: 07-05 completed
 Status: Ready for Wave 6 final launch verification
-Last activity: 2026-06-27 - Completed quick task 260627-account-pages-ux: upgrade account pages UI/UX
+Last activity: 2026-06-27 - Completed quick task 260627-admin-pages-ux: upgrade admin pages UI/UX
 
 Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and Wave 6 can begin.
 
@@ -156,6 +156,7 @@ None yet.
 | 260627-header-ux                      | Upgrade header UI/UX with combined market-language control, account menu, admin link, cart badge, and mobile drawer              | 2026-06-27 | pending     | [260627-header-ux](./quick/260627-header-ux/)                                                                       |
 | 260627-header-overlay-polish          | Polish header account/context dropdowns and sheet/cart overlays using shadcn composition patterns                                | 2026-06-27 | pending     | [260627-header-overlay-polish](./quick/260627-header-overlay-polish/)                                               |
 | 260627-account-pages-ux               | Upgrade account area UI/UX with shared shell, sidebar navigation, polished orders, patterns, wishlist, and address pages         | 2026-06-27 | pending     | [260627-account-pages-ux](./quick/260627-account-pages-ux/)                                                         |
+| 260627-admin-pages-ux                 | Upgrade admin Phase 1 UI/UX with grouped shell, attention dashboard, orders queue, and catalog queue                             | 2026-06-27 | pending     | [260627-admin-pages-ux](./quick/260627-admin-pages-ux/)                                                             |
 
 ### Debug Sessions Resolved
 
