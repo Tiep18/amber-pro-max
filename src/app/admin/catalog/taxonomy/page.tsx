@@ -5,7 +5,13 @@ import { catalogTaxonomySections, getTaxonomyTerms } from '@/admin/taxonomy-admi
 
 export const dynamic = 'force-dynamic';
 
-type SearchParams = Promise<{ saved?: string; invalid?: string; error?: string }>;
+type SearchParams = Promise<{
+  saved?: string;
+  deleted?: string;
+  blocked?: string;
+  invalid?: string;
+  error?: string;
+}>;
 
 export default async function AdminCatalogTaxonomyPage({
   searchParams
@@ -31,6 +37,8 @@ export default async function AdminCatalogTaxonomyPage({
       <TaxonomyManager
         sections={sections}
         saved={params.saved === '1'}
+        deleted={params.deleted === '1'}
+        blocked={params.blocked === '1'}
         invalid={params.invalid === '1'}
         error={params.error === '1'}
       />

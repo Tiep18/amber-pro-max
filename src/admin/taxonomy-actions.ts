@@ -22,6 +22,26 @@ const taxonomyFormSchema = z.object({
   termId: z.string().trim().optional()
 });
 
+const deleteTaxonomyFormSchema = z.object({
+  section: z.string().trim().min(1),
+  termId: z.string().trim().min(1)
+});
+
+const referenceChecks: Record<string, Array<{ table: string; column: string }>> = {
+  category: [
+    { table: 'product_categories', column: 'category_id' },
+    { table: 'discount_code_categories', column: 'category_id' }
+  ],
+  tag: [{ table: 'product_tags', column: 'tag_id' }],
+  technique: [{ table: 'product_techniques', column: 'technique_id' }],
+  collection: [
+    { table: 'collection_products', column: 'collection_id' },
+    { table: 'discount_code_collections', column: 'collection_id' }
+  ],
+  'blog-category': [{ table: 'blog_posts', column: 'category_id' }],
+  'blog-tag': [{ table: 'blog_post_tags', column: 'tag_id' }]
+};
+
 function value(formData: FormData, locale: 'vi' | 'en', field: TaxonomyTextField) {
   return String(formData.get(`${locale}.${field}`) ?? '').trim();
 }
@@ -77,9 +97,30 @@ function pathsFor(section: string) {
     : ['/admin/blog/taxonomy', '/admin/blog', '/admin/blog/new'];
 }
 
-function redirectFor(section: string, status: 'saved' | 'invalid' | 'error'): never {
+function redirectFor(
+  section: string,
+  status: 'saved' | 'deleted' | 'blocked' | 'invalid' | 'error'
+): never {
   const base = pathsFor(section)[0];
   redirect(`${base}?${status}=1`);
+}
+
+async function isReferenced(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  section: string,
+  termId: string
+) {
+  const checks = referenceChecks[section] ?? [];
+  const results = await Promise.all(
+    checks.map(({ table, column }) =>
+      supabase
+        .from(table as never)
+        .select(column, { count: 'exact', head: true })
+        .eq(column, termId)
+    )
+  );
+
+  return results.some(({ count, error }) => error || (count ?? 0) > 0);
 }
 
 export async function saveTaxonomyTermAction(formData: FormData): Promise<void> {
@@ -138,4 +179,49 @@ export async function saveTaxonomyTermAction(formData: FormData): Promise<void> 
   }
 
   redirectFor(config.key, 'saved');
+}
+
+export async function deleteTaxonomyTermAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+
+  const parsed = deleteTaxonomyFormSchema.safeParse({
+    section: formData.get('section'),
+    termId: formData.get('termId')
+  });
+
+  if (!parsed.success) {
+    redirect('/admin?invalid=1');
+  }
+
+  const config = taxonomyConfigFor(parsed.data.section);
+  if (!config) {
+    redirectFor(parsed.data.section, 'invalid');
+  }
+
+  const supabase = await createSupabaseServerClient();
+  if (await isReferenced(supabase, config.key, parsed.data.termId)) {
+    redirectFor(config.key, 'blocked');
+  }
+
+  const { error: translationError } = await supabase
+    .from(config.translationTable as never)
+    .delete()
+    .eq(config.parentIdColumn, parsed.data.termId);
+  if (translationError) {
+    redirectFor(config.key, 'error');
+  }
+
+  const { error: parentError } = await supabase
+    .from(config.parentTable as never)
+    .delete()
+    .eq('id', parsed.data.termId);
+  if (parentError) {
+    redirectFor(config.key, 'error');
+  }
+
+  for (const path of pathsFor(config.key)) {
+    revalidatePath(path);
+  }
+
+  redirectFor(config.key, 'deleted');
 }

@@ -1,5 +1,5 @@
-import { BookOpen, Pencil, Plus } from 'lucide-react';
-import { saveTaxonomyTermAction } from '@/admin/taxonomy-actions';
+import { BookOpen, Pencil, Plus, Trash2 } from 'lucide-react';
+import { deleteTaxonomyTermAction, saveTaxonomyTermAction } from '@/admin/taxonomy-actions';
 import type {
   TaxonomySectionConfig,
   TaxonomyTerm,
@@ -134,14 +134,44 @@ function TermForm({
   );
 }
 
+function DeleteTermForm({ config, term }: { config: TaxonomySectionConfig; term: TaxonomyTerm }) {
+  const label =
+    term.translations.en.name || term.translations.vi.name || term.translations.en.slug || term.id;
+
+  return (
+    <form
+      action={deleteTaxonomyTermAction}
+      className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-muted)] p-4 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <input type="hidden" name="section" value={config.key} />
+      <input type="hidden" name="termId" value={term.id} />
+      <div>
+        <p className="font-semibold">Delete {label}</p>
+        <p className="text-sm text-[var(--muted-foreground)]">
+          Only allowed when this item is not used by products, blog posts, discounts, or
+          collections.
+        </p>
+      </div>
+      <Button type="submit" variant="destructive" className="w-fit gap-2">
+        <Trash2 className="size-4" aria-hidden="true" />
+        Delete
+      </Button>
+    </form>
+  );
+}
+
 export function TaxonomyManager({
   sections,
   saved,
+  deleted,
+  blocked,
   invalid,
   error
 }: {
   sections: SectionWithTerms[];
   saved?: boolean;
+  deleted?: boolean;
+  blocked?: boolean;
   invalid?: boolean;
   error?: boolean;
 }) {
@@ -158,6 +188,16 @@ export function TaxonomyManager({
       {saved ? (
         <p className="rounded-[var(--radius-card)] border border-[var(--success)] bg-[var(--success-surface)] p-4 text-sm font-semibold text-[var(--success)]">
           Taxonomy saved.
+        </p>
+      ) : null}
+      {deleted ? (
+        <p className="rounded-[var(--radius-card)] border border-[var(--success)] bg-[var(--success-surface)] p-4 text-sm font-semibold text-[var(--success)]">
+          Taxonomy item deleted.
+        </p>
+      ) : null}
+      {blocked ? (
+        <p className="rounded-[var(--radius-card)] border border-[var(--warning)] bg-[var(--warning-surface)] p-4 text-sm font-semibold text-[var(--warning)]">
+          This taxonomy item is still in use, so it was not deleted.
         </p>
       ) : null}
       {invalid ? (
@@ -195,7 +235,10 @@ export function TaxonomyManager({
             ) : (
               <div className="grid gap-4">
                 {terms.map((term) => (
-                  <TermForm key={term.id} config={config} term={term} mode="edit" />
+                  <div key={term.id} className="grid gap-3">
+                    <TermForm config={config} term={term} mode="edit" />
+                    <DeleteTermForm config={config} term={term} />
+                  </div>
                 ))}
               </div>
             )}
