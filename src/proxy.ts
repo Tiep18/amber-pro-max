@@ -3,26 +3,14 @@ import {NextRequest, NextResponse} from 'next/server';
 import {applyMarketSuggestionCookie} from './catalog/market';
 import {isLocale, preferredLocale, routing} from './i18n/routing';
 import {updateSession} from './lib/supabase/proxy';
+import {isUnprefixedCustomerPath} from './proxy-paths';
 
 const intlMiddleware = createMiddleware(routing);
-
-const PUBLIC_FILE = /\.(.*)$/;
-
-function isUnprefixedCustomerPath(pathname: string) {
-  const firstSegment = pathname.split('/')[1];
-  return (
-    !isLocale(firstSegment) &&
-    !pathname.startsWith('/api') &&
-    !pathname.startsWith('/admin') &&
-    !pathname.startsWith('/sitemaps') &&
-    !PUBLIC_FILE.test(pathname)
-  );
-}
 
 export default async function proxy(request: NextRequest) {
   const {pathname, search} = request.nextUrl;
 
-  if (pathname.startsWith('/sitemaps') || pathname.startsWith('/admin')) {
+  if (pathname.startsWith('/sitemaps') || pathname.startsWith('/admin') || pathname.startsWith('/auth')) {
     return updateSession(request, NextResponse.next());
   }
 
