@@ -107,7 +107,7 @@ export default async function AdminPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="min-w-0">
               <CardHeader>
                 <CardTitle>Store pulse</CardTitle>
                 <p className="text-sm text-[var(--muted-foreground)]">
@@ -121,15 +121,15 @@ export default async function AdminPage() {
                     <Link
                       key={item.id}
                       href={item.href}
-                      className="flex items-center justify-between gap-3 rounded-[var(--radius-control)] p-2 hover:bg-[var(--surface-muted)]"
+                      className="flex min-w-0 items-center justify-between gap-3 rounded-[var(--radius-control)] p-2 hover:bg-[var(--surface-muted)]"
                     >
-                      <span className="min-w-0">
+                      <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">{item.label}</span>
                         <span className="block truncate text-sm text-[var(--muted-foreground)]">
                           {item.description}
                         </span>
                       </span>
-                      <span className="rounded-full bg-[var(--surface-muted)] px-3 py-1 text-sm font-semibold tabular-nums">
+                      <span className="shrink-0 rounded-full bg-[var(--surface-muted)] px-3 py-1 text-sm font-semibold tabular-nums">
                         {item.count}
                       </span>
                     </Link>
