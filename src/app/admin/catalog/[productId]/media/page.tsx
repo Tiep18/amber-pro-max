@@ -1,9 +1,14 @@
 import Link from 'next/link';
-import {notFound} from 'next/navigation';
-import {requireAdmin} from '@/auth/guards';
-import {mediaProductIdSchema, PRODUCT_MEDIA_BUCKET} from '@/catalog/media-schemas';
-import {MediaManager, type MediaManagerAsset, type MediaManagerImage} from '@/components/admin/catalog/media-manager';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
+import { notFound } from 'next/navigation';
+import { requireAdmin } from '@/auth/guards';
+import { mediaProductIdSchema, PRODUCT_MEDIA_BUCKET } from '@/catalog/media-schemas';
+import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
+import {
+  MediaManager,
+  type MediaManagerAsset,
+  type MediaManagerImage
+} from '@/components/admin/catalog/media-manager';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,9 +31,13 @@ function titleFor(product: ProductRow) {
   );
 }
 
-export default async function ProductMediaPage({params}: {params: Promise<{productId: string}>}) {
+export default async function ProductMediaPage({
+  params
+}: {
+  params: Promise<{ productId: string }>;
+}) {
   await requireAdmin();
-  const {productId} = await params;
+  const { productId } = await params;
   const parsed = mediaProductIdSchema.safeParse(productId);
   if (!parsed.success) {
     notFound();
@@ -45,7 +54,7 @@ export default async function ProductMediaPage({params}: {params: Promise<{produ
       .from('product_media')
       .select('id, object_path, alt_text_vi, alt_text_en, display_order, is_primary')
       .eq('product_id', parsed.data)
-      .order('display_order', {ascending: true}),
+      .order('display_order', { ascending: true }),
     supabase
       .from('product_digital_assets')
       .select('file_name, content_type, byte_size, checksum_sha256, updated_at')
@@ -61,7 +70,8 @@ export default async function ProductMediaPage({params}: {params: Promise<{produ
   const images: MediaManagerImage[] = (mediaResult.data ?? []).map((image) => ({
     id: image.id,
     objectPath: image.object_path,
-    publicUrl: supabase.storage.from(PRODUCT_MEDIA_BUCKET).getPublicUrl(image.object_path).data.publicUrl,
+    publicUrl: supabase.storage.from(PRODUCT_MEDIA_BUCKET).getPublicUrl(image.object_path).data
+      .publicUrl,
     altTextVi: image.alt_text_vi,
     altTextEn: image.alt_text_en,
     displayOrder: image.display_order,
@@ -81,16 +91,24 @@ export default async function ProductMediaPage({params}: {params: Promise<{produ
     : null;
 
   return (
-    <main className="mx-auto w-full max-w-[960px] px-4 py-10 sm:px-6">
-      <Link href={`/admin/catalog/${product.id}`} className="mb-4 inline-flex text-sm font-semibold text-[var(--accent)]">
+    <AdminPageShell className="mx-auto max-w-[1040px]">
+      <Link
+        href={`/admin/catalog/${product.id}`}
+        className="mb-4 inline-flex text-sm font-semibold text-[var(--accent)]"
+      >
         Back to product
       </Link>
-      <div className="mb-6">
-        <p className="text-sm font-semibold uppercase text-[var(--accent)]">{product.status}</p>
-        <h1 className="text-3xl font-semibold">Media and private PDF</h1>
-        <p className="mt-2 text-[var(--muted)]">{titleFor(product)}</p>
-      </div>
-      <MediaManager productId={product.id} productType={product.product_type} images={images} asset={asset} />
-    </main>
+      <AdminPageHeader
+        eyebrow={product.status}
+        title="Media and private PDF"
+        description={titleFor(product)}
+      />
+      <MediaManager
+        productId={product.id}
+        productType={product.product_type}
+        images={images}
+        asset={asset}
+      />
+    </AdminPageShell>
   );
 }

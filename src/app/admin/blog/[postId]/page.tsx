@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import {requireAdmin} from '@/auth/guards';
-import {BlogPostForm} from '@/components/admin/blog/blog-post-form';
-import {getBlogOptions, getBlogPostForForm} from '@/content/blog/queries';
+import { requireAdmin } from '@/auth/guards';
+import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
+import { BlogPostForm } from '@/components/admin/blog/blog-post-form';
+import { getBlogOptions, getBlogPostForForm } from '@/content/blog/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,24 +10,32 @@ export default async function EditBlogPostPage({
   params,
   searchParams
 }: {
-  params: Promise<{postId: string}>;
-  searchParams: Promise<{saved?: string}>;
+  params: Promise<{ postId: string }>;
+  searchParams: Promise<{ saved?: string }>;
 }) {
   await requireAdmin();
-  const {postId} = await params;
-  const {saved} = await searchParams;
+  const { postId } = await params;
+  const { saved } = await searchParams;
   const [options, initialPost] = await Promise.all([getBlogOptions(), getBlogPostForForm(postId)]);
 
   return (
-    <main className="mx-auto w-full max-w-[960px] px-4 py-10 sm:px-6">
-      <Link href="/admin/blog" className="mb-4 inline-flex text-sm font-semibold text-[var(--accent)]">
+    <AdminPageShell className="mx-auto max-w-[1040px]">
+      <Link
+        href="/admin/blog"
+        className="mb-4 inline-flex text-sm font-semibold text-[var(--accent)]"
+      >
         Back to blog posts
       </Link>
-      <div className="mb-6">
-        <p className="text-sm font-semibold uppercase text-[var(--accent)]">{initialPost.status}</p>
-        <h1 className="text-3xl font-semibold">Edit blog post</h1>
-      </div>
-      <BlogPostForm {...options} initialPost={initialPost} initialNotice={saved === '1' ? 'saved' : undefined} />
-    </main>
+      <AdminPageHeader
+        eyebrow={initialPost.status}
+        title="Edit blog post"
+        description="Update localized content, metadata, publish timing, and storefront SEO support."
+      />
+      <BlogPostForm
+        {...options}
+        initialPost={initialPost}
+        initialNotice={saved === '1' ? 'saved' : undefined}
+      />
+    </AdminPageShell>
   );
 }

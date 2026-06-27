@@ -1,21 +1,31 @@
 import Link from 'next/link';
-import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
+import { ShieldAlert } from 'lucide-react';
+import { AdminPageShell } from '@/components/admin/admin-page';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function AdminForbiddenPage() {
   return (
-    <main className="mx-auto w-full max-w-[640px] px-4 py-10 sm:px-6">
-      <Card>
+    <AdminPageShell className="mx-auto max-w-[720px]">
+      <Card className="text-center">
         <CardHeader>
+          <div className="mx-auto flex size-12 items-center justify-center rounded-[var(--radius-control)] bg-[var(--destructive-surface)] text-[var(--destructive)]">
+            <ShieldAlert className="size-6" aria-hidden="true" />
+          </div>
           <p className="text-sm font-semibold uppercase text-[var(--accent)]">403</p>
           <CardTitle>Access denied</CardTitle>
-          <p className="text-base text-[var(--muted-foreground)]">This area is limited to database-authorized admins.</p>
+          <p className="text-base text-[var(--muted-foreground)]">
+            This area is limited to database-authorized admins.
+          </p>
         </CardHeader>
         <CardContent>
-          <Link className="font-semibold text-[var(--accent)] underline-offset-4 hover:underline" href="/en">
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+            href="/en"
+          >
             Return home
           </Link>
         </CardContent>
       </Card>
-    </main>
+    </AdminPageShell>
   );
 }

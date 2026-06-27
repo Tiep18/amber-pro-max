@@ -1,4 +1,6 @@
-import type {AdminNewsletterFilters, AdminNewsletterSubscriber} from '@/newsletter/admin-queries';
+import { Mail } from 'lucide-react';
+import { AdminEmptyState, AdminMetricCard, AdminStatusPill } from '@/components/admin/admin-page';
+import type { AdminNewsletterFilters, AdminNewsletterSubscriber } from '@/newsletter/admin-queries';
 
 type SubscriberListProps = {
   subscribers: AdminNewsletterSubscriber[];
@@ -20,10 +22,39 @@ function option(label: string, value: string) {
   return <option value={value}>{label}</option>;
 }
 
-export function SubscriberList({subscribers, filters}: SubscriberListProps) {
+export function SubscriberList({ subscribers, filters }: SubscriberListProps) {
+  const subscribedCount = subscribers.filter(
+    (subscriber) => subscriber.status === 'subscribed'
+  ).length;
+  const evidenceCount = subscribers.filter(
+    (subscriber) =>
+      subscriber.latestConsent?.hasIpEvidence || subscriber.latestConsent?.hasUserAgentEvidence
+  ).length;
+
   return (
     <section className="grid gap-4">
-      <form action="/admin/newsletter" className="grid gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 sm:grid-cols-[1.3fr_repeat(3,0.7fr)_auto]">
+      <section className="grid gap-4 sm:grid-cols-3">
+        <AdminMetricCard
+          label="Visible subscribers"
+          value={subscribers.length}
+          description="matching filters"
+        />
+        <AdminMetricCard
+          label="Subscribed"
+          value={subscribedCount}
+          description="currently active"
+        />
+        <AdminMetricCard
+          label="Evidence stored"
+          value={evidenceCount}
+          description="minimized consent proof"
+        />
+      </section>
+
+      <form
+        action="/admin/newsletter"
+        className="grid gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 sm:grid-cols-[1.3fr_repeat(3,0.7fr)_auto]"
+      >
         <label className="grid gap-1 text-sm font-semibold">
           Search email
           <input
@@ -34,7 +65,11 @@ export function SubscriberList({subscribers, filters}: SubscriberListProps) {
         </label>
         <label className="grid gap-1 text-sm font-semibold">
           Status
-          <select name="status" defaultValue={filters.status} className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--background)] px-3 font-normal">
+          <select
+            name="status"
+            defaultValue={filters.status}
+            className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--background)] px-3 font-normal"
+          >
             {option('All', 'all')}
             {option('Subscribed', 'subscribed')}
             {option('Unsubscribed', 'unsubscribed')}
@@ -42,7 +77,11 @@ export function SubscriberList({subscribers, filters}: SubscriberListProps) {
         </label>
         <label className="grid gap-1 text-sm font-semibold">
           Locale
-          <select name="locale" defaultValue={filters.locale} className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--background)] px-3 font-normal">
+          <select
+            name="locale"
+            defaultValue={filters.locale}
+            className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--background)] px-3 font-normal"
+          >
             {option('All', 'all')}
             {option('English', 'en')}
             {option('Vietnamese', 'vi')}
@@ -50,19 +89,32 @@ export function SubscriberList({subscribers, filters}: SubscriberListProps) {
         </label>
         <label className="grid gap-1 text-sm font-semibold">
           Market
-          <select name="market" defaultValue={filters.market} className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--background)] px-3 font-normal">
+          <select
+            name="market"
+            defaultValue={filters.market}
+            className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--background)] px-3 font-normal"
+          >
             {option('All', 'all')}
             {option('International', 'intl')}
             {option('Vietnam', 'vn')}
           </select>
         </label>
-        <button className="min-h-11 self-end rounded-[var(--radius-control)] bg-[var(--accent)] px-4 font-semibold text-white" type="submit">
+        <button
+          className="min-h-11 self-end rounded-[var(--radius-control)] bg-[var(--accent)] px-4 font-semibold text-white"
+          type="submit"
+        >
           Apply
         </button>
       </form>
 
       {subscribers.length === 0 ? (
-        <p className="rounded-[var(--radius-card)] border border-[var(--border)] p-4 text-[var(--muted-foreground)]">No subscribers match these filters.</p>
+        <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)]">
+          <AdminEmptyState
+            icon={Mail}
+            title="No subscribers match these filters."
+            description="Try widening the status, locale, or market filters."
+          />
+        </div>
       ) : (
         <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--border)]">
           <table className="w-full min-w-[880px] border-collapse text-left text-sm">
@@ -80,7 +132,13 @@ export function SubscriberList({subscribers, filters}: SubscriberListProps) {
               {subscribers.map((subscriber) => (
                 <tr key={subscriber.email} className="border-t border-[var(--border)]">
                   <td className="px-4 py-3 font-semibold">{subscriber.email}</td>
-                  <td className="px-4 py-3">{subscriber.status}</td>
+                  <td className="px-4 py-3">
+                    <AdminStatusPill
+                      tone={subscriber.status === 'subscribed' ? 'success' : 'default'}
+                    >
+                      {subscriber.status}
+                    </AdminStatusPill>
+                  </td>
                   <td className="px-4 py-3">{subscriber.latestLocale.toUpperCase()}</td>
                   <td className="px-4 py-3">{subscriber.latestMarket.toUpperCase()}</td>
                   <td className="px-4 py-3">
@@ -88,14 +146,19 @@ export function SubscriberList({subscribers, filters}: SubscriberListProps) {
                       <span>
                         {subscriber.latestConsent.eventType} / {subscriber.latestConsent.source}
                         <br />
-                        <span className="text-[var(--muted-foreground)]">{formatDate(subscriber.latestConsent.occurredAt)}</span>
+                        <span className="text-[var(--muted-foreground)]">
+                          {formatDate(subscriber.latestConsent.occurredAt)}
+                        </span>
                       </span>
                     ) : (
                       'None'
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {subscriber.latestConsent?.hasIpEvidence || subscriber.latestConsent?.hasUserAgentEvidence ? 'Has minimized evidence' : 'No evidence'}
+                    {subscriber.latestConsent?.hasIpEvidence ||
+                    subscriber.latestConsent?.hasUserAgentEvidence
+                      ? 'Has minimized evidence'
+                      : 'No evidence'}
                   </td>
                 </tr>
               ))}

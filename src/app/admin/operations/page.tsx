@@ -1,5 +1,7 @@
-import {requireAdmin} from '@/auth/guards';
-import {ErrorQueue} from '@/components/admin/operations/error-queue';
+import { requireAdmin } from '@/auth/guards';
+import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
+import { Alert, AlertTitle } from '@/components/ui/alert';
+import { ErrorQueue } from '@/components/admin/operations/error-queue';
 import {
   createAdminOperationalErrorsQueryClient,
   getAdminOperationalErrors,
@@ -16,7 +18,9 @@ function single(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-async function parseFilters(searchParams: PageProps['searchParams']): Promise<AdminOperationalErrorFilters> {
+async function parseFilters(
+  searchParams: PageProps['searchParams']
+): Promise<AdminOperationalErrorFilters> {
   const params = await searchParams;
   return {
     status: single(params?.status) as AdminOperationalErrorFilters['status'],
@@ -24,8 +28,8 @@ async function parseFilters(searchParams: PageProps['searchParams']): Promise<Ad
   };
 }
 
-export default async function AdminOperationsPage({searchParams}: PageProps) {
-  await requireAdmin({next: '/admin/operations'});
+export default async function AdminOperationsPage({ searchParams }: PageProps) {
+  await requireAdmin({ next: '/admin/operations' });
   const client = await createAdminOperationalErrorsQueryClient();
   const result = await getAdminOperationalErrors({
     client,
@@ -34,18 +38,22 @@ export default async function AdminOperationsPage({searchParams}: PageProps) {
   });
 
   return (
-    <main className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6">
-      <div className="mb-6">
-        <p className="text-sm font-semibold uppercase text-[var(--accent)]">Admin operations</p>
-        <h1 className="text-3xl font-semibold">Operational errors</h1>
-      </div>
+    <AdminPageShell>
+      <AdminPageHeader
+        eyebrow="Admin operations"
+        title="Operational errors"
+        description="Review sanitized application, payment, email, fulfillment, checkout, and admin errors without exposing secrets or unnecessary PII."
+      />
       {result.status === 'success' ? (
         <ErrorQueue errors={result.errors} filters={result.filters} />
       ) : (
-        <p role="alert" className="rounded-[var(--radius-card)] border border-[var(--border)] p-4">
-          Operational errors could not be loaded. Refresh the page or check server logs with sensitive data redacted.
-        </p>
+        <Alert variant="destructive">
+          <AlertTitle>Operational errors could not be loaded.</AlertTitle>
+          <p className="mt-1 text-sm">
+            Refresh the page or check server logs with sensitive data redacted.
+          </p>
+        </Alert>
       )}
-    </main>
+    </AdminPageShell>
   );
 }
