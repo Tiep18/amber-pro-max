@@ -89,16 +89,45 @@
     "switchToInternational": "Use international market"
   },
   "home": {
-    "eyebrow": "English",
-    "title": "Handmade crochet patterns and keepsakes",
-    "intro": "A calm bilingual foundation for a future handmade storefront serving Vietnam and international customers.",
-    "readinessLabel": "Foundation readiness",
-    "localizedTitle": "Localized from the first visit",
-    "localizedBody": "Public pages use explicit Vietnamese and English routes with equivalent language switching.",
-    "secureTitle": "Security boundaries first",
-    "secureBody": "Account and admin access will build on server-side checks and database-owned roles.",
-    "studioTitle": "Warm studio tone",
-    "studioBody": "The visual system keeps handmade character restrained, readable, and trustworthy."
+    "hero": {
+      "intro": "Handmade crochet friends and thoughtfully designed PDF patterns, created for small gifts that carry a lot of love.",
+      "handmadeCta": "Explore handmade goods",
+      "patternCta": "Browse PDF patterns",
+      "imageAlt": "Crochet bear, yarn and tools in the Ambertinybear studio"
+    },
+    "paths": {
+      "eyebrow": "Choose what you are looking for",
+      "title": "A finished keepsake or the joy of making it yourself?",
+      "handmadeTitle": "Handmade goods",
+      "handmadeBody": "Little companions crocheted with care, thoughtfully packed, and shipped to your door.",
+      "handmadeImageAlt": "Collection of handmade crochet animals and dolls",
+      "patternTitle": "PDF patterns",
+      "patternBody": "Downloadable crochet instructions released after payment confirmation, with no shipping wait.",
+      "patternImageAlt": "Crochet pattern pages, yarn and a work in progress on a studio table"
+    },
+    "featured": {
+      "handmadeTitle": "New handmade pieces from the studio",
+      "handmadeBody": "Each piece is limited and shown according to the market you have selected.",
+      "patternTitle": "Patterns for your next project",
+      "patternBody": "Receive private download access after the full order payment is confirmed.",
+      "viewHandmade": "View all handmade goods",
+      "viewPatterns": "View all patterns"
+    },
+    "benefits": {
+      "handmadeTitle": "Carefully made by hand",
+      "handmadeBody": "Every stitch and finishing detail is considered in the studio.",
+      "bilingualTitle": "A bilingual experience",
+      "bilingualBody": "Explore products and patterns clearly in Vietnamese or English.",
+      "secureTitle": "Made for your market",
+      "secureBody": "Pricing, payment, and fulfillment eligibility follow your selected market."
+    },
+    "story": {
+      "eyebrow": "Inside the studio",
+      "title": "Slowly making things worth keeping",
+      "body": "Ambertinybear is a small crochet studio where each piece and pattern is developed with patience, clarity, and the quiet joy of making by hand.",
+      "cta": "Visit the shop",
+      "imageAlt": "Hands crocheting a small bear at a bright studio table"
+    }
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -288,7 +317,7 @@
     }
   },
   "footer": {
-    "copyright": "Provisional handmade studio foundation",
+    "copyright": "Ambertinybear — handmade with care",
     "newsletter": {
       "title": "Studio newsletter",
       "consent": "Subscribe explicitly for shop news and unsubscribe from any email.",

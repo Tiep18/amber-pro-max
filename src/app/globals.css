@@ -1,14 +1,16 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
-  --background: #fff9f2;
-  --foreground: #2e2926;
+  --background: #f8f8f5;
+  --foreground: #292a27;
   --surface: #ffffff;
-  --surface-muted: #f5ede3;
-  --accent: #a6472d;
-  --accent-hover: #843823;
-  --muted-foreground: #6f655e;
-  --border: #dccfc2;
+  --surface-muted: #eef0eb;
+  --accent: #b84f3c;
+  --accent-hover: #933c2d;
+  --muted-foreground: #656961;
+  --border: #d9dcd4;
+  --trust-surface: #edf3ee;
+  --trust-accent: #376451;
   --success: #2f6b4f;
   --success-surface: #e9f4ed;
   --warning: #8a5a16;
@@ -17,8 +19,8 @@
   --destructive-surface: #fdecec;
   --admin-nav: #292623;
   --radius-control: 8px;
-  --radius-card: 12px;
-  --radius-surface: 16px;
+  --radius-card: 8px;
+  --radius-surface: 8px;
 }
 
 * {

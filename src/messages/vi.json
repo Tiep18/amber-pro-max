@@ -89,16 +89,45 @@
     "switchToInternational": "Dung thi truong quoc te"
   },
   "home": {
-    "eyebrow": "Vietnamese",
-    "title": "Mau moc va qua tang len thu cong",
-    "intro": "Nen tang song ngu am ap cho cua hang handmade phuc vu khach hang Viet Nam va quoc te.",
-    "readinessLabel": "Nen tang san sang",
-    "localizedTitle": "Ban dia hoa tu lan truy cap dau",
-    "localizedBody": "Trang cong khai dung duong dan tieng Viet va tieng Anh ro rang, voi chuyen ngon ngu tuong duong.",
-    "secureTitle": "Ranh gioi bao mat truoc tien",
-    "secureBody": "Tai khoan va quan tri se dua tren kiem tra phia server va vai tro do co so du lieu quan ly.",
-    "studioTitle": "Cam giac studio am ap",
-    "studioBody": "He thong hinh anh giu net thu cong vua du, de doc va dang tin cay."
+    "hero": {
+      "intro": "Thú bông đan móc thủ công và pattern PDF được tạo nên thật tỉ mỉ, dành cho những món quà nhỏ mang nhiều yêu thương.",
+      "handmadeCta": "Khám phá đồ handmade",
+      "patternCta": "Xem pattern PDF",
+      "imageAlt": "Gấu bông đan móc, len và dụng cụ trong studio Ambertinybear"
+    },
+    "paths": {
+      "eyebrow": "Chọn điều bạn đang tìm",
+      "title": "Một món quà hoàn thiện hay niềm vui tự tay làm?",
+      "handmadeTitle": "Đồ handmade",
+      "handmadeBody": "Những người bạn nhỏ được đan tay cẩn thận, đóng gói chu đáo và giao đến tận nơi.",
+      "handmadeImageAlt": "Bộ sưu tập thú bông và búp bê đan móc thủ công",
+      "patternTitle": "Pattern PDF",
+      "patternBody": "Hướng dẫn đan móc dạng PDF để bạn tải về sau khi thanh toán được xác nhận, không cần chờ giao hàng.",
+      "patternImageAlt": "Pattern đan móc, len và sản phẩm đang thực hiện trên bàn làm việc"
+    },
+    "featured": {
+      "handmadeTitle": "Đồ handmade mới từ studio",
+      "handmadeBody": "Mỗi sản phẩm có số lượng giới hạn và được hiển thị theo thị trường bạn đang chọn.",
+      "patternTitle": "Pattern để bắt đầu dự án tiếp theo",
+      "patternBody": "Tải hướng dẫn riêng tư sau khi toàn bộ đơn hàng được xác nhận thanh toán.",
+      "viewHandmade": "Xem tất cả đồ handmade",
+      "viewPatterns": "Xem tất cả pattern"
+    },
+    "benefits": {
+      "handmadeTitle": "Làm thủ công thật tỉ mỉ",
+      "handmadeBody": "Từng mũi đan và chi tiết hoàn thiện đều được chăm chút tại studio.",
+      "bilingualTitle": "Trải nghiệm song ngữ",
+      "bilingualBody": "Khám phá sản phẩm và pattern bằng tiếng Việt hoặc tiếng Anh rõ ràng.",
+      "secureTitle": "Mua đúng theo thị trường",
+      "secureBody": "Giá, thanh toán và quyền nhận hàng được kiểm soát theo thị trường của bạn."
+    },
+    "story": {
+      "eyebrow": "Trong studio",
+      "title": "Chậm rãi tạo nên những điều đáng giữ",
+      "body": "Ambertinybear là một studio đan móc nhỏ, nơi mỗi sản phẩm và pattern được phát triển với sự kiên nhẫn, rõ ràng và niềm vui của việc làm bằng tay.",
+      "cta": "Ghé thăm cửa hàng",
+      "imageAlt": "Đôi tay đang đan một chú gấu nhỏ trong studio sáng"
+    }
   },
   "auth": {
     "signInTitle": "Dang nhap",
@@ -288,7 +317,7 @@
     }
   },
   "footer": {
-    "copyright": "Nen tang studio handmade tam thoi",
+    "copyright": "Ambertinybear — handmade with care",
     "newsletter": {
       "title": "Ban tin cua studio",
       "consent": "Dang ky de nhan tin cua hang va huy dang ky tu bat ky email nao.",
