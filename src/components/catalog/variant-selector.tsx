@@ -1,7 +1,7 @@
 'use client';
 
 import {useMemo, useState} from 'react';
-import {formatMoney, type CurrencyCode} from '@/catalog/money';
+import type {CurrencyCode} from '@/catalog/money';
 
 export type PublicVariant = {
   variant_id: string;
@@ -41,7 +41,6 @@ export function VariantSelector({
   const [uncontrolledSelectedId, setUncontrolledSelectedId] = useState(firstAvailable?.variant_id ?? '');
   const selectedId = controlledSelectedId ?? uncontrolledSelectedId;
   const setSelectedId = onSelectedIdChange ?? setUncontrolledSelectedId;
-  const selected = variants.find((variant) => variant.variant_id === selectedId) ?? null;
 
   return (
     <fieldset className="grid gap-3">
@@ -73,14 +72,6 @@ export function VariantSelector({
           );
         })}
       </div>
-      {selected?.currency_code && selected.price_minor !== null ? (
-        <p className="text-xl font-semibold">
-          {formatMoney({
-            amountMinor: selected.price_minor,
-            currencyCode: selected.currency_code
-          })}
-        </p>
-      ) : null}
     </fieldset>
   );
 }

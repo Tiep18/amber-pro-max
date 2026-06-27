@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: "2026-06-24T02:44:28.000Z"
-last_activity: 2026-06-27 -- Completed quick task 260627-igr: redesign the Ambertinybear ecommerce homepage
+last_activity: 2026-06-27 -- Completed quick task 260627-product-detail-ui: upgrade product detail UI/UX
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 07 (content-seo-and-launch-readiness)
 Plan: 07-05 completed
 Status: Ready for Wave 6 final launch verification
-Last activity: 2026-06-27 - Completed quick task 260627-igr: redesign the Ambertinybear ecommerce homepage
+Last activity: 2026-06-27 - Completed quick task 260627-product-detail-ui: upgrade product detail UI/UX
 
 Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and Wave 6 can begin.
 
@@ -152,6 +152,7 @@ None yet.
 | 260625-its                            | Create an internal gsd-improve-advisor skill                                                                                     | 2026-06-25 | this commit | [260625-its-create-an-internal-gsd-improve-advisor-s](./quick/260625-its-create-an-internal-gsd-improve-advisor-s/) |
 | 260625-k3o                            | apply vetted improve fixes for downloads, admin newsletter dashboard, and stale README                                           | 2026-06-25 | this commit | [260625-k3o-apply-vetted-improve-fixes-for-downloads](./quick/260625-k3o-apply-vetted-improve-fixes-for-downloads/) |
 | 260627-igr                            | Redesign the Ambertinybear ecommerce homepage using the approved commerce-balanced layout and generated temporary studio imagery | 2026-06-27 | 421a073     | [260627-igr-redesign-the-ambertinybear-ecommerce-hom](./quick/260627-igr-redesign-the-ambertinybear-ecommerce-hom/) |
+| 260627-product-detail-ui              | Upgrade product detail UI/UX using the approved text-only product-detail design                                                  | 2026-06-27 | pending     | [260627-product-detail-ui](./quick/260627-product-detail-ui/)                                                       |
 
 ## Deferred Items
 

@@ -1,8 +1,10 @@
 import type {Metadata} from 'next';
+import Link from 'next/link';
+import {BadgeCheck, CreditCard, Download, MessageCircle, PackageCheck, RefreshCcw, ShieldCheck, Star, Truck} from 'lucide-react';
 import {getTranslations, setRequestLocale} from 'next-intl/server';
 import {notFound} from 'next/navigation';
 import type {Json} from '@/types/supabase';
-import {formatMoney} from '@/catalog/money';
+import type {CurrencyCode} from '@/catalog/money';
 import {localizedMetadata, publicStorageUrl} from '@/catalog/metadata';
 import {JsonLd, breadcrumbJsonLd, organizationJsonLd, productJsonLd, websiteJsonLd} from '@/content/seo/json-ld';
 import {getRequestMarket} from '@/catalog/page-context';
@@ -12,13 +14,15 @@ import {ProductGallery} from '@/components/catalog/product-gallery';
 import {UnavailableMarket} from '@/components/catalog/unavailable-market';
 import {AddToCart} from '@/components/catalog/add-to-cart';
 import {WishlistHeart} from '@/components/catalog/wishlist-heart';
-import {VariantSelector, type PublicVariant} from '@/components/catalog/variant-selector';
+import type {PublicVariant} from '@/components/catalog/variant-selector';
+import {ProductDetailTabs} from '@/components/catalog/product-detail-tabs';
 import {ProductReviews} from '@/components/reviews/product-reviews';
 import {ReviewForm} from '@/components/reviews/review-form';
 import {canReviewProduct} from '@/reviews/eligibility';
 import {getApprovedProductReviews} from '@/reviews/queries';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {
+  getCatalogPath,
   getProductPath,
   type Locale
 } from '@/i18n/routing';
@@ -70,6 +74,178 @@ function publicVariants(value: Json): PublicVariant[] {
   });
 }
 
+type ProductMediaImage = {
+  url: string;
+  alt: string;
+  objectPath: string;
+  isPrimary: boolean;
+  displayOrder: number;
+};
+
+async function productMediaImages({
+  productId,
+  primaryImagePath,
+  primaryImageBucket,
+  primaryImageAlt,
+  title,
+  locale
+}: {
+  productId: string;
+  primaryImagePath: string | null;
+  primaryImageBucket: string | null;
+  primaryImageAlt: string | null;
+  title: string;
+  locale: Locale;
+}): Promise<ProductMediaImage[]> {
+  const supabase = await createSupabaseServerClient();
+  const {data} = await supabase
+    .from('product_media')
+    .select('bucket_id,object_path,alt_text_vi,alt_text_en,display_order,is_primary')
+    .eq('product_id', productId)
+    .order('display_order', {ascending: true});
+  const mapped = (data ?? []).flatMap((image) => {
+    const url = publicStorageUrl(image.bucket_id, image.object_path);
+    if (!url) {
+      return [];
+    }
+    return [{
+      url,
+      objectPath: image.object_path,
+      alt: (locale === 'vi' ? image.alt_text_vi : image.alt_text_en) || primaryImageAlt || title,
+      isPrimary: image.is_primary,
+      displayOrder: image.display_order
+    }];
+  });
+
+  if (mapped.length > 0) {
+    return mapped.sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.displayOrder - b.displayOrder);
+  }
+
+  const primaryUrl = publicStorageUrl(primaryImageBucket, primaryImagePath);
+  return primaryUrl
+    ? [{url: primaryUrl, objectPath: primaryImagePath ?? primaryUrl, alt: primaryImageAlt || title, isPrimary: true, displayOrder: 0}]
+    : [];
+}
+
+function reviewAverage(reviews: Array<{rating: number}>) {
+  if (!reviews.length) {
+    return null;
+  }
+  return reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
+}
+
+function ReviewInlineSummary({
+  average,
+  count,
+  locale
+}: {
+  average: number | null;
+  count: number;
+  locale: Locale;
+}) {
+  if (!average || count === 0) {
+    return null;
+  }
+  return (
+    <a href="#reviews" className="flex w-fit flex-wrap items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
+      <span className="flex text-[var(--warning)]" aria-hidden="true">
+        {Array.from({length: 5}).map((_, index) => (
+          <Star key={index} className={`h-4 w-4 ${index < Math.round(average) ? 'fill-current' : ''}`} />
+        ))}
+      </span>
+      <span>{average.toFixed(1)}</span>
+      <span className="text-[var(--muted-foreground)]">
+        ({count} {locale === 'vi' ? 'danh gia' : 'reviews'})
+      </span>
+    </a>
+  );
+}
+
+function PurchaseInfo({productType, locale}: {productType: 'pdf_pattern' | 'physical_finished'; locale: Locale}) {
+  const isPdf = productType === 'pdf_pattern';
+  const items = isPdf
+    ? locale === 'vi'
+      ? [
+          {icon: Download, title: 'Tai ve sau thanh toan', body: 'Lien ket tai PDF duoc kich hoat khi don hang da thanh toan.'},
+          {icon: ShieldCheck, title: 'Link rieng co thoi han', body: 'File pattern duoc giao qua lien ket bao ve, khong phai URL cong khai.'}
+        ]
+      : [
+          {icon: Download, title: 'Download after payment', body: 'Your PDF link opens after the order is confirmed paid.'},
+          {icon: ShieldCheck, title: 'Protected expiring link', body: 'Pattern files are delivered through private, time-limited access.'}
+        ]
+    : locale === 'vi'
+      ? [
+          {icon: PackageCheck, title: 'Dong goi 1-2 ngay lam viec', body: 'Shop chuan bi va xac nhan phi ship truoc khi giao.'},
+          {icon: Truck, title: 'Giao hang thu cong', body: 'Theo doi trang thai va ma van don trong don hang sau khi gui.'}
+        ]
+      : [
+          {icon: PackageCheck, title: 'Packed in 1-2 business days', body: 'The shop prepares your handmade item and confirms shipping.'},
+          {icon: Truck, title: 'Manual carrier handling', body: 'Tracking and status are updated after dispatch.'}
+        ];
+
+  return (
+    <div className="grid gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-muted)] p-4">
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <div key={item.title} className="flex gap-3">
+            <Icon className="mt-0.5 h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-semibold">{item.title}</p>
+              <p className="text-sm text-[var(--muted-foreground)]">{item.body}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TrustBadges({productType, locale}: {productType: 'pdf_pattern' | 'physical_finished'; locale: Locale}) {
+  const isPdf = productType === 'pdf_pattern';
+  const badges = isPdf
+    ? locale === 'vi'
+      ? [
+          {icon: CreditCard, label: 'Thanh toan an toan'},
+          {icon: Download, label: 'PDF chat luong cao'},
+          {icon: BadgeCheck, label: 'Tai lai khi can'},
+          {icon: MessageCircle, label: 'Ho tro sau mua'}
+        ]
+      : [
+          {icon: CreditCard, label: 'Secure payment'},
+          {icon: Download, label: 'High-quality PDF'},
+          {icon: BadgeCheck, label: 'Download support'},
+          {icon: MessageCircle, label: 'Post-purchase help'}
+        ]
+    : locale === 'vi'
+      ? [
+          {icon: CreditCard, label: 'Thanh toan an toan'},
+          {icon: RefreshCcw, label: 'Ho tro doi tra'},
+          {icon: BadgeCheck, label: 'Lam thu cong'},
+          {icon: MessageCircle, label: 'Ho tro qua chat'}
+        ]
+      : [
+          {icon: CreditCard, label: 'Secure payment'},
+          {icon: RefreshCcw, label: 'Return support'},
+          {icon: BadgeCheck, label: 'Handmade item'},
+          {icon: MessageCircle, label: 'Chat support'}
+        ];
+
+  return (
+    <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+      {badges.map((badge) => {
+        const Icon = badge.icon;
+        return (
+          <div key={badge.label} className="flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--trust-surface)] px-3 py-2 text-[var(--trust-accent)]">
+            <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="font-semibold">{badge.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export async function generateMetadata({params}: {params: Params}): Promise<Metadata> {
   const {locale, productSlug} = await params;
   const market = await getRequestMarket();
@@ -109,16 +285,25 @@ export default async function ProductPage({params}: {params: Params}) {
   const imageUrl = publicStorageUrl(product.primary_image_bucket, product.primary_image_path) ?? null;
   const specs = stringRecord(product.specifications);
   const variants = publicVariants(product.variants);
-  const typeLabel = product.product_type === 'pdf_pattern' ? t('pdfPattern') : t('finishedItem');
+  const productType = product.product_type === 'physical_finished' ? 'physical_finished' : 'pdf_pattern';
+  const typeLabel = productType === 'pdf_pattern' ? t('pdfPattern') : t('finishedItem');
   const otherMarket = product.other_market_code === 'vn' || product.other_market_code === 'intl'
     ? product.other_market_code
     : null;
   const productPath = getProductPath(locale, product.slug);
   const supabase = await createSupabaseServerClient();
-  const [{data: authUser}, reviews, reviewEligibility] = await Promise.all([
+  const [{data: authUser}, reviews, reviewEligibility, mediaImages] = await Promise.all([
     supabase.auth.getUser(),
     getApprovedProductReviews({productId: product.product_id}),
-    canReviewProduct({productId: product.product_id, client: supabase as never})
+    canReviewProduct({productId: product.product_id, client: supabase as never}),
+    productMediaImages({
+      productId: product.product_id,
+      primaryImagePath: product.primary_image_path,
+      primaryImageBucket: product.primary_image_bucket,
+      primaryImageAlt: product.primary_image_alt,
+      title: product.title,
+      locale
+    })
   ]);
   const wishlistedProductIds = await getWishlistedProductIds({
     userId: authUser.user?.id,
@@ -126,6 +311,11 @@ export default async function ProductPage({params}: {params: Params}) {
     client: supabase as never
   });
   const canWriteReview = Boolean(authUser.user) && reviewEligibility.status === 'eligible';
+  const reviewList = reviews.status === 'success' ? reviews.reviews : [];
+  const averageRating = reviewAverage(reviewList);
+  const currencyCode: CurrencyCode | null = product.currency_code === 'VND' || product.currency_code === 'USD'
+    ? product.currency_code
+    : null;
 
   return (
     <>
@@ -149,70 +339,73 @@ export default async function ProductPage({params}: {params: Params}) {
         ]}
       />
       <main className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.8fr)] lg:px-10 xl:px-12">
-      <ProductGallery imageUrl={imageUrl} alt={product.primary_image_alt || product.title} />
-      <section className="grid content-start gap-5">
-        <span className="w-fit rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-2 py-1 text-sm font-semibold text-[var(--accent)]">
-          {typeLabel}
-        </span>
-        <div className="grid gap-3">
-          <div className="flex items-start justify-between gap-3">
-            <h1 className="text-[32px] font-semibold leading-tight">{product.title}</h1>
-            <WishlistHeart
-              productId={product.product_id}
-              productTitle={product.title}
-              locale={locale}
-              returnTo={productPath}
-              initiallySaved={wishlistedProductIds.has(product.product_id)}
-              labels={{
-                save: t('wishlist.save', {title: product.title}),
-                remove: t('wishlist.remove', {title: product.title}),
-                saving: t('wishlist.saving'),
-                removing: t('wishlist.removing')
-              }}
-            />
-          </div>
-          <p className="text-[var(--muted-foreground)]">{product.description}</p>
+        <div className="lg:sticky lg:top-6 lg:self-start">
+          <ProductGallery images={mediaImages} alt={product.primary_image_alt || product.title} />
         </div>
-        {product.product_type === 'pdf_pattern' ? (
-          <div className="grid gap-3">
-            <p className="font-semibold text-[var(--warning)]">{t('digitalWarning')}</p>
-            <dl className="grid grid-cols-2 gap-3 text-sm">
-              {specs.difficulty ? <><dt>{t('difficulty')}</dt><dd>{specs.difficulty}</dd></> : null}
-              {specs.file ? <><dt>{t('file')}</dt><dd>{specs.file}</dd></> : null}
-              {specs.languages ? <><dt>{t('languages')}</dt><dd>{specs.languages}</dd></> : null}
-            </dl>
+        <section className="grid content-start gap-5 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+          <nav aria-label="Breadcrumb" className="text-sm text-[var(--muted-foreground)]">
+            <ol className="flex flex-wrap items-center gap-2">
+              <li><Link className="hover:text-[var(--foreground)]" href={`/${locale}`}>{locale === 'vi' ? 'Trang chu' : 'Home'}</Link></li>
+              <li aria-hidden="true">/</li>
+              <li><Link className="hover:text-[var(--foreground)]" href={getCatalogPath(locale)}>{locale === 'vi' ? 'Cua hang' : 'Shop'}</Link></li>
+              <li aria-hidden="true">/</li>
+              <li className="font-semibold text-[var(--foreground)]">{product.title}</li>
+            </ol>
+          </nav>
+          <div className="flex items-center justify-between gap-3">
+            <span className="w-fit rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-2 py-1 text-sm font-semibold text-[var(--accent)]">
+              {typeLabel}
+            </span>
+            <WishlistHeart
+                productId={product.product_id}
+                productTitle={product.title}
+                locale={locale}
+                returnTo={productPath}
+                initiallySaved={wishlistedProductIds.has(product.product_id)}
+                labels={{
+                  save: t('wishlist.save', {title: product.title}),
+                  remove: t('wishlist.remove', {title: product.title}),
+                  saving: t('wishlist.saving'),
+                  removing: t('wishlist.removing')
+                }}
+              />
           </div>
-        ) : (
-          <p className="font-semibold">{t('shippingNote')}</p>
-        )}
-        {!product.available ? (
-          <UnavailableMarket
-            title={t('unavailableTitle')}
-            body={t('unavailableBody')}
-            otherMarket={otherMarket}
-            returnTo={productPath}
-            switchLabel={otherMarket === 'vn' ? marketT('switchToVietnam') : marketT('switchToInternational')}
-          />
-        ) : product.currency_code && product.price_minor !== null ? (
-          <p className="text-2xl font-semibold">
-            {formatMoney({
-              amountMinor: product.price_minor,
-              currencyCode: product.currency_code === 'VND' ? 'VND' : 'USD'
-            })}
-          </p>
-        ) : null}
-        {product.available ? (
-          <AddToCart
-            locale={locale}
-            market={market}
-            productId={product.product_id}
-            productType={product.product_type === 'physical_finished' ? 'physical_finished' : 'pdf_pattern'}
-            available={product.available}
-            inStock={product.in_stock}
-            variants={variants}
-          />
-        ) : null}
-        {canWriteReview ? (
+          <div className="grid gap-3">
+            <h1 className="text-[34px] font-semibold leading-tight">{product.title}</h1>
+            <ReviewInlineSummary average={averageRating} count={reviewList.length} locale={locale} />
+            <p className="text-[var(--muted-foreground)]">{product.description}</p>
+          </div>
+          <PurchaseInfo productType={productType} locale={locale} />
+          {!product.available ? (
+            <UnavailableMarket
+              title={t('unavailableTitle')}
+              body={t('unavailableBody')}
+              otherMarket={otherMarket}
+              returnTo={productPath}
+              switchLabel={otherMarket === 'vn' ? marketT('switchToVietnam') : marketT('switchToInternational')}
+            />
+          ) : null}
+          {product.available ? (
+            <AddToCart
+              locale={locale}
+              market={market}
+              title={product.title}
+              productId={product.product_id}
+              productType={productType}
+              available={product.available}
+              inStock={product.in_stock}
+              variants={variants}
+              priceMinor={product.price_minor}
+              currencyCode={currencyCode}
+            />
+          ) : null}
+          <TrustBadges productType={productType} locale={locale} />
+        </section>
+      </main>
+      <section className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 pb-14 sm:px-6 lg:px-10 xl:px-12">
+        <ProductDetailTabs locale={locale} productType={productType} description={product.description} specs={specs} />
+        <div id="reviews" className="scroll-mt-8">
+          {canWriteReview ? (
           <ReviewForm
             productId={product.product_id}
             locale={locale}
@@ -232,6 +425,7 @@ export default async function ProductPage({params}: {params: Params}) {
         {reviews.status === 'success' ? (
           <ProductReviews
             reviews={reviews.reviews}
+            locale={locale}
             labels={{
               title: catalogT('reviews.title'),
               empty: catalogT('reviews.empty'),
@@ -241,8 +435,8 @@ export default async function ProductPage({params}: {params: Params}) {
             }}
           />
         ) : null}
+        </div>
       </section>
-      </main>
     </>
   );
 }

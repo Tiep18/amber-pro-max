@@ -1,10 +1,30 @@
 import type {PublicProductReview} from '@/reviews/eligibility';
 
+function reviewAverage(reviews: PublicProductReview[]) {
+  if (!reviews.length) {
+    return 0;
+  }
+  return reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
+}
+
+function ratingCounts(reviews: PublicProductReview[]) {
+  return [5, 4, 3, 2, 1].map((rating) => ({
+    rating,
+    count: reviews.filter((review) => review.rating === rating).length
+  }));
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('en', {month: 'short', day: 'numeric', year: 'numeric'}).format(new Date(value));
+}
+
 export function ProductReviews({
   reviews,
+  locale,
   labels
 }: {
   reviews: PublicProductReview[];
+  locale: 'vi' | 'en';
   labels: {
     title: string;
     empty: string;
@@ -13,17 +33,62 @@ export function ProductReviews({
     shopReply: string;
   };
 }) {
+  const average = reviewAverage(reviews);
+  const counts = ratingCounts(reviews);
+  const maxCount = Math.max(...counts.map((item) => item.count), 1);
+  const reviewCountLabel = locale === 'vi' ? 'danh gia' : 'reviews';
+  const emptyDetail =
+    locale === 'vi'
+      ? 'Khach da mua co the gui cam nhan sau don hang. Cac danh gia duoc duyet se hien tai day.'
+      : 'Verified buyers can share notes after purchase. Approved reviews will appear here.';
+
   return (
-    <section className="grid gap-4 border-t border-[var(--border)] pt-6">
+    <section className="grid gap-5 border-t border-[var(--border)] pt-8">
       <h2 className="text-2xl font-semibold leading-tight">{labels.title}</h2>
       {reviews.length === 0 ? (
-        <p className="text-[var(--muted-foreground)]">{labels.empty}</p>
+        <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border)] bg-[var(--surface)] p-6">
+          <p className="font-semibold">{labels.empty}</p>
+          <p className="mt-2 max-w-2xl text-sm text-[var(--muted-foreground)]">
+            {emptyDetail}
+          </p>
+        </div>
       ) : (
-        <div className="grid gap-3">
+        <div className="grid gap-5">
+          <div className="grid gap-5 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-5 sm:grid-cols-[180px_1fr]">
+            <div>
+              <p className="text-4xl font-semibold">{average.toFixed(1)}</p>
+              <p className="mt-1 text-sm font-semibold text-[var(--warning)]" aria-label={`${labels.ratingLabel}: ${average.toFixed(1)}`}>
+                {'★'.repeat(Math.round(average))}{'☆'.repeat(5 - Math.round(average))}
+              </p>
+              <p className="mt-1 text-sm text-[var(--muted-foreground)]">{reviews.length} {reviewCountLabel}</p>
+            </div>
+            <div className="grid gap-2">
+              {counts.map((item) => (
+                <div key={item.rating} className="grid grid-cols-[42px_1fr_28px] items-center gap-3 text-sm">
+                  <span>{item.rating} {locale === 'vi' ? 'sao' : 'star'}</span>
+                  <span className="h-2 overflow-hidden rounded-full bg-[var(--surface-muted)]">
+                    <span
+                      className="block h-full rounded-full bg-[var(--accent)]"
+                      style={{width: `${(item.count / maxCount) * 100}%`}}
+                    />
+                  </span>
+                  <span className="text-right text-[var(--muted-foreground)]">{item.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
           {reviews.map((review) => (
             <article key={`${review.productId}-${review.approvedAt}-${review.maskedAuthor}`} className="rounded-[var(--radius-card)] border border-[var(--border)] p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="font-semibold">{review.maskedAuthor}</p>
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface-muted)] text-sm font-semibold">
+                    {review.maskedAuthor.slice(0, 1).toUpperCase()}
+                  </span>
+                  <div>
+                    <p className="font-semibold">{review.maskedAuthor}</p>
+                    <p className="text-xs text-[var(--muted-foreground)]">{formatDate(review.approvedAt)}</p>
+                  </div>
+                </div>
                 <span className="rounded-full bg-[var(--surface-muted)] px-2 py-1 text-sm font-semibold text-[var(--accent)]">
                   {labels.verifiedPurchase}
                 </span>
