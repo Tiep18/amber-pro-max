@@ -191,7 +191,7 @@
   },
   "account": {
     "title": "Account",
-    "intro": "Your Phase 1 account boundary is active.",
+    "intro": "Manage orders, PDF patterns, saved products, and shipping details in one place.",
     "email": "Email",
     "locale": "Active language",
     "passwordLink": "Reset password",

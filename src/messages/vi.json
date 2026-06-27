@@ -191,7 +191,7 @@
   },
   "account": {
     "title": "Tai khoan",
-    "intro": "Ranh gioi tai khoan Phase 1 dang hoat dong.",
+    "intro": "Quan ly don hang, pattern PDF, san pham da luu va dia chi giao hang tai mot noi.",
     "email": "Email",
     "locale": "Ngon ngu dang dung",
     "passwordLink": "Dat lai mat khau",
