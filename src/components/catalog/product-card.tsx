@@ -58,15 +58,15 @@ export async function ProductCard({
           />
         </div>
       </div>
-      <div className="grid gap-3 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-lg font-semibold leading-snug">{product.title}</h2>
+      <div className="grid gap-3 p-3 sm:p-4">
+        <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between sm:gap-3">
+          <h2 className="text-sm font-semibold leading-snug sm:text-lg">{product.title}</h2>
           <span className="shrink-0 rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-2 py-1 text-xs font-semibold text-[var(--accent)]">
             {badge}
           </span>
         </div>
-        <p className="line-clamp-2 text-sm text-[var(--muted-foreground)]">{product.description}</p>
-        <div className="flex items-center justify-between gap-3">
+        <p className="hidden line-clamp-2 text-sm text-[var(--muted-foreground)] sm:block">{product.description}</p>
+        <div className="grid items-start gap-3 sm:flex sm:items-center sm:justify-between">
           <div>
             <p className="font-semibold">
               {formatMoney({amountMinor: product.price_minor, currencyCode})}

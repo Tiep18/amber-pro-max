@@ -21,7 +21,7 @@ export function CatalogResultGrid({
   children: ReactNode;
   resultKey: string;
   labels: {
-    showing: (visible: number, total: number) => string;
+    showing: string;
     loadMore: string;
   };
 }) {
@@ -39,7 +39,7 @@ export function CatalogResultGrid({
   return (
     <div className="grid gap-6">
       <p className="sr-only" aria-live="polite">
-        {labels.showing(visibleCount, items.length)}
+        {labels.showing.replace('{visible}', String(visibleCount)).replace('{total}', String(items.length))}
       </p>
       <section
         data-testid="catalog-product-grid"

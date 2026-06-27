@@ -8,10 +8,14 @@ import {Button} from './button';
 export function Sheet({
   triggerLabel,
   title,
+  closeLabel = 'Close menu',
+  showTriggerLabel = false,
   children
 }: {
   triggerLabel: string;
   title: string;
+  closeLabel?: string;
+  showTriggerLabel?: boolean;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -21,18 +25,18 @@ export function Sheet({
     <>
       <Button
         variant="secondary"
-        className="min-h-11 px-3 md:hidden"
+        className="min-h-11 gap-2 px-3 md:hidden"
         aria-expanded={open}
         aria-controls={titleId}
         onClick={() => setOpen(true)}
       >
         <Menu aria-hidden="true" className="h-5 w-5" />
-        <span className="sr-only">{triggerLabel}</span>
+        <span className={showTriggerLabel ? '' : 'sr-only'}>{triggerLabel}</span>
       </Button>
       {open ? (
         <div className="fixed inset-0 z-50 md:hidden">
           <button
-            aria-label="Close menu"
+            aria-label={closeLabel}
             className="absolute inset-0 h-full w-full bg-black/20"
             onClick={() => setOpen(false)}
           />
@@ -46,7 +50,7 @@ export function Sheet({
               </h2>
               <Button variant="ghost" className="min-h-11 px-3" onClick={() => setOpen(false)}>
                 <X aria-hidden="true" className="h-5 w-5" />
-                <span className="sr-only">Close menu</span>
+                <span className="sr-only">{closeLabel}</span>
               </Button>
             </div>
             {children}
