@@ -1,13 +1,13 @@
 'use client';
 
-import {formatMoney} from '@/catalog/money';
-import {getCheckoutPath, type Locale} from '@/i18n/routing';
-import {Alert} from '@/components/ui/alert';
-import {Button} from '@/components/ui/button';
-import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
-import {Separator} from '@/components/ui/separator';
-import {useCart} from './cart-provider';
-import {CartLine} from './cart-line';
+import { formatMoney } from '@/catalog/money';
+import { getCheckoutPath, type Locale } from '@/i18n/routing';
+import { Alert } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { useCart } from './cart-provider';
+import { CartLine } from './cart-line';
 
 const copy = {
   en: {
@@ -52,12 +52,12 @@ const copy = {
   }
 } as const;
 
-export function CartPageContent({locale}: {locale: Locale}) {
+export function CartPageContent({ locale }: { locale: Locale }) {
   const t = copy[locale];
-  const {quote, cart, pending, updateQuantity, removeLine, removedLine, undoRemove} = useCart();
+  const { quote, cart, pending, updateQuantity, removeLine, removedLine, undoRemove } = useCart();
   const hasBlocking = quote?.status === 'blocked';
   const money = quote?.currencyCode
-    ? formatMoney({amountMinor: quote.subtotalMinor, currencyCode: quote.currencyCode})
+    ? formatMoney({ amountMinor: quote.subtotalMinor, currencyCode: quote.currencyCode })
     : '-';
 
   return (
@@ -70,7 +70,9 @@ export function CartPageContent({locale}: {locale: Locale}) {
         {removedLine ? (
           <Alert variant="success" className="flex items-center justify-between gap-4">
             <span>{t.removed}</span>
-            <Button variant="ghost" onClick={() => void undoRemove()}>{t.undo}</Button>
+            <Button variant="ghost" onClick={() => void undoRemove()}>
+              {t.undo}
+            </Button>
           </Alert>
         ) : null}
         {hasBlocking ? <Alert variant="destructive">{t.blocked}</Alert> : null}
@@ -86,13 +88,16 @@ export function CartPageContent({locale}: {locale: Locale}) {
         ) : (
           <div className="grid gap-4" aria-busy={pending}>
             {quote.lines.map((line) => {
-              const intent = cart?.lines.find((candidate) => candidate.productId === line.productId && (candidate.variantId ?? null) === line.variantId);
+              const intent = cart?.lines.find(
+                (candidate) =>
+                  candidate.productId === line.productId &&
+                  (candidate.variantId ?? null) === line.variantId
+              );
               return (
                 <CartLine
                   key={line.lineId}
                   line={line}
                   intentLine={intent}
-                  locale={locale}
                   copy={t}
                   onQuantity={(quantity) => intent && void updateQuantity(intent, quantity)}
                   onRemove={() => intent && removeLine(intent)}
@@ -119,7 +124,9 @@ export function CartPageContent({locale}: {locale: Locale}) {
             <span>{money}</span>
           </div>
           {hasBlocking || !quote?.lines.length ? (
-            <Button className="w-full" disabled>{t.checkout}</Button>
+            <Button className="w-full" disabled>
+              {t.checkout}
+            </Button>
           ) : (
             <a
               className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-base font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"

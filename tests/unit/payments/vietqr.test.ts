@@ -1,4 +1,4 @@
-import {describe, expect, test, vi} from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
@@ -8,7 +8,11 @@ import {
   compareVietQrEvidence,
   type VietQrExpectedPayment
 } from '@/payments/vietqr/evidence';
-import {getVietQrInstructions, type VietQrInstructionOrder, type VietQrServerConfig} from '@/payments/vietqr/instructions';
+import {
+  getVietQrInstructions,
+  type VietQrInstructionOrder,
+  type VietQrServerConfig
+} from '@/payments/vietqr/instructions';
 
 const vietQrInstructionContract = {
   market: 'vn',
@@ -70,47 +74,63 @@ function createActionClient({
     },
     timeline: []
   },
-  transition = {status: 'applied', paymentStatus: 'paid', inventoryEffect: 'finalized'}
+  transition = { status: 'applied', paymentStatus: 'paid', inventoryEffect: 'finalized' }
 }: {
   detail?: Record<string, unknown>;
   transition?: Record<string, unknown>;
 } = {}) {
   return {
     detail,
-    rpc: vi.fn(async (_fn: string, _args: {p_payload: Record<string, unknown>}) => ({data: transition, error: null}))
+    rpc: vi.fn(async (fn: string, args: { p_payload: Record<string, unknown> }) => {
+      void fn;
+      void args;
+      return { data: transition, error: null };
+    })
   };
 }
 
 async function importAdminActions({
   client = createActionClient(),
-  requireAdmin = vi.fn(async () => ({id: 'admin-user'}))
+  requireAdmin = vi.fn(async () => ({ id: 'admin-user' }))
 }: {
   client?: ReturnType<typeof createActionClient>;
   requireAdmin?: ReturnType<typeof vi.fn>;
 } = {}) {
   vi.resetModules();
   vi.doMock('server-only', () => ({}));
-  vi.doMock('next/cache', () => ({revalidatePath: vi.fn()}));
-  vi.doMock('@/auth/guards', () => ({requireAdmin}));
+  vi.doMock('next/cache', () => ({ revalidatePath: vi.fn() }));
+  vi.doMock('@/auth/guards', () => ({ requireAdmin }));
   vi.doMock('@/payments/queries', () => ({
     createAdminOrderQueryClient: vi.fn(async () => client),
-    getAdminOrderDetail: vi.fn(async () => ({status: 'success', order: client.detail}))
+    getAdminOrderDetail: vi.fn(async () => ({ status: 'success', order: client.detail }))
   }));
   vi.doMock('@/payments/transitions', () => ({
-    applyPaymentTransition: vi.fn(async (input: unknown, rpcClient: {rpc: typeof client.rpc}) => {
-      const {data} = await rpcClient.rpc('apply_payment_transition', {p_payload: input as Record<string, unknown>});
+    applyPaymentTransition: vi.fn(async (input: unknown, rpcClient: { rpc: typeof client.rpc }) => {
+      const { data } = await rpcClient.rpc('apply_payment_transition', {
+        p_payload: input as Record<string, unknown>
+      });
       return data;
     })
   }));
   vi.doMock('@/fulfillment/email-outbox.server', () => ({
-    triggerTransactionalEmailOutboxNow: vi.fn(async () => ({status: 'processed', claimed: 1, sent: 1, retry: 0, failed: 0}))
+    triggerTransactionalEmailOutboxNow: vi.fn(async () => ({
+      status: 'processed',
+      claimed: 1,
+      sent: 1,
+      retry: 0,
+      failed: 0
+    }))
   }));
   const actions = await import('@/payments/admin-actions');
   const transitions = await import('@/payments/transitions');
   const emailOutbox = await import('@/fulfillment/email-outbox.server');
   return {
-    confirmVietQrPaymentAction: actions.confirmVietQrPaymentAction as (formData: FormData) => Promise<unknown>,
-    rejectVietQrPaymentAction: actions.rejectVietQrPaymentAction as (formData: FormData) => Promise<unknown>,
+    confirmVietQrPaymentAction: actions.confirmVietQrPaymentAction as (
+      formData: FormData
+    ) => Promise<unknown>,
+    rejectVietQrPaymentAction: actions.rejectVietQrPaymentAction as (
+      formData: FormData
+    ) => Promise<unknown>,
     applyPaymentTransition: vi.mocked(transitions.applyPaymentTransition),
     triggerTransactionalEmailOutboxNow: vi.mocked(emailOutbox.triggerTransactionalEmailOutboxNow),
     requireAdmin,
@@ -167,7 +187,9 @@ describe('VietQR instruction and evidence contract', () => {
     }
 
     const qrUrl = new URL(result.instruction.qrImageUrl);
-    expect(qrUrl.origin + qrUrl.pathname).toBe('https://img.vietqr.io/image/VCB-1234567890-compact2.png');
+    expect(qrUrl.origin + qrUrl.pathname).toBe(
+      'https://img.vietqr.io/image/VCB-1234567890-compact2.png'
+    );
     expect(qrUrl.searchParams.get('amount')).toBe('250000');
     expect(qrUrl.searchParams.get('addInfo')).toBe(order.orderNumber);
     expect(qrUrl.searchParams.get('accountName')).toBe('Amber Tiny Bear');
@@ -189,29 +211,29 @@ describe('VietQR instruction and evidence contract', () => {
     await expect(
       getVietQrInstructions({
         config,
-        order: {...order, market: 'intl', currencyCode: 'USD', paymentIntent: 'paypal_intent'},
+        order: { ...order, market: 'intl', currencyCode: 'USD', paymentIntent: 'paypal_intent' },
         now: new Date('2026-06-16T09:00:00.000Z')
       })
-    ).resolves.toEqual({status: 'invalid', code: 'vietqr_order_not_eligible'});
+    ).resolves.toEqual({ status: 'invalid', code: 'vietqr_order_not_eligible' });
     await expect(
       getVietQrInstructions({
         config,
-        order: {...order, amountMinor: 0},
+        order: { ...order, amountMinor: 0 },
         now: new Date('2026-06-16T09:00:00.000Z')
       })
-    ).resolves.toEqual({status: 'invalid', code: 'invalid_vietqr_amount'});
+    ).resolves.toEqual({ status: 'invalid', code: 'invalid_vietqr_amount' });
     await expect(
       getVietQrInstructions({
         config,
-        order: {...order, reservationExpiresAt: '2026-06-16T08:59:59.000Z'},
+        order: { ...order, reservationExpiresAt: '2026-06-16T08:59:59.000Z' },
         now: new Date('2026-06-16T09:00:00.000Z')
       })
-    ).resolves.toEqual({status: 'invalid', code: 'vietqr_payment_window_closed'});
+    ).resolves.toEqual({ status: 'invalid', code: 'vietqr_payment_window_closed' });
   });
 
   test('records the instruction snapshot once through the shared transition source without opening paid state', async () => {
     const rpc = vi.fn(async () => ({
-      data: {status: 'applied', paymentStatus: 'pending', inventoryEffect: 'none'},
+      data: { status: 'applied', paymentStatus: 'pending', inventoryEffect: 'none' },
       error: null
     }));
 
@@ -219,7 +241,7 @@ describe('VietQR instruction and evidence contract', () => {
       config,
       order,
       now: new Date('2026-06-16T09:00:00.000Z'),
-      transitionClient: {rpc}
+      transitionClient: { rpc }
     });
 
     expect(result.status).toBe('ready');
@@ -244,9 +266,12 @@ describe('VietQR instruction and evidence contract', () => {
     rpc.mockClear();
     const duplicate = await getVietQrInstructions({
       config,
-      order: {...order, existingInstruction: result.status === 'ready' ? result.instruction : null},
+      order: {
+        ...order,
+        existingInstruction: result.status === 'ready' ? result.instruction : null
+      },
       now: new Date('2026-06-16T09:00:00.000Z'),
-      transitionClient: {rpc}
+      transitionClient: { rpc }
     });
 
     expect(duplicate).toEqual({
@@ -264,7 +289,7 @@ describe('VietQR instruction and evidence contract', () => {
       idempotencyKey: 'admin-confirm-atb-20260615-0002'
     });
 
-    expect(comparison).toEqual({status: 'matched'});
+    expect(comparison).toEqual({ status: 'matched' });
     expect(
       buildVietQrConfirmTransition({
         expected: expectedPayment,
@@ -298,7 +323,7 @@ describe('VietQR instruction and evidence contract', () => {
         receivedAt: '2026-06-16T09:05:00.000Z',
         idempotencyKey: 'admin-confirm-atb-20260615-0002'
       })
-    ).toEqual({status: 'mismatch', code: 'vietqr_reference_mismatch'});
+    ).toEqual({ status: 'mismatch', code: 'vietqr_reference_mismatch' });
     expect(
       compareVietQrEvidence(expectedPayment, {
         bankReference: order.orderNumber,
@@ -306,7 +331,7 @@ describe('VietQR instruction and evidence contract', () => {
         receivedAt: '2026-06-16T09:05:00.000Z',
         idempotencyKey: 'admin-confirm-atb-20260615-0002'
       })
-    ).toEqual({status: 'mismatch', code: 'vietqr_amount_mismatch'});
+    ).toEqual({ status: 'mismatch', code: 'vietqr_amount_mismatch' });
     expect(
       buildVietQrRejectTransition({
         expected: expectedPayment,
@@ -330,11 +355,17 @@ describe('VietQR instruction and evidence contract', () => {
   });
 
   test('admin actions authorize before parsing and delegate exact confirmation to the shared transition command', async () => {
-    const {confirmVietQrPaymentAction, applyPaymentTransition, triggerTransactionalEmailOutboxNow, requireAdmin, client} = await importAdminActions();
+    const {
+      confirmVietQrPaymentAction,
+      applyPaymentTransition,
+      triggerTransactionalEmailOutboxNow,
+      requireAdmin,
+      client
+    } = await importAdminActions();
 
     const result = await confirmVietQrPaymentAction(confirmForm());
 
-    expect(result).toEqual({status: 'confirmed', paymentStatus: 'paid'});
+    expect(result).toEqual({ status: 'confirmed', paymentStatus: 'paid' });
     expect(requireAdmin).toHaveBeenCalledOnce();
     expect(applyPaymentTransition).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -346,7 +377,9 @@ describe('VietQR instruction and evidence contract', () => {
       }),
       client
     );
-    expect(triggerTransactionalEmailOutboxNow).toHaveBeenCalledWith({reason: 'vietqr_admin_paid'});
+    expect(triggerTransactionalEmailOutboxNow).toHaveBeenCalledWith({
+      reason: 'vietqr_admin_paid'
+    });
   });
 
   test('non-admin, stale and duplicate VietQR actions cannot create repeated or regressive effects', async () => {
@@ -354,9 +387,11 @@ describe('VietQR instruction and evidence contract', () => {
       throw new Error('not-admin');
     });
     const deniedClient = createActionClient();
-    const denied = await importAdminActions({client: deniedClient, requireAdmin: deniedAdmin});
+    const denied = await importAdminActions({ client: deniedClient, requireAdmin: deniedAdmin });
 
-    await expect(denied.confirmVietQrPaymentAction(confirmForm({receivedAmountMinor: 'not-a-number'}))).rejects.toThrow('not-admin');
+    await expect(
+      denied.confirmVietQrPaymentAction(confirmForm({ receivedAmountMinor: 'not-a-number' }))
+    ).rejects.toThrow('not-admin');
     expect(deniedClient.rpc).not.toHaveBeenCalled();
 
     const stale = await importAdminActions({
@@ -380,7 +415,9 @@ describe('VietQR instruction and evidence contract', () => {
     });
 
     const duplicate = await importAdminActions({
-      client: createActionClient({transition: {status: 'duplicate', paymentStatus: 'paid', inventoryEffect: 'none'}})
+      client: createActionClient({
+        transition: { status: 'duplicate', paymentStatus: 'paid', inventoryEffect: 'none' }
+      })
     });
     await expect(duplicate.confirmVietQrPaymentAction(confirmForm())).resolves.toEqual({
       status: 'duplicate',

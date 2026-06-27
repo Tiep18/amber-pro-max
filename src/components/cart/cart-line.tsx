@@ -1,11 +1,10 @@
 'use client';
 
-import {FileText, Package, Trash2} from 'lucide-react';
-import {formatMoney} from '@/catalog/money';
-import type {Locale} from '@/i18n/routing';
-import type {CartIntentLine} from '@/cart/types';
-import type {CartQuoteLine} from '@/checkout/types';
-import {Button} from '@/components/ui/button';
+import { FileText, Package, Trash2 } from 'lucide-react';
+import { formatMoney } from '@/catalog/money';
+import type { CartIntentLine } from '@/cart/types';
+import type { CartQuoteLine } from '@/checkout/types';
+import { Button } from '@/components/ui/button';
 
 type CartCopy = {
   pdf: string;
@@ -20,21 +19,22 @@ type CartCopy = {
 export function CartLine({
   line,
   intentLine,
-  locale,
   copy,
   onQuantity,
   onRemove
 }: {
   line: CartQuoteLine;
   intentLine?: CartIntentLine;
-  locale: Locale;
   copy: CartCopy;
   onQuantity?: (quantity: number) => void;
   onRemove?: () => void;
 }) {
   const typeLabel = line.fulfillmentType === 'digital' ? copy.pdf : copy.physical;
   const Icon = line.fulfillmentType === 'digital' ? FileText : Package;
-  const price = formatMoney({amountMinor: line.lineSubtotalMinor, currencyCode: line.currencyCode});
+  const price = formatMoney({
+    amountMinor: line.lineSubtotalMinor,
+    currencyCode: line.currencyCode
+  });
   const disabled = !intentLine;
 
   return (
@@ -45,7 +45,9 @@ export function CartLine({
           {typeLabel}
         </span>
         <h2 className="text-lg font-semibold">{line.title}</h2>
-        {line.variantLabel ? <p className="text-sm text-[var(--muted-foreground)]">{line.variantLabel}</p> : null}
+        {line.variantLabel ? (
+          <p className="text-sm text-[var(--muted-foreground)]">{line.variantLabel}</p>
+        ) : null}
         {line.status === 'unavailable' || line.status === 'invalid_variant' ? (
           <p className="text-sm font-semibold text-[var(--destructive)]">{copy.unavailable}</p>
         ) : null}
@@ -80,7 +82,12 @@ export function CartLine({
             +
           </Button>
         </div>
-        <Button variant="ghost" className="gap-2 text-[var(--destructive)]" disabled={disabled} onClick={onRemove}>
+        <Button
+          variant="ghost"
+          className="gap-2 text-[var(--destructive)]"
+          disabled={disabled}
+          onClick={onRemove}
+        >
           <Trash2 aria-hidden="true" className="h-4 w-4" />
           <span>{copy.remove}</span>
           <span className="sr-only">{line.title}</span>

@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-06-27 -- Completed quick task 260627-admin-taxonomy-navigation: add admin taxonomy and navigation
+last_activity: 2026-06-28 -- Completed quick task 260628-clean-lint-warnings: remove lint warnings
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 07 (content-seo-and-launch-readiness)
 Plan: 07-05 completed
 Status: Ready for Wave 6 final launch verification
-Last activity: 2026-06-27 - Completed quick task 260627-admin-taxonomy-navigation: add admin taxonomy and navigation
+Last activity: 2026-06-28 - Completed quick task 260628-clean-lint-warnings: remove lint warnings
 
 Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and Wave 6 can begin.
 
@@ -159,6 +159,7 @@ None yet.
 | 260627-admin-pages-ux                 | Upgrade admin Phase 1 UI/UX with grouped shell, attention dashboard, orders queue, and catalog queue                             | 2026-06-27 | pending     | [260627-admin-pages-ux](./quick/260627-admin-pages-ux/)                                                             |
 | 260627-admin-remaining-pages-ux       | Upgrade remaining admin UI/UX across moderation, commerce, content, system, and detail pages                                     | 2026-06-27 | pending     | [260627-admin-remaining-pages-ux](./quick/260627-admin-remaining-pages-ux/)                                         |
 | 260627-admin-taxonomy-navigation      | Add admin navigation for commerce pages and taxonomy management for catalog and blog content                                     | 2026-06-27 | pending     | [260627-admin-taxonomy-navigation](./quick/260627-admin-taxonomy-navigation/)                                       |
+| 260628-clean-lint-warnings            | Remove existing ESLint unused-variable warnings without changing behavior                                                        | 2026-06-28 | pending     | [260628-clean-lint-warnings](./quick/260628-clean-lint-warnings/)                                                   |
 
 ### Debug Sessions Resolved
 

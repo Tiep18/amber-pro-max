@@ -106,7 +106,6 @@ export function MiniCart({ locale }: { locale: Locale }) {
                     key={line.lineId}
                     line={line}
                     intentLine={intent}
-                    locale={locale}
                     copy={t}
                     onQuantity={(quantity) => intent && void updateQuantity(intent, quantity)}
                     onRemove={() => intent && removeLine(intent)}

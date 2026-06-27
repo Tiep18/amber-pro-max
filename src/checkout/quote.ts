@@ -1,17 +1,15 @@
-import {createHash} from 'node:crypto';
-import type {CurrencyCode} from '@/catalog/money';
-import {getCatalogProductBySlug, listCatalogProducts} from '@/catalog/queries';
-import type {Json} from '@/types/supabase';
-import {cartIntentLineSchema, cartLineKey, type CartIntentLine} from '@/cart/types';
+import { createHash } from 'node:crypto';
+import type { CurrencyCode } from '@/catalog/money';
+import { getCatalogProductBySlug, listCatalogProducts } from '@/catalog/queries';
+import type { Json } from '@/types/supabase';
+import { cartIntentLineSchema, cartLineKey, type CartIntentLine } from '@/cart/types';
 import {
-  allocateDiscount,
   validateDiscountCode,
   type DiscountAllocation,
-  type DiscountFailureReason,
   type DiscountQuoteLine,
   type DiscountRule
 } from './discounts';
-import {calculateShippingQuote, type ShippingRuleQuote} from './shipping';
+import { calculateShippingQuote, type ShippingRuleQuote } from './shipping';
 import {
   type CartQuote,
   type CartQuoteLine,
@@ -49,7 +47,10 @@ export type QuoteCatalogProduct = {
   shippingRule?: ShippingRuleQuote | null;
 };
 
-type CatalogLoader = (productIds: string[], input: QuoteCartInput) => Promise<QuoteCatalogProduct[]>;
+type CatalogLoader = (
+  productIds: string[],
+  input: QuoteCartInput
+) => Promise<QuoteCatalogProduct[]>;
 
 type QuoteCartInternalInput = QuoteCartInput & {
   catalog?: CatalogLoader;
@@ -114,15 +115,19 @@ function publicVariants(value: Json): QuoteCatalogVariant[] {
         label: variantLabel(attributes, row.sku),
         enabled: row.enabled,
         inStock: row.stock,
-        availableQuantity: typeof row.available_quantity === 'number' ? row.available_quantity : null,
-        currencyCode: row.currency_code === 'VND' || row.currency_code === 'USD' ? row.currency_code : null,
+        availableQuantity:
+          typeof row.available_quantity === 'number' ? row.available_quantity : null,
+        currencyCode:
+          row.currency_code === 'VND' || row.currency_code === 'USD' ? row.currency_code : null,
         priceMinor: typeof row.price_minor === 'number' ? row.price_minor : null
       }
     ];
   });
 }
 
-function mapDetailProduct(product: Awaited<ReturnType<typeof getCatalogProductBySlug>>): QuoteCatalogProduct | null {
+function mapDetailProduct(
+  product: Awaited<ReturnType<typeof getCatalogProductBySlug>>
+): QuoteCatalogProduct | null {
   if (!product) {
     return null;
   }
@@ -148,7 +153,7 @@ async function loadDiscountRule(input: QuoteCartInput): Promise<DiscountRule | n
   if (!code || !input.client) {
     return null;
   }
-  const {data, error} = await input.client.rpc('get_checkout_discount_code', {p_code: code});
+  const { data, error } = await input.client.rpc('get_checkout_discount_code', { p_code: code });
   if (error || !data || data.length === 0) {
     return null;
   }
@@ -159,7 +164,8 @@ async function loadDiscountRule(input: QuoteCartInput): Promise<DiscountRule | n
     discountType: row.discount_type === 'fixed' ? 'fixed' : 'percentage',
     percentageBps: row.percentage_bps,
     amountMinor: row.amount_minor,
-    currencyCode: row.currency_code === 'VND' || row.currency_code === 'USD' ? row.currency_code : null,
+    currencyCode:
+      row.currency_code === 'VND' || row.currency_code === 'USD' ? row.currency_code : null,
     market: row.market === 'vn' || row.market === 'intl' ? row.market : null,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
@@ -178,7 +184,7 @@ async function attachDiscountScopes(products: QuoteCatalogProduct[], input: Quot
   if (!input.client || products.length === 0) {
     return products;
   }
-  const {data, error} = await input.client.rpc('get_checkout_product_discount_scopes', {
+  const { data, error } = await input.client.rpc('get_checkout_product_discount_scopes', {
     p_product_ids: products.map((product) => product.productId)
   });
   if (error) {
@@ -195,19 +201,24 @@ async function attachDiscountScopes(products: QuoteCatalogProduct[], input: Quot
   );
   return products.map((product) => {
     const scopes = scopesByProduct.get(product.productId);
-    return scopes ? {...product, categoryIds: scopes.categoryIds, collectionIds: scopes.collectionIds} : product;
+    return scopes
+      ? { ...product, categoryIds: scopes.categoryIds, collectionIds: scopes.collectionIds }
+      : product;
   });
 }
 
 async function loadCatalogProducts(productIds: string[], input: QuoteCartInput) {
-  const listed = await listCatalogProducts({locale: input.locale, market: input.market}, input.client);
+  const listed = await listCatalogProducts(
+    { locale: input.locale, market: input.market },
+    input.client
+  );
   const needed = new Set(productIds);
   const details = await Promise.all(
     listed
       .filter((product) => needed.has(product.product_id))
       .map((product) =>
         getCatalogProductBySlug(
-          {locale: input.locale, market: input.market, slug: product.slug},
+          { locale: input.locale, market: input.market, slug: product.slug },
           input.client as CheckoutCatalogClient | undefined
         )
       )
@@ -222,12 +233,17 @@ async function loadCatalogProducts(productIds: string[], input: QuoteCartInput) 
   }
 
   const countryCode = input.destinationCountryCode.trim().toUpperCase();
-  const variantIds = scopedProducts.flatMap((product) => product.variants.map((variant) => variant.variantId));
-  const {data: ruleRows, error: rulesError} = await input.client.rpc('get_checkout_shipping_rules', {
-    p_product_ids: scopedProducts.map((product) => product.productId),
-    p_variant_ids: variantIds,
-    p_country_code: countryCode
-  });
+  const variantIds = scopedProducts.flatMap((product) =>
+    product.variants.map((variant) => variant.variantId)
+  );
+  const { data: ruleRows, error: rulesError } = await input.client.rpc(
+    'get_checkout_shipping_rules',
+    {
+      p_product_ids: scopedProducts.map((product) => product.productId),
+      p_variant_ids: variantIds,
+      p_country_code: countryCode
+    }
+  );
 
   if (rulesError) {
     return scopedProducts;
@@ -318,14 +334,16 @@ function quoteLine(line: CartIntentLine, product: QuoteCatalogProduct): CartQuot
     ? product.variants.find((candidate) => candidate.variantId === line.variantId)
     : null;
   if (line.variantId && (!variant || !variant.enabled)) {
-    return unavailableLine(line, {type: 'invalid_variant'});
+    return unavailableLine(line, { type: 'invalid_variant' });
   }
 
   const fulfillmentType = product.productType === 'pdf_pattern' ? 'digital' : 'physical';
-  const available = product.available && (fulfillmentType === 'digital' || Boolean(variant?.inStock ?? product.inStock));
+  const available =
+    product.available &&
+    (fulfillmentType === 'digital' || Boolean(variant?.inStock ?? product.inStock));
   if (!available) {
     return {
-      ...unavailableLine(line, {type: 'unavailable'}),
+      ...unavailableLine(line, { type: 'unavailable' }),
       slug: product.slug,
       title: product.title,
       fulfillmentType,
@@ -363,7 +381,9 @@ function quoteLine(line: CartIntentLine, product: QuoteCatalogProduct): CartQuot
     categoryIds: product.categoryIds ?? [],
     collectionIds: product.collectionIds ?? [],
     discountAllocationMinor: 0,
-    change: capped ? {type: 'quantity_capped', previousQuantity: line.quantity, currentQuantity: finalQuantity} : null
+    change: capped
+      ? { type: 'quantity_capped', previousQuantity: line.quantity, currentQuantity: finalQuantity }
+      : null
   };
 }
 
@@ -404,10 +424,15 @@ function discountState({
 }): CartQuote['discount'] {
   const normalizedCode = code?.trim().toUpperCase() || null;
   if (!normalizedCode) {
-    return {status: 'not_applied', amountMinor: 0, code: null};
+    return { status: 'not_applied', amountMinor: 0, code: null };
   }
   if (!currencyCode) {
-    return {status: 'not_eligible', code: normalizedCode, amountMinor: 0, reason: 'no_eligible_lines'};
+    return {
+      status: 'not_eligible',
+      code: normalizedCode,
+      amountMinor: 0,
+      reason: 'no_eligible_lines'
+    };
   }
   const validation = validateDiscountCode(rule, {
     code: normalizedCode,
@@ -419,7 +444,12 @@ function discountState({
     lines: discountLines(lines)
   });
   if (validation.status === 'not_eligible') {
-    return {status: 'not_eligible', code: normalizedCode, amountMinor: 0, reason: validation.reason};
+    return {
+      status: 'not_eligible',
+      code: normalizedCode,
+      amountMinor: 0,
+      reason: validation.reason
+    };
   }
   return {
     status: 'applied',
@@ -430,7 +460,9 @@ function discountState({
 }
 
 function applyDiscountAllocations(lines: CartQuoteLine[], allocation: DiscountAllocation | null) {
-  const allocationByLine = new Map((allocation?.allocations ?? []).map((item) => [item.lineId, item.amountMinor]));
+  const allocationByLine = new Map(
+    (allocation?.allocations ?? []).map((item) => [item.lineId, item.amountMinor])
+  );
   return lines.map((line) => ({
     ...line,
     discountAllocationMinor: allocationByLine.get(line.lineId) ?? 0
@@ -445,11 +477,16 @@ export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<Ca
   const quotedAt = (input.now ?? new Date()).toISOString();
   const initialLines = intentLines.map((line) => {
     const product = productById.get(line.productId);
-    return product ? quoteLine(line, product) : unavailableLine(line, {type: 'unavailable'});
+    return product ? quoteLine(line, product) : unavailableLine(line, { type: 'unavailable' });
   });
   const discountRule = await loadDiscountRule(input);
-  const preDiscountPayableLines = initialLines.filter((line) => line.status === 'ready' || line.status === 'quantity_capped');
-  const preDiscountSubtotalMinor = preDiscountPayableLines.reduce((total, line) => total + line.lineSubtotalMinor, 0);
+  const preDiscountPayableLines = initialLines.filter(
+    (line) => line.status === 'ready' || line.status === 'quantity_capped'
+  );
+  const preDiscountSubtotalMinor = preDiscountPayableLines.reduce(
+    (total, line) => total + line.lineSubtotalMinor,
+    0
+  );
   const discount = discountState({
     rule: discountRule,
     code: input.discountCode ?? null,
@@ -462,12 +499,25 @@ export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<Ca
   });
   const lines = applyDiscountAllocations(
     initialLines,
-    discount.status === 'applied' ? {status: 'applied', discountMinor: discount.amountMinor, allocations: discount.allocations} : null
+    discount.status === 'applied'
+      ? {
+          status: 'applied',
+          discountMinor: discount.amountMinor,
+          allocations: discount.allocations
+        }
+      : null
   );
-  const payableLines = lines.filter((line) => line.status === 'ready' || line.status === 'quantity_capped');
+  const payableLines = lines.filter(
+    (line) => line.status === 'ready' || line.status === 'quantity_capped'
+  );
   const subtotalMinor = payableLines.reduce((total, line) => total + line.lineSubtotalMinor, 0);
-  const excludedSubtotalMinor = lines.reduce((total, line) => total + line.excludedSubtotalMinor, 0);
-  const blocked = lines.some((line) => line.status === 'unavailable' || line.status === 'invalid_variant');
+  const excludedSubtotalMinor = lines.reduce(
+    (total, line) => total + line.excludedSubtotalMinor,
+    0
+  );
+  const blocked = lines.some(
+    (line) => line.status === 'unavailable' || line.status === 'invalid_variant'
+  );
   const hasPhysicalLines = payableLines.some((line) => line.fulfillmentType === 'physical');
   const shipping = hasPhysicalLines
     ? input.destinationCountryCode
@@ -490,8 +540,12 @@ export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<Ca
               null
           }))
         })
-      : {status: 'not_calculated' as const, amountMinor: 0 as const}
-    : {status: 'no_shipping_required' as const, amountMinor: 0 as const, countryCode: input.destinationCountryCode ?? null};
+      : { status: 'not_calculated' as const, amountMinor: 0 as const }
+    : {
+        status: 'no_shipping_required' as const,
+        amountMinor: 0 as const,
+        countryCode: input.destinationCountryCode ?? null
+      };
 
   const quoteWithoutHash: Omit<CartQuote, 'hash'> = {
     status: lines.length === 0 ? 'empty' : blocked ? 'blocked' : 'ready',
@@ -511,7 +565,8 @@ export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<Ca
   const withShippingTotal: Omit<CartQuote, 'hash'> = {
     ...quoteWithoutHash,
     status:
-      quoteWithoutHash.status === 'ready' && quoteWithoutHash.shipping.status === 'unsupported_destination'
+      quoteWithoutHash.status === 'ready' &&
+      quoteWithoutHash.shipping.status === 'unsupported_destination'
         ? 'blocked'
         : quoteWithoutHash.status,
     totalMinor:
