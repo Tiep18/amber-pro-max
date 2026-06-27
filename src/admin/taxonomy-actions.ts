@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { requireAdmin } from '@/auth/guards';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import {
+  taxonomyReferenceChecks,
   taxonomyConfigFor,
   type TaxonomySectionConfig,
   type TaxonomyTextField
@@ -26,21 +27,6 @@ const deleteTaxonomyFormSchema = z.object({
   section: z.string().trim().min(1),
   termId: z.string().trim().min(1)
 });
-
-const referenceChecks: Record<string, Array<{ table: string; column: string }>> = {
-  category: [
-    { table: 'product_categories', column: 'category_id' },
-    { table: 'discount_code_categories', column: 'category_id' }
-  ],
-  tag: [{ table: 'product_tags', column: 'tag_id' }],
-  technique: [{ table: 'product_techniques', column: 'technique_id' }],
-  collection: [
-    { table: 'collection_products', column: 'collection_id' },
-    { table: 'discount_code_collections', column: 'collection_id' }
-  ],
-  'blog-category': [{ table: 'blog_posts', column: 'category_id' }],
-  'blog-tag': [{ table: 'blog_post_tags', column: 'tag_id' }]
-};
 
 function value(formData: FormData, locale: 'vi' | 'en', field: TaxonomyTextField) {
   return String(formData.get(`${locale}.${field}`) ?? '').trim();
@@ -110,7 +96,7 @@ async function isReferenced(
   section: string,
   termId: string
 ) {
-  const checks = referenceChecks[section] ?? [];
+  const checks = taxonomyReferenceChecks[section] ?? [];
   const results = await Promise.all(
     checks.map(({ table, column }) =>
       supabase

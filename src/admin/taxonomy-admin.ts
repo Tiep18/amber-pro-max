@@ -21,12 +21,33 @@ export type TaxonomyTranslation = Partial<Record<TaxonomyTextField, string>>;
 export type TaxonomyTerm = {
   id: string;
   updatedAt: string | null;
+  usageCount: number;
   translations: Record<Locale, TaxonomyTranslation>;
+};
+
+export type TaxonomyReferenceCheck = {
+  table: string;
+  column: string;
 };
 
 type TranslationRow = Record<string, string | null>;
 
 const emptyTranslation: TaxonomyTranslation = {};
+
+export const taxonomyReferenceChecks: Record<string, TaxonomyReferenceCheck[]> = {
+  category: [
+    { table: 'product_categories', column: 'category_id' },
+    { table: 'discount_code_categories', column: 'category_id' }
+  ],
+  tag: [{ table: 'product_tags', column: 'tag_id' }],
+  technique: [{ table: 'product_techniques', column: 'technique_id' }],
+  collection: [
+    { table: 'collection_products', column: 'collection_id' },
+    { table: 'discount_code_collections', column: 'collection_id' }
+  ],
+  'blog-category': [{ table: 'blog_posts', column: 'category_id' }],
+  'blog-tag': [{ table: 'blog_post_tags', column: 'tag_id' }]
+};
 
 function rowTranslation(row: TranslationRow, fields: TaxonomyTextField[]): TaxonomyTranslation {
   const translation: TaxonomyTranslation = {};
@@ -36,6 +57,24 @@ function rowTranslation(row: TranslationRow, fields: TaxonomyTextField[]): Taxon
     translation[field] = row[column] ?? '';
   }
   return translation;
+}
+
+async function usageCountForTerm(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  config: TaxonomySectionConfig,
+  termId: string
+) {
+  const checks = taxonomyReferenceChecks[config.key] ?? [];
+  const results = await Promise.all(
+    checks.map(({ table, column }) =>
+      supabase
+        .from(table as never)
+        .select(column, { count: 'exact', head: true })
+        .eq(column, termId)
+    )
+  );
+
+  return results.reduce((total, { count, error }) => total + (error ? 0 : (count ?? 0)), 0);
 }
 
 export async function getTaxonomyTerms(config: TaxonomySectionConfig): Promise<TaxonomyTerm[]> {
@@ -82,11 +121,21 @@ export async function getTaxonomyTerms(config: TaxonomySectionConfig): Promise<T
     translationsByParent.set(parentId, byLocale);
   }
 
-  return (parents as Array<{ id: string; updated_at: string | null }>).map((parent) => {
+  const parentRows = parents as Array<{ id: string; updated_at: string | null }>;
+  const usageCounts = new Map<string, number>(
+    await Promise.all(
+      parentRows.map(
+        async (parent) => [parent.id, await usageCountForTerm(supabase, config, parent.id)] as const
+      )
+    )
+  );
+
+  return parentRows.map((parent) => {
     const byLocale = translationsByParent.get(parent.id);
     return {
       id: parent.id,
       updatedAt: parent.updated_at,
+      usageCount: usageCounts.get(parent.id) ?? 0,
       translations: {
         vi: byLocale?.get('vi') ?? emptyTranslation,
         en: byLocale?.get('en') ?? emptyTranslation

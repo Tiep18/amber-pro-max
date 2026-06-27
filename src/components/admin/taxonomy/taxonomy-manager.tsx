@@ -103,7 +103,10 @@ function TermForm({
           </p>
           {term ? <p className="text-xs text-[var(--muted-foreground)]">{term.id}</p> : null}
         </div>
-        <AdminStatusPill>{mode === 'create' ? 'New' : 'Existing'}</AdminStatusPill>
+        <div className="flex flex-wrap justify-end gap-2">
+          <AdminStatusPill>{mode === 'create' ? 'New' : 'Existing'}</AdminStatusPill>
+          {term ? <AdminStatusPill>{term.usageCount} uses</AdminStatusPill> : null}
+        </div>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         {(['vi', 'en'] as const).map((locale) => (
@@ -137,6 +140,7 @@ function TermForm({
 function DeleteTermForm({ config, term }: { config: TaxonomySectionConfig; term: TaxonomyTerm }) {
   const label =
     term.translations.en.name || term.translations.vi.name || term.translations.en.slug || term.id;
+  const inUse = term.usageCount > 0;
 
   return (
     <form
@@ -148,11 +152,12 @@ function DeleteTermForm({ config, term }: { config: TaxonomySectionConfig; term:
       <div>
         <p className="font-semibold">Delete {label}</p>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Only allowed when this item is not used by products, blog posts, discounts, or
-          collections.
+          {inUse
+            ? `Currently used in ${term.usageCount} place${term.usageCount === 1 ? '' : 's'}. Remove those links before deleting.`
+            : 'Not used anywhere yet. Safe to delete.'}
         </p>
       </div>
-      <Button type="submit" variant="destructive" className="w-fit gap-2">
+      <Button type="submit" variant="destructive" className="w-fit gap-2" disabled={inUse}>
         <Trash2 className="size-4" aria-hidden="true" />
         Delete
       </Button>
@@ -176,13 +181,21 @@ export function TaxonomyManager({
   error?: boolean;
 }) {
   const totalTerms = sections.reduce((total, section) => total + section.terms.length, 0);
+  const totalUsage = sections.reduce(
+    (total, section) => total + section.terms.reduce((sum, term) => sum + term.usageCount, 0),
+    0
+  );
 
   return (
     <div className="grid gap-6">
       <section className="grid gap-4 sm:grid-cols-3">
         <AdminMetricCard label="Groups" value={sections.length} description="taxonomy sections" />
         <AdminMetricCard label="Items" value={totalTerms} description="managed records" />
-        <AdminMetricCard label="Locales" value="2" description="Vietnamese and English" />
+        <AdminMetricCard
+          label="Usage links"
+          value={totalUsage}
+          description="product, blog, discount links"
+        />
       </section>
 
       {saved ? (
