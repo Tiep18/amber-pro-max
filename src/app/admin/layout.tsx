@@ -10,7 +10,11 @@ import {
   PackageCheck,
   Settings,
   ShoppingCart,
-  Star
+  Star,
+  Tag,
+  TicketPercent,
+  Truck,
+  UnlockKeyhole
 } from 'lucide-react';
 
 const adminNavGroups = [
@@ -25,7 +29,36 @@ const adminNavGroups = [
         icon: ShoppingCart
       },
       { href: '/admin/catalog', label: 'Catalog', description: 'Products and media', icon: Boxes },
+      {
+        href: '/admin/catalog/taxonomy',
+        label: 'Catalog taxonomy',
+        description: 'Categories and tags',
+        icon: Tag
+      },
       { href: '/admin/reviews', label: 'Reviews', description: 'Moderation queue', icon: Star }
+    ]
+  },
+  {
+    label: 'Commerce controls',
+    links: [
+      {
+        href: '/admin/discounts',
+        label: 'Discounts',
+        description: 'Promotion codes',
+        icon: TicketPercent
+      },
+      {
+        href: '/admin/shipping',
+        label: 'Shipping',
+        description: 'Manual fee profiles',
+        icon: Truck
+      },
+      {
+        href: '/admin/exceptions',
+        label: 'Exceptions',
+        description: 'Market requests',
+        icon: UnlockKeyhole
+      }
     ]
   },
   {
@@ -38,6 +71,12 @@ const adminNavGroups = [
         icon: Megaphone
       },
       { href: '/admin/blog', label: 'Blog', description: 'Localized content', icon: FileText },
+      {
+        href: '/admin/blog/taxonomy',
+        label: 'Blog taxonomy',
+        description: 'Categories and tags',
+        icon: Tag
+      },
       {
         href: '/admin/policies',
         label: 'Policies',
