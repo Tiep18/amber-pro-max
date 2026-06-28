@@ -1,17 +1,18 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode
 } from 'react';
 import type { MarketCode } from '@/catalog/market';
 import type { Locale } from '@/i18n/routing';
+import { shouldRevalidateStorefrontContext } from './storefront-context-policy';
 
 type StorefrontUser = { email: string; isAdmin: boolean } | null;
 type StorefrontContextValue = { market: MarketCode; user: StorefrontUser };
@@ -22,7 +23,9 @@ const STOREFRONT_CONTEXT_CHANGED = 'storefront-context-changed';
 
 export function notifyStorefrontContextChanged(update: StorefrontContextUpdate = {}) {
   if (typeof window === 'undefined') return;
-  window.dispatchEvent(new CustomEvent<StorefrontContextUpdate>(STOREFRONT_CONTEXT_CHANGED, { detail: update }));
+  window.dispatchEvent(
+    new CustomEvent<StorefrontContextUpdate>(STOREFRONT_CONTEXT_CHANGED, { detail: update })
+  );
 }
 
 export function StorefrontContextProvider({
@@ -32,26 +35,36 @@ export function StorefrontContextProvider({
   locale: Locale;
   children: ReactNode;
 }) {
-  const pathname = usePathname();
   const [context, setContext] = useState<StorefrontContextValue>({
     market: locale === 'vi' ? 'vn' : 'intl',
     user: null
   });
+  const lastValidatedAt = useRef<number | null>(null);
+  const requestInFlight = useRef<Promise<void> | null>(null);
 
   const refreshContext = useCallback(() => {
-    const controller = new AbortController();
-    void fetch('/api/storefront-context', { cache: 'no-store', signal: controller.signal })
+    if (requestInFlight.current) return requestInFlight.current;
+    const request = fetch('/api/storefront-context', { cache: 'no-store' })
       .then((response) =>
         response.ok ? (response.json() as Promise<StorefrontContextValue>) : null
       )
       .then((value) => {
-        if (value) setContext(value);
+        if (value) {
+          setContext(value);
+          lastValidatedAt.current = Date.now();
+        }
       })
-      .catch(() => undefined);
-    return () => controller.abort();
+      .catch(() => undefined)
+      .finally(() => {
+        requestInFlight.current = null;
+      });
+    requestInFlight.current = request;
+    return request;
   }, []);
 
-  useEffect(() => refreshContext(), [pathname, refreshContext]);
+  useEffect(() => {
+    void refreshContext();
+  }, [refreshContext]);
 
   useEffect(() => {
     const handleContextChanged = (event: Event) => {
@@ -59,10 +72,14 @@ export function StorefrontContextProvider({
       if (detail && Object.keys(detail).length > 0) {
         setContext((current) => ({ ...current, ...detail }));
       } else {
-        refreshContext();
+        void refreshContext();
       }
     };
-    const handleFocus = () => refreshContext();
+    const handleFocus = () => {
+      if (shouldRevalidateStorefrontContext(lastValidatedAt.current)) {
+        void refreshContext();
+      }
+    };
 
     window.addEventListener(STOREFRONT_CONTEXT_CHANGED, handleContextChanged);
     window.addEventListener('focus', handleFocus);

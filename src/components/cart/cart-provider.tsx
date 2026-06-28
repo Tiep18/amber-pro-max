@@ -13,6 +13,7 @@ import {
 import type { Locale } from '@/i18n/routing';
 import { refreshCartQuoteAction } from '@/cart/actions';
 import { readGuestCart, writeGuestCart } from '@/cart/guest-storage';
+import { readCartQuoteCache, writeCartQuoteCache } from '@/cart/quote-cache';
 import {
   cartLineKey,
   type AddToCartIntent,
@@ -80,7 +81,11 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
       setPending(true);
       const result = await refreshCartQuoteAction({ locale, lines: next.lines });
       if (requestId === latestQuoteRequest.current) {
-        setQuote(result.status === 'success' ? result.quote : null);
+        const nextQuote = result.status === 'success' ? result.quote : null;
+        setQuote(nextQuote);
+        if (nextQuote) {
+          writeCartQuoteCache({ locale, lines: next.lines, quote: nextQuote });
+        }
         setPending(false);
       }
       return next;
@@ -106,9 +111,13 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
       return;
     }
     setCart(current);
+    const cachedQuote = readCartQuoteCache({ locale, lines: current.lines });
+    setQuote(cachedQuote);
     setHydrated(true);
-    void refresh(current.lines);
-  }, [refresh]);
+    if (!cachedQuote) {
+      void refresh(current.lines);
+    }
+  }, [locale, refresh]);
 
   useEffect(
     () => () => {
@@ -200,7 +209,19 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
       removedLine: removed?.line ?? null,
       refresh
     }),
-    [addLine, cart, hydrated, open, pending, quote, refresh, removeLine, removed, undoRemove, updateQuantity]
+    [
+      addLine,
+      cart,
+      hydrated,
+      open,
+      pending,
+      quote,
+      refresh,
+      removeLine,
+      removed,
+      undoRemove,
+      updateQuantity
+    ]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

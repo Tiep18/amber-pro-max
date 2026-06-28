@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-06-28 -- Completed quick task 260628-taxonomy-usage-counts: show taxonomy usage counts
+last_activity: 2026-06-28 -- Completed quick task 260628-storefront-context-cart-cache: stabilize storefront auth and cart state
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 07 (content-seo-and-launch-readiness)
 Plan: 07-05 completed
 Status: Ready for Wave 6 final launch verification
-Last activity: 2026-06-28 - Completed quick task 260628-taxonomy-usage-counts: show taxonomy usage counts
+Last activity: 2026-06-28 - Completed quick task 260628-storefront-context-cart-cache: stabilize storefront auth and cart state
 
 Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and Wave 6 can begin.
 
@@ -162,6 +162,7 @@ None yet.
 | 260628-clean-lint-warnings            | Remove existing ESLint unused-variable warnings without changing behavior                                                        | 2026-06-28 | pending     | [260628-clean-lint-warnings](./quick/260628-clean-lint-warnings/)                                                   |
 | 260628-taxonomy-safe-delete           | Add safe delete controls for admin taxonomy records while blocking deletion of in-use terms                                      | 2026-06-28 | pending     | [260628-taxonomy-safe-delete](./quick/260628-taxonomy-safe-delete/)                                                 |
 | 260628-taxonomy-usage-counts          | Show usage counts for admin taxonomy records and disable delete controls for in-use terms                                        | 2026-06-28 | pending     | [260628-taxonomy-usage-counts](./quick/260628-taxonomy-usage-counts/)                                               |
+| 260628-storefront-context-cart-cache  | Stabilize storefront auth context and cart quote state across navigation and remounts                                             | 2026-06-28 | this commit | [260628-storefront-context-cart-cache](./quick/260628-storefront-context-cart-cache/)                               |
 
 ### Debug Sessions Resolved
 
