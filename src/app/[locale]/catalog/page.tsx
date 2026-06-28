@@ -16,7 +16,6 @@ import { getCatalogPath, type Locale } from '@/i18n/routing';
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export const revalidate = 300;
-export const dynamic = 'force-static';
 
 function catalogHref(basePath: string, state: ReturnType<typeof catalogListState>, type?: string) {
   const params = new URLSearchParams();
