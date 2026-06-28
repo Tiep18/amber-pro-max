@@ -30,7 +30,7 @@ export default async function LocaleLayout({
   return (
     <CartProvider locale={locale as Locale}>
       <StorefrontContextProvider locale={locale as Locale}>
-        <WishlistProvider>
+        <WishlistProvider locale={locale as Locale}>
           <div className="flex min-h-screen flex-col">
             <Suspense fallback={<div className="min-h-16 border-b border-[var(--border)]" />}>
               <SiteHeader locale={locale as Locale} />

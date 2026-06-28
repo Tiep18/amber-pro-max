@@ -121,12 +121,20 @@ test.describe('account wishlist retention (ACC-04, D-05, D-06, D-07)', () => {
     const removableItem = page.getByRole('heading', {name: seed.products.wishlistUnavailable.title}).locator('xpath=ancestor::article[1]');
     await removableItem.getByRole('button', {name: /remove/i}).click();
     await expect(page.getByRole('status')).toContainText(/removed/i);
+    await expect(removableItem).toHaveCount(0);
+    await expect(page.getByText('1 item', {exact: true})).toBeVisible();
   });
 });
 
 test.describe('product surface wishlist hearts (ACC-04, D-07, D-08)', () => {
+  let surfaceSeed: Phase6Seed;
+
+  test.beforeAll(async () => {
+    surfaceSeed = await seedPhase6Data();
+  });
+
   test('catalog cards expose stable accessible wishlist hearts', async ({page}) => {
-    await signInCustomer(page);
+    await signIn(page, surfaceSeed.customer, '/en/account');
     await page.goto('/en/catalog');
     const heart = page.getByRole('button', {name: /save .* to wishlist/i}).first();
     await expect(heart).toHaveAttribute('aria-pressed', 'false');
@@ -134,14 +142,14 @@ test.describe('product surface wishlist hearts (ACC-04, D-07, D-08)', () => {
   });
 
   test('catalog cards preserve existing wishlist selected state', async ({page}) => {
-    await signInCustomer(page);
+    await signIn(page, surfaceSeed.customer, '/en/account');
     await page.goto('/en/catalog');
-    const savedProduct = page.getByRole('article', {name: seed.products.wishlistAvailable.title});
-    await expect(savedProduct.getByRole('button', {name: `Remove ${seed.products.wishlistAvailable.title} from wishlist`})).toHaveAttribute('aria-pressed', 'true');
+    const savedProduct = page.getByRole('article', {name: surfaceSeed.products.wishlistAvailable.title});
+    await expect(savedProduct.getByRole('button', {name: `Remove ${surfaceSeed.products.wishlistAvailable.title} from wishlist`})).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('signed-in customer can toggle a catalog card heart selected state', async ({page}) => {
-    await signInCustomer(page);
+    await signIn(page, surfaceSeed.customer, '/en/account');
     await page.goto('/en/catalog');
     const heart = page.getByRole('button', {name: /save .* to wishlist/i}).first();
     const title = await heart.getAttribute('aria-label');
@@ -151,17 +159,58 @@ test.describe('product surface wishlist hearts (ACC-04, D-07, D-08)', () => {
     await expect(page.getByRole('button', {name: `Remove ${productTitle} from wishlist`})).toHaveAttribute('aria-pressed', 'true');
   });
 
+  test('signed-in customer can remove and restore a saved heart with persisted state', async ({
+    page
+  }) => {
+    await signIn(page, surfaceSeed.customer, '/en/account');
+    await page.goto('/en/catalog');
+    const savedProduct = page.getByRole('article', {name: surfaceSeed.products.wishlistAvailable.title});
+    const removeHeart = savedProduct.getByRole('button', {
+      name: `Remove ${surfaceSeed.products.wishlistAvailable.title} from wishlist`
+    });
+
+    await removeHeart.click();
+    await expect(
+      savedProduct.getByRole('button', {
+        name: `Save ${surfaceSeed.products.wishlistAvailable.title} to wishlist`
+      })
+    ).toHaveAttribute('aria-pressed', 'false');
+    await page.reload();
+    await expect(
+      savedProduct.getByRole('button', {
+        name: `Save ${surfaceSeed.products.wishlistAvailable.title} to wishlist`
+      })
+    ).toHaveAttribute('aria-pressed', 'false');
+
+    await savedProduct
+      .getByRole('button', {
+        name: `Save ${surfaceSeed.products.wishlistAvailable.title} to wishlist`
+      })
+      .click();
+    await expect(
+      savedProduct.getByRole('button', {
+        name: `Remove ${surfaceSeed.products.wishlistAvailable.title} from wishlist`
+      })
+    ).toHaveAttribute('aria-pressed', 'true');
+    await page.reload();
+    await expect(
+      savedProduct.getByRole('button', {
+        name: `Remove ${surfaceSeed.products.wishlistAvailable.title} from wishlist`
+      })
+    ).toHaveAttribute('aria-pressed', 'true');
+  });
+
   test('product detail heart sits near purchase intent without replacing the buy CTA', async ({page}) => {
-    await signInCustomer(page);
-    await page.goto(`/en/product/${seed.products.review.enSlug}`);
+    await signIn(page, surfaceSeed.customer, '/en/account');
+    await page.goto(`/en/product/${surfaceSeed.products.physical.enSlug}`);
     await expect(page.getByRole('button', {name: /save .* to wishlist/i})).toBeVisible();
     await expect(page.getByRole('button', {name: /add to cart/i})).toBeVisible();
   });
 
   test('product detail preserves existing wishlist selected state', async ({page}) => {
-    await signInCustomer(page);
-    await page.goto(`/en/product/${seed.products.wishlistAvailable.enSlug}`);
-    await expect(page.getByRole('button', {name: `Remove ${seed.products.wishlistAvailable.title} from wishlist`})).toHaveAttribute('aria-pressed', 'true');
+    await signIn(page, surfaceSeed.customer, '/en/account');
+    await page.goto(`/en/product/${surfaceSeed.products.wishlistAvailable.enSlug}`);
+    await expect(page.getByRole('button', {name: `Remove ${surfaceSeed.products.wishlistAvailable.title} from wishlist`})).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('guest card heart redirects to localized sign-in with product return and no guest merge UI', async ({page}) => {

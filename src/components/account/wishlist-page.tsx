@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useActionState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { Heart } from 'lucide-react';
 import { AccountEmptyState } from '@/components/account/account-empty-state';
 import { formatMoney } from '@/catalog/money';
@@ -9,10 +9,10 @@ import type { MarketCode } from '@/catalog/market';
 import { publicStorageUrl } from '@/catalog/metadata';
 import { wishlistItemCanCheckout, type CustomerWishlistItem } from '@/account/wishlist';
 import {
-  removeCustomerWishlistItemAction,
-  type WishlistActionState
+  removeCustomerWishlistItemAction
 } from '@/account/wishlist-actions';
 import { useCart } from '@/components/cart/cart-provider';
+import { useSetWishlistSelected } from '@/components/wishlist-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Locale } from '@/i18n/routing';
@@ -39,8 +39,6 @@ type WishlistLabels = {
     error: string;
   };
 };
-
-const initialState: WishlistActionState = { status: 'idle' };
 
 const emptyCopy = {
   en: {
@@ -82,12 +80,33 @@ export function WishlistPage({
   market: MarketCode;
   labels: WishlistLabels;
 }) {
-  const [removeState, removeAction, removing] = useActionState(
-    removeCustomerWishlistItemAction,
-    initialState
-  );
+  const [visibleItems, setVisibleItems] = useState(items);
+  const [removeStatus, setRemoveStatus] = useState<'idle' | 'removed' | 'error'>('idle');
+  const [removingProductId, setRemovingProductId] = useState<string | null>(null);
+  const [removing, startRemoving] = useTransition();
   const empty = emptyCopy[locale];
   const { addLine } = useCart();
+  const setWishlistSelected = useSetWishlistSelected();
+
+  useEffect(() => {
+    setVisibleItems(items);
+  }, [items]);
+
+  function removeItem(formData: FormData, productId: string) {
+    setRemoveStatus('idle');
+    setRemovingProductId(productId);
+    startRemoving(async () => {
+      const result = await removeCustomerWishlistItemAction({ status: 'idle' }, formData);
+      if (result.status === 'removed' || result.status === 'not_found') {
+        setVisibleItems((current) => current.filter((item) => item.productId !== productId));
+        setWishlistSelected(productId, false);
+        setRemoveStatus('removed');
+      } else {
+        setRemoveStatus('error');
+      }
+      setRemovingProductId(null);
+    });
+  }
 
   return (
     <Card className="shadow-sm">
@@ -97,24 +116,23 @@ export function WishlistPage({
           <p className="text-base text-[var(--muted-foreground)]">{labels.intro}</p>
         </div>
         <span className="text-sm font-semibold text-[var(--muted-foreground)]">
-          {items.length} {locale === 'vi' ? 'san pham' : items.length === 1 ? 'item' : 'items'}
+          {visibleItems.length}{' '}
+          {locale === 'vi' ? 'san pham' : visibleItems.length === 1 ? 'item' : 'items'}
         </span>
       </CardHeader>
       <CardContent className="space-y-5">
-        {removeState.status === 'removed' ? (
+        {removeStatus === 'removed' ? (
           <p role="status" className="text-sm font-semibold text-[var(--success)]">
             {labels.status.removed}
           </p>
         ) : null}
-        {removeState.status === 'error' ||
-        removeState.status === 'invalid' ||
-        removeState.status === 'not_found' ? (
+        {removeStatus === 'error' ? (
           <p role="alert" className="text-sm font-semibold text-[var(--destructive)]">
             {labels.status.error}
           </p>
         ) : null}
 
-        {items.length === 0 ? (
+        {visibleItems.length === 0 ? (
           <AccountEmptyState
             icon={<Heart className="h-6 w-6" aria-hidden="true" />}
             title={empty.title}
@@ -123,7 +141,7 @@ export function WishlistPage({
           />
         ) : (
           <div className="grid gap-4 xl:grid-cols-2">
-            {items.map((item) => {
+            {visibleItems.map((item) => {
               const imageUrl = item.image
                 ? publicStorageUrl(item.image.bucket, item.image.path)
                 : undefined;
@@ -192,11 +210,17 @@ export function WishlistPage({
                         >
                           {labels.actions.addToCart}
                         </Button>
-                        <form action={removeAction}>
+                        <form action={(formData) => removeItem(formData, item.productId)}>
                           <input type="hidden" name="locale" value={locale} />
                           <input type="hidden" name="productId" value={item.productId} />
-                          <Button type="submit" variant="destructive" disabled={removing}>
-                            {removing ? labels.actions.removing : labels.actions.remove}
+                          <Button
+                            type="submit"
+                            variant="destructive"
+                            disabled={removingProductId === item.productId}
+                          >
+                            {removing && removingProductId === item.productId
+                              ? labels.actions.removing
+                              : labels.actions.remove}
                           </Button>
                         </form>
                       </div>

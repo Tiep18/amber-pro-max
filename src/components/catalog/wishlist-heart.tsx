@@ -1,7 +1,7 @@
 'use client';
 
 import { Heart } from 'lucide-react';
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import {
   addCustomerWishlistItemAction,
   removeCustomerWishlistItemAction
@@ -36,28 +36,36 @@ export function WishlistHeart({
   const remote = useWishlistProduct(productId);
   const [selected, setSelected] = useState(initiallySaved);
   const [pending, startTransition] = useTransition();
+  const mutationInFlight = useRef(false);
   const labelTemplate = selected ? labels.remove : labels.save;
   const label = labelTemplate.replace('{title}', productTitle);
 
   useEffect(() => {
-    if (remote.selected !== undefined) setSelected(remote.selected);
+    if (!mutationInFlight.current && remote.selected !== undefined) {
+      setSelected(remote.selected);
+    }
   }, [remote.selected]);
 
   async function toggle(formData: FormData) {
     const previous = selected;
     const intended = !previous;
+    mutationInFlight.current = true;
     setSelected(intended);
     startTransition(async () => {
-      const action = intended ? addCustomerWishlistItemAction : removeCustomerWishlistItemAction;
-      const result = await action({ status: 'idle' }, formData);
-      const confirmed = selectionAfterWishlistResult(previous, intended, result);
-      setSelected(confirmed);
-      if (
-        result.status === 'saved' ||
-        result.status === 'removed' ||
-        result.status === 'not_found'
-      ) {
-        remote.setSelected(confirmed);
+      try {
+        const action = intended ? addCustomerWishlistItemAction : removeCustomerWishlistItemAction;
+        const result = await action({ status: 'idle' }, formData);
+        const confirmed = selectionAfterWishlistResult(previous, intended, result);
+        setSelected(confirmed);
+        if (
+          result.status === 'saved' ||
+          result.status === 'removed' ||
+          result.status === 'not_found'
+        ) {
+          remote.setSelected(confirmed);
+        }
+      } finally {
+        mutationInFlight.current = false;
       }
     });
   }

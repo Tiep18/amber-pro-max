@@ -11,6 +11,7 @@ import {
   type ReactNode
 } from 'react';
 import { STOREFRONT_CONTEXT_CHANGED } from './storefront-context';
+import type { Locale } from '@/i18n/routing';
 
 type WishlistContextValue = {
   selected: Record<string, boolean | undefined>;
@@ -20,7 +21,7 @@ type WishlistContextValue = {
 
 const WishlistContext = createContext<WishlistContextValue | null>(null);
 
-export function WishlistProvider({ children }: { children: ReactNode }) {
+export function WishlistProvider({ children, locale }: { children: ReactNode; locale: Locale }) {
   const [selected, setSelectedState] = useState<Record<string, boolean | undefined>>({});
   const registered = useRef(new Set<string>());
   const loaded = useRef(new Set<string>());
@@ -34,7 +35,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     if (productIds.length === 0) return;
 
     try {
-      const query = new URLSearchParams({ productIds: productIds.join(',') });
+      const query = new URLSearchParams({ productIds: productIds.join(','), locale });
       const response = await fetch(`/api/wishlist?${query}`, { cache: 'no-store' });
       if (!response.ok) throw new Error('wishlist_context_failed');
       const payload = (await response.json()) as { productIds?: unknown };
@@ -50,7 +51,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     } catch {
       productIds.forEach((productId) => pending.current.add(productId));
     }
-  }, []);
+  }, [locale]);
 
   const scheduleFlush = useCallback(() => {
     if (timer.current) return;
@@ -102,4 +103,10 @@ export function useWishlistProduct(productId: string) {
     selected: context.selected[productId],
     setSelected: (value: boolean) => context.setSelected(productId, value)
   };
+}
+
+export function useSetWishlistSelected() {
+  const context = useContext(WishlistContext);
+  if (!context) throw new Error('wishlist_context_missing');
+  return context.setSelected;
 }
