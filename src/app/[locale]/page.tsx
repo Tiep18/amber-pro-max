@@ -1,18 +1,24 @@
 import type { ReactNode } from 'react';
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, HeartHandshake, Languages, ShieldCheck } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { getRequestMarket } from '@/catalog/page-context';
+import { localizedMetadata } from '@/catalog/metadata';
+import { marketForLocale } from '@/catalog/seo-market';
 import { type CatalogProduct, type CatalogProductType } from '@/catalog/queries';
 import { getCachedCatalogProducts } from '@/catalog/public-cache';
 import { ProductCard } from '@/components/catalog/product-card';
+import { JsonLd, organizationJsonLd, websiteJsonLd } from '@/content/seo/json-ld';
 import type { Locale } from '@/i18n/routing';
 import { getCatalogPath } from '@/i18n/routing';
 
+export const revalidate = 300;
+export const dynamic = 'force-static';
+
 async function featuredProducts(locale: Locale, productType: CatalogProductType) {
   try {
-    const market = await getRequestMarket();
+    const market = marketForLocale(locale);
     const products = await getCachedCatalogProducts({
       locale,
       market,
@@ -27,6 +33,28 @@ async function featuredProducts(locale: Locale, productType: CatalogProductType)
 
 function catalogTypePath(locale: Locale, type: CatalogProductType) {
   return `${getCatalogPath(locale)}?type=${type}`;
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const title =
+    locale === 'vi'
+      ? 'Ambertinybear | Mau moc amigurumi va san pham thu cong'
+      : 'Ambertinybear | Amigurumi patterns and handmade crochet gifts';
+  const description =
+    locale === 'vi'
+      ? 'Mua mau PDF crochet va san pham amigurumi thu cong tu Ambertinybear, ho tro tieng Viet va giao hang thi truong Viet Nam.'
+      : 'Shop downloadable crochet PDF patterns and handmade amigurumi gifts from Ambertinybear for international customers.';
+
+  return localizedMetadata({
+    title,
+    description,
+    canonicalPath: `/${locale}`,
+    alternatePaths: {
+      vi: '/vi',
+      en: '/en'
+    }
+  });
 }
 
 function ArrowLink({
@@ -110,6 +138,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
 
   return (
     <main>
+      <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
       <section className="relative mx-auto min-h-[620px] max-w-[1440px] overflow-hidden bg-white sm:min-h-[680px] lg:min-h-[720px]">
         <Image
           src="/images/home/hero-studio.png"

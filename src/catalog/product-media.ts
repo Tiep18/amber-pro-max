@@ -1,7 +1,7 @@
 import 'server-only';
 
 import type {Locale} from '@/i18n/routing';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {createSupabasePublicClient} from '@/lib/supabase/public';
 import {publicStorageUrl} from './metadata';
 
 export async function getProductMediaImages({
@@ -19,7 +19,7 @@ export async function getProductMediaImages({
   title: string;
   locale: Locale;
 }) {
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabasePublicClient();
   const {data} = await supabase
     .from('product_media')
     .select('bucket_id,object_path,alt_text_vi,alt_text_en,display_order,is_primary')

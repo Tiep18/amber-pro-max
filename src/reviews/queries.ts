@@ -1,4 +1,5 @@
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {createSupabasePublicClient} from '@/lib/supabase/public';
 import {mapPublicReviewRows, type PublicProductReview} from '@/reviews/eligibility';
 
 type QueryClient = {
@@ -84,7 +85,7 @@ export async function getApprovedProductReviews({
   productId: string;
   client?: QueryClient;
 }): Promise<{status: 'success'; reviews: PublicProductReview[]} | {status: 'error'; code: 'reviews_load_failed'}> {
-  const supabase = client ?? (await createSupabaseServerClient() as unknown as QueryClient);
+  const supabase = client ?? (createSupabasePublicClient() as unknown as QueryClient);
   const {data, error} = await supabase
     .from('approved_product_reviews')
     .select('product_id,rating,title,body,masked_author,verified_purchase,approved_at,shop_reply_body,shop_reply_updated_at')

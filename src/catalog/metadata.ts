@@ -39,6 +39,12 @@ export function localizedMetadata({
       description,
       url: canonical,
       images: socialImage ? [{url: socialImage}] : undefined
+    },
+    twitter: {
+      card: socialImage ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: socialImage ? [socialImage] : undefined
     }
   };
 }

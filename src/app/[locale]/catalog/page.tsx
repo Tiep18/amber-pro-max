@@ -1,19 +1,22 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { CatalogControls } from '@/components/catalog/catalog-controls';
 import { CatalogFilterContent } from '@/components/catalog/catalog-filter-content';
 import { CatalogResultGrid } from '@/components/catalog/catalog-result-grid';
 import { ProductCard } from '@/components/catalog/product-card';
 import { Sheet } from '@/components/ui/sheet';
-import { getRequestMarket } from '@/catalog/page-context';
+import { localizedMetadata } from '@/catalog/metadata';
+import { marketForLocale } from '@/catalog/seo-market';
 import { catalogListState } from '@/catalog/list-state';
 import { getCachedCatalogFacets, getCachedCatalogProducts } from '@/catalog/public-cache';
-import { getWishlistedProductIds } from '@/account/wishlist';
-import { getRequestUser } from '@/auth/request-user';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { JsonLd, breadcrumbJsonLd, itemListJsonLd } from '@/content/seo/json-ld';
 import { getCatalogPath, type Locale } from '@/i18n/routing';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export const revalidate = 300;
+export const dynamic = 'force-static';
 
 function catalogHref(basePath: string, state: ReturnType<typeof catalogListState>, type?: string) {
   const params = new URLSearchParams();
@@ -23,6 +26,32 @@ function catalogHref(basePath: string, state: ReturnType<typeof catalogListState
   if (state.sort !== 'newest') params.set('sort', state.sort);
   const query = params.toString();
   return query ? `${basePath}?${query}` : basePath;
+}
+
+export async function generateMetadata({
+  params,
+  searchParams
+}: {
+  params: Promise<{ locale: Locale }>;
+  searchParams: SearchParams;
+}): Promise<Metadata> {
+  const [{ locale }, query] = await Promise.all([params, searchParams]);
+  const hasFacets = Object.keys(query).length > 0;
+  return {
+    ...localizedMetadata({
+      title: locale === 'vi' ? 'Cua hang amigurumi | Ambertinybear' : 'Amigurumi shop | Ambertinybear',
+      description:
+        locale === 'vi'
+          ? 'Kham pha mau PDF crochet va san pham amigurumi thu cong trong cua hang Ambertinybear.'
+          : 'Browse crochet PDF patterns and handmade amigurumi products from Ambertinybear.',
+      canonicalPath: getCatalogPath(locale),
+      alternatePaths: {
+        vi: getCatalogPath('vi'),
+        en: getCatalogPath('en')
+      }
+    }),
+    robots: hasFacets ? { index: false, follow: true } : undefined
+  };
 }
 
 export default async function CatalogPage({
@@ -35,8 +64,8 @@ export default async function CatalogPage({
   const [{ locale }, query] = await Promise.all([params, searchParams]);
   setRequestLocale(locale);
   const state = catalogListState(query);
-  const requestUser = getRequestUser();
-  const [market, t] = await Promise.all([getRequestMarket(), getTranslations('catalog')]);
+  const market = marketForLocale(locale);
+  const t = await getTranslations('catalog');
   const [products, facets] = await Promise.all([
     getCachedCatalogProducts({
       locale,
@@ -48,13 +77,6 @@ export default async function CatalogPage({
     }),
     getCachedCatalogFacets(locale, market)
   ]);
-  const supabase = await createSupabaseServerClient();
-  const user = await requestUser;
-  const wishlistedProductIds = await getWishlistedProductIds({
-    userId: user?.id,
-    productIds: products.map((product) => product.product_id),
-    client: supabase as never
-  });
   const basePath = getCatalogPath(locale);
   const categories = facets.filter((facet) => facet.facet_type === 'category');
   const filterLabels = { category: t('categoryLabel'), allCategories: t('allCategories') };
@@ -66,6 +88,15 @@ export default async function CatalogPage({
 
   return (
     <main className="mx-auto grid w-full max-w-[1280px] gap-7 px-4 py-8 sm:px-6 lg:px-10">
+      <JsonLd
+        data={[
+          breadcrumbJsonLd([
+            { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
+            { name: t('breadcrumbShop'), path: basePath }
+          ]),
+          itemListJsonLd(products.map((product) => ({ name: product.title, path: `/${locale}/${locale === 'vi' ? 'san-pham' : 'product'}/${product.slug}` })))
+        ]}
+      />
       <nav
         aria-label={t('breadcrumb')}
         className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]"
@@ -144,7 +175,6 @@ export default async function CatalogPage({
                   key={product.product_id}
                   product={product}
                   locale={locale}
-                  initiallyWishlisted={wishlistedProductIds.has(product.product_id)}
                 />
               ))}
             </CatalogResultGrid>

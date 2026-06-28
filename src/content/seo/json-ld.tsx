@@ -48,6 +48,19 @@ export function breadcrumbJsonLd(items: Array<{name: string; path: string}>) {
   };
 }
 
+export function itemListJsonLd(items: Array<{name: string; path: string}>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    itemListElement: items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      url: absoluteUrl(item.path)
+    }))
+  };
+}
+
 export function productJsonLd({
   name,
   description,
@@ -55,7 +68,8 @@ export function productJsonLd({
   image,
   currency,
   priceMinor,
-  available
+  available,
+  aggregateRating
 }: {
   name: string;
   description: string;
@@ -64,6 +78,7 @@ export function productJsonLd({
   currency?: 'USD' | 'VND' | null;
   priceMinor?: number | null;
   available: boolean;
+  aggregateRating?: {ratingValue: number; reviewCount: number} | null;
 }) {
   return {
     '@context': 'https://schema.org',
@@ -80,6 +95,14 @@ export function productJsonLd({
             price: currency === 'VND' ? String(priceMinor) : (priceMinor / 100).toFixed(2),
             availability: available ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
             url: absoluteUrl(path)
+          }
+        : undefined,
+    aggregateRating:
+      aggregateRating && aggregateRating.reviewCount > 0
+        ? {
+            '@type': 'AggregateRating',
+            ratingValue: aggregateRating.ratingValue.toFixed(1),
+            reviewCount: aggregateRating.reviewCount
           }
         : undefined
   };

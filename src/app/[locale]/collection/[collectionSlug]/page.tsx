@@ -2,15 +2,17 @@ import type { Metadata } from 'next';
 import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { localizedMetadata, publicStorageUrl } from '@/catalog/metadata';
-import { getRequestMarket } from '@/catalog/page-context';
+import { marketForLocale } from '@/catalog/seo-market';
 import { getCachedCatalogCollection, getCachedCatalogProducts } from '@/catalog/public-cache';
-import { getWishlistedProductIds } from '@/account/wishlist';
 import { ProductCard } from '@/components/catalog/product-card';
 import { getCollectionPath, type Locale } from '@/i18n/routing';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Json } from '@/types/supabase';
+import { JsonLd, breadcrumbJsonLd, itemListJsonLd } from '@/content/seo/json-ld';
 
 type Params = Promise<{ locale: Locale; collectionSlug: string }>;
+
+export const revalidate = 300;
+export const dynamic = 'force-static';
 
 function slugs(value: Json) {
   if (!value || Array.isArray(value) || typeof value !== 'object') {
@@ -21,7 +23,7 @@ function slugs(value: Json) {
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { locale, collectionSlug } = await params;
-  const market = await getRequestMarket();
+  const market = marketForLocale(locale);
   const collection = await getCachedCatalogCollection(locale, market, collectionSlug);
   if (!collection) {
     return {};
@@ -45,7 +47,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function CollectionPage({ params }: { params: Params }) {
   const { locale, collectionSlug } = await params;
   setRequestLocale(locale);
-  const market = await getRequestMarket();
+  const market = marketForLocale(locale);
   const [collection, products] = await Promise.all([
     getCachedCatalogCollection(locale, market, collectionSlug),
     getCachedCatalogProducts({ locale, market, collectionSlug })
@@ -53,16 +55,18 @@ export default async function CollectionPage({ params }: { params: Params }) {
   if (!collection) {
     notFound();
   }
-  const supabase = await createSupabaseServerClient();
-  const { data: authUser } = await supabase.auth.getUser();
-  const wishlistedProductIds = await getWishlistedProductIds({
-    userId: authUser.user?.id,
-    productIds: products.map((product) => product.product_id),
-    client: supabase as never
-  });
 
   return (
     <main className="mx-auto grid w-full max-w-[1200px] gap-7 px-4 py-10 sm:px-6 lg:px-10 xl:px-12">
+      <JsonLd
+        data={[
+          breadcrumbJsonLd([
+            { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
+            { name: collection.name, path: getCollectionPath(locale, collection.slug) }
+          ]),
+          itemListJsonLd(products.map((product) => ({ name: product.title, path: `/${locale}/${locale === 'vi' ? 'san-pham' : 'product'}/${product.slug}` })))
+        ]}
+      />
       <header className="grid max-w-[760px] gap-3">
         <h1 className="text-[30px] font-semibold leading-tight">{collection.name}</h1>
         <p className="text-[var(--muted-foreground)]">{collection.description}</p>
@@ -73,7 +77,6 @@ export default async function CollectionPage({ params }: { params: Params }) {
             key={product.product_id}
             product={product}
             locale={locale}
-            initiallyWishlisted={wishlistedProductIds.has(product.product_id)}
           />
         ))}
       </section>

@@ -16,6 +16,7 @@ import { notFound } from 'next/navigation';
 import type { Json } from '@/types/supabase';
 import type { CurrencyCode } from '@/catalog/money';
 import { localizedMetadata, publicStorageUrl } from '@/catalog/metadata';
+import { marketForLocale } from '@/catalog/seo-market';
 import {
   JsonLd,
   breadcrumbJsonLd,
@@ -23,11 +24,8 @@ import {
   productJsonLd,
   websiteJsonLd
 } from '@/content/seo/json-ld';
-import { getRequestMarket } from '@/catalog/page-context';
-import { getCachedCatalogProduct } from '@/catalog/public-cache';
+import { getCachedCatalogProduct, getCachedCatalogProducts } from '@/catalog/public-cache';
 import { getProductMediaImages } from '@/catalog/product-media';
-import { getWishlistedProductIds } from '@/account/wishlist';
-import { getRequestUser } from '@/auth/request-user';
 import { ProductGallery } from '@/components/catalog/product-gallery';
 import { UnavailableMarket } from '@/components/catalog/unavailable-market';
 import { AddToCart } from '@/components/catalog/add-to-cart';
@@ -35,13 +33,13 @@ import { WishlistHeart } from '@/components/catalog/wishlist-heart';
 import type { PublicVariant } from '@/components/catalog/variant-selector';
 import { ProductDetailTabs } from '@/components/catalog/product-detail-tabs';
 import { ProductReviews } from '@/components/reviews/product-reviews';
-import { ReviewForm } from '@/components/reviews/review-form';
-import { canReviewProduct } from '@/reviews/eligibility';
 import { getApprovedProductReviews } from '@/reviews/queries';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getCatalogPath, getProductPath, type Locale } from '@/i18n/routing';
 
 type Params = Promise<{ locale: Locale; productSlug: string }>;
+
+export const revalidate = 300;
+export const dynamic = 'force-static';
 
 function stringRecord(value: Json): Record<string, string> {
   if (!value || Array.isArray(value) || typeof value !== 'object') {
@@ -265,7 +263,7 @@ function TrustBadges({
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { locale, productSlug } = await params;
-  const market = await getRequestMarket();
+  const market = marketForLocale(locale);
   const product = await getCachedCatalogProduct(locale, market, productSlug);
   if (!product) {
     return {};
@@ -286,11 +284,24 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   });
 }
 
+export async function generateStaticParams() {
+  const locales: Locale[] = ['vi', 'en'];
+  const entries = await Promise.all(
+    locales.map(async (locale) => {
+      const products = await getCachedCatalogProducts({
+        locale,
+        market: marketForLocale(locale)
+      });
+      return products.map((product) => ({ locale, productSlug: product.slug }));
+    })
+  );
+  return entries.flat();
+}
+
 export default async function ProductPage({ params }: { params: Params }) {
   const { locale, productSlug } = await params;
   setRequestLocale(locale);
-  const requestUser = getRequestUser();
-  const market = await getRequestMarket();
+  const market = marketForLocale(locale);
   const [product, t, marketT, catalogT] = await Promise.all([
     getCachedCatalogProduct(locale, market, productSlug),
     getTranslations('product'),
@@ -312,11 +323,8 @@ export default async function ProductPage({ params }: { params: Params }) {
       ? product.other_market_code
       : null;
   const productPath = getProductPath(locale, product.slug);
-  const supabase = await createSupabaseServerClient();
-  const [user, reviews, reviewEligibility, mediaImages] = await Promise.all([
-    requestUser,
+  const [reviews, mediaImages] = await Promise.all([
     getApprovedProductReviews({ productId: product.product_id }),
-    canReviewProduct({ productId: product.product_id, client: supabase as never }),
     getProductMediaImages({
       productId: product.product_id,
       primaryImagePath: product.primary_image_path,
@@ -326,12 +334,6 @@ export default async function ProductPage({ params }: { params: Params }) {
       locale
     })
   ]);
-  const wishlistedProductIds = await getWishlistedProductIds({
-    userId: user?.id,
-    productIds: [product.product_id],
-    client: supabase as never
-  });
-  const canWriteReview = Boolean(user) && reviewEligibility.status === 'eligible';
   const reviewList = reviews.status === 'success' ? reviews.reviews : [];
   const averageRating = reviewAverage(reviewList);
   const currencyCode: CurrencyCode | null =
@@ -355,7 +357,11 @@ export default async function ProductPage({ params }: { params: Params }) {
                 ? product.currency_code
                 : null,
             priceMinor: product.price_minor,
-            available: product.available && product.in_stock
+            available: product.available && product.in_stock,
+            aggregateRating:
+              averageRating && reviewList.length > 0
+                ? { ratingValue: averageRating, reviewCount: reviewList.length }
+                : null
           }),
           breadcrumbJsonLd([
             { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
@@ -394,7 +400,6 @@ export default async function ProductPage({ params }: { params: Params }) {
               productTitle={product.title}
               locale={locale}
               returnTo={productPath}
-              initiallySaved={wishlistedProductIds.has(product.product_id)}
               labels={{
                 save: t('wishlist.save', { title: product.title }),
                 remove: t('wishlist.remove', { title: product.title }),
@@ -449,23 +454,6 @@ export default async function ProductPage({ params }: { params: Params }) {
           specs={specs}
         />
         <div id="reviews" className="scroll-mt-8">
-          {canWriteReview ? (
-            <ReviewForm
-              productId={product.product_id}
-              locale={locale}
-              returnTo={productPath}
-              labels={{
-                title: catalogT('reviews.formTitle'),
-                rating: catalogT('reviews.rating'),
-                reviewTitle: catalogT('reviews.reviewTitle'),
-                body: catalogT('reviews.body'),
-                submit: catalogT('reviews.submit'),
-                pending: catalogT('reviews.pending'),
-                notEligible: catalogT('reviews.notEligible'),
-                error: catalogT('reviews.error')
-              }}
-            />
-          ) : null}
           {reviews.status === 'success' ? (
             <ProductReviews
               reviews={reviews.reviews}
