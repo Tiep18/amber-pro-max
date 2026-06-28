@@ -6,11 +6,11 @@ test('SEO-02 SEO-03 D-05 D-06 D-08 product page emits localized metadata and saf
   await expect(page).toHaveTitle('Both-market bear');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     'href',
-    'http://127.0.0.1:3210/en/product/both-market-bear'
+    'http://localhost:3210/en/product/both-market-bear'
   );
   await expect(page.locator('link[rel="alternate"][hreflang="vi"]')).toHaveAttribute(
     'href',
-    'http://127.0.0.1:3210/vi/san-pham/gau-ca-hai'
+    'http://localhost:3210/vi/san-pham/gau-ca-hai'
   );
 
   const scripts = await page.locator('script[type="application/ld+json"]').allTextContents();

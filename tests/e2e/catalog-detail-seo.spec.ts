@@ -29,11 +29,11 @@ test('product metadata uses localized canonical alternates and social image', as
   await expect(page).toHaveTitle('Both-market bear');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     'href',
-    'http://127.0.0.1:3210/en/product/both-market-bear'
+    'http://localhost:3210/en/product/both-market-bear'
   );
   await expect(page.locator('link[rel="alternate"][hreflang="vi"]')).toHaveAttribute(
     'href',
-    'http://127.0.0.1:3210/vi/san-pham/gau-ca-hai'
+    'http://localhost:3210/vi/san-pham/gau-ca-hai'
   );
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
     'content',
@@ -46,13 +46,13 @@ test('category and collection pages emit localized metadata', async ({page}) => 
   await expect(page).toHaveTitle('Stuffed animals');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     'href',
-    'http://127.0.0.1:3210/en/category/stuffed-animals'
+    'http://localhost:3210/en/category/stuffed-animals'
   );
 
   await page.goto('/vi/bo-suu-tap/qua-tang');
   await expect(page).toHaveTitle('Qua tang handmade');
   await expect(page.locator('link[rel="alternate"][hreflang="en"]')).toHaveAttribute(
     'href',
-    'http://127.0.0.1:3210/en/collection/gifts'
+    'http://localhost:3210/en/collection/gifts'
   );
 });
