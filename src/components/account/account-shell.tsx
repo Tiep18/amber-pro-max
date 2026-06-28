@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Sheet } from '@/components/ui/sheet';
+import { notifyStorefrontContextChanged } from '@/components/storefront-context';
 import { cn } from '@/lib/utils';
 
 type AccountShellLabels = {
@@ -134,7 +135,7 @@ function AccountNavigation({ locale, onNavigate }: { locale: Locale; onNavigate?
 
 function SignOutButton({ locale }: { locale: Locale }) {
   return (
-    <form action={signOutAction}>
+    <form action={signOutAction} onSubmit={() => notifyStorefrontContextChanged({ user: null })}>
       <input type="hidden" name="locale" value={locale} />
       <Button
         type="submit"

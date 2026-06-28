@@ -25,6 +25,7 @@ import {
   getLocalizedPath,
   type Locale
 } from '@/i18n/routing';
+import { notifyStorefrontContextChanged } from './storefront-context';
 
 type HeaderUser = {
   email: string;
@@ -161,7 +162,11 @@ export function AccountMenu({
             </MenuItem>
           </>
         ) : null}
-        <form action={signOutAction} className="border-t border-[var(--border)] pt-1">
+        <form
+          action={signOutAction}
+          className="border-t border-[var(--border)] pt-1"
+          onSubmit={() => notifyStorefrontContextChanged({ user: null })}
+        >
           <input type="hidden" name="locale" value={locale} />
           <button
             type="submit"
@@ -229,7 +234,7 @@ export function AccountMenu({
           </>
         ) : null}
         <DropdownMenuSeparator />
-        <form action={signOutAction}>
+        <form action={signOutAction} onSubmit={() => notifyStorefrontContextChanged({ user: null })}>
           <input type="hidden" name="locale" value={locale} />
           <DropdownMenuItem asChild variant="destructive">
             <button type="submit" className="flex min-h-10 w-full items-center gap-2.5 font-medium">
