@@ -1,7 +1,8 @@
 import type {Locale} from '@/i18n/routing';
+import {getClientEnv} from '@/lib/env/client';
 
 export function siteUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? 'http://127.0.0.1:3210';
+  return getClientEnv().NEXT_PUBLIC_SITE_URL;
 }
 
 export function absoluteUrl(path: string) {

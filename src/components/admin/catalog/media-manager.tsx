@@ -8,8 +8,6 @@ import {
   setPrimaryProductImageAction,
   setProductSocialImageAction,
   updateProductMediaDetailsAction,
-  uploadPatternPdfAction,
-  uploadProductImageAction,
   type MediaActionResult
 } from '@/catalog/media-actions';
 import {Alert} from '@/components/ui/alert';
@@ -63,6 +61,21 @@ function formatBytes(bytes: number) {
   return `${Math.ceil(bytes / 1024)} KB`;
 }
 
+async function uploadMedia(endpoint: string, formData: FormData): Promise<MediaActionResult> {
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    body: formData
+  });
+  const body = (await response.json().catch(() => null)) as MediaActionResult | null;
+  if (body) {
+    return body;
+  }
+  return {
+    status: response.status === 413 ? 'invalid' : 'error',
+    code: response.status === 413 ? 'invalid_file' : 'upload_failed'
+  };
+}
+
 export function MediaManager({productId, productType, images, asset}: MediaManagerProps) {
   const router = useRouter();
   const imageFormRef = useRef<HTMLFormElement>(null);
@@ -97,7 +110,10 @@ export function MediaManager({productId, productType, images, asset}: MediaManag
               event.preventDefault();
               const formData = new FormData(event.currentTarget);
               formData.set('productId', productId);
-              runAction(() => uploadProductImageAction(formData), () => imageFormRef.current?.reset());
+              runAction(
+                () => uploadMedia('/api/admin/catalog/media/product-image', formData),
+                () => imageFormRef.current?.reset()
+              );
             }}
           >
             <label className="space-y-2">
@@ -253,7 +269,10 @@ export function MediaManager({productId, productType, images, asset}: MediaManag
                 event.preventDefault();
                 const formData = new FormData(event.currentTarget);
                 formData.set('productId', productId);
-                runAction(() => uploadPatternPdfAction(formData), () => pdfFormRef.current?.reset());
+                runAction(
+                  () => uploadMedia('/api/admin/catalog/media/pattern-pdf', formData),
+                  () => pdfFormRef.current?.reset()
+                );
               }}
             >
               <label className="space-y-2">
