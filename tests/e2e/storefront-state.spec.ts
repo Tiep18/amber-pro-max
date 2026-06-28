@@ -19,3 +19,19 @@ test('client navigation preserves header context without refetching it', async (
 
   expect(contextRequests).toBe(0);
 });
+
+test('catalog batches personalized wishlist state without making the page dynamic', async ({
+  page
+}) => {
+  const wishlistRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/wishlist?')) wishlistRequests.push(request.url());
+  });
+
+  await page.goto('/vi/cua-hang');
+  await page.waitForResponse((response) => response.url().includes('/api/wishlist?'));
+
+  expect(wishlistRequests).toHaveLength(1);
+  const productIds = new URL(wishlistRequests[0]).searchParams.get('productIds')?.split(',') ?? [];
+  expect(productIds.length).toBeGreaterThan(1);
+});

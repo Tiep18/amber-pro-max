@@ -19,7 +19,7 @@ type StorefrontContextValue = { market: MarketCode; user: StorefrontUser };
 type StorefrontContextUpdate = Partial<StorefrontContextValue>;
 
 const StorefrontContext = createContext<StorefrontContextValue | null>(null);
-const STOREFRONT_CONTEXT_CHANGED = 'storefront-context-changed';
+export const STOREFRONT_CONTEXT_CHANGED = 'storefront-context-changed';
 
 export function notifyStorefrontContextChanged(update: StorefrontContextUpdate = {}) {
   if (typeof window === 'undefined') return;
