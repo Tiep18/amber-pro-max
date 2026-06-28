@@ -13,6 +13,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import { notifyStorefrontContextChanged } from '@/components/storefront-context';
 import { getEquivalentLocalizedPath, isLocale, type Locale } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 
@@ -81,6 +82,7 @@ export function CommerceContextSwitcher({
     const formData = new FormData();
     formData.set('market', option.market);
     formData.set('returnTo', returnPathFor(option.locale));
+    notifyStorefrontContextChanged({ market: option.market });
     startTransition(() => {
       void setActiveMarketAction(formData);
     });
