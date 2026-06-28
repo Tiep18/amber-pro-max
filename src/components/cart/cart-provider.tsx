@@ -68,12 +68,14 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
   const [pending, setPending] = useState(false);
   const [open, setOpen] = useState(false);
   const [removed, setRemoved] = useState<RemovedLine | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const latestQuoteRequest = useRef(0);
 
   const persist = useCallback(
     async (lines: CartIntentLine[]) => {
       const next = writeGuestCart({ lines });
       setCart(next);
+      setHydrated(true);
       const requestId = ++latestQuoteRequest.current;
       setPending(true);
       const result = await refreshCartQuoteAction({ locale, lines: next.lines });
@@ -100,9 +102,11 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
       const next = emptyCart(new Date());
       setCart(next);
       setQuote(null);
+      setHydrated(true);
       return;
     }
     setCart(current);
+    setHydrated(true);
     void refresh(current.lines);
   }, [refresh]);
 
@@ -188,7 +192,7 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
       pending,
       open,
       setOpen,
-      count: cart?.lines.reduce((total, line) => total + line.quantity, 0) ?? 0,
+      count: hydrated ? (cart?.lines.reduce((total, line) => total + line.quantity, 0) ?? 0) : 0,
       addLine,
       updateQuantity,
       removeLine,
@@ -196,7 +200,7 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
       removedLine: removed?.line ?? null,
       refresh
     }),
-    [addLine, cart, open, pending, quote, refresh, removeLine, removed, undoRemove, updateQuantity]
+    [addLine, cart, hydrated, open, pending, quote, refresh, removeLine, removed, undoRemove, updateQuantity]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

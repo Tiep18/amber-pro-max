@@ -1,6 +1,7 @@
 'use client';
 
 import { ShoppingBag } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { formatMoney } from '@/catalog/money';
 import { getCartPath, getCheckoutPath, type Locale } from '@/i18n/routing';
 import { useCart } from './cart-provider';
@@ -52,30 +53,36 @@ const copy = {
 export function MiniCart({ locale }: { locale: Locale }) {
   const t = copy[locale];
   const { count, open, setOpen, quote, cart, updateQuantity, removeLine } = useCart();
+  const [mounted, setMounted] = useState(false);
+  const visibleCount = mounted ? count : 0;
   const hasBlocking = quote?.status === 'blocked';
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <>
       <Button
         variant="secondary"
         className="relative min-h-11 rounded-full px-3 shadow-sm"
-        aria-label={t.trigger(count)}
+        aria-label={t.trigger(visibleCount)}
         aria-expanded={open}
         onClick={() => setOpen(true)}
       >
         <ShoppingBag aria-hidden="true" className="h-5 w-5" />
-        <span className="sr-only">{t.trigger(count)}</span>
-        {count > 0 ? (
+        <span className="sr-only">{t.trigger(visibleCount)}</span>
+        {visibleCount > 0 ? (
           <span
             aria-hidden="true"
             className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[11px] font-semibold leading-none text-white shadow-sm"
           >
-            {count > 99 ? '99+' : count}
+            {visibleCount > 99 ? '99+' : visibleCount}
           </span>
         ) : null}
       </Button>
       <span className="sr-only" aria-live="polite">
-        {t.trigger(count)}
+        {t.trigger(visibleCount)}
       </span>
       <Sheet
         triggerLabel={t.cart}
