@@ -1,8 +1,15 @@
-import { getCachedCatalogProducts } from '@/catalog/public-cache';
+import { getCachedCatalogFacets, getCachedCatalogProducts } from '@/catalog/public-cache';
 import { getCachedPublishedBlogPosts } from '@/content/blog/public-cache';
 import { urlSetXml } from '@/content/seo/metadata';
 import { getPublishedRequiredPolicyLinks } from '@/launch/settings';
-import { getBlogPostPath, getProductPath, isLocale, type Locale } from '@/i18n/routing';
+import {
+  getBlogPostPath,
+  getCategoryPath,
+  getCollectionPath,
+  getProductPath,
+  isLocale,
+  type Locale
+} from '@/i18n/routing';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,15 +25,21 @@ export async function GET(_request: Request, { params }: { params: Params }) {
     return new Response('Not found', { status: 404 });
   }
   const locale = rawLocale;
-  const [products, blogPosts, policies] = await Promise.all([
-    getCachedCatalogProducts({ locale, market: marketForLocale(locale) }),
+  const market = marketForLocale(locale);
+  const [products, facets, blogPosts, policies] = await Promise.all([
+    getCachedCatalogProducts({ locale, market }),
+    getCachedCatalogFacets(locale, market),
     getCachedPublishedBlogPosts(locale),
     getPublishedRequiredPolicyLinks(locale)
   ]);
+  const categories = facets.filter((facet) => facet.facet_type === 'category');
+  const collections = facets.filter((facet) => facet.facet_type === 'collection');
   const paths = [
     `/${locale}`,
     locale === 'vi' ? '/vi/cua-hang' : '/en/catalog',
     locale === 'vi' ? '/vi/bai-viet' : '/en/blog',
+    ...categories.map((category) => getCategoryPath(locale, category.slug)),
+    ...collections.map((collection) => getCollectionPath(locale, collection.slug)),
     ...products.map((product) => getProductPath(locale, product.slug)),
     ...blogPosts.map((post) => getBlogPostPath(locale, post.slug)),
     ...policies.map((policy) => policy.href)
