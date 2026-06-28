@@ -1,4 +1,5 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import Link from 'next/link';
 import { CatalogControls } from '@/components/catalog/catalog-controls';
 import { CatalogFilterContent } from '@/components/catalog/catalog-filter-content';
 import { CatalogResultGrid } from '@/components/catalog/catalog-result-grid';
@@ -69,9 +70,9 @@ export default async function CatalogPage({
         aria-label={t('breadcrumb')}
         className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]"
       >
-        <a href={`/${locale}`} className="hover:text-[var(--foreground)]">
+        <Link href={`/${locale}`} className="hover:text-[var(--foreground)]">
           {t('breadcrumbHome')}
-        </a>
+        </Link>
         <span aria-hidden="true">/</span>
         <span aria-current="page">{t('breadcrumbShop')}</span>
       </nav>
@@ -86,14 +87,14 @@ export default async function CatalogPage({
         {tabs.map((tab) => {
           const active = state.productType === tab.type;
           return (
-            <a
+            <Link
               key={tab.label}
               href={catalogHref(basePath, state, tab.type)}
               aria-current={active ? 'page' : undefined}
               className="shrink-0 border-b-2 border-transparent px-4 py-3 text-sm font-semibold aria-[current=page]:border-[var(--accent)] aria-[current=page]:text-[var(--accent)]"
             >
               {tab.label}
-            </a>
+            </Link>
           );
         })}
       </div>
@@ -151,9 +152,9 @@ export default async function CatalogPage({
             <section className="grid min-h-52 place-content-center gap-3 text-center">
               <h2 className="text-xl font-semibold">{t('emptyTitle')}</h2>
               <p className="text-[var(--muted-foreground)]">{t('emptyBody')}</p>
-              <a href={basePath} className="font-semibold text-[var(--accent)]">
+              <Link href={basePath} className="font-semibold text-[var(--accent)]">
                 {t('clearFilters')}
-              </a>
+              </Link>
             </section>
           )}
         </div>

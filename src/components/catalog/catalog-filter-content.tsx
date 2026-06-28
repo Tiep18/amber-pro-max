@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type {CatalogFacet} from '@/catalog/queries';
 import type {CatalogListState} from '@/catalog/list-state';
 
@@ -27,15 +28,15 @@ export function CatalogFilterContent({
       <legend className="mb-2 text-sm font-semibold uppercase text-[var(--muted-foreground)]">
         {labels.category}
       </legend>
-      <a
+      <Link
         href={filterHref(basePath, state)}
         aria-current={!state.categorySlug ? 'page' : undefined}
         className="flex min-h-10 items-center justify-between border-b border-[var(--border)] text-sm aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]"
       >
         {labels.allCategories}
-      </a>
+      </Link>
       {categories.map((facet) => (
-        <a
+        <Link
           key={facet.id}
           href={filterHref(basePath, state, facet.slug)}
           aria-current={state.categorySlug === facet.slug ? 'page' : undefined}
@@ -43,7 +44,7 @@ export function CatalogFilterContent({
         >
           <span>{facet.label}</span>
           <span className="tabular-nums text-[var(--muted-foreground)]">{facet.product_count}</span>
-        </a>
+        </Link>
       ))}
     </fieldset>
   );

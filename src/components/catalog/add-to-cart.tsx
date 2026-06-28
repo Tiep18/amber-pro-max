@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {useEffect, useMemo, useState} from 'react';
 import {canAddToCart} from '@/catalog/add-to-cart-eligibility';
 import {formatMoney, type CurrencyCode} from '@/catalog/money';
@@ -8,6 +9,7 @@ import type {Locale} from '@/i18n/routing';
 import {Button} from '@/components/ui/button';
 import {Alert} from '@/components/ui/alert';
 import {useCart} from '@/components/cart/cart-provider';
+import { getCartPath } from '@/i18n/routing';
 import {VariantSelector, type PublicVariant} from './variant-selector';
 
 const copy = {
@@ -144,7 +146,7 @@ export function AddToCart({
         <Alert variant="success">
           <div className="flex flex-wrap items-center gap-3">
             <span>{t.added}</span>
-            <a className="font-semibold underline" href={locale === 'vi' ? '/vi/gio-hang' : '/en/cart'}>{t.view}</a>
+            <Link className="font-semibold underline" href={getCartPath(locale)}>{t.view}</Link>
             <button className="font-semibold underline" type="button" onClick={() => setAdded(false)}>{t.continue}</button>
           </div>
         </Alert>

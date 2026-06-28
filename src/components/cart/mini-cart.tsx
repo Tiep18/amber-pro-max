@@ -1,6 +1,7 @@
 'use client';
 
 import { ShoppingBag } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { formatMoney } from '@/catalog/money';
 import { getCartPath, getCheckoutPath, type Locale } from '@/i18n/routing';
@@ -140,21 +141,21 @@ export function MiniCart({ locale }: { locale: Locale }) {
           {hasBlocking || !quote?.lines.length ? (
             <Button disabled>{t.checkout}</Button>
           ) : (
-            <a
+            <Link
               className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-base font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
               href={getCheckoutPath(locale)}
               onClick={() => setOpen(false)}
             >
               {t.checkout}
-            </a>
+            </Link>
           )}
-          <a
+          <Link
             className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] px-4 font-semibold"
             href={getCartPath(locale)}
             onClick={() => setOpen(false)}
           >
             {t.viewCart}
-          </a>
+          </Link>
         </div>
       </Sheet>
     </>

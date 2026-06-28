@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { formatMoney } from '@/catalog/money';
 import { getCheckoutPath, type Locale } from '@/i18n/routing';
 import { Alert } from '@/components/ui/alert';
@@ -128,12 +129,12 @@ export function CartPageContent({ locale }: { locale: Locale }) {
               {t.checkout}
             </Button>
           ) : (
-            <a
+            <Link
               className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-base font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
               href={getCheckoutPath(locale)}
             >
               {t.checkout}
-            </a>
+            </Link>
           )}
         </CardContent>
       </Card>

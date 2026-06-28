@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import Link from 'next/link';
 import { Suspense } from 'react';
 import { getCatalogPath, getLocalizedPath, type Locale } from '@/i18n/routing';
 import { MiniCart } from './cart/mini-cart';
@@ -32,22 +33,22 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
         <div className="md:hidden">
           <Sheet triggerLabel={t('openMenu')} title={t('menu')} side="left">
             <div className="flex flex-col gap-5">
-              <a href={getLocalizedPath('/', locale)} className="grid gap-0.5">
+              <Link href={getLocalizedPath('/', locale)} className="grid gap-0.5">
                 <span className="text-xl font-semibold leading-tight">Ambertinybear</span>
                 <span className="text-xs font-semibold text-[var(--muted-foreground)]">
                   handmade with care
                 </span>
-              </a>
+              </Link>
               <Separator />
               <nav aria-label={t('primary')} className="flex flex-col gap-1">
                 {links.map((link) => (
-                  <a
+                  <Link
                     key={link.href}
                     href={link.href}
                     className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-3 text-base font-semibold hover:bg-[var(--surface-muted)]"
                   >
                     {link.label}
-                  </a>
+                  </Link>
                 ))}
               </nav>
               <Separator />
@@ -65,7 +66,7 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
             </div>
           </Sheet>
         </div>
-        <a
+        <Link
           href={getLocalizedPath('/', locale)}
           className="grid min-w-0 gap-0.5 truncate text-base font-semibold sm:text-xl"
         >
@@ -73,16 +74,16 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
           <span className="hidden text-xs font-semibold text-[var(--muted-foreground)] lg:block">
             handmade with care
           </span>
-        </a>
+        </Link>
         <nav aria-label={t('primary')} className="hidden items-center gap-2 md:flex">
           {links.map((link) => (
-            <a
+            <Link
               key={link.href}
               href={link.href}
               className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-3 text-base hover:bg-[var(--surface-muted)]"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
         </nav>
         <div className="flex items-center gap-2">

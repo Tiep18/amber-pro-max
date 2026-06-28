@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
+import Link from 'next/link';
 import { formatMoney } from '@/catalog/money';
 import type { CatalogProduct } from '@/catalog/queries';
 import { WishlistHeart } from '@/components/catalog/wishlist-heart';
@@ -79,12 +80,12 @@ export async function ProductCard({
               {product.in_stock ? t('inStock') : t('outOfStock')}
             </p>
           </div>
-          <a
+          <Link
             href={productPath}
             className="inline-flex min-h-10 items-center rounded-[var(--radius-control)] bg-[var(--accent)] px-3 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
           >
             {t('viewProduct')}
-          </a>
+          </Link>
         </div>
       </div>
     </article>

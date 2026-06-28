@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { ArrowRight, HeartHandshake, Languages, ShieldCheck } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { getRequestMarket } from '@/catalog/page-context';
@@ -38,14 +39,14 @@ function ArrowLink({
   testId?: string;
 }) {
   return (
-    <a
+    <Link
       href={href}
       data-testid={testId}
       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] sm:text-base"
     >
       {children}
       <ArrowRight aria-hidden="true" className="size-4" />
-    </a>
+    </Link>
   );
 }
 
@@ -74,13 +75,13 @@ function FeaturedRow({
           <h2 className="text-2xl font-semibold leading-tight sm:text-3xl">{title}</h2>
           <p className="text-[var(--muted-foreground)]">{intro}</p>
         </div>
-        <a
+        <Link
           href={href}
           className="inline-flex min-h-11 items-center gap-2 font-semibold text-[var(--accent)] hover:underline"
         >
           {linkLabel}
           <ArrowRight aria-hidden="true" className="size-4" />
-        </a>
+        </Link>
       </div>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {products.map((product) => (
@@ -128,14 +129,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
               <ArrowLink href="#shop-path-handmade" testId="hero-handmade-cta">
                 {t('hero.handmadeCta')}
               </ArrowLink>
-              <a
+              <Link
                 href="#shop-path-patterns"
                 data-testid="hero-patterns-cta"
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--foreground)] bg-white/90 px-5 py-3 text-sm font-semibold transition-colors hover:bg-white sm:text-base"
               >
                 {t('hero.patternCta')}
                 <ArrowRight aria-hidden="true" className="size-4" />
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -152,7 +153,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
             </h2>
           </div>
           <div className="grid gap-6 lg:grid-cols-2">
-            <a
+            <Link
               id="shop-path-handmade"
               href={handmadePath}
               data-testid="shop-path-handmade"
@@ -174,8 +175,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
                 </div>
                 <p className="text-[var(--muted-foreground)]">{t('paths.handmadeBody')}</p>
               </div>
-            </a>
-            <a
+            </Link>
+            <Link
               id="shop-path-patterns"
               href={patternPath}
               data-testid="shop-path-patterns"
@@ -197,7 +198,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
                 </div>
                 <p className="text-[var(--muted-foreground)]">{t('paths.patternBody')}</p>
               </div>
-            </a>
+            </Link>
           </div>
         </section>
 
