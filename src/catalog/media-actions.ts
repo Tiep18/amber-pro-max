@@ -3,6 +3,7 @@
 import {createHash} from 'node:crypto';
 import {revalidatePath} from 'next/cache';
 import {requireAdmin} from '@/auth/guards';
+import {invalidateCatalogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {
   MAX_PATTERN_PDF_BYTES,
@@ -54,6 +55,7 @@ function formFile(formData: FormData, name: string) {
 function revalidateMedia(productId: string) {
   revalidatePath(`/admin/catalog/${productId}`);
   revalidatePath(`/admin/catalog/${productId}/media`);
+  invalidateCatalogCache();
 }
 
 async function productExists(productId: string) {

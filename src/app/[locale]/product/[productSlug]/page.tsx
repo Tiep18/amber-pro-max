@@ -1,33 +1,47 @@
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import Link from 'next/link';
-import {BadgeCheck, CreditCard, Download, MessageCircle, PackageCheck, RefreshCcw, ShieldCheck, Star, Truck} from 'lucide-react';
-import {getTranslations, setRequestLocale} from 'next-intl/server';
-import {notFound} from 'next/navigation';
-import type {Json} from '@/types/supabase';
-import type {CurrencyCode} from '@/catalog/money';
-import {localizedMetadata, publicStorageUrl} from '@/catalog/metadata';
-import {JsonLd, breadcrumbJsonLd, organizationJsonLd, productJsonLd, websiteJsonLd} from '@/content/seo/json-ld';
-import {getRequestMarket} from '@/catalog/page-context';
-import {getCatalogProductBySlug} from '@/catalog/queries';
-import {getWishlistedProductIds} from '@/account/wishlist';
-import {ProductGallery} from '@/components/catalog/product-gallery';
-import {UnavailableMarket} from '@/components/catalog/unavailable-market';
-import {AddToCart} from '@/components/catalog/add-to-cart';
-import {WishlistHeart} from '@/components/catalog/wishlist-heart';
-import type {PublicVariant} from '@/components/catalog/variant-selector';
-import {ProductDetailTabs} from '@/components/catalog/product-detail-tabs';
-import {ProductReviews} from '@/components/reviews/product-reviews';
-import {ReviewForm} from '@/components/reviews/review-form';
-import {canReviewProduct} from '@/reviews/eligibility';
-import {getApprovedProductReviews} from '@/reviews/queries';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {
-  getCatalogPath,
-  getProductPath,
-  type Locale
-} from '@/i18n/routing';
+  BadgeCheck,
+  CreditCard,
+  Download,
+  MessageCircle,
+  PackageCheck,
+  RefreshCcw,
+  ShieldCheck,
+  Star,
+  Truck
+} from 'lucide-react';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+import type { Json } from '@/types/supabase';
+import type { CurrencyCode } from '@/catalog/money';
+import { localizedMetadata, publicStorageUrl } from '@/catalog/metadata';
+import {
+  JsonLd,
+  breadcrumbJsonLd,
+  organizationJsonLd,
+  productJsonLd,
+  websiteJsonLd
+} from '@/content/seo/json-ld';
+import { getRequestMarket } from '@/catalog/page-context';
+import { getCachedCatalogProduct } from '@/catalog/public-cache';
+import { getProductMediaImages } from '@/catalog/product-media';
+import { getWishlistedProductIds } from '@/account/wishlist';
+import { getRequestUser } from '@/auth/request-user';
+import { ProductGallery } from '@/components/catalog/product-gallery';
+import { UnavailableMarket } from '@/components/catalog/unavailable-market';
+import { AddToCart } from '@/components/catalog/add-to-cart';
+import { WishlistHeart } from '@/components/catalog/wishlist-heart';
+import type { PublicVariant } from '@/components/catalog/variant-selector';
+import { ProductDetailTabs } from '@/components/catalog/product-detail-tabs';
+import { ProductReviews } from '@/components/reviews/product-reviews';
+import { ReviewForm } from '@/components/reviews/review-form';
+import { canReviewProduct } from '@/reviews/eligibility';
+import { getApprovedProductReviews } from '@/reviews/queries';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getCatalogPath, getProductPath, type Locale } from '@/i18n/routing';
 
-type Params = Promise<{locale: Locale; productSlug: string}>;
+type Params = Promise<{ locale: Locale; productSlug: string }>;
 
 function stringRecord(value: Json): Record<string, string> {
   if (!value || Array.isArray(value) || typeof value !== 'object') {
@@ -40,7 +54,7 @@ function stringRecord(value: Json): Record<string, string> {
 
 function localizedSlugs(value: Json) {
   const slugs = stringRecord(value);
-  return {vi: slugs.vi, en: slugs.en};
+  return { vi: slugs.vi, en: slugs.en };
 }
 
 function publicVariants(value: Json): PublicVariant[] {
@@ -61,73 +75,23 @@ function publicVariants(value: Json): PublicVariant[] {
     ) {
       return [];
     }
-    return [{
-      variant_id: row.variant_id,
-      sku: row.sku,
-      display_order: row.display_order,
-      enabled: row.enabled,
-      stock: row.stock,
-      currency_code: row.currency_code === 'VND' || row.currency_code === 'USD' ? row.currency_code : null,
-      price_minor: typeof row.price_minor === 'number' ? row.price_minor : null,
-      attributes: stringRecord(row.attributes ?? {})
-    }];
+    return [
+      {
+        variant_id: row.variant_id,
+        sku: row.sku,
+        display_order: row.display_order,
+        enabled: row.enabled,
+        stock: row.stock,
+        currency_code:
+          row.currency_code === 'VND' || row.currency_code === 'USD' ? row.currency_code : null,
+        price_minor: typeof row.price_minor === 'number' ? row.price_minor : null,
+        attributes: stringRecord(row.attributes ?? {})
+      }
+    ];
   });
 }
 
-type ProductMediaImage = {
-  url: string;
-  alt: string;
-  objectPath: string;
-  isPrimary: boolean;
-  displayOrder: number;
-};
-
-async function productMediaImages({
-  productId,
-  primaryImagePath,
-  primaryImageBucket,
-  primaryImageAlt,
-  title,
-  locale
-}: {
-  productId: string;
-  primaryImagePath: string | null;
-  primaryImageBucket: string | null;
-  primaryImageAlt: string | null;
-  title: string;
-  locale: Locale;
-}): Promise<ProductMediaImage[]> {
-  const supabase = await createSupabaseServerClient();
-  const {data} = await supabase
-    .from('product_media')
-    .select('bucket_id,object_path,alt_text_vi,alt_text_en,display_order,is_primary')
-    .eq('product_id', productId)
-    .order('display_order', {ascending: true});
-  const mapped = (data ?? []).flatMap((image) => {
-    const url = publicStorageUrl(image.bucket_id, image.object_path);
-    if (!url) {
-      return [];
-    }
-    return [{
-      url,
-      objectPath: image.object_path,
-      alt: (locale === 'vi' ? image.alt_text_vi : image.alt_text_en) || primaryImageAlt || title,
-      isPrimary: image.is_primary,
-      displayOrder: image.display_order
-    }];
-  });
-
-  if (mapped.length > 0) {
-    return mapped.sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.displayOrder - b.displayOrder);
-  }
-
-  const primaryUrl = publicStorageUrl(primaryImageBucket, primaryImagePath);
-  return primaryUrl
-    ? [{url: primaryUrl, objectPath: primaryImagePath ?? primaryUrl, alt: primaryImageAlt || title, isPrimary: true, displayOrder: 0}]
-    : [];
-}
-
-function reviewAverage(reviews: Array<{rating: number}>) {
+function reviewAverage(reviews: Array<{ rating: number }>) {
   if (!reviews.length) {
     return null;
   }
@@ -147,10 +111,16 @@ function ReviewInlineSummary({
     return null;
   }
   return (
-    <a href="#reviews" className="flex w-fit flex-wrap items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
+    <a
+      href="#reviews"
+      className="flex w-fit flex-wrap items-center gap-2 text-sm font-semibold text-[var(--foreground)]"
+    >
       <span className="flex text-[var(--warning)]" aria-hidden="true">
-        {Array.from({length: 5}).map((_, index) => (
-          <Star key={index} className={`h-4 w-4 ${index < Math.round(average) ? 'fill-current' : ''}`} />
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Star
+            key={index}
+            className={`h-4 w-4 ${index < Math.round(average) ? 'fill-current' : ''}`}
+          />
         ))}
       </span>
       <span>{average.toFixed(1)}</span>
@@ -161,26 +131,64 @@ function ReviewInlineSummary({
   );
 }
 
-function PurchaseInfo({productType, locale}: {productType: 'pdf_pattern' | 'physical_finished'; locale: Locale}) {
+function PurchaseInfo({
+  productType,
+  locale
+}: {
+  productType: 'pdf_pattern' | 'physical_finished';
+  locale: Locale;
+}) {
   const isPdf = productType === 'pdf_pattern';
   const items = isPdf
     ? locale === 'vi'
       ? [
-          {icon: Download, title: 'Tai ve sau thanh toan', body: 'Lien ket tai PDF duoc kich hoat khi don hang da thanh toan.'},
-          {icon: ShieldCheck, title: 'Link rieng co thoi han', body: 'File pattern duoc giao qua lien ket bao ve, khong phai URL cong khai.'}
+          {
+            icon: Download,
+            title: 'Tai ve sau thanh toan',
+            body: 'Lien ket tai PDF duoc kich hoat khi don hang da thanh toan.'
+          },
+          {
+            icon: ShieldCheck,
+            title: 'Link rieng co thoi han',
+            body: 'File pattern duoc giao qua lien ket bao ve, khong phai URL cong khai.'
+          }
         ]
       : [
-          {icon: Download, title: 'Download after payment', body: 'Your PDF link opens after the order is confirmed paid.'},
-          {icon: ShieldCheck, title: 'Protected expiring link', body: 'Pattern files are delivered through private, time-limited access.'}
+          {
+            icon: Download,
+            title: 'Download after payment',
+            body: 'Your PDF link opens after the order is confirmed paid.'
+          },
+          {
+            icon: ShieldCheck,
+            title: 'Protected expiring link',
+            body: 'Pattern files are delivered through private, time-limited access.'
+          }
         ]
     : locale === 'vi'
       ? [
-          {icon: PackageCheck, title: 'Dong goi 1-2 ngay lam viec', body: 'Shop chuan bi va xac nhan phi ship truoc khi giao.'},
-          {icon: Truck, title: 'Giao hang thu cong', body: 'Theo doi trang thai va ma van don trong don hang sau khi gui.'}
+          {
+            icon: PackageCheck,
+            title: 'Dong goi 1-2 ngay lam viec',
+            body: 'Shop chuan bi va xac nhan phi ship truoc khi giao.'
+          },
+          {
+            icon: Truck,
+            title: 'Giao hang thu cong',
+            body: 'Theo doi trang thai va ma van don trong don hang sau khi gui.'
+          }
         ]
       : [
-          {icon: PackageCheck, title: 'Packed in 1-2 business days', body: 'The shop prepares your handmade item and confirms shipping.'},
-          {icon: Truck, title: 'Manual carrier handling', body: 'Tracking and status are updated after dispatch.'}
+          {
+            icon: PackageCheck,
+            title: 'Packed in 1-2 business days',
+            body: 'The shop prepares your handmade item and confirms shipping.'
+          },
+          {
+            icon: Truck,
+            title: 'Manual carrier handling',
+            body: 'Tracking and status are updated after dispatch.'
+          }
         ];
 
   return (
@@ -201,34 +209,40 @@ function PurchaseInfo({productType, locale}: {productType: 'pdf_pattern' | 'phys
   );
 }
 
-function TrustBadges({productType, locale}: {productType: 'pdf_pattern' | 'physical_finished'; locale: Locale}) {
+function TrustBadges({
+  productType,
+  locale
+}: {
+  productType: 'pdf_pattern' | 'physical_finished';
+  locale: Locale;
+}) {
   const isPdf = productType === 'pdf_pattern';
   const badges = isPdf
     ? locale === 'vi'
       ? [
-          {icon: CreditCard, label: 'Thanh toan an toan'},
-          {icon: Download, label: 'PDF chat luong cao'},
-          {icon: BadgeCheck, label: 'Tai lai khi can'},
-          {icon: MessageCircle, label: 'Ho tro sau mua'}
+          { icon: CreditCard, label: 'Thanh toan an toan' },
+          { icon: Download, label: 'PDF chat luong cao' },
+          { icon: BadgeCheck, label: 'Tai lai khi can' },
+          { icon: MessageCircle, label: 'Ho tro sau mua' }
         ]
       : [
-          {icon: CreditCard, label: 'Secure payment'},
-          {icon: Download, label: 'High-quality PDF'},
-          {icon: BadgeCheck, label: 'Download support'},
-          {icon: MessageCircle, label: 'Post-purchase help'}
+          { icon: CreditCard, label: 'Secure payment' },
+          { icon: Download, label: 'High-quality PDF' },
+          { icon: BadgeCheck, label: 'Download support' },
+          { icon: MessageCircle, label: 'Post-purchase help' }
         ]
     : locale === 'vi'
       ? [
-          {icon: CreditCard, label: 'Thanh toan an toan'},
-          {icon: RefreshCcw, label: 'Ho tro doi tra'},
-          {icon: BadgeCheck, label: 'Lam thu cong'},
-          {icon: MessageCircle, label: 'Ho tro qua chat'}
+          { icon: CreditCard, label: 'Thanh toan an toan' },
+          { icon: RefreshCcw, label: 'Ho tro doi tra' },
+          { icon: BadgeCheck, label: 'Lam thu cong' },
+          { icon: MessageCircle, label: 'Ho tro qua chat' }
         ]
       : [
-          {icon: CreditCard, label: 'Secure payment'},
-          {icon: RefreshCcw, label: 'Return support'},
-          {icon: BadgeCheck, label: 'Handmade item'},
-          {icon: MessageCircle, label: 'Chat support'}
+          { icon: CreditCard, label: 'Secure payment' },
+          { icon: RefreshCcw, label: 'Return support' },
+          { icon: BadgeCheck, label: 'Handmade item' },
+          { icon: MessageCircle, label: 'Chat support' }
         ];
 
   return (
@@ -236,7 +250,10 @@ function TrustBadges({productType, locale}: {productType: 'pdf_pattern' | 'physi
       {badges.map((badge) => {
         const Icon = badge.icon;
         return (
-          <div key={badge.label} className="flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--trust-surface)] px-3 py-2 text-[var(--trust-accent)]">
+          <div
+            key={badge.label}
+            className="flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--trust-surface)] px-3 py-2 text-[var(--trust-accent)]"
+          >
             <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="font-semibold">{badge.label}</span>
           </div>
@@ -246,10 +263,10 @@ function TrustBadges({productType, locale}: {productType: 'pdf_pattern' | 'physi
   );
 }
 
-export async function generateMetadata({params}: {params: Params}): Promise<Metadata> {
-  const {locale, productSlug} = await params;
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { locale, productSlug } = await params;
   const market = await getRequestMarket();
-  const product = await getCatalogProductBySlug({locale, market, slug: productSlug});
+  const product = await getCachedCatalogProduct(locale, market, productSlug);
   if (!product) {
     return {};
   }
@@ -269,12 +286,13 @@ export async function generateMetadata({params}: {params: Params}): Promise<Meta
   });
 }
 
-export default async function ProductPage({params}: {params: Params}) {
-  const {locale, productSlug} = await params;
+export default async function ProductPage({ params }: { params: Params }) {
+  const { locale, productSlug } = await params;
   setRequestLocale(locale);
+  const requestUser = getRequestUser();
   const market = await getRequestMarket();
   const [product, t, marketT, catalogT] = await Promise.all([
-    getCatalogProductBySlug({locale, market, slug: productSlug}),
+    getCachedCatalogProduct(locale, market, productSlug),
     getTranslations('product'),
     getTranslations('market'),
     getTranslations('catalog')
@@ -282,21 +300,24 @@ export default async function ProductPage({params}: {params: Params}) {
   if (!product) {
     notFound();
   }
-  const imageUrl = publicStorageUrl(product.primary_image_bucket, product.primary_image_path) ?? null;
+  const imageUrl =
+    publicStorageUrl(product.primary_image_bucket, product.primary_image_path) ?? null;
   const specs = stringRecord(product.specifications);
   const variants = publicVariants(product.variants);
-  const productType = product.product_type === 'physical_finished' ? 'physical_finished' : 'pdf_pattern';
+  const productType =
+    product.product_type === 'physical_finished' ? 'physical_finished' : 'pdf_pattern';
   const typeLabel = productType === 'pdf_pattern' ? t('pdfPattern') : t('finishedItem');
-  const otherMarket = product.other_market_code === 'vn' || product.other_market_code === 'intl'
-    ? product.other_market_code
-    : null;
+  const otherMarket =
+    product.other_market_code === 'vn' || product.other_market_code === 'intl'
+      ? product.other_market_code
+      : null;
   const productPath = getProductPath(locale, product.slug);
   const supabase = await createSupabaseServerClient();
-  const [{data: authUser}, reviews, reviewEligibility, mediaImages] = await Promise.all([
-    supabase.auth.getUser(),
-    getApprovedProductReviews({productId: product.product_id}),
-    canReviewProduct({productId: product.product_id, client: supabase as never}),
-    productMediaImages({
+  const [user, reviews, reviewEligibility, mediaImages] = await Promise.all([
+    requestUser,
+    getApprovedProductReviews({ productId: product.product_id }),
+    canReviewProduct({ productId: product.product_id, client: supabase as never }),
+    getProductMediaImages({
       productId: product.product_id,
       primaryImagePath: product.primary_image_path,
       primaryImageBucket: product.primary_image_bucket,
@@ -306,16 +327,17 @@ export default async function ProductPage({params}: {params: Params}) {
     })
   ]);
   const wishlistedProductIds = await getWishlistedProductIds({
-    userId: authUser.user?.id,
+    userId: user?.id,
     productIds: [product.product_id],
     client: supabase as never
   });
-  const canWriteReview = Boolean(authUser.user) && reviewEligibility.status === 'eligible';
+  const canWriteReview = Boolean(user) && reviewEligibility.status === 'eligible';
   const reviewList = reviews.status === 'success' ? reviews.reviews : [];
   const averageRating = reviewAverage(reviewList);
-  const currencyCode: CurrencyCode | null = product.currency_code === 'VND' || product.currency_code === 'USD'
-    ? product.currency_code
-    : null;
+  const currencyCode: CurrencyCode | null =
+    product.currency_code === 'VND' || product.currency_code === 'USD'
+      ? product.currency_code
+      : null;
 
   return (
     <>
@@ -328,13 +350,16 @@ export default async function ProductPage({params}: {params: Params}) {
             description: product.description,
             path: productPath,
             image: imageUrl,
-            currency: product.currency_code === 'VND' || product.currency_code === 'USD' ? product.currency_code : null,
+            currency:
+              product.currency_code === 'VND' || product.currency_code === 'USD'
+                ? product.currency_code
+                : null,
             priceMinor: product.price_minor,
             available: product.available && product.in_stock
           }),
           breadcrumbJsonLd([
-            {name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}`},
-            {name: product.title, path: productPath}
+            { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
+            { name: product.title, path: productPath }
           ])
         ]}
       />
@@ -345,9 +370,17 @@ export default async function ProductPage({params}: {params: Params}) {
         <section className="grid content-start gap-5 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
           <nav aria-label="Breadcrumb" className="text-sm text-[var(--muted-foreground)]">
             <ol className="flex flex-wrap items-center gap-2">
-              <li><Link className="hover:text-[var(--foreground)]" href={`/${locale}`}>{locale === 'vi' ? 'Trang chu' : 'Home'}</Link></li>
+              <li>
+                <Link className="hover:text-[var(--foreground)]" href={`/${locale}`}>
+                  {locale === 'vi' ? 'Trang chu' : 'Home'}
+                </Link>
+              </li>
               <li aria-hidden="true">/</li>
-              <li><Link className="hover:text-[var(--foreground)]" href={getCatalogPath(locale)}>{locale === 'vi' ? 'Cua hang' : 'Shop'}</Link></li>
+              <li>
+                <Link className="hover:text-[var(--foreground)]" href={getCatalogPath(locale)}>
+                  {locale === 'vi' ? 'Cua hang' : 'Shop'}
+                </Link>
+              </li>
               <li aria-hidden="true">/</li>
               <li className="font-semibold text-[var(--foreground)]">{product.title}</li>
             </ol>
@@ -357,22 +390,26 @@ export default async function ProductPage({params}: {params: Params}) {
               {typeLabel}
             </span>
             <WishlistHeart
-                productId={product.product_id}
-                productTitle={product.title}
-                locale={locale}
-                returnTo={productPath}
-                initiallySaved={wishlistedProductIds.has(product.product_id)}
-                labels={{
-                  save: t('wishlist.save', {title: product.title}),
-                  remove: t('wishlist.remove', {title: product.title}),
-                  saving: t('wishlist.saving'),
-                  removing: t('wishlist.removing')
-                }}
-              />
+              productId={product.product_id}
+              productTitle={product.title}
+              locale={locale}
+              returnTo={productPath}
+              initiallySaved={wishlistedProductIds.has(product.product_id)}
+              labels={{
+                save: t('wishlist.save', { title: product.title }),
+                remove: t('wishlist.remove', { title: product.title }),
+                saving: t('wishlist.saving'),
+                removing: t('wishlist.removing')
+              }}
+            />
           </div>
           <div className="grid gap-3">
             <h1 className="text-[34px] font-semibold leading-tight">{product.title}</h1>
-            <ReviewInlineSummary average={averageRating} count={reviewList.length} locale={locale} />
+            <ReviewInlineSummary
+              average={averageRating}
+              count={reviewList.length}
+              locale={locale}
+            />
             <p className="text-[var(--muted-foreground)]">{product.description}</p>
           </div>
           <PurchaseInfo productType={productType} locale={locale} />
@@ -382,7 +419,9 @@ export default async function ProductPage({params}: {params: Params}) {
               body={t('unavailableBody')}
               otherMarket={otherMarket}
               returnTo={productPath}
-              switchLabel={otherMarket === 'vn' ? marketT('switchToVietnam') : marketT('switchToInternational')}
+              switchLabel={
+                otherMarket === 'vn' ? marketT('switchToVietnam') : marketT('switchToInternational')
+              }
             />
           ) : null}
           {product.available ? (
@@ -403,38 +442,43 @@ export default async function ProductPage({params}: {params: Params}) {
         </section>
       </main>
       <section className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 pb-14 sm:px-6 lg:px-10 xl:px-12">
-        <ProductDetailTabs locale={locale} productType={productType} description={product.description} specs={specs} />
+        <ProductDetailTabs
+          locale={locale}
+          productType={productType}
+          description={product.description}
+          specs={specs}
+        />
         <div id="reviews" className="scroll-mt-8">
           {canWriteReview ? (
-          <ReviewForm
-            productId={product.product_id}
-            locale={locale}
-            returnTo={productPath}
-            labels={{
-              title: catalogT('reviews.formTitle'),
-              rating: catalogT('reviews.rating'),
-              reviewTitle: catalogT('reviews.reviewTitle'),
-              body: catalogT('reviews.body'),
-              submit: catalogT('reviews.submit'),
-              pending: catalogT('reviews.pending'),
-              notEligible: catalogT('reviews.notEligible'),
-              error: catalogT('reviews.error')
-            }}
-          />
-        ) : null}
-        {reviews.status === 'success' ? (
-          <ProductReviews
-            reviews={reviews.reviews}
-            locale={locale}
-            labels={{
-              title: catalogT('reviews.title'),
-              empty: catalogT('reviews.empty'),
-              verifiedPurchase: catalogT('reviews.verifiedPurchase'),
-              ratingLabel: catalogT('reviews.ratingLabel'),
-              shopReply: catalogT('reviews.shopReply')
-            }}
-          />
-        ) : null}
+            <ReviewForm
+              productId={product.product_id}
+              locale={locale}
+              returnTo={productPath}
+              labels={{
+                title: catalogT('reviews.formTitle'),
+                rating: catalogT('reviews.rating'),
+                reviewTitle: catalogT('reviews.reviewTitle'),
+                body: catalogT('reviews.body'),
+                submit: catalogT('reviews.submit'),
+                pending: catalogT('reviews.pending'),
+                notEligible: catalogT('reviews.notEligible'),
+                error: catalogT('reviews.error')
+              }}
+            />
+          ) : null}
+          {reviews.status === 'success' ? (
+            <ProductReviews
+              reviews={reviews.reviews}
+              locale={locale}
+              labels={{
+                title: catalogT('reviews.title'),
+                empty: catalogT('reviews.empty'),
+                verifiedPurchase: catalogT('reviews.verifiedPurchase'),
+                ratingLabel: catalogT('reviews.ratingLabel'),
+                shopReply: catalogT('reviews.shopReply')
+              }}
+            />
+          ) : null}
         </div>
       </section>
     </>

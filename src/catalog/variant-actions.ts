@@ -2,6 +2,7 @@
 
 import {revalidatePath} from 'next/cache';
 import {requireAdmin} from '@/auth/guards';
+import {invalidateCatalogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import type {Json} from '@/types/supabase';
 import {
@@ -35,6 +36,7 @@ export type VariantActionResult =
 function revalidateVariants(productId: string) {
   revalidatePath(`/admin/catalog/${productId}`);
   revalidatePath(`/admin/catalog/${productId}/variants`);
+  invalidateCatalogCache();
 }
 
 function databaseCode(error: unknown) {

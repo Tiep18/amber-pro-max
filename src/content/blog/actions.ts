@@ -1,6 +1,7 @@
 'use server';
 
 import {requireAdmin} from '@/auth/guards';
+import {invalidateBlogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {mapBlogPublishIssues, type BlogPublishBlocker} from './publish-checks';
 import {blogPostDraftSchema, blogPostIdSchema, type BlogPostDraft, type BlogPostDraftInput} from './schemas';
@@ -146,6 +147,7 @@ export async function saveBlogPostDraftAction(input: BlogPostDraftInput): Promis
     return {status: 'error', code: 'save_failed'};
   }
 
+  invalidateBlogCache();
   return {status: 'saved', postId};
 }
 
@@ -166,6 +168,7 @@ export async function publishBlogPostAction(postId: string): Promise<PublishBlog
   }
 
   if (data[0].published) {
+    invalidateBlogCache();
     return {status: 'published', postId: parsed.data};
   }
 
@@ -198,6 +201,7 @@ export async function scheduleBlogPostAction(
   }
 
   if (data[0].published) {
+    invalidateBlogCache();
     return {status: 'scheduled', postId: parsedPostId.data, publishedAt: parsedDate.data};
   }
 
@@ -226,5 +230,6 @@ export async function unpublishBlogPostAction(postId: string): Promise<Unpublish
     return {status: 'error', code: 'unpublish_failed'};
   }
 
+  invalidateBlogCache();
   return {status: 'unpublished', postId: parsed.data};
 }

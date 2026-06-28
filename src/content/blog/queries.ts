@@ -1,8 +1,10 @@
 import 'server-only';
 
+import type {SupabaseClient} from '@supabase/supabase-js';
 import {notFound} from 'next/navigation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import type {Json} from '@/types/supabase';
+import type {Database} from '@/types/supabase';
 import type {BlogPostFormInitial, BlogSelectOption} from '@/components/admin/blog/blog-post-form';
 import type {BlogLocale} from './schemas';
 
@@ -198,8 +200,11 @@ export async function getBlogPostForForm(postId: string): Promise<BlogPostFormIn
   };
 }
 
-export async function listPublishedBlogPosts(locale: BlogLocale): Promise<PublicBlogPostListItem[]> {
-  const supabase = await createSupabaseServerClient();
+export async function listPublishedBlogPosts(
+  locale: BlogLocale,
+  client?: SupabaseClient<Database>
+): Promise<PublicBlogPostListItem[]> {
+  const supabase = client ?? await createSupabaseServerClient();
   const {data, error} = await supabase.rpc('list_published_blog_posts', {target_locale: locale});
   if (error) {
     throw new Error('blog_list_query_failed');
@@ -224,13 +229,13 @@ export async function getPublishedBlogPostBySlug({
 }: {
   locale: BlogLocale;
   slug: string;
-}): Promise<PublicBlogPostDetail | null> {
+}, client?: SupabaseClient<Database>): Promise<PublicBlogPostDetail | null> {
   const cleanedSlug = cleanSlug(slug);
   if (!cleanedSlug) {
     return null;
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = client ?? await createSupabaseServerClient();
   const {data, error} = await supabase.rpc('get_published_blog_post_by_slug', {
     target_locale: locale,
     target_slug: cleanedSlug

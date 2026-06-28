@@ -1,16 +1,16 @@
-import type {Metadata} from 'next';
-import {setRequestLocale} from 'next-intl/server';
-import {notFound} from 'next/navigation';
-import {localizedMetadata, publicStorageUrl} from '@/catalog/metadata';
-import {getRequestMarket} from '@/catalog/page-context';
-import {getCatalogCategoryBySlug, listCatalogProducts} from '@/catalog/queries';
-import {getWishlistedProductIds} from '@/account/wishlist';
-import {ProductCard} from '@/components/catalog/product-card';
-import {getCategoryPath, type Locale} from '@/i18n/routing';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
-import type {Json} from '@/types/supabase';
+import type { Metadata } from 'next';
+import { setRequestLocale } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+import { localizedMetadata, publicStorageUrl } from '@/catalog/metadata';
+import { getRequestMarket } from '@/catalog/page-context';
+import { getCachedCatalogCategory, getCachedCatalogProducts } from '@/catalog/public-cache';
+import { getWishlistedProductIds } from '@/account/wishlist';
+import { ProductCard } from '@/components/catalog/product-card';
+import { getCategoryPath, type Locale } from '@/i18n/routing';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import type { Json } from '@/types/supabase';
 
-type Params = Promise<{locale: Locale; categorySlug: string}>;
+type Params = Promise<{ locale: Locale; categorySlug: string }>;
 
 function slugs(value: Json) {
   if (!value || Array.isArray(value) || typeof value !== 'object') {
@@ -19,10 +19,10 @@ function slugs(value: Json) {
   return value as Record<string, string>;
 }
 
-export async function generateMetadata({params}: {params: Params}): Promise<Metadata> {
-  const {locale, categorySlug} = await params;
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { locale, categorySlug } = await params;
   const market = await getRequestMarket();
-  const category = await getCatalogCategoryBySlug({locale, market, slug: categorySlug});
+  const category = await getCachedCatalogCategory(locale, market, categorySlug);
   if (!category) {
     return {};
   }
@@ -42,23 +42,19 @@ export async function generateMetadata({params}: {params: Params}): Promise<Meta
   });
 }
 
-export default async function CategoryPage({
-  params
-}: {
-  params: Params;
-}) {
-  const {locale, categorySlug} = await params;
+export default async function CategoryPage({ params }: { params: Params }) {
+  const { locale, categorySlug } = await params;
   setRequestLocale(locale);
   const market = await getRequestMarket();
   const [category, products] = await Promise.all([
-    getCatalogCategoryBySlug({locale, market, slug: categorySlug}),
-    listCatalogProducts({locale, market, categorySlug})
+    getCachedCatalogCategory(locale, market, categorySlug),
+    getCachedCatalogProducts({ locale, market, categorySlug })
   ]);
   if (!category) {
     notFound();
   }
   const supabase = await createSupabaseServerClient();
-  const {data: authUser} = await supabase.auth.getUser();
+  const { data: authUser } = await supabase.auth.getUser();
   const wishlistedProductIds = await getWishlistedProductIds({
     userId: authUser.user?.id,
     productIds: products.map((product) => product.product_id),

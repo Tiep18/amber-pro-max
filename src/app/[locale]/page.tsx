@@ -3,11 +3,8 @@ import Image from 'next/image';
 import { ArrowRight, HeartHandshake, Languages, ShieldCheck } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { getRequestMarket } from '@/catalog/page-context';
-import {
-  listCatalogProducts,
-  type CatalogProduct,
-  type CatalogProductType
-} from '@/catalog/queries';
+import { type CatalogProduct, type CatalogProductType } from '@/catalog/queries';
+import { getCachedCatalogProducts } from '@/catalog/public-cache';
 import { ProductCard } from '@/components/catalog/product-card';
 import type { Locale } from '@/i18n/routing';
 import { getCatalogPath } from '@/i18n/routing';
@@ -15,7 +12,12 @@ import { getCatalogPath } from '@/i18n/routing';
 async function featuredProducts(locale: Locale, productType: CatalogProductType) {
   try {
     const market = await getRequestMarket();
-    const products = await listCatalogProducts({ locale, market, productType, sort: 'newest' });
+    const products = await getCachedCatalogProducts({
+      locale,
+      market,
+      productType,
+      sort: 'newest'
+    });
     return products.slice(0, 4);
   } catch {
     return [];

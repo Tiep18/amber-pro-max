@@ -2,6 +2,7 @@
 
 import {revalidatePath} from 'next/cache';
 import {requireAdmin} from '@/auth/guards';
+import {invalidatePolicyCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {mapPolicyPublishIssues, type PolicyPublishBlocker} from './publish-checks';
 import {policyDraftSchema, policyIdSchema, type PolicyDraftInput} from './schemas';
@@ -76,6 +77,7 @@ export async function savePolicyDraftAction(input: PolicyDraftInput): Promise<Sa
   }
 
   revalidatePath('/admin/policies');
+  invalidatePolicyCache();
   return {status: 'saved', policyId};
 }
 
@@ -93,6 +95,7 @@ export async function publishPolicyAction(policyId: string): Promise<PublishPoli
   }
   if (data[0].published) {
     revalidatePath('/admin/policies');
+    invalidatePolicyCache();
     return {status: 'published', policyId: parsed.data};
   }
 
@@ -121,5 +124,6 @@ export async function unpublishPolicyAction(policyId: string): Promise<Unpublish
   }
 
   revalidatePath('/admin/policies');
+  invalidatePolicyCache();
   return {status: 'unpublished', policyId: parsed.data};
 }

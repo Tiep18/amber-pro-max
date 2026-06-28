@@ -1,12 +1,25 @@
 'use client';
 
-import {createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode} from 'react';
-import type {MarketCode} from '@/catalog/market';
-import type {Locale} from '@/i18n/routing';
-import {refreshCartQuoteAction} from '@/cart/actions';
-import {readGuestCart, writeGuestCart} from '@/cart/guest-storage';
-import {cartLineKey, type AddToCartIntent, type CartIntentLine, type GuestCartIntent} from '@/cart/types';
-import type {CartQuote} from '@/checkout/types';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode
+} from 'react';
+import type { Locale } from '@/i18n/routing';
+import { refreshCartQuoteAction } from '@/cart/actions';
+import { readGuestCart, writeGuestCart } from '@/cart/guest-storage';
+import {
+  cartLineKey,
+  type AddToCartIntent,
+  type CartIntentLine,
+  type GuestCartIntent
+} from '@/cart/types';
+import type { CartQuote } from '@/checkout/types';
 
 type RemovedLine = {
   line: CartIntentLine;
@@ -40,38 +53,37 @@ function emptyCart(now: Date): GuestCartIntent {
 }
 
 function sameLine(
-  left: Pick<CartIntentLine, 'productId'> & {variantId?: string | null},
-  right: Pick<CartIntentLine, 'productId'> & {variantId?: string | null}
+  left: Pick<CartIntentLine, 'productId'> & { variantId?: string | null },
+  right: Pick<CartIntentLine, 'productId'> & { variantId?: string | null }
 ) {
-  return cartLineKey({...left, variantId: left.variantId ?? null}) === cartLineKey({...right, variantId: right.variantId ?? null});
+  return (
+    cartLineKey({ ...left, variantId: left.variantId ?? null }) ===
+    cartLineKey({ ...right, variantId: right.variantId ?? null })
+  );
 }
 
-export function CartProvider({
-  locale,
-  market,
-  children
-}: {
-  locale: Locale;
-  market: MarketCode;
-  children: ReactNode;
-}) {
+export function CartProvider({ locale, children }: { locale: Locale; children: ReactNode }) {
   const [cart, setCart] = useState<GuestCartIntent | null>(null);
   const [quote, setQuote] = useState<CartQuote | null>(null);
   const [pending, setPending] = useState(false);
   const [open, setOpen] = useState(false);
   const [removed, setRemoved] = useState<RemovedLine | null>(null);
+  const latestQuoteRequest = useRef(0);
 
   const persist = useCallback(
     async (lines: CartIntentLine[]) => {
-      const next = writeGuestCart({lines});
+      const next = writeGuestCart({ lines });
       setCart(next);
+      const requestId = ++latestQuoteRequest.current;
       setPending(true);
-      const result = await refreshCartQuoteAction({locale, market, lines: next.lines});
-      setQuote(result.status === 'success' ? result.quote : null);
-      setPending(false);
+      const result = await refreshCartQuoteAction({ locale, lines: next.lines });
+      if (requestId === latestQuoteRequest.current) {
+        setQuote(result.status === 'success' ? result.quote : null);
+        setPending(false);
+      }
       return next;
     },
-    [locale, market]
+    [locale]
   );
 
   const refresh = useCallback(
@@ -94,11 +106,14 @@ export function CartProvider({
     void refresh(current.lines);
   }, [refresh]);
 
-  useEffect(() => () => {
-    if (removed) {
-      clearTimeout(removed.timer);
-    }
-  }, [removed]);
+  useEffect(
+    () => () => {
+      if (removed) {
+        clearTimeout(removed.timer);
+      }
+    },
+    [removed]
+  );
 
   const addLine = useCallback(
     async (intent: AddToCartIntent) => {
@@ -108,7 +123,7 @@ export function CartProvider({
       const lines = existing
         ? current.lines.map((line) =>
             sameLine(line, intent)
-              ? {...line, quantity: Math.min(99, line.quantity + intent.quantity), updatedAt: now}
+              ? { ...line, quantity: Math.min(99, line.quantity + intent.quantity), updatedAt: now }
               : line
           )
         : [
@@ -133,7 +148,9 @@ export function CartProvider({
       const current = readGuestCart() ?? emptyCart(new Date());
       const nextQuantity = Math.max(1, Math.min(99, quantity));
       const lines = current.lines.map((candidate) =>
-        sameLine(candidate, line) ? {...candidate, quantity: nextQuantity, updatedAt: new Date().toISOString()} : candidate
+        sameLine(candidate, line)
+          ? { ...candidate, quantity: nextQuantity, updatedAt: new Date().toISOString() }
+          : candidate
       );
       await persist(lines);
     },
@@ -149,7 +166,7 @@ export function CartProvider({
         clearTimeout(removed.timer);
       }
       const timer = setTimeout(() => setRemoved(null), 8000);
-      setRemoved({line, timer});
+      setRemoved({ line, timer });
     },
     [persist, removed]
   );

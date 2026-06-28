@@ -1,7 +1,9 @@
 import 'server-only';
 
+import type {SupabaseClient} from '@supabase/supabase-js';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import type {Json} from '@/types/supabase';
+import type {Database} from '@/types/supabase';
 import type {PolicyKind, PolicyLocale} from './schemas';
 
 export type PolicyFormInitial = {
@@ -148,8 +150,8 @@ export async function getPublishedPolicyPageBySlug({
 }: {
   locale: PolicyLocale;
   slug: string;
-}): Promise<PublishedPolicyPage | null> {
-  const supabase = await createSupabaseServerClient();
+}, client?: SupabaseClient<Database>): Promise<PublishedPolicyPage | null> {
+  const supabase = client ?? await createSupabaseServerClient();
   const {data, error} = await supabase.rpc('get_published_policy_page_by_slug', {
     target_locale: locale,
     target_slug: slug

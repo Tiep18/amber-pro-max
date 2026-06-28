@@ -1,16 +1,20 @@
-import type {Metadata} from 'next';
-import {setRequestLocale} from 'next-intl/server';
-import {notFound} from 'next/navigation';
-import {localizedMetadata, publicStorageUrl} from '@/catalog/metadata';
-import {JsonLd, articleJsonLd, breadcrumbJsonLd} from '@/content/seo/json-ld';
-import {getBlogPostPath, getProductPath, type Locale} from '@/i18n/routing';
-import {getPublishedBlogPostBySlug} from '@/content/blog/queries';
+import type { Metadata } from 'next';
+import Image from 'next/image';
+import { setRequestLocale } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+import { localizedMetadata, publicStorageUrl } from '@/catalog/metadata';
+import { JsonLd, articleJsonLd, breadcrumbJsonLd } from '@/content/seo/json-ld';
+import { getBlogPostPath, getProductPath, type Locale } from '@/i18n/routing';
+import { getCachedPublishedBlogPost } from '@/content/blog/public-cache';
 
-type Params = Promise<{locale: Locale; postSlug: string}>;
+type Params = Promise<{ locale: Locale; postSlug: string }>;
 
-export async function generateMetadata({params}: {params: Params}): Promise<Metadata> {
-  const {locale, postSlug} = await params;
-  const post = await getPublishedBlogPostBySlug({locale, slug: postSlug});
+export const dynamic = 'force-static';
+export const revalidate = 300;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { locale, postSlug } = await params;
+  const post = await getCachedPublishedBlogPost(locale, postSlug);
   if (!post || !post.localizedSlugs.vi || !post.localizedSlugs.en) {
     return {};
   }
@@ -27,10 +31,10 @@ export async function generateMetadata({params}: {params: Params}): Promise<Meta
   });
 }
 
-export default async function BlogPostPage({params}: {params: Params}) {
-  const {locale, postSlug} = await params;
+export default async function BlogPostPage({ params }: { params: Params }) {
+  const { locale, postSlug } = await params;
   setRequestLocale(locale);
-  const post = await getPublishedBlogPostBySlug({locale, slug: postSlug});
+  const post = await getCachedPublishedBlogPost(locale, postSlug);
   if (!post) {
     notFound();
   }
@@ -50,53 +54,75 @@ export default async function BlogPostPage({params}: {params: Params}) {
             datePublished: post.publishedAt
           }),
           breadcrumbJsonLd([
-            {name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}`},
-            {name: locale === 'vi' ? 'Bai viet' : 'Blog', path: locale === 'vi' ? '/vi/bai-viet' : '/en/blog'},
-            {name: post.title, path: postPath}
+            { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
+            {
+              name: locale === 'vi' ? 'Bai viet' : 'Blog',
+              path: locale === 'vi' ? '/vi/bai-viet' : '/en/blog'
+            },
+            { name: post.title, path: postPath }
           ])
         ]}
       />
       <main className="mx-auto grid w-full max-w-[940px] gap-8 px-4 py-10 sm:px-6 lg:px-10">
-      <article className="grid gap-6">
-        <div className="grid gap-3">
-          <p className="text-sm font-semibold uppercase text-[var(--accent)]">{post.categoryName}</p>
-          <h1 className="text-[28px] font-semibold leading-tight">{post.title}</h1>
-          <p className="text-[var(--muted-foreground)]">{post.description}</p>
-        </div>
-        {imageUrl ? (
-          <img src={imageUrl} alt="" className="aspect-video w-full rounded-[var(--radius-card)] object-cover" />
-        ) : null}
-        {post.tags.length ? (
-          <div className="flex flex-wrap gap-2" aria-label={locale === 'vi' ? 'The bai viet' : 'Blog tags'}>
-            {post.tags.map((tag) => (
-              <span key={tag.slug} className="rounded-full bg-[var(--surface-muted)] px-3 py-1 text-sm font-semibold">
-                {tag.name}
-              </span>
+        <article className="grid gap-6">
+          <div className="grid gap-3">
+            <p className="text-sm font-semibold uppercase text-[var(--accent)]">
+              {post.categoryName}
+            </p>
+            <h1 className="text-[28px] font-semibold leading-tight">{post.title}</h1>
+            <p className="text-[var(--muted-foreground)]">{post.description}</p>
+          </div>
+          {imageUrl ? (
+            <span className="relative block aspect-video overflow-hidden rounded-[var(--radius-card)]">
+              <Image
+                src={imageUrl}
+                alt=""
+                fill
+                priority
+                sizes="(min-width: 940px) 940px, 100vw"
+                className="object-cover"
+              />
+            </span>
+          ) : null}
+          {post.tags.length ? (
+            <div
+              className="flex flex-wrap gap-2"
+              aria-label={locale === 'vi' ? 'The bai viet' : 'Blog tags'}
+            >
+              {post.tags.map((tag) => (
+                <span
+                  key={tag.slug}
+                  className="rounded-full bg-[var(--surface-muted)] px-3 py-1 text-sm font-semibold"
+                >
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <div className="grid gap-4 leading-7">
+            {post.body.split(/\n{2,}/).map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
+        </article>
+        {post.relatedProducts.length ? (
+          <section className="grid gap-3">
+            <h2 className="text-xl font-semibold">
+              {locale === 'vi' ? 'San pham lien quan' : 'Related products'}
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {post.relatedProducts.map((product) => (
+                <a
+                  key={product.productId}
+                  href={getProductPath(locale, product.slug)}
+                  className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-4 font-semibold transition hover:border-[var(--accent)]"
+                >
+                  {product.title}
+                </a>
+              ))}
+            </div>
+          </section>
         ) : null}
-        <div className="grid gap-4 leading-7">
-          {post.body.split(/\n{2,}/).map((paragraph) => (
-            <p key={paragraph}>{paragraph}</p>
-          ))}
-        </div>
-      </article>
-      {post.relatedProducts.length ? (
-        <section className="grid gap-3">
-          <h2 className="text-xl font-semibold">{locale === 'vi' ? 'San pham lien quan' : 'Related products'}</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {post.relatedProducts.map((product) => (
-              <a
-                key={product.productId}
-                href={getProductPath(locale, product.slug)}
-                className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-4 font-semibold transition hover:border-[var(--accent)]"
-              >
-                {product.title}
-              </a>
-            ))}
-          </div>
-        </section>
-      ) : null}
       </main>
     </>
   );

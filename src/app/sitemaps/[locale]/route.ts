@@ -1,26 +1,26 @@
-import {listCatalogProducts} from '@/catalog/queries';
-import {listPublishedBlogPosts} from '@/content/blog/queries';
-import {urlSetXml} from '@/content/seo/metadata';
-import {getPublishedRequiredPolicyLinks} from '@/launch/settings';
-import {getBlogPostPath, getProductPath, isLocale, type Locale} from '@/i18n/routing';
+import { getCachedCatalogProducts } from '@/catalog/public-cache';
+import { getCachedPublishedBlogPosts } from '@/content/blog/public-cache';
+import { urlSetXml } from '@/content/seo/metadata';
+import { getPublishedRequiredPolicyLinks } from '@/launch/settings';
+import { getBlogPostPath, getProductPath, isLocale, type Locale } from '@/i18n/routing';
 
 export const dynamic = 'force-dynamic';
 
-type Params = Promise<{locale: string}>;
+type Params = Promise<{ locale: string }>;
 
 function marketForLocale(locale: Locale) {
   return locale === 'vi' ? 'vn' : 'intl';
 }
 
-export async function GET(_request: Request, {params}: {params: Params}) {
-  const {locale: rawLocale} = await params;
+export async function GET(_request: Request, { params }: { params: Params }) {
+  const { locale: rawLocale } = await params;
   if (!isLocale(rawLocale)) {
-    return new Response('Not found', {status: 404});
+    return new Response('Not found', { status: 404 });
   }
   const locale = rawLocale;
   const [products, blogPosts, policies] = await Promise.all([
-    listCatalogProducts({locale, market: marketForLocale(locale)}),
-    listPublishedBlogPosts(locale),
+    getCachedCatalogProducts({ locale, market: marketForLocale(locale) }),
+    getCachedPublishedBlogPosts(locale),
     getPublishedRequiredPolicyLinks(locale)
   ]);
   const paths = [

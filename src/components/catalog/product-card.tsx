@@ -1,9 +1,10 @@
-import {getTranslations} from 'next-intl/server';
-import {formatMoney} from '@/catalog/money';
-import type {CatalogProduct} from '@/catalog/queries';
-import {WishlistHeart} from '@/components/catalog/wishlist-heart';
-import type {Locale} from '@/i18n/routing';
-import {getProductPath} from '@/i18n/routing';
+import { getTranslations } from 'next-intl/server';
+import Image from 'next/image';
+import { formatMoney } from '@/catalog/money';
+import type { CatalogProduct } from '@/catalog/queries';
+import { WishlistHeart } from '@/components/catalog/wishlist-heart';
+import type { Locale } from '@/i18n/routing';
+import { getProductPath } from '@/i18n/routing';
 
 function publicImageUrl(bucket: string | null, path: string | null) {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -35,11 +36,12 @@ export async function ProductCard({
     >
       <div className="relative aspect-[4/3] bg-[var(--surface-muted)]">
         {imageUrl ? (
-          // Public catalog images are admin-managed Supabase Storage objects.
-          <img
+          <Image
             src={imageUrl}
             alt={product.primary_image_alt || product.title}
-            className="h-full w-full object-cover"
+            fill
+            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover"
           />
         ) : null}
         <div className="absolute right-3 top-3">
@@ -50,8 +52,8 @@ export async function ProductCard({
             returnTo={productPath}
             initiallySaved={initiallyWishlisted}
             labels={{
-              save: t('wishlist.save', {title: product.title}),
-              remove: t('wishlist.remove', {title: product.title}),
+              save: t('wishlist.save', { title: product.title }),
+              remove: t('wishlist.remove', { title: product.title }),
               saving: t('wishlist.saving'),
               removing: t('wishlist.removing')
             }}
@@ -65,11 +67,13 @@ export async function ProductCard({
             {badge}
           </span>
         </div>
-        <p className="hidden line-clamp-2 text-sm text-[var(--muted-foreground)] sm:block">{product.description}</p>
+        <p className="hidden line-clamp-2 text-sm text-[var(--muted-foreground)] sm:block">
+          {product.description}
+        </p>
         <div className="grid items-start gap-3 sm:flex sm:items-center sm:justify-between">
           <div>
             <p className="font-semibold">
-              {formatMoney({amountMinor: product.price_minor, currencyCode})}
+              {formatMoney({ amountMinor: product.price_minor, currencyCode })}
             </p>
             <p className="text-xs text-[var(--muted-foreground)]">
               {product.in_stock ? t('inStock') : t('outOfStock')}

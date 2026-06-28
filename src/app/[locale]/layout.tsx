@@ -1,15 +1,14 @@
-import type {ReactNode} from 'react';
-import {hasLocale, NextIntlClientProvider} from 'next-intl';
-import {setRequestLocale} from 'next-intl/server';
-import {notFound} from 'next/navigation';
-import {routing, type Locale} from '@/i18n/routing';
-import {getRequestMarket} from '@/catalog/page-context';
-import {CartProvider} from '@/components/cart/cart-provider';
-import {SiteFooter} from '@/components/site-footer';
-import {SiteHeader} from '@/components/site-header';
+import { Suspense, type ReactNode } from 'react';
+import { hasLocale } from 'next-intl';
+import { setRequestLocale } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+import { routing, type Locale } from '@/i18n/routing';
+import { CartProvider } from '@/components/cart/cart-provider';
+import { SiteFooter } from '@/components/site-footer';
+import { SiteHeader } from '@/components/site-header';
 
 export function generateStaticParams() {
-  return routing.locales.map((locale) => ({locale}));
+  return routing.locales.map((locale) => ({ locale }));
 }
 
 export default async function LocaleLayout({
@@ -17,26 +16,24 @@ export default async function LocaleLayout({
   params
 }: {
   children: ReactNode;
-  params: Promise<{locale: string}>;
+  params: Promise<{ locale: string }>;
 }) {
-  const {locale} = await params;
+  const { locale } = await params;
 
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
 
   setRequestLocale(locale);
-  const market = await getRequestMarket();
-
   return (
-    <NextIntlClientProvider>
-      <CartProvider locale={locale as Locale} market={market}>
-        <div className="flex min-h-screen flex-col">
+    <CartProvider locale={locale as Locale}>
+      <div className="flex min-h-screen flex-col">
+        <Suspense fallback={<div className="min-h-16 border-b border-[var(--border)]" />}>
           <SiteHeader locale={locale as Locale} />
-          <div className="flex-1">{children}</div>
-          <SiteFooter locale={locale as Locale} />
-        </div>
-      </CartProvider>
-    </NextIntlClientProvider>
+        </Suspense>
+        <div className="flex-1">{children}</div>
+        <SiteFooter locale={locale as Locale} />
+      </div>
+    </CartProvider>
   );
 }

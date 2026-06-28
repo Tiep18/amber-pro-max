@@ -1,19 +1,25 @@
-import {setRequestLocale} from 'next-intl/server';
-import {publicStorageUrl} from '@/catalog/metadata';
-import {getBlogPostPath, type Locale} from '@/i18n/routing';
-import {listPublishedBlogPosts} from '@/content/blog/queries';
+import { setRequestLocale } from 'next-intl/server';
+import Image from 'next/image';
+import { publicStorageUrl } from '@/catalog/metadata';
+import { getBlogPostPath, type Locale } from '@/i18n/routing';
+import { getCachedPublishedBlogPosts } from '@/content/blog/public-cache';
 
-type Params = Promise<{locale: Locale}>;
+type Params = Promise<{ locale: Locale }>;
 
-export default async function BlogIndexPage({params}: {params: Params}) {
-  const {locale} = await params;
+export const dynamic = 'force-static';
+export const revalidate = 300;
+
+export default async function BlogIndexPage({ params }: { params: Params }) {
+  const { locale } = await params;
   setRequestLocale(locale);
-  const posts = await listPublishedBlogPosts(locale);
+  const posts = await getCachedPublishedBlogPosts(locale);
 
   return (
     <main className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 py-10 sm:px-6 lg:px-10 xl:px-12">
       <div className="grid max-w-[760px] gap-3">
-        <p className="text-sm font-semibold uppercase text-[var(--accent)]">{locale === 'vi' ? 'Bai viet' : 'Blog'}</p>
+        <p className="text-sm font-semibold uppercase text-[var(--accent)]">
+          {locale === 'vi' ? 'Bai viet' : 'Blog'}
+        </p>
         <h1 className="text-[28px] font-semibold leading-tight">
           {locale === 'vi' ? 'Bai viet amigurumi' : 'Amigurumi blog'}
         </h1>
@@ -37,9 +43,21 @@ export default async function BlogIndexPage({params}: {params: Params}) {
                 href={getBlogPostPath(locale, post.slug)}
                 className="grid overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] transition hover:border-[var(--accent)]"
               >
-                {imageUrl ? <img src={imageUrl} alt="" className="aspect-video w-full object-cover" /> : null}
+                {imageUrl ? (
+                  <span className="relative block aspect-video">
+                    <Image
+                      src={imageUrl}
+                      alt=""
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      className="object-cover"
+                    />
+                  </span>
+                ) : null}
                 <span className="grid gap-3 p-5">
-                  <span className="text-sm font-semibold text-[var(--accent)]">{post.categoryName}</span>
+                  <span className="text-sm font-semibold text-[var(--accent)]">
+                    {post.categoryName}
+                  </span>
                   <span className="text-xl font-semibold">{post.title}</span>
                   <span className="text-[var(--muted-foreground)]">{post.description}</span>
                 </span>

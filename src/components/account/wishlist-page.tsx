@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useActionState } from 'react';
 import { Heart } from 'lucide-react';
 import { AccountEmptyState } from '@/components/account/account-empty-state';
@@ -134,12 +135,14 @@ export function WishlistPage({
                   key={item.id}
                   className="grid gap-4 rounded-[var(--radius-card)] border border-[var(--border)] p-4 sm:grid-cols-[148px_minmax(0,1fr)]"
                 >
-                  <div className="aspect-[4/3] overflow-hidden rounded-[var(--radius-control)] bg-[var(--surface-muted)]">
+                  <div className="relative aspect-[4/3] overflow-hidden rounded-[var(--radius-control)] bg-[var(--surface-muted)]">
                     {imageUrl ? (
-                      <img
+                      <Image
                         src={imageUrl}
                         alt={item.image?.alt || item.title}
-                        className="h-full w-full object-cover"
+                        fill
+                        sizes="148px"
+                        className="object-cover"
                       />
                     ) : null}
                   </div>

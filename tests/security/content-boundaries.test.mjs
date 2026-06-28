@@ -12,8 +12,8 @@ function read(path) {
 test('SEO-02 SEO-04 D-08 sitemaps use public projections instead of filesystem route walking', () => {
   const source = read('src/app/sitemaps/[locale]/route.ts');
 
-  assert.match(source, /listCatalogProducts/);
-  assert.match(source, /listPublishedBlogPosts/);
+  assert.match(source, /(?:getCachedCatalogProducts|listCatalogProducts)/);
+  assert.match(source, /(?:getCachedPublishedBlogPosts|listPublishedBlogPosts)/);
   assert.match(source, /getPublishedRequiredPolicyLinks/);
   assert.doesNotMatch(source, /readdir|glob|admin|operations|download/i);
 });

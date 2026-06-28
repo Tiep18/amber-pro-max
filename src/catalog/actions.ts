@@ -1,6 +1,7 @@
 'use server';
 
 import {requireAdmin} from '@/auth/guards';
+import {invalidateCatalogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import type {Json} from '@/types/supabase';
 import {mapPublishIssues, type PublishBlocker} from './publish-checks';
@@ -151,6 +152,7 @@ export async function saveProductDraftAction(input: ProductDraftInput): Promise<
     return {status: 'error', code: 'save_failed'};
   }
 
+  invalidateCatalogCache();
   return {status: 'saved', productId};
 }
 
@@ -170,6 +172,7 @@ export async function publishProductAction(productId: string): Promise<PublishPr
   }
 
   if (data[0].published) {
+    invalidateCatalogCache();
     return {status: 'published', productId: parsed.data};
   }
 
@@ -204,5 +207,6 @@ export async function archiveProductAction(productId: string): Promise<ArchivePr
     return {status: 'error', code: 'archive_failed'};
   }
 
+  invalidateCatalogCache();
   return {status: 'archived', productId: parsed.data};
 }
