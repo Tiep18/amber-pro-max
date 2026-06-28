@@ -1,8 +1,9 @@
 'use client';
 
-import {startTransition, useActionState} from 'react';
-import {useForm} from 'react-hook-form';
-import {zodResolver} from '@hookform/resolvers/zod';
+import { startTransition, useActionState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   registerAction,
   requestPasswordResetAction,
@@ -20,11 +21,20 @@ import {
   type PasswordResetRequestInput,
   type PasswordUpdateInput
 } from '@/auth/schemas';
-import type {Locale} from '@/i18n/routing';
-import {Alert} from '@/components/ui/alert';
-import {Button} from '@/components/ui/button';
-import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
-import {Input} from '@/components/ui/input';
+import type { Locale } from '@/i18n/routing';
+import { completeSuccessfulSignIn } from '@/auth/sign-in-completion';
+import { notifyStorefrontContextChanged } from '@/components/storefront-context';
+import { Alert } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 
 type AuthMessages = {
   email: string;
@@ -37,9 +47,17 @@ type AuthMessages = {
   genericError: string;
 };
 
-const initialState: AuthActionState = {status: 'idle'};
+const initialState: AuthActionState = { status: 'idle' };
 
-function FormShell({children, state, messages}: {children: React.ReactNode; state: AuthActionState; messages: AuthMessages}) {
+function FormShell({
+  children,
+  state,
+  messages
+}: {
+  children: React.ReactNode;
+  state: AuthActionState;
+  messages: AuthMessages;
+}) {
   if (state.status === 'success') {
     return (
       <Alert variant="success">
@@ -61,8 +79,24 @@ function FormShell({children, state, messages}: {children: React.ReactNode; stat
   );
 }
 
-export function SignInForm({locale, next, messages}: {locale: Locale; next?: string; messages: AuthMessages}) {
+export function SignInForm({
+  locale,
+  next,
+  messages
+}: {
+  locale: Locale;
+  next?: string;
+  messages: AuthMessages;
+}) {
   const [state, action, pending] = useActionState(signInAction, initialState);
+  const router = useRouter();
+
+  useEffect(() => {
+    completeSuccessfulSignIn(state, {
+      publishUser: (user) => notifyStorefrontContextChanged({ user }),
+      replace: (path) => router.replace(path)
+    });
+  }, [router, state]);
 
   const form = useForm<SignInInput>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -95,11 +129,17 @@ export function SignInForm({locale, next, messages}: {locale: Locale; next?: str
           <FormField
             control={form.control}
             name="email"
-            render={({field}) => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel htmlFor="email">{messages.email}</FormLabel>
                 <FormControl>
-                  <Input {...field} id="email" type="email" autoComplete="email" className="min-h-12" />
+                  <Input
+                    {...field}
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    className="min-h-12"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -108,11 +148,17 @@ export function SignInForm({locale, next, messages}: {locale: Locale; next?: str
           <FormField
             control={form.control}
             name="password"
-            render={({field}) => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel htmlFor="password">{messages.password}</FormLabel>
                 <FormControl>
-                  <Input {...field} id="password" type="password" autoComplete="current-password" className="min-h-12" />
+                  <Input
+                    {...field}
+                    id="password"
+                    type="password"
+                    autoComplete="current-password"
+                    className="min-h-12"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -127,7 +173,15 @@ export function SignInForm({locale, next, messages}: {locale: Locale; next?: str
   );
 }
 
-export function RegisterForm({locale, next, messages}: {locale: Locale; next?: string; messages: AuthMessages}) {
+export function RegisterForm({
+  locale,
+  next,
+  messages
+}: {
+  locale: Locale;
+  next?: string;
+  messages: AuthMessages;
+}) {
   const [state, action, pending] = useActionState(registerAction, initialState);
 
   const form = useForm<RegisterInput>({
@@ -163,11 +217,17 @@ export function RegisterForm({locale, next, messages}: {locale: Locale; next?: s
           <FormField
             control={form.control}
             name="email"
-            render={({field}) => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel htmlFor="email">{messages.email}</FormLabel>
                 <FormControl>
-                  <Input {...field} id="email" type="email" autoComplete="email" className="min-h-12" />
+                  <Input
+                    {...field}
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    className="min-h-12"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -176,11 +236,17 @@ export function RegisterForm({locale, next, messages}: {locale: Locale; next?: s
           <FormField
             control={form.control}
             name="password"
-            render={({field}) => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel htmlFor="password">{messages.password}</FormLabel>
                 <FormControl>
-                  <Input {...field} id="password" type="password" autoComplete="new-password" className="min-h-12" />
+                  <Input
+                    {...field}
+                    id="password"
+                    type="password"
+                    autoComplete="new-password"
+                    className="min-h-12"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -189,11 +255,17 @@ export function RegisterForm({locale, next, messages}: {locale: Locale; next?: s
           <FormField
             control={form.control}
             name="confirmPassword"
-            render={({field}) => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel htmlFor="confirmPassword">{messages.confirmPassword}</FormLabel>
                 <FormControl>
-                  <Input {...field} id="confirmPassword" type="password" autoComplete="new-password" className="min-h-12" />
+                  <Input
+                    {...field}
+                    id="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    className="min-h-12"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -208,7 +280,13 @@ export function RegisterForm({locale, next, messages}: {locale: Locale; next?: s
   );
 }
 
-export function ForgotPasswordForm({locale, messages}: {locale: Locale; messages: AuthMessages}) {
+export function ForgotPasswordForm({
+  locale,
+  messages
+}: {
+  locale: Locale;
+  messages: AuthMessages;
+}) {
   const [state, action, pending] = useActionState(requestPasswordResetAction, initialState);
 
   const form = useForm<PasswordResetRequestInput>({
@@ -237,11 +315,17 @@ export function ForgotPasswordForm({locale, messages}: {locale: Locale; messages
           <FormField
             control={form.control}
             name="email"
-            render={({field}) => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel htmlFor="email">{messages.email}</FormLabel>
                 <FormControl>
-                  <Input {...field} id="email" type="email" autoComplete="email" className="min-h-12" />
+                  <Input
+                    {...field}
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    className="min-h-12"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -256,7 +340,15 @@ export function ForgotPasswordForm({locale, messages}: {locale: Locale; messages
   );
 }
 
-export function ResetPasswordForm({locale, next, messages}: {locale: Locale; next?: string; messages: AuthMessages}) {
+export function ResetPasswordForm({
+  locale,
+  next,
+  messages
+}: {
+  locale: Locale;
+  next?: string;
+  messages: AuthMessages;
+}) {
   const [state, action, pending] = useActionState(updatePasswordAction, initialState);
 
   const form = useForm<PasswordUpdateInput>({
@@ -290,11 +382,17 @@ export function ResetPasswordForm({locale, next, messages}: {locale: Locale; nex
           <FormField
             control={form.control}
             name="password"
-            render={({field}) => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel htmlFor="password">{messages.password}</FormLabel>
                 <FormControl>
-                  <Input {...field} id="password" type="password" autoComplete="new-password" className="min-h-12" />
+                  <Input
+                    {...field}
+                    id="password"
+                    type="password"
+                    autoComplete="new-password"
+                    className="min-h-12"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -303,11 +401,17 @@ export function ResetPasswordForm({locale, next, messages}: {locale: Locale; nex
           <FormField
             control={form.control}
             name="confirmPassword"
-            render={({field}) => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel htmlFor="confirmPassword">{messages.confirmPassword}</FormLabel>
                 <FormControl>
-                  <Input {...field} id="confirmPassword" type="password" autoComplete="new-password" className="min-h-12" />
+                  <Input
+                    {...field}
+                    id="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    className="min-h-12"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

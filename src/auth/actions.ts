@@ -1,9 +1,9 @@
 'use server';
 
-import {redirect} from 'next/navigation';
-import {getLocalizedPath, type Locale} from '@/i18n/routing';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {getServerEnv} from '@/lib/env/server';
+import { redirect } from 'next/navigation';
+import { getLocalizedPath, type Locale } from '@/i18n/routing';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getServerEnv } from '@/lib/env/server';
 import {
   passwordResetRequestSchema,
   passwordUpdateSchema,
@@ -14,11 +14,18 @@ import {
   type RegisterInput,
   type SignInInput
 } from './schemas';
-import {safeRedirect} from './redirect';
+import { safeRedirect } from './redirect';
+
+export type AuthenticatedHeaderUser = {
+  email: string;
+  isAdmin: boolean;
+};
 
 export type AuthActionState = {
   status: 'idle' | 'success' | 'error';
   code?: string;
+  redirectTo?: string;
+  user?: AuthenticatedHeaderUser;
 };
 
 function formValue(formData: FormData, key: string) {
@@ -48,48 +55,74 @@ async function settleWithoutEnumeration(operation: Promise<unknown>) {
   ]);
 }
 
-export async function registerAction(_previousState: AuthActionState, formData: FormData) {
+export async function registerAction(
+  _previousState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
   const parsed = registerSchema.safeParse(
     parseForm<RegisterInput>(formData, ['email', 'password', 'confirmPassword', 'locale', 'next'])
   );
 
   if (!parsed.success) {
-    return {status: 'error', code: 'invalid_input'} satisfies AuthActionState;
+    return { status: 'error', code: 'invalid_input' } satisfies AuthActionState;
   }
 
   const supabase = await createSupabaseServerClient();
-  const redirectTo = authCallbackUrl(parsed.data.locale, safeRedirect(parsed.data.next, parsed.data.locale));
-  const {error} = await supabase.auth.signUp({
+  const redirectTo = authCallbackUrl(
+    parsed.data.locale,
+    safeRedirect(parsed.data.next, parsed.data.locale)
+  );
+  const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
-    options: {emailRedirectTo: redirectTo}
+    options: { emailRedirectTo: redirectTo }
   });
 
   if (error) {
-    return {status: 'error', code: 'auth_failed'} satisfies AuthActionState;
+    return { status: 'error', code: 'auth_failed' } satisfies AuthActionState;
   }
 
-  return {status: 'success', code: 'registered'} satisfies AuthActionState;
+  return { status: 'success', code: 'registered' } satisfies AuthActionState;
 }
 
-export async function signInAction(_previousState: AuthActionState, formData: FormData) {
-  const parsed = signInSchema.safeParse(parseForm<SignInInput>(formData, ['email', 'password', 'locale', 'next']));
+export async function signInAction(
+  _previousState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const parsed = signInSchema.safeParse(
+    parseForm<SignInInput>(formData, ['email', 'password', 'locale', 'next'])
+  );
 
   if (!parsed.success) {
-    return {status: 'error', code: 'invalid_input'} satisfies AuthActionState;
+    return { status: 'error', code: 'invalid_input' } satisfies AuthActionState;
   }
 
   const supabase = await createSupabaseServerClient();
-  const {error} = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password
   });
 
   if (error) {
-    return {status: 'error', code: 'auth_failed'} satisfies AuthActionState;
+    return { status: 'error', code: 'auth_failed' } satisfies AuthActionState;
   }
 
-  redirect(safeRedirect(parsed.data.next, parsed.data.locale));
+  const { data: role } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', data.user.id)
+    .eq('role', 'admin')
+    .maybeSingle();
+
+  return {
+    status: 'success',
+    code: 'signed_in',
+    redirectTo: safeRedirect(parsed.data.next, parsed.data.locale),
+    user: {
+      email: data.user.email ?? parsed.data.email,
+      isAdmin: Boolean(role)
+    }
+  } satisfies AuthActionState;
 }
 
 export async function signOutAction(formData: FormData) {
@@ -99,13 +132,16 @@ export async function signOutAction(formData: FormData) {
   redirect(getLocalizedPath('/', locale));
 }
 
-export async function requestPasswordResetAction(_previousState: AuthActionState, formData: FormData) {
+export async function requestPasswordResetAction(
+  _previousState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
   const parsed = passwordResetRequestSchema.safeParse(
     parseForm<PasswordResetRequestInput>(formData, ['email', 'locale'])
   );
 
   if (!parsed.success) {
-    return {status: 'error', code: 'invalid_input'} satisfies AuthActionState;
+    return { status: 'error', code: 'invalid_input' } satisfies AuthActionState;
   }
 
   const supabase = await createSupabaseServerClient();
@@ -116,23 +152,26 @@ export async function requestPasswordResetAction(_previousState: AuthActionState
     })
   );
 
-  return {status: 'success', code: 'reset_requested'} satisfies AuthActionState;
+  return { status: 'success', code: 'reset_requested' } satisfies AuthActionState;
 }
 
-export async function updatePasswordAction(_previousState: AuthActionState, formData: FormData) {
+export async function updatePasswordAction(
+  _previousState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
   const parsed = passwordUpdateSchema.safeParse(
     parseForm<PasswordUpdateInput>(formData, ['password', 'confirmPassword', 'locale', 'next'])
   );
 
   if (!parsed.success) {
-    return {status: 'error', code: 'invalid_input'} satisfies AuthActionState;
+    return { status: 'error', code: 'invalid_input' } satisfies AuthActionState;
   }
 
   const supabase = await createSupabaseServerClient();
-  const {error} = await supabase.auth.updateUser({password: parsed.data.password});
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
 
   if (error) {
-    return {status: 'error', code: 'auth_failed'} satisfies AuthActionState;
+    return { status: 'error', code: 'auth_failed' } satisfies AuthActionState;
   }
 
   redirect(safeRedirect(parsed.data.next, parsed.data.locale));
