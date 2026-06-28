@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import { localizedMetadata, publicStorageUrl } from '@/catalog/metadata';
 import { JsonLd, articleJsonLd, breadcrumbJsonLd } from '@/content/seo/json-ld';
 import { getBlogPostPath, getProductPath, type Locale } from '@/i18n/routing';
-import { getCachedPublishedBlogPost } from '@/content/blog/public-cache';
+import { getCachedPublishedBlogPost, getCachedPublishedBlogPosts } from '@/content/blog/public-cache';
 
 type Params = Promise<{ locale: Locale; postSlug: string }>;
 
@@ -29,6 +29,17 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     },
     socialImage: publicStorageUrl(post.socialImageBucket, post.socialImagePath)
   });
+}
+
+export async function generateStaticParams() {
+  const locales: Locale[] = ['vi', 'en'];
+  const entries = await Promise.all(
+    locales.map(async (locale) => {
+      const posts = await getCachedPublishedBlogPosts(locale);
+      return posts.map((post) => ({ locale, postSlug: post.slug }));
+    })
+  );
+  return entries.flat();
 }
 
 export default async function BlogPostPage({ params }: { params: Params }) {

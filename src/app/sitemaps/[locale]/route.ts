@@ -34,18 +34,25 @@ export async function GET(_request: Request, { params }: { params: Params }) {
   ]);
   const categories = facets.filter((facet) => facet.facet_type === 'category');
   const collections = facets.filter((facet) => facet.facet_type === 'collection');
-  const paths = [
-    `/${locale}`,
-    locale === 'vi' ? '/vi/cua-hang' : '/en/catalog',
-    locale === 'vi' ? '/vi/bai-viet' : '/en/blog',
-    ...categories.map((category) => getCategoryPath(locale, category.slug)),
-    ...collections.map((collection) => getCollectionPath(locale, collection.slug)),
-    ...products.map((product) => getProductPath(locale, product.slug)),
-    ...blogPosts.map((post) => getBlogPostPath(locale, post.slug)),
-    ...policies.map((policy) => policy.href)
+  const urls = [
+    { path: `/${locale}` },
+    { path: locale === 'vi' ? '/vi/cua-hang' : '/en/catalog' },
+    { path: locale === 'vi' ? '/vi/bai-viet' : '/en/blog' },
+    ...categories.map((category) => ({ path: getCategoryPath(locale, category.slug) })),
+    ...collections.map((collection) => ({ path: getCollectionPath(locale, collection.slug) })),
+    ...products.map((product) => ({
+      path: getProductPath(locale, product.slug),
+      lastModified: product.published_at
+    })),
+    ...blogPosts.map((post) => ({
+      path: getBlogPostPath(locale, post.slug),
+      lastModified: post.publishedAt
+    })),
+    ...policies.map((policy) => ({ path: policy.href }))
   ];
+  const uniqueUrls = Array.from(new Map(urls.map((url) => [url.path, url])).values());
 
-  return new Response(urlSetXml(Array.from(new Set(paths))), {
+  return new Response(urlSetXml(uniqueUrls), {
     headers: {
       'content-type': 'application/xml; charset=utf-8'
     }

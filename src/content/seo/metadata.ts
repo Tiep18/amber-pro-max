@@ -29,7 +29,16 @@ export function sitemapIndexXml(paths: string[]) {
   return `<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</sitemapindex>`;
 }
 
-export function urlSetXml(paths: string[]) {
-  const body = paths.map((path) => `<url><loc>${escapeXml(absoluteUrl(path))}</loc></url>`).join('');
+type SitemapUrl = string | {path: string; lastModified?: string | null};
+
+function sitemapUrlEntry(entry: SitemapUrl) {
+  const path = typeof entry === 'string' ? entry : entry.path;
+  const lastModified = typeof entry === 'string' ? null : entry.lastModified;
+  const lastmod = lastModified ? `<lastmod>${escapeXml(lastModified)}</lastmod>` : '';
+  return `<url><loc>${escapeXml(absoluteUrl(path))}</loc>${lastmod}</url>`;
+}
+
+export function urlSetXml(paths: SitemapUrl[]) {
+  const body = paths.map(sitemapUrlEntry).join('');
   return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`;
 }

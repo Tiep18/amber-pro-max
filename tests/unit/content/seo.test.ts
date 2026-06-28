@@ -28,4 +28,12 @@ describe('localized SEO metadata (SEO-02, D-05, D-06)', () => {
     expect(sitemapIndexXml(['/sitemaps/en?x=<private>'])).toContain('%3Cprivate%3E');
     expect(urlSetXml(['/en/product/bear&friend'])).toContain('bear&amp;friend');
   });
+
+  it('renders sitemap lastmod when provided', () => {
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://example.test');
+
+    expect(
+      urlSetXml([{path: '/en/product/bear', lastModified: '2026-06-28T00:00:00Z'}])
+    ).toContain('<lastmod>2026-06-28T00:00:00Z</lastmod>');
+  });
 });

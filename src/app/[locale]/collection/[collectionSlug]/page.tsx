@@ -3,7 +3,11 @@ import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { localizedMetadata, publicStorageUrl } from '@/catalog/metadata';
 import { marketForLocale } from '@/catalog/seo-market';
-import { getCachedCatalogCollection, getCachedCatalogProducts } from '@/catalog/public-cache';
+import {
+  getCachedCatalogCollection,
+  getCachedCatalogFacets,
+  getCachedCatalogProducts
+} from '@/catalog/public-cache';
 import { ProductCard } from '@/components/catalog/product-card';
 import { getCollectionPath, type Locale } from '@/i18n/routing';
 import type { Json } from '@/types/supabase';
@@ -42,6 +46,19 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     },
     socialImage: publicStorageUrl(collection.social_image_bucket, collection.social_image_path)
   });
+}
+
+export async function generateStaticParams() {
+  const locales: Locale[] = ['vi', 'en'];
+  const entries = await Promise.all(
+    locales.map(async (locale) => {
+      const facets = await getCachedCatalogFacets(locale, marketForLocale(locale));
+      return facets
+        .filter((facet) => facet.facet_type === 'collection')
+        .map((facet) => ({ locale, collectionSlug: facet.slug }));
+    })
+  );
+  return entries.flat();
 }
 
 export default async function CollectionPage({ params }: { params: Params }) {
