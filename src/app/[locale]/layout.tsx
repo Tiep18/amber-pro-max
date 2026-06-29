@@ -32,10 +32,18 @@ export default async function LocaleLayout({
       <StorefrontContextProvider locale={locale as Locale}>
         <WishlistProvider locale={locale as Locale}>
           <div className="flex min-h-screen flex-col">
+            <a
+              href="#main-content"
+              className="sr-only fixed left-4 top-4 z-[60] rounded-[var(--radius-control)] bg-[var(--foreground)] px-4 py-3 text-sm font-semibold text-white focus:not-sr-only"
+            >
+              {locale === 'vi' ? 'Bo qua den noi dung' : 'Skip to content'}
+            </a>
             <Suspense fallback={<div className="min-h-16 border-b border-[var(--border)]" />}>
               <SiteHeader locale={locale as Locale} />
             </Suspense>
-            <div className="flex-1">{children}</div>
+            <div id="main-content" className="flex-1">
+              {children}
+            </div>
             <SiteFooter locale={locale as Locale} />
           </div>
         </WishlistProvider>

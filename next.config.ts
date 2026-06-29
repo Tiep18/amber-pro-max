@@ -43,6 +43,9 @@ function securityHeaders() {
 }
 
 const nextConfig: NextConfig = {
+  experimental: {
+    viewTransition: true
+  },
   async headers() {
     return [
       {

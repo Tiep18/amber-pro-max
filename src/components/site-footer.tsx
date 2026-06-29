@@ -5,6 +5,28 @@ import {getPublishedRequiredPolicyLinks} from '@/launch/settings';
 import {SubscribeForm} from '@/components/newsletter/subscribe-form';
 import {LocaleSwitcher} from './locale-switcher';
 
+const policyFallbackLabels = {
+  vi: {
+    privacy: 'Chinh sach rieng tu',
+    terms_of_sale: 'Dieu khoan ban hang',
+    returns: 'Chinh sach doi tra',
+    digital_downloads: 'Tai ve ky thuat so'
+  },
+  en: {
+    privacy: 'Privacy policy',
+    terms_of_sale: 'Terms of sale',
+    returns: 'Return policy',
+    digital_downloads: 'Digital downloads'
+  }
+} as const;
+
+function publicPolicyTitle(locale: Locale, policyKind: string, title: string) {
+  if (title === 'Vietnamese title' || title === 'English title') {
+    return policyFallbackLabels[locale][policyKind as keyof (typeof policyFallbackLabels)['en']] ?? title;
+  }
+  return title;
+}
+
 export async function SiteFooter({locale}: {locale: Locale}) {
   const [t, policyLinks] = await Promise.all([getTranslations('footer'), getPublishedRequiredPolicyLinks(locale)]);
 
@@ -27,7 +49,7 @@ export async function SiteFooter({locale}: {locale: Locale}) {
         <div className="flex flex-wrap items-center gap-4 lg:justify-end">
           {policyLinks.map((policy) => (
             <a key={policy.policyKind} href={policy.href} className="font-semibold text-[var(--foreground)] hover:text-[var(--accent)]">
-              {policy.title}
+              {publicPolicyTitle(locale, policy.policyKind, policy.title)}
             </a>
           ))}
           <p>{t('copyright')}</p>

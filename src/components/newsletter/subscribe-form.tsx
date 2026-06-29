@@ -77,6 +77,7 @@ export function SubscribeForm({
                     {...field}
                     type="email"
                     autoComplete="email"
+                    spellCheck={false}
                     maxLength={320}
                     className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 font-normal"
                   />

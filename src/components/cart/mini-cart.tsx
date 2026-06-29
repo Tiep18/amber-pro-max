@@ -20,6 +20,7 @@ const copy = {
     emptyBody: 'Add a PDF pattern or handmade item to start your order.',
     viewCart: 'View cart',
     checkout: 'Checkout',
+    closeCart: 'Close cart',
     subtotal: 'Subtotal',
     shipping: 'Shipping not calculated',
     blocked: 'Review unavailable items before checkout.',
@@ -38,6 +39,7 @@ const copy = {
     emptyBody: 'Them mau PDF hoac san pham thu cong de bat dau don hang.',
     viewCart: 'Xem gio hang',
     checkout: 'Tien hanh thanh toan',
+    closeCart: 'Dong gio hang',
     subtotal: 'Tam tinh',
     shipping: 'Chua tinh van chuyen',
     blocked: 'Kiem tra san pham khong kha dung truoc khi thanh toan.',
@@ -88,7 +90,7 @@ export function MiniCart({ locale }: { locale: Locale }) {
       <Sheet
         triggerLabel={t.cart}
         title={t.cart}
-        closeLabel="Close cart"
+        closeLabel={t.closeCart}
         open={open}
         onOpenChange={setOpen}
         showTrigger={false}

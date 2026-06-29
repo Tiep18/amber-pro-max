@@ -148,8 +148,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
           sizes="100vw"
           className="object-cover object-[68%_center] sm:object-center"
         />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.98)_0%,rgba(255,255,255,0.9)_44%,rgba(255,255,255,0.35)_72%,rgba(255,255,255,0)_100%)] sm:bg-[linear-gradient(90deg,rgba(255,255,255,0.92)_0%,rgba(255,255,255,0.78)_38%,rgba(255,255,255,0.2)_68%,rgba(255,255,255,0)_100%)] lg:bg-[linear-gradient(90deg,rgba(255,255,255,0.86)_0%,rgba(255,255,255,0.62)_38%,rgba(255,255,255,0)_66%)]" />
         <div className="relative z-10 mx-auto flex min-h-[620px] w-full max-w-[1200px] items-start px-4 pt-16 sm:min-h-[680px] sm:px-6 sm:pt-24 lg:min-h-[720px] lg:items-center lg:px-10 lg:pt-0 xl:px-12">
-          <div className="grid max-w-[570px] gap-6">
+          <div className="grid max-w-[570px] gap-6 text-pretty">
             <h1 className="text-[42px] font-semibold leading-[1.02] sm:text-[58px] lg:text-[68px]">
               Ambertinybear
             </h1>
@@ -185,6 +186,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
             <Link
               id="shop-path-handmade"
               href={handmadePath}
+              transitionTypes={['nav-forward']}
               data-testid="shop-path-handmade"
               className="group grid scroll-mt-6 gap-4"
             >
@@ -208,6 +210,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
             <Link
               id="shop-path-patterns"
               href={patternPath}
+              transitionTypes={['nav-forward']}
               data-testid="shop-path-patterns"
               className="group grid scroll-mt-6 gap-4"
             >
