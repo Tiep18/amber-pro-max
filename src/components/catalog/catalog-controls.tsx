@@ -9,7 +9,7 @@ export async function CatalogControls({
   const t = await getTranslations('catalog');
 
   return (
-    <form method="get" className="grid gap-3 sm:grid-cols-[1fr_220px_auto] sm:items-end">
+    <form method="get" className="grid grid-cols-[minmax(0,1fr)_minmax(120px,0.55fr)] items-end gap-2 sm:grid-cols-[1fr_220px_auto] sm:gap-3">
       {state.productType ? <input type="hidden" name="type" value={state.productType} /> : null}
       {state.categorySlug ? <input type="hidden" name="category" value={state.categorySlug} /> : null}
       <label className="grid gap-1 text-sm font-semibold">
@@ -38,7 +38,7 @@ export async function CatalogControls({
       </label>
       <button
         type="submit"
-        className="min-h-11 rounded-[var(--radius-control)] bg-[var(--accent)] px-4 font-semibold text-white hover:bg-[var(--accent-hover)]"
+        className="col-span-2 min-h-11 rounded-[var(--radius-control)] bg-[var(--accent)] px-4 font-semibold text-white hover:bg-[var(--accent-hover)] sm:col-span-1"
       >
         {t('apply')}
       </button>

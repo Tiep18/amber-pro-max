@@ -86,7 +86,7 @@ export default async function CatalogPage({
   ];
 
   return (
-    <main className="mx-auto grid w-full max-w-[1280px] gap-7 px-4 py-8 sm:px-6 lg:px-10">
+    <main className="mx-auto grid w-full max-w-[1280px] gap-4 px-4 py-5 sm:px-6 sm:py-6 lg:gap-5 lg:px-10">
       <JsonLd
         data={[
           breadcrumbJsonLd([
@@ -98,7 +98,7 @@ export default async function CatalogPage({
       />
       <nav
         aria-label={t('breadcrumb')}
-        className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]"
+        className="hidden items-center gap-2 text-sm text-[var(--muted-foreground)] sm:flex"
       >
         <Link href={`/${locale}`} className="hover:text-[var(--foreground)]">
           {t('breadcrumbHome')}
@@ -106,9 +106,9 @@ export default async function CatalogPage({
         <span aria-hidden="true">/</span>
         <span aria-current="page">{t('breadcrumbShop')}</span>
       </nav>
-      <header className="grid max-w-[760px] gap-2">
-        <h1 className="text-3xl font-semibold leading-tight">{t('title')}</h1>
-        <p className="text-[var(--muted-foreground)]">{t('intro')}</p>
+      <header className="grid max-w-[760px] gap-1">
+        <h1 className="text-[28px] font-semibold leading-tight sm:text-3xl">{t('title')}</h1>
+        <p className="text-sm leading-relaxed text-[var(--muted-foreground)] sm:text-base">{t('intro')}</p>
       </header>
       <nav
         className="flex gap-1 overflow-x-auto border-b border-[var(--border)]"
@@ -122,14 +122,14 @@ export default async function CatalogPage({
               href={catalogHref(basePath, state, tab.type)}
               aria-current={active ? 'page' : undefined}
               transitionTypes={active ? undefined : ['catalog-filter']}
-              className="shrink-0 border-b-2 border-transparent px-4 py-3 text-sm font-semibold aria-[current=page]:border-[var(--accent)] aria-[current=page]:text-[var(--accent)]"
+              className="shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm font-semibold aria-[current=page]:border-[var(--accent)] aria-[current=page]:text-[var(--accent)] sm:px-4"
             >
               {tab.label}
             </Link>
           );
         })}
       </nav>
-      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-6">
         <aside
           className="hidden border-r border-[var(--border)] pr-6 lg:block"
           aria-label={t('filtersTitle')}
@@ -141,8 +141,8 @@ export default async function CatalogPage({
             labels={filterLabels}
           />
         </aside>
-        <div className="grid min-w-0 content-start gap-6">
-          <div className="grid gap-3">
+        <div className="grid min-w-0 content-start gap-4">
+          <div className="grid gap-2">
             <div className="lg:hidden">
               <Sheet
                 triggerLabel={t('openFilters')}
