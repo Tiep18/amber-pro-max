@@ -8,8 +8,8 @@ import type { Locale } from '@/i18n/routing';
 import { getProductPath } from '@/i18n/routing';
 
 const placeholderLabels = {
-  vi: 'Dang cap nhat anh',
-  en: 'Image coming soon'
+  vi: { brand: 'Ambertinybear', status: 'Dang cap nhat anh' },
+  en: { brand: 'Ambertinybear', status: 'Image coming soon' }
 } as const;
 
 function publicImageUrl(bucket: string | null, path: string | null) {
@@ -50,8 +50,11 @@ export async function ProductCard({
             className="object-cover"
           />
         ) : (
-          <div className="flex h-full items-center justify-center bg-[linear-gradient(135deg,var(--surface-muted),#f7f4ef)] px-4 text-center text-sm font-semibold text-[var(--muted-foreground)]">
-            {placeholderLabels[locale]}
+          <div className="flex h-full items-center justify-center bg-[linear-gradient(135deg,var(--surface-muted),#f7f4ef)] px-4 text-center text-sm text-[var(--muted-foreground)]">
+            <span className="grid gap-1">
+              <span className="font-semibold text-[var(--foreground)]">{placeholderLabels[locale].brand}</span>
+              <span>{placeholderLabels[locale].status}</span>
+            </span>
           </div>
         )}
         <div className="absolute right-3 top-3">

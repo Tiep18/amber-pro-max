@@ -43,7 +43,7 @@ export function CatalogResultGrid({
       </p>
       <section
         data-testid="catalog-product-grid"
-        className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3"
+        className="grid gap-y-6 min-[480px]:grid-cols-2 min-[480px]:gap-x-3 sm:gap-5 lg:grid-cols-3"
       >
         {items.slice(0, visibleCount)}
       </section>

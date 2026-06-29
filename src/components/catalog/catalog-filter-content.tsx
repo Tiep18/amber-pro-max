@@ -31,7 +31,8 @@ export function CatalogFilterContent({
       <Link
         href={filterHref(basePath, state)}
         aria-current={!state.categorySlug ? 'page' : undefined}
-        className="flex min-h-10 items-center justify-between border-b border-[var(--border)] text-sm aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]"
+        transitionTypes={!state.categorySlug ? undefined : ['catalog-filter']}
+        className="flex min-h-11 items-center justify-between border-b border-[var(--border)] text-sm hover:text-[var(--foreground)] aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]"
       >
         {labels.allCategories}
       </Link>
@@ -40,7 +41,8 @@ export function CatalogFilterContent({
           key={facet.id}
           href={filterHref(basePath, state, facet.slug)}
           aria-current={state.categorySlug === facet.slug ? 'page' : undefined}
-          className="flex min-h-10 items-center justify-between gap-3 border-b border-[var(--border)] text-sm aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]"
+          transitionTypes={state.categorySlug === facet.slug ? undefined : ['catalog-filter']}
+          className="flex min-h-11 items-center justify-between gap-3 border-b border-[var(--border)] text-sm hover:text-[var(--foreground)] aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]"
         >
           <span>{facet.label}</span>
           <span className="tabular-nums text-[var(--muted-foreground)]">{facet.product_count}</span>

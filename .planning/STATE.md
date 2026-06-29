@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-06-29 - Completed quick task 260629-oez: Fix homepage UI UX review findings
+last_activity: 2026-06-29 - Completed quick task 260629-p1f: Fix catalog UI UX review findings without breaking static ISR SEO
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 07 (content-seo-and-launch-readiness)
 Plan: 07-05 completed
 Status: Ready for Wave 6 final launch verification
-Last activity: 2026-06-29 - Completed quick task 260629-oez: Fix homepage UI UX review findings
+Last activity: 2026-06-29 - Completed quick task 260629-p1f: Fix catalog UI UX review findings without breaking static ISR SEO
 
 Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and Wave 6 can begin.
 
@@ -164,6 +164,7 @@ None yet.
 | 260628-taxonomy-usage-counts          | Show usage counts for admin taxonomy records and disable delete controls for in-use terms                                        | 2026-06-28 | pending     | [260628-taxonomy-usage-counts](./quick/260628-taxonomy-usage-counts/)                                               |
 | 260628-storefront-context-cart-cache  | Stabilize storefront auth context and cart quote state across navigation and remounts                                             | 2026-06-28 | this commit | [260628-storefront-context-cart-cache](./quick/260628-storefront-context-cart-cache/)                               |
 | 260629-oez                            | Fix homepage UI UX review findings                                                                                              | 2026-06-29 | pending     | [260629-oez-fix-homepage-ui-ux-review-findings](./quick/260629-oez-fix-homepage-ui-ux-review-findings/)             |
+| 260629-p1f                            | Fix catalog UI UX review findings without breaking static ISR SEO                                                                | 2026-06-29 | pending     | [260629-p1f-fix-catalog-ui-ux-review-findings-withou](./quick/260629-p1f-fix-catalog-ui-ux-review-findings-withou/) |
 
 ### Debug Sessions Resolved
 

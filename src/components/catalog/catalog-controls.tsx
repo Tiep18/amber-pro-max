@@ -17,6 +17,8 @@ export async function CatalogControls({
         <input
           type="search"
           name="search"
+          autoComplete="off"
+          spellCheck={false}
           defaultValue={state.search}
           className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 font-normal"
         />
@@ -26,7 +28,7 @@ export async function CatalogControls({
         <select
           name="sort"
           defaultValue={state.sort}
-          className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 font-normal"
+          className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 font-normal text-[var(--foreground)]"
         >
           <option value="newest">{t('newest')}</option>
           <option value="price_asc">{t('priceAsc')}</option>

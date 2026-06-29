@@ -110,7 +110,7 @@ export default async function CatalogPage({
         <h1 className="text-3xl font-semibold leading-tight">{t('title')}</h1>
         <p className="text-[var(--muted-foreground)]">{t('intro')}</p>
       </header>
-      <div
+      <nav
         className="flex gap-1 overflow-x-auto border-b border-[var(--border)]"
         aria-label={t('productType')}
       >
@@ -121,13 +121,14 @@ export default async function CatalogPage({
               key={tab.label}
               href={catalogHref(basePath, state, tab.type)}
               aria-current={active ? 'page' : undefined}
+              transitionTypes={active ? undefined : ['catalog-filter']}
               className="shrink-0 border-b-2 border-transparent px-4 py-3 text-sm font-semibold aria-[current=page]:border-[var(--accent)] aria-[current=page]:text-[var(--accent)]"
             >
               {tab.label}
             </Link>
           );
         })}
-      </div>
+      </nav>
       <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside
           className="hidden border-r border-[var(--border)] pr-6 lg:block"
