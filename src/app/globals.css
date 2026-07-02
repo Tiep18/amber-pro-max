@@ -2,19 +2,20 @@
 
 :root {
   --background: #f6f2ea;
-  --foreground: #26231f;
+  --foreground: #3b332d;
+  --brand: #62220c;
   --surface: #fffaf2;
   --surface-muted: #ece3d4;
   --surface-paper: #fffdf8;
   --surface-blush: #f8ebe5;
-  --surface-sage: #edf5ee;
-  --surface-honey: #f7efd9;
+  --surface-sage: #f0e9e5;
+  --surface-honey: #fadbb7;
   --accent: #a94734;
   --accent-hover: #873627;
-  --muted-foreground: #686056;
+  --muted-foreground: #786b61;
   --border: #ded2c2;
-  --trust-surface: #e8efe7;
-  --trust-accent: #3f684f;
+  --trust-surface: #f0e9e5;
+  --trust-accent: #8b4513;
   --shadow-soft: 0 24px 70px rgb(73 52 32 / 14%);
   --shadow-lifted: 0 30px 90px rgb(78 45 30 / 20%);
   --success: #2f6b4f;
@@ -47,7 +48,7 @@ body {
   margin: 0;
   background:
     radial-gradient(circle at 12% 8%, rgb(255 244 224 / 70%), transparent 34rem),
-    radial-gradient(circle at 82% 18%, rgb(231 238 224 / 62%), transparent 30rem),
+    radial-gradient(circle at 82% 18%, rgb(247 201 147 / 42%), transparent 30rem),
     linear-gradient(180deg, #f8f3ea 0%, var(--background) 44%, #f5efe6 100%);
   color: var(--foreground);
   font-size: 16px;

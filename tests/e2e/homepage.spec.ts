@@ -11,6 +11,18 @@ test.describe('Ambertinybear homepage', () => {
     });
   }
 
+  test('en presents the approved content-led storefront promises', async ({ page }) => {
+    await page.goto('/en');
+
+    await expect(
+      page.getByText('Bringing tiny characters to life, one stitch at a time')
+    ).toBeVisible();
+    await expect(page.getByTestId('hero-handmade-cta')).toContainText('Shop handmade friends');
+    await expect(page.getByTestId('hero-patterns-cta')).toContainText('Browse PDF patterns');
+    await expect(page.getByText('Guest checkout welcome')).toBeVisible();
+    await expect(page.getByText('Private pattern downloads')).toBeVisible();
+  });
+
   test('primary actions remain usable without mobile overflow', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
     await page.goto('/vi');

@@ -59,7 +59,7 @@ export async function ProductCard({
         ) : (
           <div className="flex h-full items-center justify-center bg-[linear-gradient(135deg,var(--surface-muted),#f7f4ef)] px-4 text-center text-sm text-[var(--muted-foreground)]">
             <span className="grid gap-1">
-              <span className="font-semibold text-[var(--foreground)]">
+              <span className="font-semibold text-[var(--brand)]">
                 {placeholderLabels[locale].brand}
               </span>
               <span>{placeholderLabels[locale].status}</span>
@@ -85,14 +85,14 @@ export async function ProductCard({
       <div className="grid h-full grid-rows-[1fr_auto] gap-4 p-4 sm:p-5">
         <div className="grid content-start gap-2">
           <div className="flex min-w-0 items-start justify-between gap-3">
-            <span className="min-w-0 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/70 px-2 py-1 text-[11px] font-semibold text-[var(--accent)]">
+            <span className="min-w-0 rounded-[var(--radius-control)] bg-[var(--surface-blush)] px-2 py-1 text-[11px] font-semibold text-[var(--accent)]">
               {badge}
             </span>
             <span className="shrink-0 pt-1 text-xs text-[var(--muted-foreground)]">
               {product.in_stock ? t('inStock') : t('outOfStock')}
             </span>
           </div>
-          <h2 className="line-clamp-2 min-w-0 break-words text-lg font-semibold leading-snug tracking-[-0.01em] transition-colors group-hover:text-[var(--accent)]">
+          <h2 className="line-clamp-2 min-w-0 break-words text-lg font-semibold leading-snug tracking-[-0.01em] text-[var(--foreground)] transition-colors group-hover:text-[var(--accent)]">
             {product.title}
           </h2>
           <p className="line-clamp-2 break-words text-sm leading-relaxed text-[var(--muted-foreground)]">
@@ -101,7 +101,7 @@ export async function ProductCard({
         </div>
         <div className="mt-auto flex items-center justify-between gap-4 border-t border-[var(--border)]/70 pt-4">
           <div className="grid gap-0.5">
-            <p className="text-lg font-semibold tabular-nums">
+            <p className="text-lg font-semibold tabular-nums text-[var(--brand)]">
               {formatMoney({ amountMinor: product.price_minor, currencyCode })}
             </p>
           </div>
