@@ -1,16 +1,22 @@
 @import 'tailwindcss';
 
 :root {
-  --background: #f8f8f5;
-  --foreground: #292a27;
-  --surface: #ffffff;
-  --surface-muted: #eef0eb;
-  --accent: #b84f3c;
-  --accent-hover: #933c2d;
-  --muted-foreground: #656961;
-  --border: #d9dcd4;
-  --trust-surface: #edf3ee;
-  --trust-accent: #376451;
+  --background: #f6f2ea;
+  --foreground: #26231f;
+  --surface: #fffaf2;
+  --surface-muted: #ece3d4;
+  --surface-paper: #fffdf8;
+  --surface-blush: #f8ebe5;
+  --surface-sage: #edf5ee;
+  --surface-honey: #f7efd9;
+  --accent: #a94734;
+  --accent-hover: #873627;
+  --muted-foreground: #686056;
+  --border: #ded2c2;
+  --trust-surface: #e8efe7;
+  --trust-accent: #3f684f;
+  --shadow-soft: 0 24px 70px rgb(73 52 32 / 14%);
+  --shadow-lifted: 0 30px 90px rgb(78 45 30 / 20%);
   --success: #2f6b4f;
   --success-surface: #e9f4ed;
   --warning: #8a5a16;
@@ -33,16 +39,21 @@
 html {
   background: var(--background);
   color: var(--foreground);
+  scroll-behavior: smooth;
 }
 
 body {
   min-width: 320px;
   margin: 0;
-  background: var(--background);
+  background:
+    radial-gradient(circle at 12% 8%, rgb(255 244 224 / 70%), transparent 34rem),
+    radial-gradient(circle at 82% 18%, rgb(231 238 224 / 62%), transparent 30rem),
+    linear-gradient(180deg, #f8f3ea 0%, var(--background) 44%, #f5efe6 100%);
   color: var(--foreground);
   font-size: 16px;
   line-height: 1.5;
   letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 a {
@@ -64,7 +75,138 @@ textarea {
 }
 
 ::selection {
-  background: var(--surface-muted);
+  background: #e6c8bb;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+  background-image:
+    linear-gradient(rgb(38 35 31 / 3%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(38 35 31 / 3%) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 75%), transparent 68%);
+}
+
+.container {
+  width: 100%;
+  max-width: 1400px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding-inline: 2rem;
+  }
+}
+
+@keyframes sheet-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sheet-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-left-in {
+  from {
+    opacity: 0.72;
+    transform: translate3d(-100%, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes sheet-left-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0.72;
+    transform: translate3d(-100%, 0, 0);
+  }
+}
+
+@keyframes sheet-right-in {
+  from {
+    opacity: 0.72;
+    transform: translate3d(100%, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes sheet-right-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0.72;
+    transform: translate3d(100%, 0, 0);
+  }
+}
+
+.sheet-overlay[data-state='open'] {
+  animation: sheet-overlay-in 220ms ease-out both;
+}
+
+.sheet-overlay[data-state='closed'] {
+  animation: sheet-overlay-out 170ms ease-in both;
+}
+
+.sheet-content {
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+}
+
+.sheet-content[data-side='left'][data-state='open'] {
+  animation: sheet-left-in 310ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sheet-content[data-side='left'][data-state='closed'] {
+  animation: sheet-left-out 220ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.sheet-content[data-side='right'][data-state='open'] {
+  animation: sheet-right-in 310ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sheet-content[data-side='right'][data-state='closed'] {
+  animation: sheet-right-out 220ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-overlay,
+  .sheet-content {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
 }
 
 @keyframes fade {

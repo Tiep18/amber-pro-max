@@ -6,6 +6,8 @@
   "navigation": {
     "home": "Trang chu",
     "shop": "Cua hang",
+    "blog": "Bai viet",
+    "guestOrder": "Tra cuu don",
     "signIn": "Dang nhap",
     "register": "Dang ky",
     "account": "Tai khoan",

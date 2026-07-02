@@ -184,7 +184,7 @@ export function AccountShell({
   const t = labels[locale];
 
   return (
-    <main className="mx-auto grid w-full max-w-[1280px] gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:px-10">
+    <main className="container grid gap-6 py-8 lg:grid-cols-[260px_minmax(0,1fr)]">
       <div className="lg:hidden">
         <Sheet triggerLabel={t.menu} title={t.area} side="left" showTriggerLabel>
           <SidebarContent email={email} locale={locale} />

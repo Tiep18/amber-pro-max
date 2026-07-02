@@ -15,7 +15,7 @@ export default async function BlogIndexPage({ params }: { params: Params }) {
   const posts = await getCachedPublishedBlogPosts(locale);
 
   return (
-    <main className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 py-10 sm:px-6 lg:px-10 xl:px-12">
+    <main className="container grid gap-8 py-10">
       <div className="grid max-w-[760px] gap-3">
         <p className="text-sm font-semibold uppercase text-[var(--accent)]">
           {locale === 'vi' ? 'Bai viet' : 'Blog'}

@@ -86,7 +86,7 @@ export default async function CatalogPage({
   ];
 
   return (
-    <main className="mx-auto grid w-full max-w-[1280px] gap-4 px-4 py-5 sm:px-6 sm:py-6 lg:gap-5 lg:px-10">
+    <main className="container grid gap-4 py-5 sm:py-6 lg:gap-5">
       <JsonLd
         data={[
           breadcrumbJsonLd([

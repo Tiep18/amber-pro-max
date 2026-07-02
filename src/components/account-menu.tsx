@@ -129,10 +129,22 @@ export function AccountMenu({
   const t = labels[locale];
 
   if (!user) {
+    if (mode === 'panel') {
+      return (
+        <Link
+          href={getLocalizedPath('/sign-in', locale)}
+          className="flex min-h-12 items-center justify-between rounded-[12px] bg-[var(--surface)]/55 px-3 text-sm font-medium text-[var(--muted-foreground)] ring-1 ring-[var(--border)]/55 transition duration-200 hover:bg-[var(--surface)] hover:text-[var(--accent)]"
+        >
+          <span>{t.signIn}</span>
+          <UserRound className="h-4 w-4 text-[var(--muted-foreground)]" aria-hidden="true" />
+        </Link>
+      );
+    }
+
     return (
       <Link
         href={getLocalizedPath('/sign-in', locale)}
-        className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold transition-colors hover:bg-[var(--surface-muted)]"
+        className="group inline-flex min-h-10 items-center justify-center rounded-none border-b border-[var(--accent)]/35 px-1 text-sm font-semibold text-[var(--foreground)] transition duration-200 hover:-translate-y-px hover:border-[var(--accent)] hover:text-[var(--accent)] active:translate-y-0"
       >
         {t.signIn}
       </Link>
@@ -186,9 +198,9 @@ export function AccountMenu({
         <button
           type="button"
           aria-label={t.account}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] py-1 pl-1 pr-2 shadow-sm transition-colors hover:bg-[var(--surface-muted)]"
+          className="inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] border border-transparent bg-transparent py-1 pl-1 pr-2 transition duration-200 hover:-translate-y-px hover:border-[var(--border)] hover:bg-[var(--surface)]/70 active:translate-y-0"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--foreground)] text-sm font-semibold text-white">
+          <span className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-control)] bg-[var(--foreground)] text-sm font-semibold text-white">
             {initialFor(user.email)}
           </span>
           <ChevronDown
@@ -234,7 +246,10 @@ export function AccountMenu({
           </>
         ) : null}
         <DropdownMenuSeparator />
-        <form action={signOutAction} onSubmit={() => notifyStorefrontContextChanged({ user: null })}>
+        <form
+          action={signOutAction}
+          onSubmit={() => notifyStorefrontContextChanged({ user: null })}
+        >
           <input type="hidden" name="locale" value={locale} />
           <DropdownMenuItem asChild variant="destructive">
             <button type="submit" className="flex min-h-10 w-full items-center gap-2.5 font-medium">

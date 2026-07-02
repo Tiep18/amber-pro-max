@@ -6,6 +6,8 @@
   "navigation": {
     "home": "Home",
     "shop": "Shop",
+    "blog": "Blog",
+    "guestOrder": "Order lookup",
     "signIn": "Sign in",
     "register": "Register",
     "account": "Account",

@@ -70,7 +70,7 @@ export default async function CategoryPage({ params }: { params: Params }) {
   }
 
   return (
-    <main className="mx-auto grid w-full max-w-[1200px] gap-7 px-4 py-10 sm:px-6 lg:px-10 xl:px-12">
+    <main className="container grid gap-7 py-10">
       <JsonLd
         data={[
           breadcrumbJsonLd([

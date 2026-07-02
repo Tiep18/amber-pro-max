@@ -107,7 +107,7 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
   const vietQrInstruction = vietQrResult?.status === 'ready' ? vietQrResult.instruction : null;
 
   return (
-    <main className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+    <main className="container grid gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_380px]">
       <section className="grid content-start gap-5">
         <PaymentStatePanel
           orderNumber={result.order.orderNumber}

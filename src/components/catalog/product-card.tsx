@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { formatMoney } from '@/catalog/money';
 import type { CatalogProduct } from '@/catalog/queries';
 import { WishlistHeart } from '@/components/catalog/wishlist-heart';
@@ -38,26 +39,34 @@ export async function ProductCard({
   return (
     <article
       aria-label={product.title}
-      className="grid h-full overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)]"
+      className="group relative grid h-full grid-rows-[auto_1fr] overflow-hidden rounded-[18px] bg-[var(--surface)] shadow-[0_18px_55px_rgb(73_52_32/8%)] ring-1 ring-[var(--border)]/70 transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_70px_rgb(73_52_32/14%)]"
     >
-      <div className="relative aspect-[4/3] overflow-hidden bg-[var(--surface-muted)]">
+      <Link
+        href={productPath}
+        transitionTypes={['nav-forward']}
+        aria-label={`${t('viewProduct')}: ${product.title}`}
+        className="absolute inset-0 z-10 rounded-[18px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+      />
+      <div className="relative aspect-[5/4] overflow-hidden bg-[var(--surface-muted)]">
         {imageUrl ? (
           <Image
             src={imageUrl}
             alt={product.primary_image_alt || product.title}
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-            className="object-cover"
+            className="object-cover transition duration-700 group-hover:scale-[1.035]"
           />
         ) : (
           <div className="flex h-full items-center justify-center bg-[linear-gradient(135deg,var(--surface-muted),#f7f4ef)] px-4 text-center text-sm text-[var(--muted-foreground)]">
             <span className="grid gap-1">
-              <span className="font-semibold text-[var(--foreground)]">{placeholderLabels[locale].brand}</span>
+              <span className="font-semibold text-[var(--foreground)]">
+                {placeholderLabels[locale].brand}
+              </span>
               <span>{placeholderLabels[locale].status}</span>
             </span>
           </div>
         )}
-        <div className="absolute right-3 top-3">
+        <div className="absolute right-3 top-3 z-20">
           <WishlistHeart
             productId={product.product_id}
             productTitle={product.title}
@@ -73,32 +82,35 @@ export async function ProductCard({
           />
         </div>
       </div>
-      <div className="grid min-h-[220px] grid-rows-[auto_auto_1fr] gap-3 p-3 sm:min-h-[250px] sm:p-4">
-        <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:justify-between sm:gap-3">
-          <h2 className="line-clamp-2 min-w-0 text-sm font-semibold leading-snug sm:text-lg">{product.title}</h2>
-          <span className="shrink-0 rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-2 py-1 text-xs font-semibold text-[var(--accent)]">
-            {badge}
-          </span>
+      <div className="grid h-full grid-rows-[1fr_auto] gap-4 p-4 sm:p-5">
+        <div className="grid content-start gap-2">
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <span className="min-w-0 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/70 px-2 py-1 text-[11px] font-semibold text-[var(--accent)]">
+              {badge}
+            </span>
+            <span className="shrink-0 pt-1 text-xs text-[var(--muted-foreground)]">
+              {product.in_stock ? t('inStock') : t('outOfStock')}
+            </span>
+          </div>
+          <h2 className="line-clamp-2 min-w-0 break-words text-lg font-semibold leading-snug tracking-[-0.01em] transition-colors group-hover:text-[var(--accent)]">
+            {product.title}
+          </h2>
+          <p className="line-clamp-2 break-words text-sm leading-relaxed text-[var(--muted-foreground)]">
+            {product.description}
+          </p>
         </div>
-        <p className="line-clamp-2 text-sm text-[var(--muted-foreground)]">
-          {product.description}
-        </p>
-        <div className="mt-auto grid items-start gap-3 sm:flex sm:items-center sm:justify-between">
-          <div>
-            <p className="font-semibold">
+        <div className="mt-auto flex items-center justify-between gap-4 border-t border-[var(--border)]/70 pt-4">
+          <div className="grid gap-0.5">
+            <p className="text-lg font-semibold tabular-nums">
               {formatMoney({ amountMinor: product.price_minor, currencyCode })}
             </p>
-            <p className="text-xs text-[var(--muted-foreground)]">
-              {product.in_stock ? t('inStock') : t('outOfStock')}
-            </p>
           </div>
-          <Link
-            href={productPath}
-            transitionTypes={['nav-forward']}
-            className="inline-flex min-h-10 items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] px-3 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
+          <span
+            aria-hidden="true"
+            className="inline-flex min-w-10 justify-end text-[var(--accent)] transition duration-200 group-hover:translate-x-1 group-hover:text-[var(--accent-hover)]"
           >
-            {t('viewProduct')}
-          </Link>
+            <ArrowRight className="size-5" strokeWidth={1.8} />
+          </span>
         </div>
       </div>
     </article>

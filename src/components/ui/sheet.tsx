@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 
 type SheetSide = 'left' | 'right';
 
+export const SheetClose = SheetPrimitive.Close;
+
 export function Sheet({
   triggerLabel,
   title,
@@ -24,7 +26,7 @@ export function Sheet({
   children
 }: {
   triggerLabel: string;
-  title: string;
+  title: ReactNode;
   closeLabel?: string;
   showTriggerLabel?: boolean;
   side?: SheetSide;
@@ -48,31 +50,32 @@ export function Sheet({
         </SheetPrimitive.Trigger>
       ) : null}
       <SheetPrimitive.Portal>
-        <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-black/30 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <SheetPrimitive.Overlay className="sheet-overlay fixed inset-0 z-50 bg-[rgba(38,35,31,0.32)]" />
         <SheetPrimitive.Content
+          data-side={side}
           className={cn(
-            'fixed bottom-0 top-0 z-50 flex h-dvh w-[min(420px,92vw)] flex-col overflow-hidden border-[var(--border)] bg-[var(--surface)] shadow-2xl outline-none ring-1 ring-black/5 data-[state=closed]:animate-out data-[state=open]:animate-in',
+            'sheet-content fixed bottom-0 top-0 z-50 flex h-dvh w-[min(420px,92vw)] flex-col overflow-hidden bg-[linear-gradient(180deg,var(--surface-paper),var(--surface))] shadow-[0_0_90px_rgb(73_52_32/24%)] outline-none ring-1 ring-white/60',
             side === 'left'
-              ? 'left-0 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left'
-              : 'right-0 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
+              ? 'left-0 border-r border-[var(--border)]/70'
+              : 'right-0 border-l border-[var(--border)]/70',
             contentClassName
           )}
         >
           <div
             className={cn(
-              'flex min-h-16 items-center justify-between gap-4 border-b border-[var(--border)] px-5 py-4',
+              'flex min-h-16 items-center justify-between gap-4 border-b border-[var(--border)]/65 bg-[var(--surface)]/72 px-5 py-4',
               headerClassName
             )}
           >
-            <SheetPrimitive.Title className="text-lg font-semibold leading-none">
+            <SheetPrimitive.Title className="min-w-0 text-lg font-semibold leading-none">
               {title}
             </SheetPrimitive.Title>
             <SheetPrimitive.Close asChild>
               <Button
                 variant="ghost"
-                className="h-9 min-h-9 w-9 rounded-full px-0 text-[var(--muted-foreground)]"
+                className="h-10 min-h-10 w-10 shrink-0 rounded-[var(--radius-control)] !px-0 text-[var(--muted-foreground)] transition duration-200 hover:rotate-3 hover:bg-[var(--surface-muted)]/70 hover:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               >
-                <X aria-hidden="true" className="h-5 w-5" />
+                <X aria-hidden="true" className="h-5 w-5 shrink-0" strokeWidth={1.7} />
                 <span className="sr-only">{closeLabel}</span>
               </Button>
             </SheetPrimitive.Close>
