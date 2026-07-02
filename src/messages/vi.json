@@ -6,6 +6,8 @@
   "navigation": {
     "home": "Trang chu",
     "shop": "Cua hang",
+    "blog": "Bai viet",
+    "guestOrder": "Tra cuu don",
     "signIn": "Dang nhap",
     "register": "Dang ky",
     "account": "Tai khoan",
@@ -103,41 +105,54 @@
   },
   "home": {
     "hero": {
-      "intro": "Thú bông đan móc thủ công và pattern PDF được tạo nên thật tỉ mỉ, dành cho những món quà nhỏ mang nhiều yêu thương.",
-      "handmadeCta": "Khám phá đồ handmade",
+      "kicker": "Quà handmade và pattern móc len",
+      "headline": "Thổi hồn vào những người bạn nhỏ, từng mũi móc một",
+      "intro": "Thú bông amigurumi, búp bê, phụ kiện handmade và pattern PDF dành cho những món quà đáng nhớ cùng những dự án móc len đầy niềm vui.",
+      "handmadeCta": "Mua đồ handmade",
       "patternCta": "Xem pattern PDF",
       "imageAlt": "Gấu bông đan móc, len và dụng cụ trong studio Ambertinybear"
     },
     "paths": {
       "eyebrow": "Chọn điều bạn đang tìm",
-      "title": "Một món quà hoàn thiện hay niềm vui tự tay làm?",
-      "handmadeTitle": "Đồ handmade",
-      "handmadeBody": "Những người bạn nhỏ được đan tay cẩn thận, đóng gói chu đáo và giao đến tận nơi.",
+      "title": "Một người bạn đã hoàn thiện, hay pattern cho dự án tiếp theo?",
+      "handmadeTitle": "Một người bạn để giữ hoặc làm quà",
+      "handmadeBody": "Sản phẩm handmade số lượng giới hạn, được đan móc cẩn thận, đóng gói tại studio và giao theo thị trường của bạn.",
       "handmadeImageAlt": "Bộ sưu tập thú bông và búp bê đan móc thủ công",
-      "patternTitle": "Pattern PDF",
-      "patternBody": "Hướng dẫn đan móc dạng PDF để bạn tải về sau khi thanh toán được xác nhận, không cần chờ giao hàng.",
+      "patternTitle": "Pattern cho dự án tiếp theo",
+      "patternBody": "Hướng dẫn móc len rõ ràng với quyền tải riêng tư sau khi toàn bộ đơn hàng được xác nhận thanh toán.",
       "patternImageAlt": "Pattern đan móc, len và sản phẩm đang thực hiện trên bàn làm việc"
     },
     "featured": {
-      "handmadeTitle": "Đồ handmade mới từ studio",
-      "handmadeBody": "Mỗi sản phẩm có số lượng giới hạn và được hiển thị theo thị trường bạn đang chọn.",
-      "patternTitle": "Pattern để bắt đầu dự án tiếp theo",
-      "patternBody": "Tải hướng dẫn riêng tư sau khi toàn bộ đơn hàng được xác nhận thanh toán.",
+      "handmadeTitle": "Những người bạn handmade mới từ studio",
+      "handmadeBody": "Các sản phẩm số lượng nhỏ, hiển thị theo thị trường, tồn kho và điều kiện giao hàng của bạn.",
+      "patternTitle": "Gợi ý khởi đầu cho người thích móc len",
+      "patternBody": "Pattern PDF được bảo vệ đến khi thanh toán được xác nhận, sau đó mở qua quyền tải riêng tư.",
       "viewHandmade": "Xem tất cả đồ handmade",
       "viewPatterns": "Xem tất cả pattern"
     },
     "benefits": {
-      "handmadeTitle": "Làm thủ công thật tỉ mỉ",
-      "handmadeBody": "Từng mũi đan và chi tiết hoàn thiện đều được chăm chút tại studio.",
-      "bilingualTitle": "Trải nghiệm song ngữ",
-      "bilingualBody": "Khám phá sản phẩm và pattern bằng tiếng Việt hoặc tiếng Anh rõ ràng.",
-      "secureTitle": "Mua đúng theo thị trường",
-      "secureBody": "Giá, thanh toán và quyền nhận hàng được kiểm soát theo thị trường của bạn."
+      "originalTitle": "Nhân vật nguyên bản",
+      "originalBody": "Những nhân vật có cá tính, dành cho người sưu tầm, quà tặng và người yêu các chi tiết nhỏ.",
+      "supportTitle": "Hỗ trợ khi làm pattern",
+      "supportBody": "Ghi chú, hình ảnh và hướng dẫn rõ ràng để bạn tự tin bắt đầu dự án.",
+      "marketTitle": "Thanh toán theo thị trường",
+      "marketBody": "Khách Việt Nam và quốc tế thấy sản phẩm, giá, phương thức thanh toán và giao hàng phù hợp.",
+      "secureTitle": "Quyền tải PDF an toàn",
+      "secureBody": "File pattern được giao qua liên kết riêng tư, có thời hạn sau khi thanh toán được xác nhận."
+    },
+    "trust": {
+      "title": "Mang cảm giác cá nhân của đồ thủ công, nhưng có quy trình mua hàng rõ ràng và an toàn.",
+      "body": "Storefront giữ sự ấm áp của một studio nhỏ, đồng thời bảo vệ giá theo thị trường, xác nhận thanh toán và giao file số.",
+      "guest": "Có thể mua không cần tài khoản",
+      "market": "VietQR cho Việt Nam và PayPal cho đơn quốc tế",
+      "downloads": "Tải pattern qua liên kết riêng tư",
+      "shipping": "Cập nhật giao hàng handmade thủ công",
+      "languages": "Storefront tiếng Việt và tiếng Anh"
     },
     "story": {
       "eyebrow": "Trong studio",
-      "title": "Chậm rãi tạo nên những điều đáng giữ",
-      "body": "Ambertinybear là một studio đan móc nhỏ, nơi mỗi sản phẩm và pattern được phát triển với sự kiên nhẫn, rõ ràng và niềm vui của việc làm bằng tay.",
+      "title": "Từ một studio nhỏ ở Việt Nam",
+      "body": "Ambertinybear bắt đầu từ một cây kim móc, những cuộn len mềm và niềm vui khi một nhân vật dần hiện ra qua từng mũi móc. Hôm nay, studio tạo nên cả sản phẩm hoàn thiện lẫn pattern cho người yêu móc len khắp nơi.",
       "cta": "Ghé thăm cửa hàng",
       "imageAlt": "Đôi tay đang đan một chú gấu nhỏ trong studio sáng"
     }

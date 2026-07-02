@@ -369,7 +369,7 @@ export default async function ProductPage({ params }: { params: Params }) {
           ])
         ]}
       />
-      <main className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.8fr)] lg:px-10 xl:px-12">
+      <main className="container grid gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.8fr)]">
         <div className="lg:sticky lg:top-6 lg:self-start">
           <ProductGallery images={mediaImages} alt={product.primary_image_alt || product.title} />
         </div>
@@ -446,7 +446,7 @@ export default async function ProductPage({ params }: { params: Params }) {
           <TrustBadges productType={productType} locale={locale} />
         </section>
       </main>
-      <section className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 pb-14 sm:px-6 lg:px-10 xl:px-12">
+      <section className="container grid gap-8 pb-14">
         <ProductDetailTabs
           locale={locale}
           productType={productType}

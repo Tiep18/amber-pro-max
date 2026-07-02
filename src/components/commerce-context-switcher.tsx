@@ -95,13 +95,13 @@ export function CommerceContextSwitcher({
           type="button"
           aria-label={labels.label}
           className={cn(
-            'inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold shadow-sm transition-colors hover:bg-[var(--surface-muted)]',
+            'inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] border border-transparent bg-transparent px-3 text-sm font-semibold text-[var(--foreground)] transition duration-200 hover:-translate-y-px hover:border-[var(--border)] hover:bg-[var(--surface)]/70 active:translate-y-0',
             className
           )}
         >
           <Globe2 className="h-4 w-4 text-[var(--muted-foreground)]" aria-hidden="true" />
           <span className="whitespace-nowrap">{activeOption.short}</span>
-          <ChevronDown className="h-4 w-4 text-[var(--muted-foreground)]" aria-hidden="true" />
+          <ChevronDown className="h-3.5 w-3.5 text-[var(--muted-foreground)]" aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -133,8 +133,8 @@ export function CommerceContextSwitcher({
                   className={cn(
                     'flex min-h-14 w-full items-center justify-between gap-3 rounded-[var(--radius-control)] px-2.5 text-left disabled:cursor-wait disabled:opacity-70',
                     active
-                      ? 'bg-[var(--surface-muted)] text-[var(--foreground)]'
-                      : 'text-[var(--foreground)]'
+                      ? 'bg-[var(--surface-muted)]/80 text-[var(--foreground)]'
+                      : 'text-[var(--foreground)] hover:bg-[var(--surface-muted)]/50'
                   )}
                 >
                   <span className="grid gap-0.5">
@@ -146,7 +146,7 @@ export function CommerceContextSwitcher({
                     </span>
                   </span>
                   {active ? (
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent)]/12 text-[var(--accent)]">
                       <Check className="h-3.5 w-3.5" aria-hidden="true" />
                     </span>
                   ) : null}

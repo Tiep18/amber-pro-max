@@ -80,7 +80,7 @@ export function WishlistHeart({
         pressed={selected}
         aria-label={pending ? (selected ? labels.saving : labels.removing) : label}
         disabled={pending}
-        className="rounded-full min-h-11 min-w-11 px-0 shadow-sm border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-muted)]"
+        className="min-h-10 min-w-10 rounded-full border border-white/70 bg-[var(--surface)]/78 px-0 shadow-sm backdrop-blur-sm transition duration-200 hover:-translate-y-px hover:bg-[var(--surface)] active:translate-y-0"
       >
         <Heart
           aria-hidden="true"

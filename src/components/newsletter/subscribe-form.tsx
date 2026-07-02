@@ -62,34 +62,46 @@ export function SubscribeForm({
 
   return (
     <Form {...form}>
-      <form id="newsletter" onSubmit={form.handleSubmit(onSubmit)} className="grid w-full max-w-xl gap-2">
-        <p className="font-semibold text-[var(--foreground)]">{labels.title}</p>
-        <p>{labels.consent}</p>
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+      <form id="newsletter" onSubmit={form.handleSubmit(onSubmit)} className="grid w-full gap-5">
+        <div className="grid gap-2">
+          <p className="text-xl font-semibold tracking-[-0.015em] text-[var(--foreground)]">{labels.title}</p>
+          <p className="max-w-[32rem] text-sm leading-7 text-[var(--muted-foreground)]">{labels.consent}</p>
+        </div>
+        <div className="grid gap-2">
           <FormField
             control={form.control}
             name="email"
             render={({field}) => (
-              <FormItem className="grid gap-1">
-                <FormLabel className="font-semibold text-[var(--foreground)]">{labels.email}</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    type="email"
-                    autoComplete="email"
-                    spellCheck={false}
-                    maxLength={320}
-                    className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 font-normal"
-                  />
-                </FormControl>
+              <FormItem className="grid gap-2">
+                <FormLabel className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                  {labels.email}
+                </FormLabel>
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="flex min-h-12 w-full items-center rounded-[var(--radius-control)] border border-[var(--border)]/70 bg-white/68 px-2 shadow-[inset_0_1px_0_rgb(255_255_255_/_76%)] transition-colors focus-within:border-[var(--accent)]/55 focus-within:bg-white/88">
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="email"
+                      autoComplete="email"
+                      spellCheck={false}
+                      maxLength={320}
+                      className="min-h-10 flex-1 border-0 bg-transparent px-2 font-normal shadow-none focus-visible:outline-none"
+                    />
+                  </FormControl>
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={pending}
+                    className="min-h-12 w-full shrink-0 cursor-pointer gap-2 rounded-[var(--radius-control)] px-5 text-sm shadow-[0_10px_24px_rgb(169_71_52_/_16%)] transition-transform active:translate-y-px sm:w-auto"
+                  >
+                    <Mail aria-hidden="true" className="size-4" />
+                    {pending ? labels.pending : labels.submit}
+                  </Button>
+                </div>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <Button type="submit" disabled={pending} className="gap-2 whitespace-nowrap min-h-11 cursor-pointer">
-            <Mail aria-hidden="true" className="size-4" />
-            {pending ? labels.pending : labels.submit}
-          </Button>
         </div>
         {state.status === 'subscribed' ? <p role="status">{labels.success}</p> : null}
         {state.status === 'invalid' ? <p role="status">{labels.invalid}</p> : null}

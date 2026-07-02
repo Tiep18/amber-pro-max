@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-06-29 - Completed quick task 260629-pat: Compact catalog page above the fold without breaking static ISR SEO
+last_activity: 2026-07-02 - Completed quick task 260702-homepage-text-color-hierarchy
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 07 (content-seo-and-launch-readiness)
 Plan: 07-05 completed
 Status: Ready for Wave 6 final launch verification
-Last activity: 2026-06-29 - Completed quick task 260629-pat: Compact catalog page above the fold without breaking static ISR SEO
+Last activity: 2026-07-02 - Completed quick task 260702: Redesign mobile menu and mini-cart sheets
 
 Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and Wave 6 can begin.
 
@@ -162,10 +162,18 @@ None yet.
 | 260628-clean-lint-warnings            | Remove existing ESLint unused-variable warnings without changing behavior                                                        | 2026-06-28 | pending     | [260628-clean-lint-warnings](./quick/260628-clean-lint-warnings/)                                                   |
 | 260628-taxonomy-safe-delete           | Add safe delete controls for admin taxonomy records while blocking deletion of in-use terms                                      | 2026-06-28 | pending     | [260628-taxonomy-safe-delete](./quick/260628-taxonomy-safe-delete/)                                                 |
 | 260628-taxonomy-usage-counts          | Show usage counts for admin taxonomy records and disable delete controls for in-use terms                                        | 2026-06-28 | pending     | [260628-taxonomy-usage-counts](./quick/260628-taxonomy-usage-counts/)                                               |
-| 260628-storefront-context-cart-cache  | Stabilize storefront auth context and cart quote state across navigation and remounts                                             | 2026-06-28 | this commit | [260628-storefront-context-cart-cache](./quick/260628-storefront-context-cart-cache/)                               |
-| 260629-oez                            | Fix homepage UI UX review findings                                                                                              | 2026-06-29 | pending     | [260629-oez-fix-homepage-ui-ux-review-findings](./quick/260629-oez-fix-homepage-ui-ux-review-findings/)             |
+| 260628-storefront-context-cart-cache  | Stabilize storefront auth context and cart quote state across navigation and remounts                                            | 2026-06-28 | this commit | [260628-storefront-context-cart-cache](./quick/260628-storefront-context-cart-cache/)                               |
+| 260629-oez                            | Fix homepage UI UX review findings                                                                                               | 2026-06-29 | pending     | [260629-oez-fix-homepage-ui-ux-review-findings](./quick/260629-oez-fix-homepage-ui-ux-review-findings/)             |
 | 260629-p1f                            | Fix catalog UI UX review findings without breaking static ISR SEO                                                                | 2026-06-29 | pending     | [260629-p1f-fix-catalog-ui-ux-review-findings-withou](./quick/260629-p1f-fix-catalog-ui-ux-review-findings-withou/) |
 | 260629-pat                            | Compact catalog page above the fold without breaking static ISR SEO                                                              | 2026-06-29 | pending     | [260629-pat-compact-catalog-page-above-the-fold-with](./quick/260629-pat-compact-catalog-page-above-the-fold-with/) |
+| 260701-p7i                            | Upgrade homepage UI/UX with redesign-existing-projects skill                                                                     | 2026-07-01 | this commit | [260701-p7i-upgrade-homepage-ui-ux-with-redesign-exi](./quick/260701-p7i-upgrade-homepage-ui-ux-with-redesign-exi/) |
+| 260702                                | Redesign mobile menu and mini-cart sheets with smooth motion and product thumbnails                                              | 2026-07-02 | this commit | [260702-redesign-mobile-sheets](./quick/260702-redesign-mobile-sheets/)                                             |
+| 260702-footer-brand-redesign          | Redesign footer, header branding, mobile sheet navigation, and shared storefront container width                                 | 2026-07-02 | this commit | [260702-footer-brand-redesign](./quick/260702-footer-brand-redesign/)                                               |
+| 260702-homepage-content-led-redesign  | Redesign homepage content, CTA, benefits, and trust sections while preserving storefront logic and SEO                            | 2026-07-02 | pending     | [260702-homepage-content-led-redesign](./quick/260702-homepage-content-led-redesign/)                               |
+| 260702-homepage-palette-font-correction | Restore homepage beige/brown/cream palette and switch the app font to Nunito while preserving storefront logic and SEO          | 2026-07-02 | pending     | [260702-homepage-palette-font-correction](./quick/260702-homepage-palette-font-correction/)                         |
+| 260702-homepage-pattern-hero-polish | Change homepage pattern areas away from beige and reduce desktop hero height while preserving mobile layout and SEO                 | 2026-07-02 | pending     | [260702-homepage-pattern-hero-polish](./quick/260702-homepage-pattern-hero-polish/)                                 |
+| 260702-homepage-hero-collage-polish | Refine desktop hero image collage so the three images feel integrated without overlap while preserving mobile and SEO               | 2026-07-02 | pending     | [260702-homepage-hero-collage-polish](./quick/260702-homepage-hero-collage-polish/)                                 |
+| 260702-homepage-text-color-hierarchy | Reduce homepage and product-card brown text monotony with a clearer brand, body, price, and badge color hierarchy                   | 2026-07-02 | pending     | [260702-homepage-text-color-hierarchy](./quick/260702-homepage-text-color-hierarchy/)                               |
 
 ### Debug Sessions Resolved
 

@@ -62,7 +62,7 @@ export function CartPageContent({ locale }: { locale: Locale }) {
     : '-';
 
   return (
-    <main className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-10 xl:px-12">
+    <main className="container grid gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_360px]">
       <section className="grid content-start gap-5">
         <div className="grid gap-2">
           <h1 className="text-[28px] font-semibold leading-tight">{t.title}</h1>

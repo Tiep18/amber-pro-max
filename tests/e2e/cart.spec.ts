@@ -48,12 +48,11 @@ test('English shopper adds an in-stock physical variant through the mini cart', 
   await page.getByRole('radio', { name: /small/i }).check();
   await page.getByRole('button', { name: 'Add to cart' }).click();
 
-  await expect(page.getByRole('dialog', { name: 'Cart' })).toBeVisible();
-  await expect(page.getByText('Handmade item')).toBeVisible();
-  await expect(
-    page.getByRole('dialog', { name: 'Cart' }).getByRole('heading', { name: 'Both-market bear' })
-  ).toBeVisible();
   const cartDialog = page.getByRole('dialog', { name: 'Cart' });
+  await expect(cartDialog).toBeVisible();
+  await expect(cartDialog.getByText('Handmade item', { exact: true })).toBeVisible();
+  await expect(cartDialog.getByRole('heading', { name: 'Both-market bear' })).toBeVisible();
+  await expect(cartDialog.getByTestId('mini-cart-thumbnail')).toBeVisible();
   await expect(cartDialog.getByText('$31.00').first()).toBeVisible();
   await page.getByRole('button', { name: /Increase quantity/ }).click();
   await expect(cartDialog.getByText('$62.00').first()).toBeVisible();
