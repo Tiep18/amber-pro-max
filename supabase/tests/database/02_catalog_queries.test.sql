@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(20);
+select plan(21);
 
 select has_function(
   'public',
@@ -261,6 +261,7 @@ values
   ('40000000-0000-0000-0000-000000000001', 'product-media', 'products/vn-pattern.jpg', 0, true),
   ('40000000-0000-0000-0000-000000000002', 'product-media', 'products/intl-bear.jpg', 0, true),
   ('40000000-0000-0000-0000-000000000003', 'product-media', 'products/both-bear.jpg', 0, true),
+  ('40000000-0000-0000-0000-000000000003', 'product-media', 'products/both-bear-detail.jpg', 1, false),
   ('40000000-0000-0000-0000-000000000004', 'product-media', 'products/disabled.jpg', 0, true);
 
 insert into public.product_digital_assets (product_id, bucket_id, object_path, file_name, byte_size)
@@ -429,6 +430,15 @@ select is(
   ),
   '[{"sku": "BOTH-SMALL", "stock": true, "enabled": true, "variant_id": "45000000-0000-0000-0000-000000000001", "attributes": {"size": "small"}, "price_minor": 3100, "currency_code": "USD", "display_order": 1}, {"sku": "BOTH-LARGE", "stock": false, "enabled": false, "variant_id": "45000000-0000-0000-0000-000000000002", "attributes": {"size": "large"}, "price_minor": null, "currency_code": null, "display_order": 2}]'::jsonb,
   'variant projection uses override, disabled state, and stock boolean without exact inventory'
+);
+
+select is(
+  (
+    select media_images
+    from public.get_catalog_product_by_slug('en', 'intl', 'both-market-bear')
+  ),
+  '[{"alt": "", "bucket_id": "product-media", "is_primary": true, "object_path": "products/both-bear.jpg", "display_order": 0}, {"alt": "", "bucket_id": "product-media", "is_primary": false, "object_path": "products/both-bear-detail.jpg", "display_order": 1}]'::jsonb,
+  'detail projection includes all product media for gallery thumbnails'
 );
 
 select isnt(

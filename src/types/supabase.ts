@@ -3308,6 +3308,7 @@ export type Database = {
           primary_image_alt: string
           primary_image_bucket: string
           primary_image_path: string
+          media_images: Json
           product_id: string
           product_type: string
           seo_description: string
@@ -3735,4 +3736,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

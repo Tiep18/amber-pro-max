@@ -25,8 +25,7 @@ import {
   websiteJsonLd
 } from '@/content/seo/json-ld';
 import { getCachedCatalogProduct, getCachedCatalogProducts } from '@/catalog/public-cache';
-import { getProductMediaImages } from '@/catalog/product-media';
-import { ProductGallery } from '@/components/catalog/product-gallery';
+import { ProductGallery, type ProductGalleryImage } from '@/components/catalog/product-gallery';
 import { UnavailableMarket } from '@/components/catalog/unavailable-market';
 import { AddToCart } from '@/components/catalog/add-to-cart';
 import { WishlistHeart } from '@/components/catalog/wishlist-heart';
@@ -87,6 +86,47 @@ function publicVariants(value: Json): PublicVariant[] {
       }
     ];
   });
+}
+
+function mediaImagesFromProjection({
+  value,
+  primaryImageBucket,
+  primaryImagePath,
+  primaryImageAlt,
+  title
+}: {
+  value: Json;
+  primaryImageBucket: string | null;
+  primaryImagePath: string | null;
+  primaryImageAlt: string | null;
+  title: string;
+}): ProductGalleryImage[] {
+  const projected = Array.isArray(value)
+    ? value.flatMap((item) => {
+        if (!item || Array.isArray(item) || typeof item !== 'object') {
+          return [];
+        }
+        const row = item as Record<string, Json | undefined>;
+        const url =
+          typeof row.bucket_id === 'string' && typeof row.object_path === 'string'
+            ? publicStorageUrl(row.bucket_id, row.object_path)
+            : null;
+        if (!url) {
+          return [];
+        }
+        return [{
+          url,
+          alt: typeof row.alt === 'string' && row.alt.trim() ? row.alt : primaryImageAlt || title
+        }];
+      })
+    : [];
+
+  if (projected.length > 0) {
+    return projected;
+  }
+
+  const primaryUrl = publicStorageUrl(primaryImageBucket, primaryImagePath);
+  return primaryUrl ? [{url: primaryUrl, alt: primaryImageAlt || title}] : [];
 }
 
 function reviewAverage(reviews: Array<{ rating: number }>) {
@@ -323,17 +363,16 @@ export default async function ProductPage({ params }: { params: Params }) {
       ? product.other_market_code
       : null;
   const productPath = getProductPath(locale, product.slug);
-  const [reviews, mediaImages] = await Promise.all([
-    getApprovedProductReviews({ productId: product.product_id }),
-    getProductMediaImages({
-      productId: product.product_id,
-      primaryImagePath: product.primary_image_path,
-      primaryImageBucket: product.primary_image_bucket,
-      primaryImageAlt: product.primary_image_alt,
-      title: product.title,
-      locale
-    })
+  const [reviews] = await Promise.all([
+    getApprovedProductReviews({ productId: product.product_id })
   ]);
+  const mediaImages = mediaImagesFromProjection({
+    value: product.media_images,
+    primaryImagePath: product.primary_image_path,
+    primaryImageBucket: product.primary_image_bucket,
+    primaryImageAlt: product.primary_image_alt,
+    title: product.title
+  });
   const reviewList = reviews.status === 'success' ? reviews.reviews : [];
   const averageRating = reviewAverage(reviewList);
   const currencyCode: CurrencyCode | null =
