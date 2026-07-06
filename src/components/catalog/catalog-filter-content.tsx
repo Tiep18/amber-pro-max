@@ -24,15 +24,15 @@ export function CatalogFilterContent({
   labels: {category: string; allCategories: string};
 }) {
   return (
-    <fieldset className="grid gap-2">
-      <legend className="mb-2 text-sm font-semibold uppercase text-[var(--muted-foreground)]">
+    <fieldset className="grid gap-1">
+      <legend className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">
         {labels.category}
       </legend>
       <Link
         href={filterHref(basePath, state)}
         aria-current={!state.categorySlug ? 'page' : undefined}
         transitionTypes={!state.categorySlug ? undefined : ['catalog-filter']}
-        className="flex min-h-11 items-center justify-between border-b border-[var(--border)] text-sm hover:text-[var(--foreground)] aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]"
+        className="relative flex min-h-10 items-center justify-between border-l-2 border-transparent px-3 text-sm text-[var(--muted-foreground)] transition duration-200 hover:text-[var(--foreground)] aria-[current=page]:border-[var(--accent)] aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]"
       >
         {labels.allCategories}
       </Link>
@@ -42,10 +42,12 @@ export function CatalogFilterContent({
           href={filterHref(basePath, state, facet.slug)}
           aria-current={state.categorySlug === facet.slug ? 'page' : undefined}
           transitionTypes={state.categorySlug === facet.slug ? undefined : ['catalog-filter']}
-          className="flex min-h-11 items-center justify-between gap-3 border-b border-[var(--border)] text-sm hover:text-[var(--foreground)] aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]"
+          className="relative flex min-h-10 items-center justify-between gap-3 border-l-2 border-transparent px-3 text-sm text-[var(--muted-foreground)] transition duration-200 hover:text-[var(--foreground)] aria-[current=page]:border-[var(--accent)] aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]"
         >
-          <span>{facet.label}</span>
-          <span className="tabular-nums text-[var(--muted-foreground)]">{facet.product_count}</span>
+          <span className="min-w-0 break-words">{facet.label}</span>
+          <span className="text-xs tabular-nums text-[var(--muted-foreground)]/80">
+            {facet.product_count}
+          </span>
         </Link>
       ))}
     </fieldset>

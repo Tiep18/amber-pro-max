@@ -3,12 +3,12 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { CatalogControls } from '@/components/catalog/catalog-controls';
 import { CatalogFilterContent } from '@/components/catalog/catalog-filter-content';
+import { CatalogMobileFilters } from '@/components/catalog/catalog-mobile-filters';
 import { CatalogResultGrid } from '@/components/catalog/catalog-result-grid';
 import { ProductCard } from '@/components/catalog/product-card';
-import { Sheet } from '@/components/ui/sheet';
 import { localizedMetadata } from '@/catalog/metadata';
 import { marketForLocale } from '@/catalog/seo-market';
-import { catalogListState } from '@/catalog/list-state';
+import { catalogListState, hasCatalogFilters, type CatalogListState } from '@/catalog/list-state';
 import { getCachedCatalogFacets, getCachedCatalogProducts } from '@/catalog/public-cache';
 import { JsonLd, breadcrumbJsonLd, itemListJsonLd } from '@/content/seo/json-ld';
 import { getCatalogPath, type Locale } from '@/i18n/routing';
@@ -17,12 +17,28 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export const revalidate = 300;
 
-function catalogHref(basePath: string, state: ReturnType<typeof catalogListState>, type?: string) {
+type CatalogHrefOverrides = {
+  search?: string | null;
+  type?: CatalogListState['productType'] | null;
+  categorySlug?: string | null;
+  sort?: CatalogListState['sort'] | null;
+};
+
+function catalogHref(
+  basePath: string,
+  state: CatalogListState,
+  overrides: CatalogHrefOverrides = {}
+) {
   const params = new URLSearchParams();
-  if (state.search) params.set('search', state.search);
+  const search = 'search' in overrides ? overrides.search : state.search;
+  const type = 'type' in overrides ? overrides.type : state.productType;
+  const categorySlug = 'categorySlug' in overrides ? overrides.categorySlug : state.categorySlug;
+  const sort = 'sort' in overrides ? overrides.sort : state.sort;
+
+  if (search) params.set('search', search);
   if (type) params.set('type', type);
-  if (state.categorySlug) params.set('category', state.categorySlug);
-  if (state.sort !== 'newest') params.set('sort', state.sort);
+  if (categorySlug) params.set('category', categorySlug);
+  if (sort && sort !== 'newest') params.set('sort', sort);
   const query = params.toString();
   return query ? `${basePath}?${query}` : basePath;
 }
@@ -78,12 +94,53 @@ export default async function CatalogPage({
   ]);
   const basePath = getCatalogPath(locale);
   const categories = facets.filter((facet) => facet.facet_type === 'category');
+  const categoryBySlug = new Map(categories.map((facet) => [facet.slug, facet.label]));
   const filterLabels = { category: t('categoryLabel'), allCategories: t('allCategories') };
   const tabs = [
     { label: t('allTypes'), type: undefined },
     { label: t('handmadeTab'), type: 'physical_finished' },
     { label: t('patternsTab'), type: 'pdf_pattern' }
-  ];
+  ] as const;
+  const sortLabels: Record<CatalogListState['sort'], string> = {
+    newest: t('newest'),
+    price_asc: t('priceAsc'),
+    price_desc: t('priceDesc'),
+    title: t('titleSort')
+  };
+  const activeFilters = [
+    state.search
+      ? {
+          key: 'search',
+          label: t('filterSearch', { value: state.search }),
+          href: catalogHref(basePath, state, { search: null })
+        }
+      : null,
+    state.productType
+      ? {
+          key: 'type',
+          label: t('filterType', {
+            value: tabs.find((tab) => tab.type === state.productType)?.label ?? state.productType
+          }),
+          href: catalogHref(basePath, state, { type: null })
+        }
+      : null,
+    state.categorySlug
+      ? {
+          key: 'category',
+          label: t('filterCategory', {
+            value: categoryBySlug.get(state.categorySlug) ?? state.categorySlug
+          }),
+          href: catalogHref(basePath, state, { categorySlug: null })
+        }
+      : null,
+    state.sort !== 'newest'
+      ? {
+          key: 'sort',
+          label: t('filterSort', { value: sortLabels[state.sort] }),
+          href: catalogHref(basePath, state, { sort: 'newest' })
+        }
+      : null
+  ].filter((filter): filter is { key: string; label: string; href: string } => Boolean(filter));
 
   return (
     <main className="container grid gap-4 py-5 sm:py-6 lg:gap-5">
@@ -106,9 +163,13 @@ export default async function CatalogPage({
         <span aria-hidden="true">/</span>
         <span aria-current="page">{t('breadcrumbShop')}</span>
       </nav>
-      <header className="grid max-w-[760px] gap-1">
-        <h1 className="text-[28px] font-semibold leading-tight sm:text-3xl">{t('title')}</h1>
-        <p className="text-sm leading-relaxed text-[var(--muted-foreground)] sm:text-base">{t('intro')}</p>
+      <header className="grid max-w-[760px] gap-1.5">
+        <h1 className="text-[30px] font-semibold leading-tight text-balance text-[var(--brand)] sm:text-4xl">
+          {t('title')}
+        </h1>
+        <p className="max-w-[62ch] text-sm leading-relaxed text-[var(--muted-foreground)] sm:text-base">
+          {t('intro')}
+        </p>
       </header>
       <nav
         className="flex gap-1 overflow-x-auto border-b border-[var(--border)]"
@@ -119,7 +180,7 @@ export default async function CatalogPage({
           return (
             <Link
               key={tab.label}
-              href={catalogHref(basePath, state, tab.type)}
+              href={catalogHref(basePath, state, { type: tab.type ?? null })}
               aria-current={active ? 'page' : undefined}
               transitionTypes={active ? undefined : ['catalog-filter']}
               className="shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm font-semibold aria-[current=page]:border-[var(--accent)] aria-[current=page]:text-[var(--accent)] sm:px-4"
@@ -129,9 +190,9 @@ export default async function CatalogPage({
           );
         })}
       </nav>
-      <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-6">
+      <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-6">
         <aside
-          className="hidden border-r border-[var(--border)] pr-6 lg:block"
+          className="hidden self-start border-r border-[var(--border)]/70 pr-5 lg:sticky lg:top-24 lg:block"
           aria-label={t('filtersTitle')}
         >
           <CatalogFilterContent
@@ -142,25 +203,55 @@ export default async function CatalogPage({
           />
         </aside>
         <div className="grid min-w-0 content-start gap-4">
-          <div className="grid gap-2">
-            <div className="lg:hidden">
-              <Sheet
-                triggerLabel={t('openFilters')}
-                title={t('filtersTitle')}
-                closeLabel={t('closeFilters')}
-                showTriggerLabel
-              >
-                <CatalogFilterContent
-                  basePath={basePath}
-                  state={state}
-                  categories={categories}
-                  labels={filterLabels}
-                />
-              </Sheet>
-            </div>
-            <div className="min-w-0">
+          <div className="grid gap-2 lg:sticky lg:top-20 lg:z-20 lg:-mx-2 lg:bg-[var(--background)]/94 lg:px-2 lg:py-2 lg:backdrop-blur-md">
+            <div className="flex min-w-0 items-end gap-2">
+              <div className="min-w-0 flex-1">
               <CatalogControls state={state} />
+              </div>
+              <div className="shrink-0 lg:hidden">
+                <CatalogMobileFilters
+                  triggerLabel={t('openFilters')}
+                  title={t('filtersTitle')}
+                  closeLabel={t('closeFilters')}
+                >
+                  <CatalogFilterContent
+                    basePath={basePath}
+                    state={state}
+                    categories={categories}
+                    labels={filterLabels}
+                  />
+                </CatalogMobileFilters>
+              </div>
             </div>
+            {activeFilters.length ? (
+              <section
+                aria-label={t('activeFiltersLabel')}
+                className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1"
+              >
+                {activeFilters.map((filter) => (
+                  <Link
+                    key={filter.key}
+                    href={filter.href}
+                    transitionTypes={['catalog-filter']}
+                    className="inline-flex min-h-7 max-w-[16rem] shrink-0 items-center rounded-full bg-[var(--surface-muted)]/58 px-2.5 py-1 text-xs font-semibold text-[var(--muted-foreground)] transition duration-200 hover:bg-[var(--surface-blush)] hover:text-[var(--accent)] active:scale-[0.98]"
+                  >
+                    <span className="min-w-0 truncate">{filter.label}</span>
+                    <span aria-hidden="true" className="ml-1.5 text-[var(--accent)]">
+                      x
+                    </span>
+                  </Link>
+                ))}
+                {hasCatalogFilters(state) ? (
+                  <Link
+                    href={basePath}
+                    transitionTypes={['catalog-filter']}
+                    className="inline-flex min-h-7 shrink-0 items-center px-1 text-xs font-semibold text-[var(--accent)] transition duration-200 hover:text-[var(--accent-hover)]"
+                  >
+                    {t('clearFilters')}
+                  </Link>
+                ) : null}
+              </section>
+            ) : null}
           </div>
           <p data-testid="catalog-result-count" className="text-sm text-[var(--muted-foreground)]">
             {t('resultCount', { count: products.length })}

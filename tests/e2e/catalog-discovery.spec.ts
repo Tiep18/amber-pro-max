@@ -17,10 +17,10 @@ test('listing shows only active-market products with currency and type badges', 
 test('catalog search type and sort controls compose through the URL', async ({page}) => {
   await page.goto('/en/catalog');
 
-  await page.getByRole('link', {name: 'Handmade'}).click();
+  await page.getByRole('link', {name: 'Handmade', exact: true}).click();
   await page.getByLabel('Search products').fill('bear');
-  await page.getByLabel('Sort products').selectOption('price_desc');
-  await page.getByRole('button', {name: 'Apply filters'}).click();
+  await page.getByRole('combobox', {name: 'Sort products'}).click();
+  await page.getByRole('option', {name: 'Price: high to low'}).click();
 
   await expect(page).toHaveURL(/search=bear/);
   await expect(page).toHaveURL(/type=physical_finished/);
@@ -55,17 +55,44 @@ test('shop workspace exposes navigation, result count, and product tabs', async 
   await expect(breadcrumb.getByText('Shop')).toBeVisible();
   await expect(page.getByTestId('catalog-result-count')).toContainText(/products?/i);
 
-  await page.getByRole('link', {name: 'PDF patterns'}).click();
+  await page.getByRole('link', {name: 'PDF patterns', exact: true}).click();
   await expect(page).toHaveURL(/type=pdf_pattern/);
-  await expect(page.getByRole('link', {name: 'PDF patterns'})).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('link', {name: 'PDF patterns', exact: true})).toHaveAttribute('aria-current', 'page');
 });
 
 test('mobile shop opens real category filters without overflowing', async ({page}) => {
   await page.setViewportSize({width: 390, height: 844});
   await page.goto('/en/catalog');
 
-  await page.getByRole('button', {name: 'Open filters'}).click();
+  await page.getByRole('button', {name: 'Filters', exact: true}).click();
   await expect(page.getByRole('heading', {name: 'Filters'})).toBeVisible();
   await expect(page.getByRole('group', {name: 'Category'})).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('product cards use compact text treatment only on mobile', async ({page}) => {
+  await page.setViewportSize({width: 390, height: 844});
+  await page.goto('/en/catalog');
+
+  const card = page.getByRole('article').first();
+  const content = card.locator(':scope > div').last();
+  const description = card.locator('p').first();
+
+  await expect(description).toHaveCSS('-webkit-line-clamp', '1');
+  await expect(description).toHaveCSS('font-size', '12px');
+  await expect(content).toHaveCSS('padding', '12px');
+
+  await page.setViewportSize({width: 1024, height: 900});
+  await expect(description).toHaveCSS('-webkit-line-clamp', '2');
+  await expect(description).toHaveCSS('font-size', '14px');
+  await expect(content).toHaveCSS('padding', '20px');
+});
+
+test('catalog uses a branded load-more control without a heavy divider', async ({page}) => {
+  await page.goto('/en/catalog');
+
+  const loadMore = page.getByTestId('catalog-load-more');
+  await expect(loadMore).toBeVisible();
+  await expect(loadMore.locator('svg')).toHaveAttribute('data-load-more-icon', 'true');
+  await expect(loadMore.locator('..')).toHaveCSS('border-top-width', '0px');
 });

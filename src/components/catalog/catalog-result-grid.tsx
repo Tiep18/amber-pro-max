@@ -1,6 +1,7 @@
 'use client';
 
 import {Children, type ReactNode, useEffect, useState} from 'react';
+import {Plus} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 
 export const CATALOG_PAGE_SIZE = 12;
@@ -48,12 +49,19 @@ export function CatalogResultGrid({
         {items.slice(0, visibleCount)}
       </section>
       {hasMore ? (
-        <div className="flex justify-center border-t border-[var(--border)] pt-6">
+        <div className="flex justify-center pt-2 sm:pt-3">
           <Button
             variant="secondary"
             data-testid="catalog-load-more"
+            className="group/load gap-2 border-[var(--brand)]/35 bg-transparent px-5 text-sm font-semibold text-[var(--brand)] shadow-[0_6px_20px_rgb(73_52_32/6%)] hover:border-[var(--accent)]/55 hover:bg-[var(--surface-blush)] hover:text-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--accent)]"
             onClick={() => setVisibleCount((current) => nextCatalogCount(current, items.length))}
           >
+            <Plus
+              data-load-more-icon="true"
+              aria-hidden="true"
+              className="size-4 transition-transform duration-200 group-hover/load:rotate-90"
+              strokeWidth={1.8}
+            />
             {labels.loadMore}
           </Button>
         </div>
