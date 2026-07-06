@@ -183,6 +183,8 @@ None yet.
 | #               | Description                                                                                                 | Date       | Directory                                     |
 | --------------- | ----------------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------- |
 | header-overlays | Fix header dropdown outside-click behavior and modal sheet/cart background interaction after header upgrade | 2026-06-27 | [header-overlays](./debug/header-overlays.md) |
+| catalog-lcp-and-repeated-requests | Verify catalog request behavior and remove the first product image LCP warning | 2026-07-06 | [catalog-lcp-and-repeated-requests](./debug/catalog-lcp-and-repeated-requests.md) |
+| product-route-smooth-scroll-warning | Declare Next.js 16 smooth-scroll transition behavior and verify product navigation | 2026-07-06 | [product-route-smooth-scroll-warning](./debug/product-route-smooth-scroll-warning.md) |
 
 ## Deferred Items
 

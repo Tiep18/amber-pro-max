@@ -7,12 +7,14 @@ export function ProductCardImage({
   src,
   alt,
   sizes,
+  eager = false,
   fallbackBrand,
   fallbackStatus
 }: {
   src: string | null;
   alt: string;
   sizes: string;
+  eager?: boolean;
   fallbackBrand: string;
   fallbackStatus: string;
 }) {
@@ -35,6 +37,8 @@ export function ProductCardImage({
       alt={alt}
       fill
       sizes={sizes}
+      loading={eager ? 'eager' : 'lazy'}
+      fetchPriority={eager ? 'high' : 'auto'}
       onError={() => setFailed(true)}
       className="object-cover transition duration-700 group-hover:scale-[1.035]"
     />

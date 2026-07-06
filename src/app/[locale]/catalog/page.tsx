@@ -261,11 +261,12 @@ export default async function CatalogPage({
               resultKey={JSON.stringify(state)}
               labels={{ showing: t.raw('showingCount'), loadMore: t('loadMore') }}
             >
-              {products.map((product) => (
+              {products.map((product, index) => (
                 <ProductCard
                   key={product.product_id}
                   product={product}
                   locale={locale}
+                  eagerImage={index === 0}
                 />
               ))}
             </CatalogResultGrid>

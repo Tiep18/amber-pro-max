@@ -18,7 +18,12 @@ const localeLangScript = `
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang={defaultLocale} className={nunito.className} suppressHydrationWarning>
+    <html
+      lang={defaultLocale}
+      className={nunito.className}
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: localeLangScript }} />
       </head>

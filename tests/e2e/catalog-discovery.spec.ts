@@ -96,3 +96,11 @@ test('catalog uses a branded load-more control without a heavy divider', async (
   await expect(loadMore.locator('svg')).toHaveAttribute('data-load-more-icon', 'true');
   await expect(loadMore.locator('..')).toHaveCSS('border-top-width', '0px');
 });
+
+test('catalog eagerly loads only the first product image for LCP', async ({page}) => {
+  await page.goto('/en/catalog');
+
+  const cards = page.getByRole('article');
+  await expect(cards.first().locator('img')).toHaveAttribute('loading', 'eager');
+  await expect(cards.nth(1).locator('img')).toHaveAttribute('loading', 'lazy');
+});

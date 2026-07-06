@@ -24,10 +24,12 @@ function publicImageUrl(bucket: string | null, path: string | null) {
 export async function ProductCard({
   product,
   locale,
+  eagerImage = false,
   initiallyWishlisted = false
 }: {
   product: CatalogProduct;
   locale: Locale;
+  eagerImage?: boolean;
   initiallyWishlisted?: boolean;
 }) {
   const t = await getTranslations('catalog');
@@ -52,6 +54,7 @@ export async function ProductCard({
           src={imageUrl}
           alt={product.primary_image_alt || product.title}
           sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+          eager={eagerImage}
           fallbackBrand={placeholderLabels[locale].brand}
           fallbackStatus={placeholderLabels[locale].status}
         />
