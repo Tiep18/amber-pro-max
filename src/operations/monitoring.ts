@@ -30,11 +30,14 @@ type MonitoredActionInput<TSuccess extends ActionResultWithStatus, TError extend
     operation: () => Promise<TSuccess>;
     errorResult: TError;
     shouldRecordResult?: (result: TSuccess) => boolean;
+    factsFromResult?: (result: TSuccess) => SafeFacts;
+    factsFromError?: (error: unknown) => SafeFacts;
   };
 
 type MonitoredQueryInput<T> = MonitoredBase & {
   query: () => Promise<T>;
   fallback: T;
+  factsFromError?: (error: unknown) => SafeFacts;
 };
 
 async function defaultOperationalFailureRecorder(input: Parameters<OperationalFailureRecorder>[0]) {
@@ -49,6 +52,7 @@ function errorCodeFromResult(result: ActionResultWithStatus, fallbackCode: strin
 async function recordFailure(
   input: MonitoredBase,
   code: string,
+  dynamicFacts?: SafeFacts,
   recorder = input.recordOperationalFailure ?? defaultOperationalFailureRecorder
 ) {
   await recorder({
@@ -58,10 +62,19 @@ async function recordFailure(
     summary: input.summary,
     facts: {
       ...input.facts,
+      ...dynamicFacts,
       action: input.action,
       code
     }
   });
+}
+
+async function safeRecordFailure(input: MonitoredBase, code: string, dynamicFacts?: SafeFacts) {
+  try {
+    await recordFailure(input, code, dynamicFacts);
+  } catch {
+    // Operational monitoring must never change the business result.
+  }
 }
 
 export async function runMonitoredAction<
@@ -71,11 +84,15 @@ export async function runMonitoredAction<
   try {
     const result = await input.operation();
     if (input.shouldRecordResult?.(result)) {
-      await recordFailure(input, errorCodeFromResult(result, input.errorResult.code ?? input.errorCode));
+      await safeRecordFailure(
+        input,
+        errorCodeFromResult(result, input.errorResult.code ?? input.errorCode),
+        input.factsFromResult?.(result)
+      );
     }
     return result;
-  } catch {
-    await recordFailure(input, input.errorResult.code ?? input.errorCode);
+  } catch (error) {
+    await safeRecordFailure(input, input.errorResult.code ?? input.errorCode, input.factsFromError?.(error));
     return input.errorResult;
   }
 }
@@ -83,8 +100,8 @@ export async function runMonitoredAction<
 export async function runMonitoredQuery<T>(input: MonitoredQueryInput<T>): Promise<T> {
   try {
     return await input.query();
-  } catch {
-    await recordFailure(input, input.errorCode);
+  } catch (error) {
+    await safeRecordFailure(input, input.errorCode, input.factsFromError?.(error));
     return input.fallback;
   }
 }

@@ -10,6 +10,8 @@ Server-side code must use the shared operational monitoring wrappers for recover
 - Use namespaced error codes such as `storefront.home.featured_products_failed` or `account.wishlist.add_failed`.
 - Do not record expected user-controlled outcomes as operational errors: invalid form input, unauthenticated redirects, forbidden access, not found, duplicate webhook delivery, unsupported provider events, and safe client storage/cache misses.
 - Do record database errors, RPC errors, provider outages, unexpected result shapes, thrown exceptions, worker failures, and silent degradation fallbacks that hide missing server data from users or admins.
+- Monitoring is best-effort: recorder failures must never change action/query return values or throw to the caller.
+- Use `factsFromResult` and `factsFromError` for dynamic safe facts such as provider, status, request id, HTTP status, or transition result. Keep static facts for stable context such as locale, market, product id, and product type.
 
 Safe facts are allow-listed by `src/operations/redaction.ts`. Do not pass raw payloads, tokens, emails, addresses, phone numbers, signatures, stack traces, cookies, or signed URLs.
 
@@ -24,6 +26,7 @@ return runMonitoredAction({
   facts: { productId },
   errorResult: { status: 'error', code: 'wishlist_action_failed' } as const,
   shouldRecordResult: (result) => result.status === 'error',
+  factsFromResult: (result) => ({ status: result.code }),
   operation: async () => {
     // mutation logic
     return { status: 'saved' } as const;

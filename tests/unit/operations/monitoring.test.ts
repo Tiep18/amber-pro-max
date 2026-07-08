@@ -93,4 +93,119 @@ describe('operational monitoring wrappers', () => {
       }
     });
   });
+
+  it('returns the configured action error result when operational recording fails after an exception', async () => {
+    const recordOperationalFailure: OperationalFailureRecorder = vi.fn(() =>
+      Promise.reject(new Error('operational table unavailable'))
+    );
+
+    await expect(
+      runMonitoredAction({
+        area: 'checkout',
+        action: 'submit_checkout',
+        errorCode: 'checkout.submit_failed',
+        summary: 'Checkout submit failed',
+        errorResult: { status: 'error' as const, code: 'checkout_submit_failed' as const },
+        recordOperationalFailure,
+        operation: async () => {
+          throw new Error('checkout rpc failed');
+        }
+      })
+    ).resolves.toEqual({ status: 'error', code: 'checkout_submit_failed' });
+
+    expect(recordOperationalFailure).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves a recorded error result when operational recording fails for shouldRecordResult', async () => {
+    const recordOperationalFailure: OperationalFailureRecorder = vi.fn(() =>
+      Promise.reject(new Error('operational table unavailable'))
+    );
+    const result = { status: 'error' as const, code: 'provider_failed' as const };
+
+    await expect(
+      runMonitoredAction({
+        area: 'payment',
+        action: 'paypal_capture',
+        errorCode: 'payment.paypal_capture_failed',
+        summary: 'PayPal capture failed',
+        errorResult: { status: 'error' as const, code: 'payment_action_failed' as const },
+        recordOperationalFailure,
+        shouldRecordResult: (value) => value.status === 'error',
+        operation: async () => result
+      })
+    ).resolves.toBe(result);
+
+    expect(recordOperationalFailure).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns query fallback when operational recording fails after a query exception', async () => {
+    const recordOperationalFailure: OperationalFailureRecorder = vi.fn(() =>
+      Promise.reject(new Error('operational table unavailable'))
+    );
+
+    await expect(
+      runMonitoredQuery({
+        area: 'storefront',
+        action: 'catalog_list',
+        errorCode: 'storefront.catalog.query_failed',
+        summary: 'Catalog query failed',
+        fallback: ['fallback'],
+        recordOperationalFailure,
+        query: async () => {
+          throw new Error('catalog rpc failed');
+        }
+      })
+    ).resolves.toEqual(['fallback']);
+  });
+
+  it('adds dynamic facts from action results and query exceptions', async () => {
+    const actionRecorder: OperationalFailureRecorder = vi.fn(() =>
+      Promise.resolve({ status: 'recorded', errorId: 'error-1' })
+    );
+    await runMonitoredAction({
+      area: 'payment',
+      action: 'paypal_capture',
+      errorCode: 'payment.paypal_capture_failed',
+      summary: 'PayPal capture failed',
+      errorResult: { status: 'error' as const, code: 'payment_action_failed' as const },
+      recordOperationalFailure: actionRecorder,
+      shouldRecordResult: (value) => value.status === 'error',
+      factsFromResult: (value) => ({ provider: 'paypal', status: value.code }),
+      operation: async () => ({ status: 'error' as const, code: 'paypal_provider_error' as const })
+    });
+
+    expect(actionRecorder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        facts: expect.objectContaining({
+          provider: 'paypal',
+          status: 'paypal_provider_error'
+        })
+      })
+    );
+
+    const queryRecorder: OperationalFailureRecorder = vi.fn(() =>
+      Promise.resolve({ status: 'recorded', errorId: 'error-2' })
+    );
+    await runMonitoredQuery({
+      area: 'storefront',
+      action: 'catalog_list',
+      errorCode: 'storefront.catalog.query_failed',
+      summary: 'Catalog query failed',
+      fallback: [],
+      recordOperationalFailure: queryRecorder,
+      factsFromError: () => ({ provider: 'supabase', status: 'thrown' }),
+      query: async () => {
+        throw new Error('catalog rpc failed');
+      }
+    });
+
+    expect(queryRecorder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        facts: expect.objectContaining({
+          provider: 'supabase',
+          status: 'thrown'
+        })
+      })
+    );
+  });
 });
