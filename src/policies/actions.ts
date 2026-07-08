@@ -4,6 +4,7 @@ import {revalidatePath} from 'next/cache';
 import {requireAdmin} from '@/auth/guards';
 import {invalidatePolicyCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {recordOperationalFailure} from '@/operations/errors';
 import {mapPolicyPublishIssues, type PolicyPublishBlocker} from './publish-checks';
 import {policyDraftSchema, policyIdSchema, type PolicyDraftInput} from './schemas';
 
@@ -29,6 +30,30 @@ function validationIssues(error: {issues: {path: PropertyKey[]; message: string}
   return error.issues.map((issue) => ({path: issue.path.join('.'), code: issue.message}));
 }
 
+async function recordPolicyFailure({
+  action,
+  errorCode,
+  summary,
+  referenceId
+}: {
+  action: 'policy_save' | 'policy_save_translations' | 'policy_publish' | 'policy_publish_issues' | 'policy_unpublish';
+  errorCode: 'policy_save_failed' | 'policy_publish_failed' | 'policy_unpublish_failed';
+  summary: string;
+  referenceId?: string | null;
+}) {
+  await recordOperationalFailure({
+    area: 'admin',
+    severity: 'error',
+    errorCode,
+    summary,
+    facts: {
+      action,
+      referenceId: referenceId ?? null,
+      code: errorCode
+    }
+  });
+}
+
 export async function savePolicyDraftAction(input: PolicyDraftInput): Promise<SavePolicyResult> {
   const admin = await requireAdmin();
   const parsed = policyDraftSchema.safeParse(input);
@@ -52,6 +77,12 @@ export async function savePolicyDraftAction(input: PolicyDraftInput): Promise<Sa
         .single();
 
   if (policyResult.error || !policyResult.data) {
+    await recordPolicyFailure({
+      action: 'policy_save',
+      errorCode: 'policy_save_failed',
+      summary: 'Policy page save failed',
+      referenceId: draft.policyId ?? null
+    });
     return {status: 'error', code: 'policy_save_failed'};
   }
 
@@ -73,6 +104,12 @@ export async function savePolicyDraftAction(input: PolicyDraftInput): Promise<Sa
   });
   const {error} = await supabase.from('policy_page_translations').upsert(translations, {onConflict: 'policy_id,locale'});
   if (error) {
+    await recordPolicyFailure({
+      action: 'policy_save_translations',
+      errorCode: 'policy_save_failed',
+      summary: 'Policy translation save failed',
+      referenceId: policyId
+    });
     return {status: 'error', code: 'policy_save_failed'};
   }
 
@@ -91,6 +128,12 @@ export async function publishPolicyAction(policyId: string): Promise<PublishPoli
   const supabase = await createSupabaseServerClient();
   const {data, error} = await supabase.rpc('publish_policy_page', {target_policy_id: parsed.data});
   if (error || !data?.[0]) {
+    await recordPolicyFailure({
+      action: 'policy_publish',
+      errorCode: 'policy_publish_failed',
+      summary: error ? 'Policy publish failed' : 'Policy publish returned an unexpected result',
+      referenceId: parsed.data
+    });
     return {status: 'error', code: 'policy_publish_failed'};
   }
   if (data[0].published) {
@@ -101,6 +144,12 @@ export async function publishPolicyAction(policyId: string): Promise<PublishPoli
 
   const issueResult = await supabase.rpc('policy_publish_issues', {target_policy_id: parsed.data});
   if (issueResult.error || !issueResult.data) {
+    await recordPolicyFailure({
+      action: 'policy_publish_issues',
+      errorCode: 'policy_publish_failed',
+      summary: issueResult.error ? 'Policy publish issue lookup failed' : 'Policy publish issue lookup returned an unexpected result',
+      referenceId: parsed.data
+    });
     return {status: 'error', code: 'policy_publish_failed'};
   }
 
@@ -120,6 +169,12 @@ export async function unpublishPolicyAction(policyId: string): Promise<Unpublish
     .update({status: 'draft', published_at: null, updated_at: new Date().toISOString()})
     .eq('id', parsed.data);
   if (error) {
+    await recordPolicyFailure({
+      action: 'policy_unpublish',
+      errorCode: 'policy_unpublish_failed',
+      summary: 'Policy unpublish failed',
+      referenceId: parsed.data
+    });
     return {status: 'error', code: 'policy_unpublish_failed'};
   }
 
