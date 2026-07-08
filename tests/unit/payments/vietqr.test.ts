@@ -1,6 +1,14 @@
-import { describe, expect, test, vi } from 'vitest';
+import {beforeEach, describe, expect, test, vi} from 'vitest';
+
+const {recordOperationalFailureMock} = vi.hoisted(() => ({
+  recordOperationalFailureMock: vi.fn(async () => ({
+    status: 'recorded',
+    errorId: '76000000-0000-4000-8000-000000000001'
+  }))
+}));
 
 vi.mock('server-only', () => ({}));
+vi.mock('@/operations/errors', () => ({recordOperationalFailure: recordOperationalFailureMock}));
 
 import {
   buildVietQrConfirmTransition,
@@ -173,6 +181,10 @@ function rejectForm(overrides: Record<string, string> = {}) {
 }
 
 describe('VietQR instruction and evidence contract', () => {
+  beforeEach(() => {
+    recordOperationalFailureMock.mockClear();
+  });
+
   test('keeps VietQR as exact VND payment instructions, not customer self-confirmation', () => {
     expect(vietQrInstructionContract).toMatchObject({
       market: 'vn',
@@ -288,6 +300,44 @@ describe('VietQR instruction and evidence contract', () => {
       instruction: result.status === 'ready' ? result.instruction : null
     });
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  test('records VietQR instruction snapshot failures without exposing QR or account details', async () => {
+    const rpc = vi.fn(async () => ({
+      data: null,
+      error: {message: 'private vietqr snapshot failed for account 1234567890'}
+    }));
+
+    await expect(
+      getVietQrInstructions({
+        config,
+        order,
+        now: new Date('2026-06-16T09:00:00.000Z'),
+        transitionClient: {rpc}
+      })
+    ).resolves.toEqual({status: 'error', code: 'vietqr_instruction_snapshot_failed'});
+
+    expect(recordOperationalFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'payment',
+        severity: 'error',
+        errorCode: 'vietqr_instruction_snapshot_failed',
+        summary: 'VietQR instruction snapshot transition failed',
+        facts: expect.objectContaining({
+          provider: 'vietqr',
+          action: 'instruction_snapshot',
+          orderId: order.orderId,
+          orderNumber: order.orderNumber,
+          paymentId: order.paymentId,
+          amountValue: order.amountMinor,
+          currency: 'VND',
+          code: 'vietqr_instruction_snapshot_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(
+      /1234567890|img\.vietqr|accountName|qrImageUrl|private vietqr|token/i
+    );
   });
 
   test('requires exact bank reference, received amount and timestamp before confirmation', () => {
