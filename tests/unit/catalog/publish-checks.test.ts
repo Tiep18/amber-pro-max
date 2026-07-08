@@ -330,4 +330,39 @@ describe('catalog actions', () => {
     );
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/archive constraint detail/i);
   });
+
+  it('keeps catalog action error states when operational recording fails', async () => {
+    recordOperationalFailure.mockRejectedValue(new Error('operational table unavailable'));
+
+    const productQuery = {
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(async () => ({data: null, error: {message: 'product save failed'}}))
+        }))
+      }))
+    };
+    createSupabaseServerClient.mockResolvedValueOnce({from: vi.fn(() => productQuery)});
+    await expect(saveProductDraftAction(validDraft())).resolves.toEqual({
+      status: 'error',
+      code: 'save_failed'
+    });
+
+    createSupabaseServerClient.mockResolvedValueOnce({
+      rpc: vi.fn(async () => ({data: null, error: {message: 'publish failed'}}))
+    });
+    await expect(publishProductAction(productId)).resolves.toEqual({
+      status: 'error',
+      code: 'publish_failed'
+    });
+
+    const eq = vi.fn(async () => ({error: {message: 'archive failed'}}));
+    const update = vi.fn(() => ({eq}));
+    createSupabaseServerClient.mockResolvedValueOnce({
+      from: vi.fn(() => ({update}))
+    });
+    await expect(archiveProductAction(productId)).resolves.toEqual({
+      status: 'error',
+      code: 'archive_failed'
+    });
+  });
 });

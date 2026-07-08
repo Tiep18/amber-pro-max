@@ -3,7 +3,7 @@
 import {requireAdmin} from '@/auth/guards';
 import {invalidateCatalogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import type {Json} from '@/types/supabase';
 import {mapPublishIssues, type PublishBlocker} from './publish-checks';
 import {
@@ -39,30 +39,6 @@ function validationIssues(error: {issues: {path: PropertyKey[]; message: string}
     path: issue.path.join('.'),
     code: issue.message
   }));
-}
-
-async function recordCatalogFailure(input: {
-  action: 'catalog_save_product' | 'catalog_save_relations' | 'catalog_publish' | 'catalog_publish_issues' | 'catalog_archive';
-  errorCode: 'catalog_save_failed' | 'catalog_publish_failed' | 'catalog_archive_failed';
-  resultCode: 'save_failed' | 'publish_failed' | 'archive_failed';
-  summary: string;
-  productId?: string;
-  productType?: ProductDraft['productType'];
-  status?: string;
-}) {
-  await recordOperationalFailure({
-    area: 'admin',
-    severity: 'error',
-    errorCode: input.errorCode,
-    summary: input.summary,
-    facts: {
-      action: input.action,
-      productId: input.productId,
-      code: input.resultCode,
-      status: input.status,
-      productType: input.productType
-    }
-  });
 }
 
 async function replaceProductRelations(
@@ -119,33 +95,44 @@ export async function saveProductDraftAction(input: ProductDraftInput): Promise<
 
   const draft = parsed.data;
   const supabase = await createSupabaseServerClient();
-  const productResult = draft.productId
-    ? await supabase
-        .from('products')
-        .update({product_type: draft.productType, updated_at: new Date().toISOString()})
-        .eq('id', draft.productId)
-        .select('id')
-        .maybeSingle()
-    : await supabase
-        .from('products')
-        .insert({product_type: draft.productType, created_by: admin.id})
-        .select('id')
-        .single();
-
-  if (productResult.error || !productResult.data) {
-    await recordCatalogFailure({
-      action: 'catalog_save_product',
-      errorCode: 'catalog_save_failed',
-      resultCode: 'save_failed',
-      summary: 'Catalog product save failed',
-      productId: draft.productId,
+  const productSaveResult = await runMonitoredAction({
+    area: 'admin',
+    action: 'catalog_save_product',
+    errorCode: 'catalog_save_failed',
+    summary: 'Catalog product save failed',
+    facts: {
+      ...(draft.productId ? {productId: draft.productId} : {}),
       productType: draft.productType,
       status: 'draft'
-    });
-    return {status: 'error', code: 'save_failed'};
+    },
+    errorResult: {status: 'error', code: 'save_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    operation: async () => {
+      const productResult = draft.productId
+        ? await supabase
+            .from('products')
+            .update({product_type: draft.productType, updated_at: new Date().toISOString()})
+            .eq('id', draft.productId)
+            .select('id')
+            .maybeSingle()
+        : await supabase
+            .from('products')
+            .insert({product_type: draft.productType, created_by: admin.id})
+            .select('id')
+            .single();
+
+      if (productResult.error || !productResult.data) {
+        return {status: 'error', code: 'save_failed'} as const;
+      }
+      return {status: 'product_saved', productId: productResult.data.id} as const;
+    }
+  });
+
+  if (productSaveResult.status === 'error') {
+    return productSaveResult;
   }
 
-  const productId = productResult.data.id;
+  const productId = productSaveResult.productId;
   const translations = (['vi', 'en'] as const).map((locale) => {
     const translation = draft.translations[locale];
     return {
@@ -176,23 +163,34 @@ export async function saveProductDraftAction(input: ProductDraftInput): Promise<
     }
   ];
 
-  const [{error: translationError}, {error: offerError}, relationsSaved] = await Promise.all([
-    supabase.from('product_translations').upsert(translations, {onConflict: 'product_id,locale'}),
-    supabase.from('product_market_offers').upsert(offers, {onConflict: 'product_id,market_code'}),
-    replaceProductRelations(supabase, productId, draft)
-  ]);
-
-  if (translationError || offerError || !relationsSaved) {
-    await recordCatalogFailure({
-      action: 'catalog_save_relations',
-      errorCode: 'catalog_save_failed',
-      resultCode: 'save_failed',
-      summary: 'Catalog product relation save failed',
+  const relationSaveResult = await runMonitoredAction({
+    area: 'admin',
+    action: 'catalog_save_relations',
+    errorCode: 'catalog_save_failed',
+    summary: 'Catalog product relation save failed',
+    facts: {
       productId,
       productType: draft.productType,
       status: 'draft'
-    });
-    return {status: 'error', code: 'save_failed'};
+    },
+    errorResult: {status: 'error', code: 'save_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    operation: async () => {
+      const [{error: translationError}, {error: offerError}, relationsSaved] = await Promise.all([
+        supabase.from('product_translations').upsert(translations, {onConflict: 'product_id,locale'}),
+        supabase.from('product_market_offers').upsert(offers, {onConflict: 'product_id,market_code'}),
+        replaceProductRelations(supabase, productId, draft)
+      ]);
+
+      if (translationError || offerError || !relationsSaved) {
+        return {status: 'error', code: 'save_failed'} as const;
+      }
+      return {status: 'relations_saved'} as const;
+    }
+  });
+
+  if (relationSaveResult.status === 'error') {
+    return relationSaveResult;
   }
 
   invalidateCatalogCache();
@@ -207,44 +205,66 @@ export async function publishProductAction(productId: string): Promise<PublishPr
   }
 
   const supabase = await createSupabaseServerClient();
-  const {data, error} = await supabase.rpc('publish_catalog_product', {
-    target_product_id: parsed.data
-  });
-  if (error || !data?.[0]) {
-    await recordCatalogFailure({
-      action: 'catalog_publish',
-      errorCode: 'catalog_publish_failed',
-      resultCode: 'publish_failed',
-      summary: 'Catalog product publish failed',
+  const publishResult = await runMonitoredAction({
+    area: 'admin',
+    action: 'catalog_publish',
+    errorCode: 'catalog_publish_failed',
+    summary: 'Catalog product publish failed',
+    facts: {
       productId: parsed.data
-    });
-    return {status: 'error', code: 'publish_failed'};
+    },
+    errorResult: {status: 'error', code: 'publish_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    operation: async () => {
+      const {data, error} = await supabase.rpc('publish_catalog_product', {
+        target_product_id: parsed.data
+      });
+      if (error || !data?.[0]) {
+        return {status: 'error', code: 'publish_failed'} as const;
+      }
+      return {status: data[0].published ? 'published' : 'blocked_check'} as const;
+    }
+  });
+
+  if (publishResult.status === 'error') {
+    return publishResult;
   }
 
-  if (data[0].published) {
+  if (publishResult.status === 'published') {
     invalidateCatalogCache();
     return {status: 'published', productId: parsed.data};
   }
 
-  const issueResult = await supabase.rpc('catalog_publish_issues', {
-    target_product_id: parsed.data
-  });
-  if (issueResult.error || !issueResult.data) {
-    await recordCatalogFailure({
-      action: 'catalog_publish_issues',
-      errorCode: 'catalog_publish_failed',
-      resultCode: 'publish_failed',
-      summary: 'Catalog product publish issue lookup failed',
+  const issueResult = await runMonitoredAction({
+    area: 'admin',
+    action: 'catalog_publish_issues',
+    errorCode: 'catalog_publish_failed',
+    summary: 'Catalog product publish issue lookup failed',
+    facts: {
       productId: parsed.data
-    });
-    return {status: 'error', code: 'publish_failed'};
+    },
+    errorResult: {status: 'error', code: 'publish_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    operation: async () => {
+      const issues = await supabase.rpc('catalog_publish_issues', {
+        target_product_id: parsed.data
+      });
+      if (issues.error || !issues.data) {
+        return {status: 'error', code: 'publish_failed'} as const;
+      }
+      return {
+        status: 'blocked',
+        productId: parsed.data,
+        issues: mapPublishIssues(issues.data)
+      } as const;
+    }
+  });
+
+  if (issueResult.status === 'error') {
+    return issueResult;
   }
 
-  return {
-    status: 'blocked',
-    productId: parsed.data,
-    issues: mapPublishIssues(issueResult.data)
-  };
+  return issueResult;
 }
 
 export async function archiveProductAction(productId: string): Promise<ArchiveProductResult> {
@@ -254,23 +274,34 @@ export async function archiveProductAction(productId: string): Promise<ArchivePr
     return {status: 'invalid', code: 'invalid_product_id'};
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {error} = await supabase
-    .from('products')
-    .update({status: 'archived', updated_at: new Date().toISOString()})
-    .eq('id', parsed.data);
-
-  if (error) {
-    await recordCatalogFailure({
-      action: 'catalog_archive',
-      errorCode: 'catalog_archive_failed',
-      resultCode: 'archive_failed',
-      summary: 'Catalog product archive failed',
+  const archiveResult = await runMonitoredAction({
+    area: 'admin',
+    action: 'catalog_archive',
+    errorCode: 'catalog_archive_failed',
+    summary: 'Catalog product archive failed',
+    facts: {
       productId: parsed.data
-    });
-    return {status: 'error', code: 'archive_failed'};
+    },
+    errorResult: {status: 'error', code: 'archive_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    operation: async () => {
+      const supabase = await createSupabaseServerClient();
+      const {error} = await supabase
+        .from('products')
+        .update({status: 'archived', updated_at: new Date().toISOString()})
+        .eq('id', parsed.data);
+
+      if (error) {
+        return {status: 'error', code: 'archive_failed'} as const;
+      }
+      return {status: 'archived', productId: parsed.data} as const;
+    }
+  });
+
+  if (archiveResult.status === 'error') {
+    return archiveResult;
   }
 
   invalidateCatalogCache();
-  return {status: 'archived', productId: parsed.data};
+  return archiveResult;
 }
