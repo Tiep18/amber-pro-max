@@ -67,4 +67,22 @@ describe('cart action operational recording', () => {
     );
     expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/buyer@example|Do not log me|SECRET-DISCOUNT|cart quote failed/i);
   });
+
+  it('returns the cart quote error state even when operational recording fails', async () => {
+    quoteCartIntentMock.mockRejectedValue(new Error('cart quote failed'));
+    recordOperationalFailureMock.mockRejectedValue(new Error('operational table unavailable'));
+
+    await expect(refreshCartQuoteAction({
+      locale: 'en',
+      lines: [
+        {
+          productId: '33333333-3333-4333-8333-333333333333',
+          variantId: null,
+          quantity: 1,
+          marketAtAdd: 'intl'
+        }
+      ],
+      destinationCountryCode: 'US'
+    })).resolves.toEqual({status: 'error', code: 'quote_failed'});
+  });
 });

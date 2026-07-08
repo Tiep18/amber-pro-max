@@ -4,7 +4,7 @@ import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {getRequestMarket} from '@/catalog/page-context';
 import {quoteCartIntent} from '@/checkout/quote';
 import {quoteCartInputSchema, type CartQuote} from '@/checkout/types';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 export type CartQuoteActionState =
   | {status: 'success'; quote: CartQuote}
@@ -17,22 +17,19 @@ export async function refreshCartQuoteAction(input: unknown): Promise<CartQuoteA
     return {status: 'invalid', code: 'invalid_cart_intent'};
   }
 
-  try {
-    const [client, market] = await Promise.all([createSupabaseServerClient(), getRequestMarket()]);
-    const quote = await quoteCartIntent({...parsed.data, market, client});
-    return {status: 'success', quote};
-  } catch {
-    await recordOperationalFailure({
-      area: 'checkout',
-      severity: 'error',
-      errorCode: 'cart.quote_refresh_failed',
-      summary: 'Cart quote refresh failed',
-      facts: {
-        action: 'cart_quote_refresh',
-        market: parsed.data.locale === 'vi' ? 'vn' : 'intl',
-        code: 'quote_failed'
-      }
-    });
-    return {status: 'error', code: 'quote_failed'};
-  }
+  return runMonitoredAction({
+    area: 'checkout',
+    action: 'cart_quote_refresh',
+    errorCode: 'cart.quote_refresh_failed',
+    summary: 'Cart quote refresh failed',
+    facts: {
+      market: parsed.data.locale === 'vi' ? 'vn' : 'intl'
+    },
+    errorResult: {status: 'error', code: 'quote_failed'} as const,
+    operation: async () => {
+      const [client, market] = await Promise.all([createSupabaseServerClient(), getRequestMarket()]);
+      const quote = await quoteCartIntent({...parsed.data, market, client});
+      return {status: 'success', quote} as const;
+    }
+  });
 }
