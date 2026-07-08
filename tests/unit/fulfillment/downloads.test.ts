@@ -252,4 +252,38 @@ describe('admin entitlement revoke and reissue wrappers', () => {
       code: 'admin_required'
     });
   });
+
+  test('entitlement actions record RPC failures without exposing token material', async () => {
+    const recordOperationalFailure = vi.fn(async () => ({
+      status: 'recorded',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    }));
+    const client = {
+      rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'rpc down'}})
+    };
+
+    await expect(
+      reissueDigitalEntitlement(
+        {entitlementId: '44444444-4444-4444-8444-444444444444', expectedVersion: 1},
+        client,
+        () => 'fresh-raw-token',
+        recordOperationalFailure
+      )
+    ).resolves.toEqual({status: 'error', code: 'entitlement_action_failed'});
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'fulfillment',
+        severity: 'error',
+        errorCode: 'entitlement_action_failed',
+        summary: 'Digital entitlement reissue RPC failed',
+        facts: expect.objectContaining({
+          action: 'reissue',
+          entitlementId: '44444444-4444-4444-8444-444444444444',
+          code: 'entitlement_action_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/fresh-raw-token|token_hash|rpc down|password|secret/i);
+  });
 });

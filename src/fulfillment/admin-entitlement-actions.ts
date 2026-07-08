@@ -3,6 +3,7 @@
 import {revalidatePath} from 'next/cache';
 import {z} from 'zod';
 import {reissueDigitalEntitlement, revokeDigitalEntitlement, type EntitlementActionResult} from '@/fulfillment/entitlements';
+import {recordOperationalFailure} from '@/operations/errors';
 
 const actionInputSchema = z.object({
   entitlementId: z.string().trim().min(1),
@@ -50,7 +51,7 @@ export async function revokeDigitalEntitlementAction(formData: FormData): Promis
   }
 
   const client = await getAdminRpcClient();
-  const result = await revokeDigitalEntitlement(parsed.data, client);
+  const result = await revokeDigitalEntitlement(parsed.data, client, recordOperationalFailure);
   revalidateAdminOrder(parsed.data.orderId);
   return result;
 }
@@ -62,7 +63,7 @@ export async function reissueDigitalEntitlementAction(formData: FormData): Promi
   }
 
   const client = await getAdminRpcClient();
-  const result = await reissueDigitalEntitlement(parsed.data, client);
+  const result = await reissueDigitalEntitlement(parsed.data, client, undefined, recordOperationalFailure);
   revalidateAdminOrder(parsed.data.orderId);
   return result;
 }

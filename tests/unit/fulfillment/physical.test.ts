@@ -78,6 +78,53 @@ describe('admin physical fulfillment transitions', () => {
     await expect(updatePhysicalFulfillment({orderId: '11111111-1111-4111-8111-111111111111', expectedStatus: 'shipped', expectedVersion: 5, status: 'delivered', locale: 'en', orderNumber: 'ATB-1', recipientEmail: 'buyer@example.test'}, client as never)).resolves.toMatchObject({status: 'updated', physicalStatus: 'delivered'});
     expect(inserts).not.toEqual(expect.arrayContaining([expect.objectContaining({table: 'transactional_email_outbox'})]));
   });
+
+  test('records operational failure when shipped email queue insert fails', async () => {
+    const recordOperationalFailure = vi.fn(async () => ({
+      status: 'recorded',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    }));
+    const client = {
+      from: vi.fn((table: string) => {
+        if (table === 'physical_fulfillments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'phys-1', order_id: '11111111-1111-4111-8111-111111111111', status: 'packing', version: 2}, error: null}))}))
+            })),
+            update: vi.fn(() => ({eq: vi.fn(() => Promise.resolve({data: null, error: null}))}))
+          };
+        }
+        if (table === 'transactional_email_outbox') {
+          return {insert: vi.fn(() => Promise.resolve({data: null, error: {message: 'db unavailable'}}))};
+        }
+        return {insert: vi.fn(() => Promise.resolve({data: null, error: null}))};
+      })
+    };
+
+    const result = await updatePhysicalFulfillment(
+      {orderId: '11111111-1111-4111-8111-111111111111', expectedStatus: 'packing', expectedVersion: 2, status: 'shipped', locale: 'en', orderNumber: 'ATB-1', recipientEmail: 'buyer@example.test', trackingUrl: 'https://tracking.example.test/TRACK123', trackingNumber: 'TRACK123'},
+      client as never,
+      recordOperationalFailure
+    );
+
+    expect(result).toEqual({status: 'error', code: 'physical_update_failed'});
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'fulfillment',
+        severity: 'error',
+        errorCode: 'physical_update_failed',
+        summary: 'Physical fulfillment shipped email queue failed',
+        facts: expect.objectContaining({
+          action: 'email_queue',
+          orderId: '11111111-1111-4111-8111-111111111111',
+          orderNumber: 'ATB-1',
+          fulfillmentStatus: 'shipped',
+          code: 'physical_update_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/buyer@example|TRACK123|tracking.example|admin_note|db unavailable/i);
+  });
 });
 
 

@@ -23,6 +23,14 @@ type RpcClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
 };
 
+type OperationalFailureRecorder = (input: {
+  area: string;
+  severity?: string;
+  errorCode: string;
+  summary: unknown;
+  facts?: unknown;
+}) => Promise<unknown>;
+
 function newSecretMaterial() {
   return `${randomUUID().replaceAll('-', '')}${randomUUID().replaceAll('-', '')}`;
 }
@@ -53,7 +61,31 @@ function mapRpcResult(data: unknown, successStatus: 'revoked' | 'reissued'): Ent
   return {status: 'error', code: 'entitlement_action_failed'};
 }
 
-export async function revokeDigitalEntitlement(input: EntitlementActionInput, client: RpcClient): Promise<EntitlementActionResult> {
+async function recordEntitlementFailure(
+  recorder: OperationalFailureRecorder | undefined,
+  input: {action: 'revoke' | 'reissue'; entitlementId: string; summary: string}
+) {
+  if (!recorder) {
+    return;
+  }
+  await recorder({
+    area: 'fulfillment',
+    severity: 'error',
+    errorCode: 'entitlement_action_failed',
+    summary: input.summary,
+    facts: {
+      action: input.action,
+      entitlementId: input.entitlementId,
+      code: 'entitlement_action_failed'
+    }
+  });
+}
+
+export async function revokeDigitalEntitlement(
+  input: EntitlementActionInput,
+  client: RpcClient,
+  recordOperationalFailure?: OperationalFailureRecorder
+): Promise<EntitlementActionResult> {
   const parsed = entitlementActionSchema.safeParse(input);
   if (!parsed.success) {
     return {status: 'invalid', code: 'invalid_entitlement_action'};
@@ -65,15 +97,29 @@ export async function revokeDigitalEntitlement(input: EntitlementActionInput, cl
     p_reason: parsed.data.reason ?? null
   });
   if (error) {
+    await recordEntitlementFailure(recordOperationalFailure, {
+      action: 'revoke',
+      entitlementId: parsed.data.entitlementId,
+      summary: 'Digital entitlement revoke RPC failed'
+    });
     return {status: 'error', code: 'entitlement_action_failed'};
   }
-  return mapRpcResult(data, 'revoked');
+  const result = mapRpcResult(data, 'revoked');
+  if (result.status === 'error') {
+    await recordEntitlementFailure(recordOperationalFailure, {
+      action: 'revoke',
+      entitlementId: parsed.data.entitlementId,
+      summary: 'Digital entitlement revoke RPC returned an unexpected result'
+    });
+  }
+  return result;
 }
 
 export async function reissueDigitalEntitlement(
   input: EntitlementActionInput,
   client: RpcClient,
-  createSecret: () => string = newSecretMaterial
+  createSecret: () => string = newSecretMaterial,
+  recordOperationalFailure?: OperationalFailureRecorder
 ): Promise<EntitlementActionResult> {
   const parsed = entitlementActionSchema.safeParse(input);
   if (!parsed.success) {
@@ -87,7 +133,20 @@ export async function reissueDigitalEntitlement(
     p_new_token_hash: hashFulfillmentAccessToken(secret)
   });
   if (error) {
+    await recordEntitlementFailure(recordOperationalFailure, {
+      action: 'reissue',
+      entitlementId: parsed.data.entitlementId,
+      summary: 'Digital entitlement reissue RPC failed'
+    });
     return {status: 'error', code: 'entitlement_action_failed'};
   }
-  return mapRpcResult(data, 'reissued');
+  const result = mapRpcResult(data, 'reissued');
+  if (result.status === 'error') {
+    await recordEntitlementFailure(recordOperationalFailure, {
+      action: 'reissue',
+      entitlementId: parsed.data.entitlementId,
+      summary: 'Digital entitlement reissue RPC returned an unexpected result'
+    });
+  }
+  return result;
 }

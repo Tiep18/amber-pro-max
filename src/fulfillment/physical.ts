@@ -28,6 +28,14 @@ type QueryClient = {
   from: (table: string) => unknown;
 };
 
+type OperationalFailureRecorder = (input: {
+  area: string;
+  severity?: string;
+  errorCode: string;
+  summary: unknown;
+  facts?: unknown;
+}) => Promise<unknown>;
+
 type PhysicalRow = {
   id: string;
   order_id: string;
@@ -72,6 +80,34 @@ function validNext(current: PhysicalFulfillmentStatus, next: PhysicalFulfillment
   return next === current || allowedNext[current].includes(next);
 }
 
+async function recordPhysicalFailure(
+  recorder: OperationalFailureRecorder | undefined,
+  input: {
+    action: string;
+    summary: string;
+    orderId?: string;
+    orderNumber?: string;
+    fulfillmentStatus?: PhysicalFulfillmentStatus;
+  }
+) {
+  if (!recorder) {
+    return;
+  }
+  await recorder({
+    area: 'fulfillment',
+    severity: 'error',
+    errorCode: 'physical_update_failed',
+    summary: input.summary,
+    facts: {
+      action: input.action,
+      orderId: input.orderId,
+      orderNumber: input.orderNumber,
+      fulfillmentStatus: input.fulfillmentStatus,
+      code: 'physical_update_failed'
+    }
+  });
+}
+
 export function buildPhysicalFulfillmentUpdate(input: {
   status: PhysicalFulfillmentStatus;
   carrier?: string;
@@ -110,7 +146,11 @@ async function loadPhysical(client: QueryClient, orderId: string) {
   return {status: 'found' as const, row: asPhysicalRow(data)};
 }
 
-export async function updatePhysicalFulfillment(input: PhysicalFulfillmentInput, client: QueryClient): Promise<PhysicalFulfillmentResult> {
+export async function updatePhysicalFulfillment(
+  input: PhysicalFulfillmentInput,
+  client: QueryClient,
+  recordOperationalFailure?: OperationalFailureRecorder
+): Promise<PhysicalFulfillmentResult> {
   const parsed = updateInputSchema.safeParse(input);
   if (!parsed.success) {
     return {status: 'invalid', code: 'invalid_physical_request'};
@@ -118,6 +158,13 @@ export async function updatePhysicalFulfillment(input: PhysicalFulfillmentInput,
 
   const loaded = await loadPhysical(client, parsed.data.orderId);
   if (loaded.status === 'error') {
+    await recordPhysicalFailure(recordOperationalFailure, {
+      action: 'lookup',
+      summary: 'Physical fulfillment lookup failed',
+      orderId: parsed.data.orderId,
+      orderNumber: parsed.data.orderNumber,
+      fulfillmentStatus: parsed.data.status
+    });
     return {status: 'error', code: 'physical_update_failed'};
   }
   if (!loaded.row) {
@@ -147,6 +194,13 @@ export async function updatePhysicalFulfillment(input: PhysicalFulfillmentInput,
 
   const updated = await update.update({...built.update, version: nextVersion}).eq('id', loaded.row.id);
   if (updated.error) {
+    await recordPhysicalFailure(recordOperationalFailure, {
+      action: 'update',
+      summary: 'Physical fulfillment update failed',
+      orderId: parsed.data.orderId,
+      orderNumber: parsed.data.orderNumber,
+      fulfillmentStatus: parsed.data.status
+    });
     return {status: 'error', code: 'physical_update_failed'};
   }
   await event.insert({
@@ -173,6 +227,13 @@ export async function updatePhysicalFulfillment(input: PhysicalFulfillmentInput,
       }
     });
     if (email.error) {
+      await recordPhysicalFailure(recordOperationalFailure, {
+        action: 'email_queue',
+        summary: 'Physical fulfillment shipped email queue failed',
+        orderId: parsed.data.orderId,
+        orderNumber: parsed.data.orderNumber,
+        fulfillmentStatus: parsed.data.status
+      });
       return {status: 'error', code: 'physical_update_failed'};
     }
   }
@@ -191,6 +252,7 @@ export async function updatePhysicalFulfillmentAction(formData: FormData): Promi
   const {requireAdmin} = await import('@/auth/guards');
   await requireAdmin();
   const {createSupabaseAdminClient} = await import('@/lib/supabase/admin');
+  const {recordOperationalFailure} = await import('@/operations/errors');
   const result = await updatePhysicalFulfillment(
     {
       orderId: formString(formData, 'orderId') ?? '',
@@ -205,7 +267,8 @@ export async function updatePhysicalFulfillmentAction(formData: FormData): Promi
       orderNumber: formString(formData, 'orderNumber') ?? '',
       recipientEmail: formString(formData, 'recipientEmail') ?? ''
     },
-    createSupabaseAdminClient() as unknown as QueryClient
+    createSupabaseAdminClient() as unknown as QueryClient,
+    recordOperationalFailure
   );
   revalidatePath('/admin/orders');
   return result;
