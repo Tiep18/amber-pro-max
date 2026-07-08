@@ -6,10 +6,19 @@ import {parseProductReviewInput} from '@/reviews/eligibility';
 import {requireAdmin, requireUser} from '@/auth/guards';
 import type {Locale} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {recordOperationalFailure as sharedRecordOperationalFailure} from '@/operations/errors';
 
 type RpcClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
 };
+
+type OperationalFailureRecorder = (input: {
+  area: string;
+  severity?: string;
+  errorCode: string;
+  summary: unknown;
+  facts?: unknown;
+}) => Promise<unknown>;
 
 export type ReviewActionState =
   | {status: 'idle'}
@@ -96,7 +105,52 @@ function mapAdminRpcResult(data: unknown): ReviewAdminActionResult {
   return {status: 'error', code: 'review_admin_action_failed'};
 }
 
-export async function moderateProductReview(input: unknown, client: RpcClient): Promise<ReviewAdminActionResult> {
+async function recordReviewAdminFailure(
+  recorder: OperationalFailureRecorder | undefined,
+  input: {action: string; referenceId?: string; status?: string; summary: string}
+) {
+  if (!recorder) {
+    return;
+  }
+  await recorder({
+    area: 'admin',
+    severity: 'error',
+    errorCode: 'review_admin_action_failed',
+    summary: input.summary,
+    facts: {
+      action: input.action,
+      referenceId: input.referenceId,
+      status: input.status,
+      code: 'review_admin_action_failed'
+    }
+  });
+}
+
+async function recordReviewSubmitFailure(
+  recorder: OperationalFailureRecorder | undefined,
+  input: {productId: string; summary: string}
+) {
+  if (!recorder) {
+    return;
+  }
+  await recorder({
+    area: 'application',
+    severity: 'error',
+    errorCode: 'review_submit_failed',
+    summary: input.summary,
+    facts: {
+      action: 'review_submit',
+      productId: input.productId,
+      code: 'review_submit_failed'
+    }
+  });
+}
+
+export async function moderateProductReview(
+  input: unknown,
+  client: RpcClient,
+  recordOperationalFailure?: OperationalFailureRecorder
+): Promise<ReviewAdminActionResult> {
   const parsed = moderationInputSchema.safeParse(input);
   if (!parsed.success) {
     return {status: 'invalid', code: 'invalid_review_admin_action'};
@@ -108,10 +162,32 @@ export async function moderateProductReview(input: unknown, client: RpcClient): 
     p_target_status: parsed.data.targetStatus,
     p_moderation_note: parsed.data.moderationNote ?? null
   });
-  return error ? {status: 'error', code: 'review_admin_action_failed'} : mapAdminRpcResult(data);
+  if (error) {
+    await recordReviewAdminFailure(recordOperationalFailure, {
+      action: 'review_moderate',
+      referenceId: parsed.data.reviewId,
+      status: parsed.data.targetStatus,
+      summary: 'Review moderation RPC failed'
+    });
+    return {status: 'error', code: 'review_admin_action_failed'};
+  }
+  const result = mapAdminRpcResult(data);
+  if (result.status === 'error') {
+    await recordReviewAdminFailure(recordOperationalFailure, {
+      action: 'review_moderate',
+      referenceId: parsed.data.reviewId,
+      status: parsed.data.targetStatus,
+      summary: 'Review moderation returned an unexpected result'
+    });
+  }
+  return result;
 }
 
-export async function upsertReviewReply(input: unknown, client: RpcClient): Promise<ReviewAdminActionResult> {
+export async function upsertReviewReply(
+  input: unknown,
+  client: RpcClient,
+  recordOperationalFailure?: OperationalFailureRecorder
+): Promise<ReviewAdminActionResult> {
   const parsed = replyInputSchema.safeParse(input);
   if (!parsed.success) {
     return {status: 'invalid', code: 'invalid_review_admin_action'};
@@ -122,10 +198,32 @@ export async function upsertReviewReply(input: unknown, client: RpcClient): Prom
     p_expected_review_status: parsed.data.expectedReviewStatus,
     p_body: parsed.data.body
   });
-  return error ? {status: 'error', code: 'review_admin_action_failed'} : mapAdminRpcResult(data);
+  if (error) {
+    await recordReviewAdminFailure(recordOperationalFailure, {
+      action: 'review_reply_upsert',
+      referenceId: parsed.data.reviewId,
+      status: parsed.data.expectedReviewStatus,
+      summary: 'Review reply upsert RPC failed'
+    });
+    return {status: 'error', code: 'review_admin_action_failed'};
+  }
+  const result = mapAdminRpcResult(data);
+  if (result.status === 'error') {
+    await recordReviewAdminFailure(recordOperationalFailure, {
+      action: 'review_reply_upsert',
+      referenceId: parsed.data.reviewId,
+      status: parsed.data.expectedReviewStatus,
+      summary: 'Review reply upsert returned an unexpected result'
+    });
+  }
+  return result;
 }
 
-export async function removeReviewReply(input: unknown, client: RpcClient): Promise<ReviewAdminActionResult> {
+export async function removeReviewReply(
+  input: unknown,
+  client: RpcClient,
+  recordOperationalFailure?: OperationalFailureRecorder
+): Promise<ReviewAdminActionResult> {
   const parsed = removeReplyInputSchema.safeParse(input);
   if (!parsed.success) {
     return {status: 'invalid', code: 'invalid_review_admin_action'};
@@ -136,7 +234,25 @@ export async function removeReviewReply(input: unknown, client: RpcClient): Prom
     p_expected_review_status: parsed.data.expectedReviewStatus,
     p_expected_reply_version: parsed.data.expectedReplyVersion
   });
-  return error ? {status: 'error', code: 'review_admin_action_failed'} : mapAdminRpcResult(data);
+  if (error) {
+    await recordReviewAdminFailure(recordOperationalFailure, {
+      action: 'review_reply_remove',
+      referenceId: parsed.data.reviewId,
+      status: parsed.data.expectedReviewStatus,
+      summary: 'Review reply removal RPC failed'
+    });
+    return {status: 'error', code: 'review_admin_action_failed'};
+  }
+  const result = mapAdminRpcResult(data);
+  if (result.status === 'error') {
+    await recordReviewAdminFailure(recordOperationalFailure, {
+      action: 'review_reply_remove',
+      referenceId: parsed.data.reviewId,
+      status: parsed.data.expectedReviewStatus,
+      summary: 'Review reply removal returned an unexpected result'
+    });
+  }
+  return result;
 }
 
 async function getAdminRpcClient() {
@@ -161,7 +277,7 @@ export async function approveProductReviewAction(
     expectedStatus: formString(formData, 'expectedStatus'),
     targetStatus: 'approved',
     moderationNote: formString(formData, 'moderationNote')
-  }, client);
+  }, client, sharedRecordOperationalFailure);
   revalidateReviewSurfaces();
   return result;
 }
@@ -177,7 +293,7 @@ export async function hideProductReviewAction(
     expectedStatus: formString(formData, 'expectedStatus'),
     targetStatus: 'hidden',
     moderationNote: formString(formData, 'moderationNote')
-  }, client);
+  }, client, sharedRecordOperationalFailure);
   revalidateReviewSurfaces();
   return result;
 }
@@ -192,7 +308,7 @@ export async function upsertReviewReplyAction(
     expectedReviewVersion: formString(formData, 'expectedReviewVersion'),
     expectedReviewStatus: formString(formData, 'expectedReviewStatus'),
     body: formString(formData, 'body')
-  }, client);
+  }, client, sharedRecordOperationalFailure);
   revalidateReviewSurfaces();
   return result;
 }
@@ -207,7 +323,7 @@ export async function removeReviewReplyAction(
     expectedReviewVersion: formString(formData, 'expectedReviewVersion'),
     expectedReviewStatus: formString(formData, 'expectedReviewStatus'),
     expectedReplyVersion: formString(formData, 'expectedReplyVersion')
-  }, client);
+  }, client, sharedRecordOperationalFailure);
   revalidateReviewSurfaces();
   return result;
 }
@@ -215,11 +331,13 @@ export async function removeReviewReplyAction(
 export async function submitProductReview({
   productId,
   input,
-  client
+  client,
+  recordOperationalFailure
 }: {
   productId: string;
   input: unknown;
   client: RpcClient;
+  recordOperationalFailure?: OperationalFailureRecorder;
 }): Promise<ReviewActionState> {
   const parsed = parseProductReviewInput(input);
   if (!parsed.success) {
@@ -232,6 +350,10 @@ export async function submitProductReview({
     p_body: parsed.data.body
   });
   if (error || !isRecord(data)) {
+    await recordReviewSubmitFailure(recordOperationalFailure, {
+      productId,
+      summary: 'Product review submit failed'
+    });
     return {status: 'error', code: 'review_submit_failed'};
   }
   if (data.status === 'pending') {
@@ -240,6 +362,10 @@ export async function submitProductReview({
   if (data.status === 'not_eligible') {
     return {status: 'not_eligible'};
   }
+  await recordReviewSubmitFailure(recordOperationalFailure, {
+    productId,
+    summary: 'Product review submit returned an unexpected result'
+  });
   return {status: 'error', code: 'review_submit_failed'};
 }
 
@@ -258,7 +384,8 @@ export async function submitProductReviewAction(
       title: formString(formData, 'title'),
       body: formString(formData, 'body')
     },
-    client: client as unknown as RpcClient
+    client: client as unknown as RpcClient,
+    recordOperationalFailure: sharedRecordOperationalFailure
   });
   if (result.status === 'pending') {
     revalidatePath(productPath);

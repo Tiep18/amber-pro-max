@@ -14,6 +14,7 @@ import {
 import {
   moderateProductReview,
   removeReviewReply,
+  submitProductReview,
   upsertReviewReply
 } from '@/reviews/actions';
 
@@ -168,5 +169,104 @@ describe('admin review moderation contracts (REV-02, D-12)', () => {
     await expect(removeReviewReply(input, client)).resolves.toEqual({status: 'removed'});
     await expect(removeReviewReply(input, client)).resolves.toEqual({status: 'stale', version: 4});
     await expect(removeReviewReply(input, client)).resolves.toEqual({status: 'forbidden'});
+  });
+
+  test('moderation records RPC failures without exposing notes or database details', async () => {
+    const recordOperationalFailure = vi.fn(async () => ({
+      status: 'recorded',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    }));
+    const client = {
+      rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'private moderation rpc detail'}})
+    };
+
+    await expect(moderateProductReview({
+      reviewId: productId,
+      expectedVersion: 2,
+      expectedStatus: 'pending',
+      targetStatus: 'approved',
+      moderationNote: 'Internal customer note'
+    }, client, recordOperationalFailure)).resolves.toEqual({status: 'error', code: 'review_admin_action_failed'});
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'review_admin_action_failed',
+        summary: 'Review moderation RPC failed',
+        facts: expect.objectContaining({
+          action: 'review_moderate',
+          referenceId: productId,
+          status: 'approved',
+          code: 'review_admin_action_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/Internal customer note|private moderation|email|body/i);
+  });
+
+  test('reply upsert records unexpected RPC results without exposing reply body', async () => {
+    const recordOperationalFailure = vi.fn(async () => ({
+      status: 'recorded',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    }));
+    const client = {rpc: vi.fn().mockResolvedValue({data: {status: 'saved'}, error: null})};
+
+    await expect(upsertReviewReply({
+      reviewId: productId,
+      expectedReviewVersion: 3,
+      expectedReviewStatus: 'approved',
+      body: 'Thanks for the detailed review.'
+    }, client, recordOperationalFailure)).resolves.toEqual({status: 'error', code: 'review_admin_action_failed'});
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'review_admin_action_failed',
+        summary: 'Review reply upsert returned an unexpected result',
+        facts: expect.objectContaining({
+          action: 'review_reply_upsert',
+          referenceId: productId,
+          status: 'approved',
+          code: 'review_admin_action_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/Thanks for the detailed review|body/i);
+  });
+});
+
+describe('product review submit operational recording', () => {
+  test('submit records RPC failures without exposing review text', async () => {
+    const recordOperationalFailure = vi.fn(async () => ({
+      status: 'recorded',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    }));
+    const client = {
+      rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'private submit rpc detail'}})
+    };
+
+    await expect(submitProductReview({
+      productId,
+      input: {rating: 5, title: 'Sweet bear', body: 'I loved making this pattern.'},
+      client,
+      recordOperationalFailure
+    })).resolves.toEqual({status: 'error', code: 'review_submit_failed'});
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'application',
+        severity: 'error',
+        errorCode: 'review_submit_failed',
+        summary: 'Product review submit failed',
+        facts: expect.objectContaining({
+          action: 'review_submit',
+          productId,
+          code: 'review_submit_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/Sweet bear|loved making|private submit|body/i);
   });
 });
