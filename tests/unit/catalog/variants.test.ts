@@ -313,6 +313,44 @@ describe('variant actions', () => {
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/private remove|email|token/i);
   });
 
+  it('keeps variant error states when operational recording fails', async () => {
+    recordOperationalFailure.mockRejectedValue(new Error('operational table unavailable'));
+
+    const productQuery = {
+      select: vi.fn(() => productQuery),
+      eq: vi.fn(() => productQuery),
+      maybeSingle: vi.fn(() =>
+        Promise.resolve({ data: { id: productId, product_type: 'physical_finished' }, error: null })
+      )
+    };
+    const upsert = vi.fn(() => Promise.resolve({ error: { message: 'variant write failed' } }));
+    const from = vi.fn((table: string) => (table === 'products' ? productQuery : { upsert }));
+    createSupabaseServerClient.mockResolvedValue({ from });
+
+    await expect(
+      saveVariantAction({
+        productId,
+        variantId,
+        sku: 'BEAR-S',
+        attributes: '{"size":"small"}',
+        displayOrder: 0,
+        mediaId: null
+      })
+    ).resolves.toEqual({ status: 'error', code: 'save_failed' });
+
+    const deleteEqProduct = vi.fn(() => Promise.resolve({ error: { message: 'remove failed' } }));
+    const deleteEqId = vi.fn(() => ({ eq: deleteEqProduct }));
+    const deleteCall = vi.fn(() => ({ eq: deleteEqId }));
+    createSupabaseServerClient.mockResolvedValueOnce({
+      from: vi.fn(() => ({ delete: deleteCall }))
+    });
+
+    await expect(removeVariantAction({ productId, variantId })).resolves.toEqual({
+      status: 'error',
+      code: 'remove_failed'
+    });
+  });
+
   it('stores product-level inventory only for non-variant physical products', async () => {
     const productQuery = {
       select: vi.fn(() => productQuery),

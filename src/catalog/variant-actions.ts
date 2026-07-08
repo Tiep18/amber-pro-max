@@ -4,7 +4,7 @@ import {revalidatePath} from 'next/cache';
 import {requireAdmin} from '@/auth/guards';
 import {invalidateCatalogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import type {Json} from '@/types/supabase';
 import {
   inventoryAdjustmentSchema,
@@ -44,7 +44,7 @@ function databaseCode(error: unknown) {
   return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
 }
 
-async function recordVariantFailure({
+async function monitoredVariantFailure({
   action,
   productId,
   referenceId,
@@ -61,25 +61,26 @@ async function recordVariantFailure({
   referenceId?: string | null;
   code: 'save_failed' | 'remove_failed';
   summary: string;
-}) {
-  await recordOperationalFailure({
+}): Promise<VariantActionResult> {
+  return runMonitoredAction({
     area: 'admin',
-    severity: 'error',
+    action,
     errorCode: `catalog_${action}_failed`,
     summary,
+    errorResult: {status: 'error', code} as const,
+    shouldRecordResult: () => true,
     facts: {
-      action,
       productId: productId ?? null,
-      referenceId: referenceId ?? null,
-      code
-    }
+      referenceId: referenceId ?? null
+    },
+    operation: async () => ({status: 'error', code}) as const
   });
 }
 
 async function mapWriteError(
   error: unknown,
   context: {
-    action: Parameters<typeof recordVariantFailure>[0]['action'];
+    action: Parameters<typeof monitoredVariantFailure>[0]['action'];
     productId?: string | null;
     referenceId?: string | null;
     summary: string;
@@ -92,14 +93,13 @@ async function mapWriteError(
   if (code === '23514') {
     return {status: 'invalid', code: 'wrong_inventory_owner'};
   }
-  await recordVariantFailure({
+  return monitoredVariantFailure({
     action: context.action,
     productId: context.productId,
     referenceId: context.referenceId,
     code: 'save_failed',
     summary: context.summary
   });
-  return {status: 'error', code: 'save_failed'};
 }
 
 async function productType(productId: string) {
@@ -187,14 +187,13 @@ export async function removeVariantAction(input: RemoveVariantInput): Promise<Va
     .eq('id', parsed.data.variantId)
     .eq('product_id', parsed.data.productId);
   if (error) {
-    await recordVariantFailure({
+    return monitoredVariantFailure({
       action: 'variant_remove',
       productId: parsed.data.productId,
       referenceId: parsed.data.variantId,
       code: 'remove_failed',
       summary: 'Catalog variant remove failed'
     });
-    return {status: 'error', code: 'remove_failed'};
   }
 
   revalidateVariants(parsed.data.productId);
@@ -263,14 +262,13 @@ export async function removeVariantPriceOverrideAction(
     .eq('variant_id', parsed.data.variantId)
     .eq('market_code', parsed.data.marketCode);
   if (error) {
-    await recordVariantFailure({
+    return monitoredVariantFailure({
       action: 'variant_price_override_remove',
       productId,
       referenceId: parsed.data.variantId,
       code: 'remove_failed',
       summary: 'Catalog variant price override remove failed'
     });
-    return {status: 'error', code: 'remove_failed'};
   }
 
   revalidateVariants(productId);
