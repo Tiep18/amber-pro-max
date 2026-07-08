@@ -93,6 +93,20 @@ async function recordPublicReviewQueryFailure(productId: string, summary: string
   });
 }
 
+async function recordAdminReviewQueryFailure(status: ReviewStatus | undefined, summary: string) {
+  await recordOperationalFailure({
+    area: 'admin',
+    severity: 'error',
+    errorCode: 'admin_reviews_load_failed',
+    summary,
+    facts: {
+      action: 'admin_reviews',
+      status: status ?? null,
+      code: 'admin_reviews_load_failed'
+    }
+  });
+}
+
 export async function getApprovedProductReviews({
   productId,
   client
@@ -127,6 +141,10 @@ export async function getAdminProductReviews({
   const supabase = client ?? (await createSupabaseServerClient() as unknown as RpcClient);
   const {data, error} = await supabase.rpc('get_admin_product_reviews', {p_status: status ?? null});
   if (error || !Array.isArray(data)) {
+    await recordAdminReviewQueryFailure(
+      status,
+      error ? 'Admin product reviews query failed' : 'Admin product reviews returned an unexpected result'
+    );
     return {status: 'error', code: 'admin_reviews_load_failed'};
   }
   return {status: 'success', reviews: mapAdminRows(data)};

@@ -18,7 +18,7 @@ import {
   submitProductReview,
   upsertReviewReply
 } from '@/reviews/actions';
-import {getApprovedProductReviews} from '@/reviews/queries';
+import {getAdminProductReviews, getApprovedProductReviews} from '@/reviews/queries';
 import {recordOperationalFailure} from '@/operations/errors';
 
 const productId = '33333333-3333-4333-8333-333333333333';
@@ -58,6 +58,33 @@ describe('verified product review contracts (REV-01, D-09, D-10, D-11)', () => {
     await expect(canReviewProduct({productId, client: client as never})).resolves.toEqual({
       status: 'not_eligible'
     });
+  });
+
+  test('records eligibility RPC failures without exposing database details', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
+    const client = {
+      rpc: vi.fn(() => Promise.resolve({data: null, error: {message: 'private eligibility relation failed'}}))
+    };
+
+    await expect(canReviewProduct({productId, client: client as never})).resolves.toEqual({
+      status: 'error',
+      code: 'review_eligibility_failed'
+    });
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'application',
+        severity: 'error',
+        errorCode: 'review_eligibility_failed',
+        summary: 'Review eligibility check failed',
+        facts: expect.objectContaining({
+          action: 'review_eligibility',
+          productId,
+          code: 'review_eligibility_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/private eligibility|relation|email|body|token/i);
   });
 
   test('masks public identity and exposes approved verified reviews only', () => {
@@ -118,6 +145,37 @@ describe('verified product review contracts (REV-01, D-09, D-10, D-11)', () => {
       })
     );
     expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/review_notes|relation|private|body|email|token/i);
+  });
+});
+
+describe('admin review query operational recording', () => {
+  test('records admin review queue failures without exposing customer or review content', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
+    const client = {
+      rpc: vi.fn(() => Promise.resolve({data: null, error: {message: 'private admin review relation failed for buyer@example.test'}}))
+    };
+
+    await expect(getAdminProductReviews({status: 'pending', client})).resolves.toEqual({
+      status: 'error',
+      code: 'admin_reviews_load_failed'
+    });
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'admin_reviews_load_failed',
+        summary: 'Admin product reviews query failed',
+        facts: expect.objectContaining({
+          action: 'admin_reviews',
+          status: 'pending',
+          code: 'admin_reviews_load_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(
+      /buyer@example|private admin|relation|review body|email|token/i
+    );
   });
 });
 
