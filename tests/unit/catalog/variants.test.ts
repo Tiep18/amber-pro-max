@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { requireAdmin, createSupabaseServerClient, revalidatePath, revalidateTag } = vi.hoisted(
+const { requireAdmin, createSupabaseServerClient, revalidatePath, revalidateTag, recordOperationalFailure } = vi.hoisted(
   () => ({
     requireAdmin: vi.fn(),
     createSupabaseServerClient: vi.fn(),
     revalidatePath: vi.fn(),
-    revalidateTag: vi.fn()
+    revalidateTag: vi.fn(),
+    recordOperationalFailure: vi.fn(async () => ({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'}))
   })
 );
 
@@ -13,6 +14,7 @@ vi.mock('server-only', () => ({}));
 vi.mock('next/cache', () => ({ revalidatePath, revalidateTag }));
 vi.mock('@/auth/guards', () => ({ requireAdmin }));
 vi.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient }));
+vi.mock('@/operations/errors', () => ({ recordOperationalFailure }));
 
 import {
   adjustInventoryAction,
@@ -154,6 +156,7 @@ describe('variant actions', () => {
     requireAdmin.mockReset();
     createSupabaseServerClient.mockReset();
     revalidatePath.mockReset();
+    recordOperationalFailure.mockReset();
     requireAdmin.mockResolvedValue({ id: 'admin-id', email: 'admin@example.com' });
   });
 
@@ -238,6 +241,76 @@ describe('variant actions', () => {
         mediaId: null
       })
     ).resolves.toEqual({ status: 'invalid', code: 'duplicate_sku' });
+  });
+
+  it('records generic variant save failures without exposing SKU attributes or database details', async () => {
+    const productQuery = {
+      select: vi.fn(() => productQuery),
+      eq: vi.fn(() => productQuery),
+      maybeSingle: vi.fn(() =>
+        Promise.resolve({ data: { id: productId, product_type: 'physical_finished' }, error: null })
+      )
+    };
+    const upsert = vi.fn(() => Promise.resolve({ error: { message: 'private variant write failed' } }));
+    const from = vi.fn((table: string) => (table === 'products' ? productQuery : { upsert }));
+    createSupabaseServerClient.mockResolvedValue({ from });
+
+    await expect(
+      saveVariantAction({
+        productId,
+        variantId,
+        sku: 'SECRET-SKU',
+        attributes: '{"size":"small","private":"do-not-log"}',
+        displayOrder: 0,
+        mediaId: null
+      })
+    ).resolves.toEqual({ status: 'error', code: 'save_failed' });
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'catalog_variant_save_failed',
+        summary: 'Catalog variant save failed',
+        facts: expect.objectContaining({
+          action: 'variant_save',
+          productId,
+          referenceId: variantId,
+          code: 'save_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/SECRET-SKU|do-not-log|private variant|email|token/i);
+  });
+
+  it('records variant remove failures with only product and variant references', async () => {
+    const deleteEqProduct = vi.fn(() => Promise.resolve({ error: { message: 'private remove detail' } }));
+    const deleteEqId = vi.fn(() => ({ eq: deleteEqProduct }));
+    const deleteCall = vi.fn(() => ({ eq: deleteEqId }));
+    createSupabaseServerClient.mockResolvedValue({
+      from: vi.fn(() => ({ delete: deleteCall }))
+    });
+
+    await expect(removeVariantAction({ productId, variantId })).resolves.toEqual({
+      status: 'error',
+      code: 'remove_failed'
+    });
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'catalog_variant_remove_failed',
+        summary: 'Catalog variant remove failed',
+        facts: expect.objectContaining({
+          action: 'variant_remove',
+          productId,
+          referenceId: variantId,
+          code: 'remove_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/private remove|email|token/i);
   });
 
   it('stores product-level inventory only for non-variant physical products', async () => {
