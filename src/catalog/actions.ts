@@ -3,6 +3,7 @@
 import {requireAdmin} from '@/auth/guards';
 import {invalidateCatalogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {recordOperationalFailure} from '@/operations/errors';
 import type {Json} from '@/types/supabase';
 import {mapPublishIssues, type PublishBlocker} from './publish-checks';
 import {
@@ -38,6 +39,30 @@ function validationIssues(error: {issues: {path: PropertyKey[]; message: string}
     path: issue.path.join('.'),
     code: issue.message
   }));
+}
+
+async function recordCatalogFailure(input: {
+  action: 'catalog_save_product' | 'catalog_save_relations' | 'catalog_publish' | 'catalog_publish_issues' | 'catalog_archive';
+  errorCode: 'catalog_save_failed' | 'catalog_publish_failed' | 'catalog_archive_failed';
+  resultCode: 'save_failed' | 'publish_failed' | 'archive_failed';
+  summary: string;
+  productId?: string;
+  productType?: ProductDraft['productType'];
+  status?: string;
+}) {
+  await recordOperationalFailure({
+    area: 'admin',
+    severity: 'error',
+    errorCode: input.errorCode,
+    summary: input.summary,
+    facts: {
+      action: input.action,
+      productId: input.productId,
+      code: input.resultCode,
+      status: input.status,
+      productType: input.productType
+    }
+  });
 }
 
 async function replaceProductRelations(
@@ -108,6 +133,15 @@ export async function saveProductDraftAction(input: ProductDraftInput): Promise<
         .single();
 
   if (productResult.error || !productResult.data) {
+    await recordCatalogFailure({
+      action: 'catalog_save_product',
+      errorCode: 'catalog_save_failed',
+      resultCode: 'save_failed',
+      summary: 'Catalog product save failed',
+      productId: draft.productId,
+      productType: draft.productType,
+      status: 'draft'
+    });
     return {status: 'error', code: 'save_failed'};
   }
 
@@ -149,6 +183,15 @@ export async function saveProductDraftAction(input: ProductDraftInput): Promise<
   ]);
 
   if (translationError || offerError || !relationsSaved) {
+    await recordCatalogFailure({
+      action: 'catalog_save_relations',
+      errorCode: 'catalog_save_failed',
+      resultCode: 'save_failed',
+      summary: 'Catalog product relation save failed',
+      productId,
+      productType: draft.productType,
+      status: 'draft'
+    });
     return {status: 'error', code: 'save_failed'};
   }
 
@@ -168,6 +211,13 @@ export async function publishProductAction(productId: string): Promise<PublishPr
     target_product_id: parsed.data
   });
   if (error || !data?.[0]) {
+    await recordCatalogFailure({
+      action: 'catalog_publish',
+      errorCode: 'catalog_publish_failed',
+      resultCode: 'publish_failed',
+      summary: 'Catalog product publish failed',
+      productId: parsed.data
+    });
     return {status: 'error', code: 'publish_failed'};
   }
 
@@ -180,6 +230,13 @@ export async function publishProductAction(productId: string): Promise<PublishPr
     target_product_id: parsed.data
   });
   if (issueResult.error || !issueResult.data) {
+    await recordCatalogFailure({
+      action: 'catalog_publish_issues',
+      errorCode: 'catalog_publish_failed',
+      resultCode: 'publish_failed',
+      summary: 'Catalog product publish issue lookup failed',
+      productId: parsed.data
+    });
     return {status: 'error', code: 'publish_failed'};
   }
 
@@ -204,6 +261,13 @@ export async function archiveProductAction(productId: string): Promise<ArchivePr
     .eq('id', parsed.data);
 
   if (error) {
+    await recordCatalogFailure({
+      action: 'catalog_archive',
+      errorCode: 'catalog_archive_failed',
+      resultCode: 'archive_failed',
+      summary: 'Catalog product archive failed',
+      productId: parsed.data
+    });
     return {status: 'error', code: 'archive_failed'};
   }
 

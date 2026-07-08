@@ -41,6 +41,7 @@ const allowedFactKeys = new Set([
   'providerEventId',
   'providerOrderId',
   'productId',
+  'productType',
   'queueName',
   'referenceId',
   'requestId',

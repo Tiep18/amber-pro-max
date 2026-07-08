@@ -1,14 +1,19 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import type {ProductDraftInput} from '@/catalog/schemas';
 
-const {requireAdmin, createSupabaseServerClient} = vi.hoisted(() => ({
+const {requireAdmin, createSupabaseServerClient, recordOperationalFailure} = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
-  createSupabaseServerClient: vi.fn()
+  createSupabaseServerClient: vi.fn(),
+  recordOperationalFailure: vi.fn(async () => ({
+    status: 'recorded',
+    errorId: '76000000-0000-4000-8000-000000000001'
+  }))
 }));
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/auth/guards', () => ({requireAdmin}));
 vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient}));
+vi.mock('@/operations/errors', () => ({recordOperationalFailure}));
 
 import {
   archiveProductAction,
@@ -158,6 +163,7 @@ describe('catalog actions', () => {
   beforeEach(() => {
     requireAdmin.mockReset();
     createSupabaseServerClient.mockReset();
+    recordOperationalFailure.mockClear();
     requireAdmin.mockResolvedValue({id: 'admin-id', email: 'admin@example.com'});
   });
 
@@ -219,5 +225,109 @@ describe('catalog actions', () => {
       status: 'error',
       code: 'publish_failed'
     });
+  });
+
+  it('records publish RPC failures without exposing raw database errors', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {message: 'relation private.secret_table does not exist'}
+    });
+    createSupabaseServerClient.mockResolvedValue({rpc});
+
+    await expect(publishProductAction(productId)).resolves.toEqual({
+      status: 'error',
+      code: 'publish_failed'
+    });
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'catalog_publish_failed',
+        summary: 'Catalog product publish failed',
+        facts: expect.objectContaining({
+          action: 'catalog_publish',
+          productId,
+          code: 'publish_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/secret_table|relation|Little bear|mau-gau|private/i);
+  });
+
+  it('records draft relation failures without exposing raw product content', async () => {
+    const productQuery = {
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(async () => ({data: {id: productId}, error: null}))
+        }))
+      }))
+    };
+    const failingDelete = vi.fn(() => ({
+      eq: vi.fn(async () => ({error: {message: 'private taxonomy detail'}}))
+    }));
+    const from = vi.fn((table: string) => {
+      if (table === 'products') {
+        return productQuery;
+      }
+      if (table === 'product_categories') {
+        return {delete: failingDelete};
+      }
+      return {
+        delete: vi.fn(() => ({eq: vi.fn(async () => ({error: null}))})),
+        upsert: vi.fn(async () => ({error: null})),
+        insert: vi.fn(async () => ({error: null}))
+      };
+    });
+    createSupabaseServerClient.mockResolvedValue({from});
+
+    await expect(saveProductDraftAction(validDraft())).resolves.toEqual({
+      status: 'error',
+      code: 'save_failed'
+    });
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'catalog_save_failed',
+        summary: 'Catalog product relation save failed',
+        facts: expect.objectContaining({
+          action: 'catalog_save_relations',
+          productId,
+          status: 'draft',
+          code: 'save_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/Little bear|Mau gau|private taxonomy|seo|slug/i);
+  });
+
+  it('records archive failures with only the product reference', async () => {
+    const eq = vi.fn(async () => ({error: {message: 'archive constraint detail'}}));
+    const update = vi.fn(() => ({eq}));
+    createSupabaseServerClient.mockResolvedValue({
+      from: vi.fn(() => ({update}))
+    });
+
+    await expect(archiveProductAction(productId)).resolves.toEqual({
+      status: 'error',
+      code: 'archive_failed'
+    });
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'catalog_archive_failed',
+        summary: 'Catalog product archive failed',
+        facts: expect.objectContaining({
+          action: 'catalog_archive',
+          productId,
+          code: 'archive_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/archive constraint detail/i);
   });
 });
