@@ -4,6 +4,7 @@ import {z} from 'zod';
 import {suggestMarketFromCountry} from '@/catalog/market';
 import {getOrderPath} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {recordOperationalFailure} from '@/operations/errors';
 import {setGuestOrderAccessCookieFromServer} from '@/payments/guest-access';
 import {diffMaterialQuotes} from './market-revalidation';
 import {quoteCartIntent} from './quote';
@@ -13,7 +14,7 @@ import {quoteCartInputSchema, type CartQuote} from './types';
 export type CheckoutQuoteActionState =
   | {status: 'success'; quote: CartQuote; materialChanges: ReturnType<typeof diffMaterialQuotes>}
   | {status: 'invalid'; code: 'invalid_checkout_quote'}
-  | {status: 'error'; code: 'checkout_quote_failed'};
+  | {status: 'error'; code: 'checkout_quote_failed'; errorId?: string};
 
 export type SubmitCheckoutActionState =
   | {
@@ -26,6 +27,7 @@ export type SubmitCheckoutActionState =
   | {
       status: 'invalid' | 'stale' | 'conflict' | 'retryable' | 'error';
       code: string;
+      errorId?: string;
     };
 
 const checkoutQuoteInputSchema = quoteCartInputSchema.extend({
@@ -52,7 +54,20 @@ export async function refreshCheckoutQuoteAction(input: unknown): Promise<Checko
       materialChanges: parsed.data.acceptedQuote ? diffMaterialQuotes(parsed.data.acceptedQuote, quote) : []
     };
   } catch {
-    return {status: 'error', code: 'checkout_quote_failed'};
+    const recorded = await recordOperationalFailure({
+      area: 'checkout',
+      severity: 'error',
+      errorCode: 'checkout_quote_failed',
+      summary: 'Checkout quote failed',
+      facts: {
+        market: parsed.data.market
+      }
+    });
+    return {
+      status: 'error',
+      code: 'checkout_quote_failed',
+      ...(recorded.status === 'recorded' ? {errorId: recorded.errorId} : {})
+    };
   }
 }
 
@@ -89,6 +104,21 @@ export async function submitCheckoutAction(input: unknown): Promise<SubmitChecko
       orderPath: getOrderPath(locale, result.orderNumber)
     };
   } catch {
-    return {status: 'error', code: 'checkout_submit_failed'};
+    const inputRecord = input && typeof input === 'object' && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
+    const recorded = await recordOperationalFailure({
+      area: 'checkout',
+      severity: 'error',
+      errorCode: 'checkout_submit_failed',
+      summary: 'Checkout submit failed',
+      facts: {
+        market: typeof inputRecord.market === 'string' ? inputRecord.market : undefined,
+        paymentIntent: typeof inputRecord.paymentIntent === 'string' ? inputRecord.paymentIntent : undefined
+      }
+    });
+    return {
+      status: 'error',
+      code: 'checkout_submit_failed',
+      ...(recorded.status === 'recorded' ? {errorId: recorded.errorId} : {})
+    };
   }
 }

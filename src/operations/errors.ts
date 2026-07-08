@@ -17,6 +17,19 @@ export type MarkOperationalErrorResolvedResult =
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function logOperationalRecordFailure(sanitized: ReturnType<typeof sanitizeOperationalErrorInput>) {
+  console.error(
+    '[operational-error] record_failed',
+    JSON.stringify({
+      area: sanitized.area,
+      severity: sanitized.severity,
+      errorCode: sanitized.errorCode,
+      summary: sanitized.summary,
+      facts: sanitized.facts
+    })
+  );
+}
+
 export async function recordOperationalError(input: {
   area: string;
   severity?: string;
@@ -43,6 +56,26 @@ export async function recordOperationalError(input: {
   }
 
   return {status: 'recorded', errorId: data.id};
+}
+
+export async function recordOperationalFailure(input: {
+  area: string;
+  severity?: string;
+  errorCode: string;
+  summary: unknown;
+  facts?: unknown;
+}): Promise<RecordOperationalErrorResult> {
+  const sanitized = sanitizeOperationalErrorInput(input);
+  try {
+    const result = await recordOperationalError(sanitized);
+    if (result.status === 'error') {
+      logOperationalRecordFailure(sanitized);
+    }
+    return result;
+  } catch {
+    logOperationalRecordFailure(sanitized);
+    return {status: 'error', code: 'operational_error_record_failed'};
+  }
 }
 
 export async function markOperationalErrorResolved(errorId: string): Promise<MarkOperationalErrorResolvedResult> {

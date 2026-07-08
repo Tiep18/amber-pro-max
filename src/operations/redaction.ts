@@ -31,6 +31,7 @@ const allowedFactKeys = new Set([
   'orderId',
   'orderNumber',
   'paymentId',
+  'paymentIntent',
   'paymentStatus',
   'phase',
   'provider',
