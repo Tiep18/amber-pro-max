@@ -5,6 +5,7 @@ import {z} from 'zod';
 import {requireUser} from '@/auth/guards';
 import type {Locale} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {recordOperationalFailure} from '@/operations/errors';
 
 type DeleteClient = {
   from: (table: string) => {
@@ -69,6 +70,28 @@ function actionReturnPath(locale: Locale, formData: FormData) {
   return formValue(formData, 'returnTo') ?? wishlistPath(locale);
 }
 
+async function recordWishlistFailure({
+  action,
+  productId,
+  summary
+}: {
+  action: 'add' | 'remove';
+  productId: string;
+  summary: string;
+}) {
+  await recordOperationalFailure({
+    area: 'application',
+    severity: 'error',
+    errorCode: `account.wishlist.${action}_failed`,
+    summary,
+    facts: {
+      action,
+      productId,
+      code: 'wishlist_action_failed'
+    }
+  });
+}
+
 export async function addCustomerWishlistItem({
   userId,
   productId,
@@ -91,6 +114,11 @@ export async function addCustomerWishlistItem({
     .select('id');
 
   if (error || !Array.isArray(data)) {
+    await recordWishlistFailure({
+      action: 'add',
+      productId,
+      summary: error ? 'Wishlist add persistence failed' : 'Wishlist add returned an unexpected result'
+    });
     return {status: 'error', code: 'wishlist_action_failed'};
   }
   return {status: 'saved'};
@@ -117,6 +145,11 @@ export async function removeCustomerWishlistItem({
     .eq('product_id', productId);
 
   if (error || !Array.isArray(data)) {
+    await recordWishlistFailure({
+      action: 'remove',
+      productId,
+      summary: error ? 'Wishlist remove persistence failed' : 'Wishlist remove returned an unexpected result'
+    });
     return {status: 'error', code: 'wishlist_action_failed'};
   }
   return data.length > 0 ? {status: 'removed'} : {status: 'not_found'};

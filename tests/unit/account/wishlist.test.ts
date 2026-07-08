@@ -4,6 +4,7 @@ vi.mock('server-only', () => ({}));
 vi.mock('next/cache', () => ({revalidatePath: vi.fn()}));
 vi.mock('@/auth/guards', () => ({requireUser: vi.fn()}));
 vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient: vi.fn()}));
+vi.mock('@/operations/errors', () => ({recordOperationalFailure: vi.fn()}));
 
 import {
   getCustomerWishlist,
@@ -13,6 +14,7 @@ import {
 } from '@/account/wishlist';
 import {wishlistSignInPath} from '@/auth/redirect';
 import {addCustomerWishlistItem, removeCustomerWishlistItem} from '@/account/wishlist-actions';
+import {recordOperationalFailure} from '@/operations/errors';
 
 const ownerId = '22222222-2222-4222-8222-222222222222';
 const productId = '33333333-3333-4333-8333-333333333333';
@@ -134,6 +136,42 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
       {user_id: ownerId, product_id: productId},
       {onConflict: 'user_id,product_id', ignoreDuplicates: true}
     );
+  });
+
+  test('records sanitized operational failures for wishlist persistence errors', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
+    const addSelect = vi.fn(() => Promise.resolve({data: null, error: {message: 'db unavailable'}}));
+    const upsert = vi.fn(() => ({select: addSelect}));
+    await expect(
+      addCustomerWishlistItem({userId: ownerId, productId, client: {from: vi.fn(() => ({upsert}))} as never})
+    ).resolves.toEqual({status: 'error', code: 'wishlist_action_failed'});
+
+    const removeEqProduct = vi.fn(() => Promise.resolve({data: null, error: {message: 'delete failed'}}));
+    const removeEqUser = vi.fn(() => ({eq: removeEqProduct}));
+    const removeSelect = vi.fn(() => ({eq: removeEqUser}));
+    const deleteCall = vi.fn(() => ({select: removeSelect}));
+    await expect(
+      removeCustomerWishlistItem({userId: ownerId, productId, client: {from: vi.fn(() => ({delete: deleteCall}))} as never})
+    ).resolves.toEqual({status: 'error', code: 'wishlist_action_failed'});
+
+    expect(recordOperationalFailure).toHaveBeenCalledTimes(2);
+    expect(recordOperationalFailure).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        area: 'application',
+        errorCode: 'account.wishlist.add_failed',
+        facts: expect.objectContaining({action: 'add', productId})
+      })
+    );
+    expect(recordOperationalFailure).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        area: 'application',
+        errorCode: 'account.wishlist.remove_failed',
+        facts: expect.objectContaining({action: 'remove', productId})
+      })
+    );
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/user_id|owner|email|phone|address|token/i);
   });
 
   test('shapes guest heart redirects to localized sign-in with a safe product return', () => {

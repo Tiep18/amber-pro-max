@@ -6,6 +6,7 @@ import {parseCustomerShippingAddressInput} from '@/account/addresses';
 import {requireUser} from '@/auth/guards';
 import type {Locale} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {recordOperationalFailure} from '@/operations/errors';
 
 type RpcClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
@@ -58,6 +59,31 @@ function actionStatus(data: unknown): string | null {
   return isRecord(data) && typeof data.status === 'string' ? data.status : null;
 }
 
+async function recordAddressFailure({
+  action,
+  addressId,
+  summary,
+  status
+}: {
+  action: 'save' | 'delete' | 'set_default';
+  addressId: string | null;
+  summary: string;
+  status?: string | null;
+}) {
+  await recordOperationalFailure({
+    area: 'application',
+    severity: 'error',
+    errorCode: `account.address.${action === 'set_default' ? 'default' : action}_failed`,
+    summary,
+    facts: {
+      action,
+      referenceId: addressId,
+      status: status ?? null,
+      code: 'address_action_failed'
+    }
+  });
+}
+
 export async function saveCustomerShippingAddress({
   addressId,
   input,
@@ -90,6 +116,11 @@ export async function saveCustomerShippingAddress({
     p_is_default: address.isDefault
   });
   if (error || !isRecord(data)) {
+    await recordAddressFailure({
+      action: 'save',
+      addressId,
+      summary: error ? 'Customer address save RPC failed' : 'Customer address save returned an unexpected result'
+    });
     return {status: 'error', code: 'address_action_failed'};
   }
   if (data.status === 'saved' && typeof data.address_id === 'string') {
@@ -101,6 +132,12 @@ export async function saveCustomerShippingAddress({
   if (data.status === 'invalid') {
     return {status: 'invalid', code: 'invalid_address'};
   }
+  await recordAddressFailure({
+    action: 'save',
+    addressId,
+    summary: 'Customer address save returned an unsupported status',
+    status: typeof data.status === 'string' ? data.status : null
+  });
   return {status: 'error', code: 'address_action_failed'};
 }
 
@@ -116,10 +153,23 @@ export async function deleteCustomerShippingAddress({
   }
   const {data, error} = await client.rpc('delete_customer_shipping_address', {p_address_id: addressId});
   if (error) {
+    await recordAddressFailure({
+      action: 'delete',
+      addressId,
+      summary: 'Customer address delete RPC failed'
+    });
     return {status: 'error', code: 'address_action_failed'};
   }
   const status = actionStatus(data);
-  return status === 'deleted' ? {status: 'deleted'} : status === 'not_found' ? {status: 'not_found'} : {status: 'error', code: 'address_action_failed'};
+  if (status === 'deleted') return {status: 'deleted'};
+  if (status === 'not_found') return {status: 'not_found'};
+  await recordAddressFailure({
+    action: 'delete',
+    addressId,
+    summary: 'Customer address delete returned an unsupported status',
+    status
+  });
+  return {status: 'error', code: 'address_action_failed'};
 }
 
 export async function setDefaultCustomerShippingAddress({
@@ -134,10 +184,23 @@ export async function setDefaultCustomerShippingAddress({
   }
   const {data, error} = await client.rpc('set_default_customer_shipping_address', {p_address_id: addressId});
   if (error) {
+    await recordAddressFailure({
+      action: 'set_default',
+      addressId,
+      summary: 'Customer address default RPC failed'
+    });
     return {status: 'error', code: 'address_action_failed'};
   }
   const status = actionStatus(data);
-  return status === 'default_set' ? {status: 'default_set'} : status === 'not_found' ? {status: 'not_found'} : {status: 'error', code: 'address_action_failed'};
+  if (status === 'default_set') return {status: 'default_set'};
+  if (status === 'not_found') return {status: 'not_found'};
+  await recordAddressFailure({
+    action: 'set_default',
+    addressId,
+    summary: 'Customer address default returned an unsupported status',
+    status
+  });
+  return {status: 'error', code: 'address_action_failed'};
 }
 
 async function authenticatedClient(locale: Locale): Promise<RpcClient> {

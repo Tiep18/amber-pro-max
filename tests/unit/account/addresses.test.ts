@@ -4,6 +4,7 @@ vi.mock('server-only', () => ({}));
 vi.mock('next/cache', () => ({revalidatePath: vi.fn()}));
 vi.mock('@/auth/guards', () => ({requireUser: vi.fn()}));
 vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient: vi.fn()}));
+vi.mock('@/operations/errors', () => ({recordOperationalFailure: vi.fn()}));
 
 import {
   customerAddressToShippingAddress,
@@ -16,6 +17,7 @@ import {
   saveCustomerShippingAddress,
   setDefaultCustomerShippingAddress
 } from '@/account/address-actions';
+import {recordOperationalFailure} from '@/operations/errors';
 
 const addressId = '11111111-1111-4111-8111-111111111111';
 const ownerId = '22222222-2222-4222-8222-222222222222';
@@ -163,5 +165,52 @@ describe('saved shipping address contracts (ACC-03, D-01, D-02, D-04)', () => {
     await expect(
       setDefaultCustomerShippingAddress({addressId, client: {rpc: defaultRpc} as never})
     ).resolves.toEqual({status: 'default_set'});
+  });
+
+  test('records sanitized operational failures for address RPC errors and unexpected results', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
+    const saveRpc = vi.fn(() => Promise.resolve({data: null, error: {message: 'constraint failed'}}));
+    await expect(
+      saveCustomerShippingAddress({addressId, input: validInput, client: {rpc: saveRpc} as never})
+    ).resolves.toEqual({status: 'error', code: 'address_action_failed'});
+
+    const deleteRpc = vi.fn(() => Promise.resolve({data: {status: 'unknown'}, error: null}));
+    await expect(
+      deleteCustomerShippingAddress({addressId, client: {rpc: deleteRpc} as never})
+    ).resolves.toEqual({status: 'error', code: 'address_action_failed'});
+
+    const defaultRpc = vi.fn(() => Promise.resolve({data: null, error: {message: 'rpc failed'}}));
+    await expect(
+      setDefaultCustomerShippingAddress({addressId, client: {rpc: defaultRpc} as never})
+    ).resolves.toEqual({status: 'error', code: 'address_action_failed'});
+
+    expect(recordOperationalFailure).toHaveBeenCalledTimes(3);
+    expect(recordOperationalFailure).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        area: 'application',
+        errorCode: 'account.address.save_failed',
+        facts: expect.objectContaining({action: 'save', referenceId: addressId})
+      })
+    );
+    expect(recordOperationalFailure).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        area: 'application',
+        errorCode: 'account.address.delete_failed',
+        facts: expect.objectContaining({action: 'delete', referenceId: addressId, status: 'unknown'})
+      })
+    );
+    expect(recordOperationalFailure).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        area: 'application',
+        errorCode: 'account.address.default_failed',
+        facts: expect.objectContaining({action: 'set_default', referenceId: addressId})
+      })
+    );
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(
+      /Taylor Customer|\+15551234567|Market Street|94105|email|token/i
+    );
   });
 });
