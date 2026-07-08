@@ -25,6 +25,35 @@ type RetryCandidate = {
   availableAt: string | null;
 };
 
+async function recordAdminEmailFailure(input: {
+  action: string;
+  errorCode: string;
+  summary: string;
+  code: AdminEmailActionResult extends {status: 'error'; code: infer Code} ? Code : string;
+  emailId?: string;
+  orderId?: string;
+  orderNumber?: string;
+  entitlementId?: string;
+  emailType?: string;
+}) {
+  const {recordOperationalFailure} = await import('@/operations/errors');
+  await recordOperationalFailure({
+    area: 'email',
+    severity: 'error',
+    errorCode: input.errorCode,
+    summary: input.summary,
+    facts: {
+      action: input.action,
+      referenceId: input.emailId,
+      orderId: input.orderId,
+      orderNumber: input.orderNumber,
+      entitlementId: input.entitlementId,
+      emailType: input.emailType,
+      code: input.code
+    }
+  });
+}
+
 function getFormString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === 'string' ? value : undefined;
@@ -115,6 +144,13 @@ export async function retryTransactionalEmailAction(formData: FormData): Promise
   };
   const {data, error} = await client.from('transactional_email_outbox').select('id,status,available_at').eq('id', parsed.data.emailId).maybeSingle();
   if (error || !data || typeof data !== 'object' || Array.isArray(data)) {
+    await recordAdminEmailFailure({
+      action: 'email_retry_lookup',
+      errorCode: 'admin_email_retry_lookup_failed',
+      summary: 'Admin transactional email retry lookup failed',
+      code: 'email_action_failed',
+      emailId: parsed.data.emailId
+    });
     return {status: 'error', code: 'email_action_failed'};
   }
 
@@ -130,7 +166,17 @@ export async function retryTransactionalEmailAction(formData: FormData): Promise
     return candidate;
   }
 
-  await client.from('transactional_email_outbox').update({status: 'pending', available_at: new Date().toISOString(), updated_at: new Date().toISOString()}).eq('id', parsed.data.emailId);
+  const retryUpdate = await client.from('transactional_email_outbox').update({status: 'pending', available_at: new Date().toISOString(), updated_at: new Date().toISOString()}).eq('id', parsed.data.emailId);
+  if (retryUpdate.error) {
+    await recordAdminEmailFailure({
+      action: 'email_retry',
+      errorCode: 'admin_email_retry_failed',
+      summary: 'Admin transactional email retry failed',
+      code: 'email_action_failed',
+      emailId: parsed.data.emailId
+    });
+    return {status: 'error', code: 'email_action_failed'};
+  }
   revalidatePath('/admin/orders');
   return {status: 'queued'};
 }
@@ -162,12 +208,32 @@ export async function resendDownloadEmailAction(formData: FormData): Promise<Adm
   if (!recipientEmail) {
     const entitlement = await client.from('digital_entitlements').select('contact_email').eq('id', parsed.data.entitlementId).maybeSingle();
     if (entitlement.error || !entitlement.data || typeof entitlement.data !== 'object' || Array.isArray(entitlement.data)) {
+      await recordAdminEmailFailure({
+        action: 'download_email_recipient_lookup',
+        errorCode: 'admin_download_resend_recipient_lookup_failed',
+        summary: 'Admin download email recipient lookup failed',
+        code: 'email_action_failed',
+        orderId: parsed.data.orderId,
+        orderNumber: parsed.data.orderNumber,
+        entitlementId: parsed.data.entitlementId,
+        emailType: 'digital_access_reissued'
+      });
       return {status: 'error', code: 'email_action_failed'};
     }
     const row = entitlement.data as {contact_email?: unknown};
     recipientEmail = typeof row.contact_email === 'string' ? row.contact_email : undefined;
   }
   if (!recipientEmail) {
+    await recordAdminEmailFailure({
+      action: 'download_email_recipient_missing',
+      errorCode: 'admin_download_resend_recipient_missing',
+      summary: 'Admin download email recipient missing',
+      code: 'email_action_failed',
+      orderId: parsed.data.orderId,
+      orderNumber: parsed.data.orderNumber,
+      entitlementId: parsed.data.entitlementId,
+      emailType: 'digital_access_reissued'
+    });
     return {status: 'error', code: 'email_action_failed'};
   }
 
@@ -175,6 +241,16 @@ export async function resendDownloadEmailAction(formData: FormData): Promise<Adm
   const outbox = await client.from('transactional_email_outbox').insert(intent.outbox);
   const audit = await client.from('fulfillment_audit_events').insert(intent.audit);
   if (outbox.error || audit.error) {
+    await recordAdminEmailFailure({
+      action: 'download_email_resend',
+      errorCode: 'admin_download_resend_failed',
+      summary: 'Admin download email resend failed',
+      code: 'email_action_failed',
+      orderId: parsed.data.orderId,
+      orderNumber: parsed.data.orderNumber,
+      entitlementId: parsed.data.entitlementId,
+      emailType: 'digital_access_reissued'
+    });
     return {status: 'error', code: 'email_action_failed'};
   }
   revalidatePath('/admin/orders');
