@@ -4,7 +4,7 @@ import {revalidatePath} from 'next/cache';
 import {z} from 'zod';
 import {requireAdmin} from '@/auth/guards';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 export type CreateShippingProfileResult =
   | {status: 'created'; profileId: string}
@@ -38,27 +38,6 @@ function moneyToMinor(value: string, currencyCode: 'VND' | 'USD') {
   return currencyCode === 'USD' ? Math.round(parsed * 100) : Math.round(parsed);
 }
 
-async function recordShippingFailure(input: {
-  action: 'shipping_profile_create' | 'shipping_rule_create' | 'shipping_deactivate';
-  resultCode: 'create_failed' | 'deactivate_failed';
-  summary: string;
-  referenceId?: string;
-  currency?: 'VND' | 'USD';
-}) {
-  await recordOperationalFailure({
-    area: 'admin',
-    severity: 'error',
-    errorCode: input.resultCode === 'create_failed' ? 'shipping_create_failed' : 'shipping_deactivate_failed',
-    summary: input.summary,
-    facts: {
-      action: input.action,
-      code: input.resultCode,
-      referenceId: input.referenceId,
-      currency: input.currency
-    }
-  });
-}
-
 export async function createShippingProfileAction(formData: FormData): Promise<CreateShippingProfileResult> {
   await requireAdmin();
   const parsed = shippingProfileFormSchema.safeParse({
@@ -79,42 +58,51 @@ export async function createShippingProfileAction(formData: FormData): Promise<C
     return {status: 'invalid', code: 'invalid_fee'};
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {data: profile, error: profileError} = await supabase
-    .from('shipping_profiles')
-    .insert({name: parsed.data.name, description: parsed.data.description ?? ''})
-    .select('id')
-    .single();
-  if (profileError || !profile) {
-    await recordShippingFailure({
-      action: 'shipping_profile_create',
-      resultCode: 'create_failed',
-      summary: 'Admin shipping profile creation failed',
-      currency: parsed.data.currencyCode
-    });
-    return {status: 'error', code: 'create_failed'};
-  }
+  let failurePhase: 'shipping_profile_create' | 'shipping_rule_create' = 'shipping_profile_create';
+  let referenceId: string | undefined;
 
-  const {error: ruleError} = await supabase.from('shipping_rules').insert({
-    profile_id: profile.id,
-    country_code: parsed.data.countryCode,
-    currency_code: parsed.data.currencyCode,
-    first_item_fee_minor: firstItemFeeMinor,
-    additional_item_fee_minor: additionalItemFeeMinor
+  return runMonitoredAction({
+    area: 'admin',
+    action: 'shipping_create',
+    errorCode: 'shipping_create_failed',
+    summary: 'Admin shipping creation failed',
+    facts: {
+      currency: parsed.data.currencyCode
+    },
+    errorResult: {status: 'error', code: 'create_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    factsFromResult: () => ({
+      phase: failurePhase,
+      ...(referenceId ? {referenceId} : {})
+    }),
+    operation: async () => {
+      const supabase = await createSupabaseServerClient();
+      const {data: profile, error: profileError} = await supabase
+        .from('shipping_profiles')
+        .insert({name: parsed.data.name, description: parsed.data.description ?? ''})
+        .select('id')
+        .single();
+      if (profileError || !profile) {
+        return {status: 'error', code: 'create_failed'} as const;
+      }
+
+      failurePhase = 'shipping_rule_create';
+      referenceId = profile.id;
+      const {error: ruleError} = await supabase.from('shipping_rules').insert({
+        profile_id: profile.id,
+        country_code: parsed.data.countryCode,
+        currency_code: parsed.data.currencyCode,
+        first_item_fee_minor: firstItemFeeMinor,
+        additional_item_fee_minor: additionalItemFeeMinor
+      });
+      if (ruleError) {
+        return {status: 'error', code: 'create_failed'} as const;
+      }
+
+      revalidatePath('/admin/shipping');
+      return {status: 'created', profileId: profile.id} as const;
+    }
   });
-  if (ruleError) {
-    await recordShippingFailure({
-      action: 'shipping_rule_create',
-      resultCode: 'create_failed',
-      summary: 'Admin shipping rule creation failed',
-      referenceId: profile.id,
-      currency: parsed.data.currencyCode
-    });
-    return {status: 'error', code: 'create_failed'};
-  }
-
-  revalidatePath('/admin/shipping');
-  return {status: 'created', profileId: profile.id};
 }
 
 export async function deactivateShippingProfileAction(profileId: string): Promise<DeactivateShippingProfileResult> {
@@ -124,35 +112,40 @@ export async function deactivateShippingProfileAction(profileId: string): Promis
     return {status: 'invalid', code: 'invalid_shipping_profile'};
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {error: profileError} = await supabase
-    .from('shipping_profiles')
-    .update({active: false, updated_at: new Date().toISOString()})
-    .eq('id', parsed.data.profileId);
-  if (profileError) {
-    await recordShippingFailure({
-      action: 'shipping_deactivate',
-      resultCode: 'deactivate_failed',
-      summary: 'Admin shipping profile deactivation failed',
-      referenceId: parsed.data.profileId
-    });
-    return {status: 'error', code: 'deactivate_failed'};
-  }
+  let failurePhase: 'shipping_profile_deactivate' | 'shipping_rule_deactivate' = 'shipping_profile_deactivate';
 
-  const {error: ruleError} = await supabase
-    .from('shipping_rules')
-    .update({active: false, updated_at: new Date().toISOString()})
-    .eq('profile_id', parsed.data.profileId);
-  if (ruleError) {
-    await recordShippingFailure({
-      action: 'shipping_deactivate',
-      resultCode: 'deactivate_failed',
-      summary: 'Admin shipping rule deactivation failed',
+  return runMonitoredAction({
+    area: 'admin',
+    action: 'shipping_deactivate',
+    errorCode: 'shipping_deactivate_failed',
+    summary: 'Admin shipping deactivation failed',
+    facts: {
       referenceId: parsed.data.profileId
-    });
-    return {status: 'error', code: 'deactivate_failed'};
-  }
+    },
+    errorResult: {status: 'error', code: 'deactivate_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    factsFromResult: () => ({phase: failurePhase}),
+    operation: async () => {
+      const supabase = await createSupabaseServerClient();
+      const {error: profileError} = await supabase
+        .from('shipping_profiles')
+        .update({active: false, updated_at: new Date().toISOString()})
+        .eq('id', parsed.data.profileId);
+      if (profileError) {
+        return {status: 'error', code: 'deactivate_failed'} as const;
+      }
 
-  revalidatePath('/admin/shipping');
-  return {status: 'deactivated'};
+      failurePhase = 'shipping_rule_deactivate';
+      const {error: ruleError} = await supabase
+        .from('shipping_rules')
+        .update({active: false, updated_at: new Date().toISOString()})
+        .eq('profile_id', parsed.data.profileId);
+      if (ruleError) {
+        return {status: 'error', code: 'deactivate_failed'} as const;
+      }
+
+      revalidatePath('/admin/shipping');
+      return {status: 'deactivated'} as const;
+    }
+  });
 }

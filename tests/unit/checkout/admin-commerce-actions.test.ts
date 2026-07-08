@@ -130,10 +130,11 @@ describe('admin commerce operational recording', () => {
         area: 'admin',
         severity: 'error',
         errorCode: 'shipping_create_failed',
-        summary: 'Admin shipping rule creation failed',
+        summary: 'Admin shipping creation failed',
         facts: expect.objectContaining({
-          action: 'shipping_rule_create',
+          action: 'shipping_create',
           code: 'create_failed',
+          phase: 'shipping_rule_create',
           referenceId: profileId,
           currency: 'VND'
         })
@@ -156,14 +157,62 @@ describe('admin commerce operational recording', () => {
         area: 'admin',
         severity: 'error',
         errorCode: 'shipping_deactivate_failed',
-        summary: 'Admin shipping profile deactivation failed',
+        summary: 'Admin shipping deactivation failed',
         facts: expect.objectContaining({
           action: 'shipping_deactivate',
           code: 'deactivate_failed',
+          phase: 'shipping_profile_deactivate',
           referenceId: profileId
         })
       })
     );
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/db timeout/i);
+  });
+
+  test('keeps admin commerce error states when operational recording fails', async () => {
+    recordOperationalFailure.mockRejectedValue(new Error('operational table unavailable'));
+
+    createSupabaseServerClient.mockResolvedValueOnce({
+      from: vi.fn(() => ({
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn(async () => ({data: null, error: {message: 'discount failed'}}))
+          }))
+        }))
+      }))
+    });
+    await expect(createDiscountCodeAction(discountForm())).resolves.toEqual({status: 'error', code: 'create_failed'});
+
+    createSupabaseServerClient.mockResolvedValueOnce({
+      from: vi.fn(() => ({
+        update: vi.fn(() => ({
+          eq: vi.fn(async () => ({error: {message: 'disable failed'}}))
+        }))
+      }))
+    });
+    await expect(disableDiscountCodeAction(discountId)).resolves.toEqual({status: 'error', code: 'disable_failed'});
+
+    createSupabaseServerClient.mockResolvedValueOnce({
+      from: vi.fn(() => ({
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn(async () => ({data: null, error: {message: 'profile failed'}}))
+          }))
+        }))
+      }))
+    });
+    await expect(createShippingProfileAction(shippingForm())).resolves.toEqual({status: 'error', code: 'create_failed'});
+
+    createSupabaseServerClient.mockResolvedValueOnce({
+      from: vi.fn(() => ({
+        update: vi.fn(() => ({
+          eq: vi.fn(async () => ({error: {message: 'deactivate failed'}}))
+        }))
+      }))
+    });
+    await expect(deactivateShippingProfileAction(profileId)).resolves.toEqual({
+      status: 'error',
+      code: 'deactivate_failed'
+    });
   });
 });

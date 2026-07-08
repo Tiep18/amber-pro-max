@@ -4,7 +4,7 @@ import {revalidatePath} from 'next/cache';
 import {z} from 'zod';
 import {requireAdmin} from '@/auth/guards';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 export type CreateDiscountCodeResult =
   | {status: 'created'; discountId: string}
@@ -52,30 +52,6 @@ function percentToBps(value: string | undefined) {
   return Math.round(parsed * 100);
 }
 
-async function recordDiscountFailure(input: {
-  action: 'discount_create' | 'discount_disable';
-  errorCode: 'discount_create_failed' | 'discount_disable_failed';
-  resultCode: 'create_failed' | 'disable_failed';
-  summary: string;
-  referenceId?: string;
-  market?: 'vn' | 'intl' | null;
-  currency?: 'VND' | 'USD' | null;
-}) {
-  await recordOperationalFailure({
-    area: 'admin',
-    severity: 'error',
-    errorCode: input.errorCode,
-    summary: input.summary,
-    facts: {
-      action: input.action,
-      code: input.resultCode,
-      referenceId: input.referenceId,
-      market: input.market ?? undefined,
-      currency: input.currency ?? undefined
-    }
-  });
-}
-
 export async function createDiscountCodeAction(formData: FormData): Promise<CreateDiscountCodeResult> {
   await requireAdmin();
   const parsed = discountCodeFormSchema.safeParse({
@@ -112,36 +88,42 @@ export async function createDiscountCodeAction(formData: FormData): Promise<Crea
     return {status: 'invalid', code: 'invalid_discount'};
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {data, error} = await supabase
-    .from('discount_codes')
-    .insert({
-      code,
-      description: parsed.data.description ?? '',
-      discount_type: parsed.data.discountType,
-      percentage_bps: percentageBps,
-      amount_minor: amountMinor,
-      currency_code: currencyCode,
-      market,
-      minimum_subtotal_minor: minimumSubtotalMinor,
-      usage_limit: usageLimit
-    })
-    .select('id')
-    .single();
-  if (error || !data) {
-    await recordDiscountFailure({
-      action: 'discount_create',
-      errorCode: 'discount_create_failed',
-      resultCode: 'create_failed',
-      summary: 'Admin discount code creation failed',
-      market,
-      currency: currencyCode
-    });
-    return {status: 'error', code: 'create_failed'};
-  }
+  return runMonitoredAction({
+    area: 'admin',
+    action: 'discount_create',
+    errorCode: 'discount_create_failed',
+    summary: 'Admin discount code creation failed',
+    facts: {
+      ...(market ? {market} : {}),
+      ...(currencyCode ? {currency: currencyCode} : {})
+    },
+    errorResult: {status: 'error', code: 'create_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    operation: async () => {
+      const supabase = await createSupabaseServerClient();
+      const {data, error} = await supabase
+        .from('discount_codes')
+        .insert({
+          code,
+          description: parsed.data.description ?? '',
+          discount_type: parsed.data.discountType,
+          percentage_bps: percentageBps,
+          amount_minor: amountMinor,
+          currency_code: currencyCode,
+          market,
+          minimum_subtotal_minor: minimumSubtotalMinor,
+          usage_limit: usageLimit
+        })
+        .select('id')
+        .single();
+      if (error || !data) {
+        return {status: 'error', code: 'create_failed'} as const;
+      }
 
-  revalidatePath('/admin/discounts');
-  return {status: 'created', discountId: data.id};
+      revalidatePath('/admin/discounts');
+      return {status: 'created', discountId: data.id} as const;
+    }
+  });
 }
 
 export async function disableDiscountCodeAction(discountId: string): Promise<DisableDiscountCodeResult> {
@@ -151,22 +133,28 @@ export async function disableDiscountCodeAction(discountId: string): Promise<Dis
     return {status: 'invalid', code: 'invalid_discount'};
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {error} = await supabase
-    .from('discount_codes')
-    .update({active: false, updated_at: new Date().toISOString()})
-    .eq('id', parsed.data.discountId);
-  if (error) {
-    await recordDiscountFailure({
-      action: 'discount_disable',
-      errorCode: 'discount_disable_failed',
-      resultCode: 'disable_failed',
-      summary: 'Admin discount code disable failed',
+  return runMonitoredAction({
+    area: 'admin',
+    action: 'discount_disable',
+    errorCode: 'discount_disable_failed',
+    summary: 'Admin discount code disable failed',
+    facts: {
       referenceId: parsed.data.discountId
-    });
-    return {status: 'error', code: 'disable_failed'};
-  }
+    },
+    errorResult: {status: 'error', code: 'disable_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    operation: async () => {
+      const supabase = await createSupabaseServerClient();
+      const {error} = await supabase
+        .from('discount_codes')
+        .update({active: false, updated_at: new Date().toISOString()})
+        .eq('id', parsed.data.discountId);
+      if (error) {
+        return {status: 'error', code: 'disable_failed'} as const;
+      }
 
-  revalidatePath('/admin/discounts');
-  return {status: 'disabled'};
+      revalidatePath('/admin/discounts');
+      return {status: 'disabled'} as const;
+    }
+  });
 }
