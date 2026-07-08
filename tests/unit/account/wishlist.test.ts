@@ -106,6 +106,32 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
     });
   });
 
+  test('records sanitized operational failures for wishlist load errors', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
+    const client = {
+      rpc: vi.fn(() => Promise.resolve({data: null, error: {message: 'relation private.wishlist_secret does not exist'}}))
+    };
+
+    await expect(
+      getCustomerWishlist({userId: ownerId, locale: 'en', market: 'intl', client: client as never})
+    ).resolves.toEqual({status: 'error', code: 'wishlist_load_failed'});
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'application',
+        severity: 'error',
+        errorCode: 'account.wishlist.load_failed',
+        summary: 'Customer wishlist load failed',
+        facts: expect.objectContaining({
+          action: 'wishlist_load',
+          market: 'intl',
+          code: 'wishlist_load_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/wishlist_secret|relation|private|owner|user_id|email|token/i);
+  });
+
   test('maps remove results without mutating cart state', async () => {
     const eqProduct = vi.fn(() => Promise.resolve({data: [{id: wishlistId}], error: null}));
     const eqUser = vi.fn(() => ({eq: eqProduct}));

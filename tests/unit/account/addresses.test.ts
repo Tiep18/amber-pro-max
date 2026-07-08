@@ -137,6 +137,33 @@ describe('saved shipping address contracts (ACC-03, D-01, D-02, D-04)', () => {
     expect(order).toHaveBeenCalledWith('created_at', {ascending: true});
   });
 
+  test('records sanitized operational failures for saved address load errors', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
+    const order = vi.fn(() => Promise.resolve({data: null, error: {message: 'relation private.address_notes does not exist'}}));
+    const eq = vi.fn(() => ({order}));
+    const select = vi.fn(() => ({eq}));
+    const client = {from: vi.fn(() => ({select}))};
+
+    await expect(getCustomerShippingAddresses({userId: ownerId, client: client as never})).resolves.toEqual({
+      status: 'error',
+      code: 'addresses_load_failed'
+    });
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'application',
+        severity: 'error',
+        errorCode: 'account.addresses.load_failed',
+        summary: 'Customer shipping addresses load failed',
+        facts: expect.objectContaining({
+          action: 'addresses_load',
+          code: 'addresses_load_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/address_notes|relation|private|owner|user_id|Taylor|Market Street|phone|email|token/i);
+  });
+
   test('saves through the atomic RPC without accepting a browser owner id', async () => {
     const rpc = vi.fn(() => Promise.resolve({data: {status: 'saved', address_id: addressId}, error: null}));
 

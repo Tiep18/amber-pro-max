@@ -1,5 +1,6 @@
 import {z} from 'zod';
 import {shippingAddressSchema, type ShippingAddress} from '@/checkout/shipping-address';
+import {recordOperationalFailure} from '@/operations/errors';
 
 export const customerShippingAddressInputSchema = shippingAddressSchema.extend({
   label: z.string().trim().min(1).max(80),
@@ -106,6 +107,16 @@ export async function getCustomerShippingAddresses({
     );
   const {data, error} = await query.eq('user_id', userId).order('created_at', {ascending: true});
   if (error || !Array.isArray(data)) {
+    await recordOperationalFailure({
+      area: 'application',
+      severity: 'error',
+      errorCode: 'account.addresses.load_failed',
+      summary: error ? 'Customer shipping addresses load failed' : 'Customer shipping addresses returned an unexpected result',
+      facts: {
+        action: 'addresses_load',
+        code: 'addresses_load_failed'
+      }
+    });
     return {status: 'error', code: 'addresses_load_failed'};
   }
 

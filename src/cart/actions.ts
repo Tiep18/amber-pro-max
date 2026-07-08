@@ -4,6 +4,7 @@ import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {getRequestMarket} from '@/catalog/page-context';
 import {quoteCartIntent} from '@/checkout/quote';
 import {quoteCartInputSchema, type CartQuote} from '@/checkout/types';
+import {recordOperationalFailure} from '@/operations/errors';
 
 export type CartQuoteActionState =
   | {status: 'success'; quote: CartQuote}
@@ -21,6 +22,17 @@ export async function refreshCartQuoteAction(input: unknown): Promise<CartQuoteA
     const quote = await quoteCartIntent({...parsed.data, market, client});
     return {status: 'success', quote};
   } catch {
+    await recordOperationalFailure({
+      area: 'checkout',
+      severity: 'error',
+      errorCode: 'cart.quote_refresh_failed',
+      summary: 'Cart quote refresh failed',
+      facts: {
+        action: 'cart_quote_refresh',
+        market: parsed.data.locale === 'vi' ? 'vn' : 'intl',
+        code: 'quote_failed'
+      }
+    });
     return {status: 'error', code: 'quote_failed'};
   }
 }
