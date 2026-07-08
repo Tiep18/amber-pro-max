@@ -4,6 +4,7 @@ import {revalidatePath} from 'next/cache';
 import {z} from 'zod';
 import {requireAdmin} from '@/auth/guards';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {recordOperationalFailure} from '@/operations/errors';
 
 export type CreateDiscountCodeResult =
   | {status: 'created'; discountId: string}
@@ -49,6 +50,30 @@ function percentToBps(value: string | undefined) {
     return null;
   }
   return Math.round(parsed * 100);
+}
+
+async function recordDiscountFailure(input: {
+  action: 'discount_create' | 'discount_disable';
+  errorCode: 'discount_create_failed' | 'discount_disable_failed';
+  resultCode: 'create_failed' | 'disable_failed';
+  summary: string;
+  referenceId?: string;
+  market?: 'vn' | 'intl' | null;
+  currency?: 'VND' | 'USD' | null;
+}) {
+  await recordOperationalFailure({
+    area: 'admin',
+    severity: 'error',
+    errorCode: input.errorCode,
+    summary: input.summary,
+    facts: {
+      action: input.action,
+      code: input.resultCode,
+      referenceId: input.referenceId,
+      market: input.market ?? undefined,
+      currency: input.currency ?? undefined
+    }
+  });
 }
 
 export async function createDiscountCodeAction(formData: FormData): Promise<CreateDiscountCodeResult> {
@@ -104,6 +129,14 @@ export async function createDiscountCodeAction(formData: FormData): Promise<Crea
     .select('id')
     .single();
   if (error || !data) {
+    await recordDiscountFailure({
+      action: 'discount_create',
+      errorCode: 'discount_create_failed',
+      resultCode: 'create_failed',
+      summary: 'Admin discount code creation failed',
+      market,
+      currency: currencyCode
+    });
     return {status: 'error', code: 'create_failed'};
   }
 
@@ -124,6 +157,13 @@ export async function disableDiscountCodeAction(discountId: string): Promise<Dis
     .update({active: false, updated_at: new Date().toISOString()})
     .eq('id', parsed.data.discountId);
   if (error) {
+    await recordDiscountFailure({
+      action: 'discount_disable',
+      errorCode: 'discount_disable_failed',
+      resultCode: 'disable_failed',
+      summary: 'Admin discount code disable failed',
+      referenceId: parsed.data.discountId
+    });
     return {status: 'error', code: 'disable_failed'};
   }
 

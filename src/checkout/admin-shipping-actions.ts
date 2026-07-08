@@ -4,6 +4,7 @@ import {revalidatePath} from 'next/cache';
 import {z} from 'zod';
 import {requireAdmin} from '@/auth/guards';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {recordOperationalFailure} from '@/operations/errors';
 
 export type CreateShippingProfileResult =
   | {status: 'created'; profileId: string}
@@ -37,6 +38,27 @@ function moneyToMinor(value: string, currencyCode: 'VND' | 'USD') {
   return currencyCode === 'USD' ? Math.round(parsed * 100) : Math.round(parsed);
 }
 
+async function recordShippingFailure(input: {
+  action: 'shipping_profile_create' | 'shipping_rule_create' | 'shipping_deactivate';
+  resultCode: 'create_failed' | 'deactivate_failed';
+  summary: string;
+  referenceId?: string;
+  currency?: 'VND' | 'USD';
+}) {
+  await recordOperationalFailure({
+    area: 'admin',
+    severity: 'error',
+    errorCode: input.resultCode === 'create_failed' ? 'shipping_create_failed' : 'shipping_deactivate_failed',
+    summary: input.summary,
+    facts: {
+      action: input.action,
+      code: input.resultCode,
+      referenceId: input.referenceId,
+      currency: input.currency
+    }
+  });
+}
+
 export async function createShippingProfileAction(formData: FormData): Promise<CreateShippingProfileResult> {
   await requireAdmin();
   const parsed = shippingProfileFormSchema.safeParse({
@@ -64,6 +86,12 @@ export async function createShippingProfileAction(formData: FormData): Promise<C
     .select('id')
     .single();
   if (profileError || !profile) {
+    await recordShippingFailure({
+      action: 'shipping_profile_create',
+      resultCode: 'create_failed',
+      summary: 'Admin shipping profile creation failed',
+      currency: parsed.data.currencyCode
+    });
     return {status: 'error', code: 'create_failed'};
   }
 
@@ -75,6 +103,13 @@ export async function createShippingProfileAction(formData: FormData): Promise<C
     additional_item_fee_minor: additionalItemFeeMinor
   });
   if (ruleError) {
+    await recordShippingFailure({
+      action: 'shipping_rule_create',
+      resultCode: 'create_failed',
+      summary: 'Admin shipping rule creation failed',
+      referenceId: profile.id,
+      currency: parsed.data.currencyCode
+    });
     return {status: 'error', code: 'create_failed'};
   }
 
@@ -95,6 +130,12 @@ export async function deactivateShippingProfileAction(profileId: string): Promis
     .update({active: false, updated_at: new Date().toISOString()})
     .eq('id', parsed.data.profileId);
   if (profileError) {
+    await recordShippingFailure({
+      action: 'shipping_deactivate',
+      resultCode: 'deactivate_failed',
+      summary: 'Admin shipping profile deactivation failed',
+      referenceId: parsed.data.profileId
+    });
     return {status: 'error', code: 'deactivate_failed'};
   }
 
@@ -103,6 +144,12 @@ export async function deactivateShippingProfileAction(profileId: string): Promis
     .update({active: false, updated_at: new Date().toISOString()})
     .eq('profile_id', parsed.data.profileId);
   if (ruleError) {
+    await recordShippingFailure({
+      action: 'shipping_deactivate',
+      resultCode: 'deactivate_failed',
+      summary: 'Admin shipping rule deactivation failed',
+      referenceId: parsed.data.profileId
+    });
     return {status: 'error', code: 'deactivate_failed'};
   }
 
