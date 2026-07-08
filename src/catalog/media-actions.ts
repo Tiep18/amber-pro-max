@@ -5,6 +5,7 @@ import {revalidatePath} from 'next/cache';
 import {requireAdmin} from '@/auth/guards';
 import {invalidateCatalogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {recordOperationalFailure} from '@/operations/errors';
 import {
   MAX_PATTERN_PDF_BYTES,
   MAX_PRODUCT_IMAGE_BYTES,
@@ -56,6 +57,29 @@ function revalidateMedia(productId: string) {
   revalidatePath(`/admin/catalog/${productId}`);
   revalidatePath(`/admin/catalog/${productId}/media`);
   invalidateCatalogCache();
+}
+
+async function recordMediaFailure(input: {
+  action: string;
+  errorCode: string;
+  summary: string;
+  productId?: string;
+  referenceId?: string;
+  code: MediaActionCode;
+  severity?: 'warning' | 'error';
+}) {
+  await recordOperationalFailure({
+    area: 'admin',
+    severity: input.severity ?? 'error',
+    errorCode: input.errorCode,
+    summary: input.summary,
+    facts: {
+      action: input.action,
+      productId: input.productId ?? null,
+      referenceId: input.referenceId ?? null,
+      code: input.code
+    }
+  });
 }
 
 async function productExists(productId: string) {
@@ -125,6 +149,13 @@ export async function uploadProductImageAction(formData: FormData): Promise<Medi
     upsert: false
   });
   if (upload.error) {
+    await recordMediaFailure({
+      action: 'media_upload',
+      errorCode: 'catalog_media_upload_failed',
+      summary: 'Catalog media upload failed',
+      productId: parsed.data,
+      code: 'upload_failed'
+    });
     return {status: 'error', code: 'upload_failed'};
   }
 
@@ -139,6 +170,13 @@ export async function uploadProductImageAction(formData: FormData): Promise<Medi
   });
   if (error) {
     await removeStorageObject(PRODUCT_MEDIA_BUCKET, objectPath);
+    await recordMediaFailure({
+      action: 'media_association',
+      errorCode: 'catalog_media_association_failed',
+      summary: 'Catalog media association failed',
+      productId: parsed.data,
+      code: 'association_failed'
+    });
     return {status: 'error', code: 'association_failed'};
   }
 
@@ -170,6 +208,14 @@ export async function updateProductMediaDetailsAction(formData: FormData): Promi
     .eq('id', parsed.data.mediaId)
     .eq('product_id', parsed.data.productId);
   if (error) {
+    await recordMediaFailure({
+      action: 'media_update',
+      errorCode: 'catalog_media_update_failed',
+      summary: 'Catalog media update failed',
+      productId: parsed.data.productId,
+      referenceId: parsed.data.mediaId,
+      code: 'update_failed'
+    });
     return {status: 'error', code: 'update_failed'};
   }
 
@@ -194,6 +240,14 @@ export async function setPrimaryProductImageAction(productId: string, mediaId: s
     .eq('product_id', parsed.data.productId)
     .eq('is_primary', true);
   if (clearResult.error) {
+    await recordMediaFailure({
+      action: 'media_primary_clear',
+      errorCode: 'catalog_media_primary_update_failed',
+      summary: 'Catalog media primary update failed',
+      productId: parsed.data.productId,
+      referenceId: parsed.data.mediaId,
+      code: 'update_failed'
+    });
     return {status: 'error', code: 'update_failed'};
   }
 
@@ -203,6 +257,14 @@ export async function setPrimaryProductImageAction(productId: string, mediaId: s
     .eq('id', parsed.data.mediaId)
     .eq('product_id', parsed.data.productId);
   if (error) {
+    await recordMediaFailure({
+      action: 'media_primary_set',
+      errorCode: 'catalog_media_primary_update_failed',
+      summary: 'Catalog media primary update failed',
+      productId: parsed.data.productId,
+      referenceId: parsed.data.mediaId,
+      code: 'update_failed'
+    });
     return {status: 'error', code: 'update_failed'};
   }
 
@@ -236,6 +298,14 @@ export async function setProductSocialImageAction(
     .eq('product_id', parsed.data.productId)
     .eq('locale', parsed.data.locale);
   if (error) {
+    await recordMediaFailure({
+      action: 'media_social_set',
+      errorCode: 'catalog_media_social_update_failed',
+      summary: 'Catalog media social image update failed',
+      productId: parsed.data.productId,
+      referenceId: parsed.data.mediaId,
+      code: 'update_failed'
+    });
     return {status: 'error', code: 'update_failed'};
   }
 
@@ -258,17 +328,36 @@ export async function removeProductMediaAction(productId: string, mediaId: strin
   }
 
   const supabase = await createSupabaseServerClient();
-  await supabase
+  const clearSocialResult = await supabase
     .from('product_translations')
     .update({social_image_bucket: null, social_image_path: null, updated_at: new Date().toISOString()})
     .eq('product_id', parsed.data.productId)
     .eq('social_image_path', media.object_path);
+  if (clearSocialResult.error) {
+    await recordMediaFailure({
+      action: 'media_remove_social_clear',
+      errorCode: 'catalog_media_social_clear_failed',
+      summary: 'Catalog media social image clear failed',
+      productId: parsed.data.productId,
+      referenceId: parsed.data.mediaId,
+      code: 'update_failed',
+      severity: 'warning'
+    });
+  }
   const {error} = await supabase
     .from('product_media')
     .delete()
     .eq('id', parsed.data.mediaId)
     .eq('product_id', parsed.data.productId);
   if (error) {
+    await recordMediaFailure({
+      action: 'media_remove',
+      errorCode: 'catalog_media_remove_failed',
+      summary: 'Catalog media remove failed',
+      productId: parsed.data.productId,
+      referenceId: parsed.data.mediaId,
+      code: 'remove_failed'
+    });
     return {status: 'error', code: 'remove_failed'};
   }
 
@@ -311,6 +400,13 @@ export async function uploadPatternPdfAction(formData: FormData): Promise<MediaA
     upsert: false
   });
   if (upload.error) {
+    await recordMediaFailure({
+      action: 'pattern_pdf_upload',
+      errorCode: 'catalog_pattern_pdf_upload_failed',
+      summary: 'Catalog pattern PDF upload failed',
+      productId: parsed.data.productId,
+      code: 'upload_failed'
+    });
     return {status: 'error', code: 'upload_failed'};
   }
 
@@ -330,6 +426,13 @@ export async function uploadPatternPdfAction(formData: FormData): Promise<MediaA
   );
   if (error) {
     await removeStorageObject(PATTERN_PDF_BUCKET, objectPath);
+    await recordMediaFailure({
+      action: 'pattern_pdf_association',
+      errorCode: 'catalog_pattern_pdf_association_failed',
+      summary: 'Catalog pattern PDF association failed',
+      productId: parsed.data.productId,
+      code: 'association_failed'
+    });
     return {status: 'error', code: 'association_failed'};
   }
 
@@ -360,6 +463,13 @@ export async function removePatternPdfAction(productId: string): Promise<MediaAc
 
   const {error} = await supabase.from('product_digital_assets').delete().eq('product_id', parsed.data.productId);
   if (error) {
+    await recordMediaFailure({
+      action: 'pattern_pdf_remove',
+      errorCode: 'catalog_pattern_pdf_remove_failed',
+      summary: 'Catalog pattern PDF remove failed',
+      productId: parsed.data.productId,
+      code: 'remove_failed'
+    });
     return {status: 'error', code: 'remove_failed'};
   }
 
