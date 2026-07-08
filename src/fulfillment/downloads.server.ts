@@ -7,6 +7,7 @@ import {
   type DownloadStorage
 } from '@/fulfillment/downloads';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
+import {recordOperationalFailure} from '@/operations/errors';
 
 type MaybeSingleResult<T> = Promise<{data: T | null; error: unknown}>;
 type ManyResult<T> = Promise<{data: T[] | null; error: unknown}>;
@@ -99,6 +100,7 @@ export async function authorizeDownloadWithSupabase(input: DownloadRequestInput)
   const client = createSupabaseAdminClient() as unknown as SupabaseLike;
   return authorizeDownloadRequest(input, {
     repository: createSupabaseDownloadRepository(client),
-    storage: createSupabaseDownloadStorage(client)
+    storage: createSupabaseDownloadStorage(client),
+    operationalFailureRecorder: recordOperationalFailure
   });
 }

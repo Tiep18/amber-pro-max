@@ -95,6 +95,73 @@ describe('fulfillment download authorization', () => {
     expect(fake.storage.createSignedUrl).not.toHaveBeenCalled();
   });
 
+  test('records operational failure when entitlement lookup throws', async () => {
+    const recorder = vi.fn().mockResolvedValue({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'});
+    const fake = {
+      repository: {
+        findActiveEntitlementsForOrder: vi.fn().mockRejectedValue(new Error('lookup failed for buyer@example.test'))
+      },
+      storage: {
+        createSignedUrl: vi.fn()
+      },
+      operationalFailureRecorder: recorder,
+      now: () => new Date()
+    };
+
+    const result = await authorizeDownloadRequest(
+      {
+        orderNumber: activeEntitlement.orderNumber,
+        productId: activeEntitlement.productId,
+        rawGuestToken: 'raw-token'
+      },
+      fake
+    );
+
+    expect(result).toEqual({status: 'error', code: 'download_lookup_failed'});
+    expect(recorder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'fulfillment',
+        errorCode: 'download_lookup_failed',
+        summary: 'Download entitlement lookup failed',
+        facts: expect.objectContaining({
+          orderNumber: activeEntitlement.orderNumber,
+          productId: activeEntitlement.productId
+        })
+      })
+    );
+    expect(JSON.stringify(recorder.mock.calls)).not.toMatch(/buyer@example\.test|raw-token/i);
+  });
+
+  test('records operational failure when signed URL creation fails', async () => {
+    const recorder = vi.fn().mockResolvedValue({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'});
+    const fake = deps();
+    fake.storage.createSignedUrl.mockResolvedValue(null);
+
+    const result = await authorizeDownloadRequest(
+      {
+        orderNumber: activeEntitlement.orderNumber,
+        productId: activeEntitlement.productId,
+        userId: activeEntitlement.ownerUserId
+      },
+      {...fake, operationalFailureRecorder: recorder}
+    );
+
+    expect(result).toEqual({status: 'error', code: 'signed_url_failed'});
+    expect(recorder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'fulfillment',
+        errorCode: 'signed_url_failed',
+        summary: 'Download signed URL creation failed',
+        facts: expect.objectContaining({
+          orderNumber: activeEntitlement.orderNumber,
+          productId: activeEntitlement.productId,
+          entitlementId: activeEntitlement.entitlementId
+        })
+      })
+    );
+    expect(JSON.stringify(recorder.mock.calls)).not.toMatch(/signed\.example|patterns\/product-1|raw-token/i);
+  });
+
   test('product-scoped requests choose the matching entitlement when one order has multiple digital items', async () => {
     const matching = {
       ...activeEntitlement,

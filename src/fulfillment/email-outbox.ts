@@ -37,10 +37,19 @@ export type TransactionalEmailSender = {
   >;
 };
 
+type OperationalFailureRecorder = (input: {
+  area: string;
+  severity?: string;
+  errorCode: string;
+  summary: unknown;
+  facts?: unknown;
+}) => Promise<unknown>;
+
 type ProcessInput = {
   repository: TransactionalEmailRepository;
   sender: TransactionalEmailSender;
   config: TransactionalEmailConfig;
+  operationalFailureRecorder?: OperationalFailureRecorder;
   now?: () => Date;
 };
 
@@ -69,6 +78,24 @@ async function renderContextForRow(row: TransactionalEmailRow, repository: Trans
     return {siteUrl, newsletterToken: token.rawToken, expiresAt: token.expiresAt};
   }
   return {siteUrl};
+}
+
+async function recordEmailFailure(
+  recorder: OperationalFailureRecorder | undefined,
+  row: TransactionalEmailRow,
+  input: {severity: 'warning' | 'error'; errorCode: string; summary: string}
+) {
+  await recorder?.({
+    area: 'email',
+    severity: input.severity,
+    errorCode: input.errorCode,
+    summary: input.summary,
+    facts: {
+      emailType: row.eventType,
+      orderId: row.orderId ?? undefined,
+      entitlementId: row.entitlementId ?? undefined
+    }
+  });
 }
 
 export async function processTransactionalEmailBatch(input: ProcessInput) {
@@ -100,13 +127,28 @@ export async function processTransactionalEmailBatch(input: ProcessInput) {
       } else if (result.status === 'retry') {
         retry += 1;
         await input.repository.markRetry(row.id, safeCode(result.code), new Date(now.getTime() + RETRY_BACKOFF_MS));
+        await recordEmailFailure(input.operationalFailureRecorder, row, {
+          severity: 'warning',
+          errorCode: safeCode(result.code),
+          summary: 'Transactional email send scheduled for retry'
+        });
       } else {
         failed += 1;
         await input.repository.markFailed(row.id, safeCode(result.code), now);
+        await recordEmailFailure(input.operationalFailureRecorder, row, {
+          severity: 'error',
+          errorCode: safeCode(result.code),
+          summary: 'Transactional email send failed'
+        });
       }
     } catch {
       failed += 1;
       await input.repository.markFailed(row.id, 'email_worker_error', now);
+      await recordEmailFailure(input.operationalFailureRecorder, row, {
+        severity: 'error',
+        errorCode: 'email_worker_error',
+        summary: 'Transactional email worker failed'
+      });
     }
   }
 

@@ -123,6 +123,71 @@ describe('transactional email outbox worker', () => {
     expect(repository.claimDueRows).not.toHaveBeenCalled();
   });
 
+  test('records operational failures for retry, permanent failure, and worker exceptions without recipient PII', async () => {
+    const repository = {
+      claimDueRows: vi.fn().mockResolvedValue([
+        {...digitalRow, id: 'email-retry', orderId: 'order-retry'},
+        {...digitalRow, id: 'email-failed', orderId: 'order-failed'},
+        {...digitalRow, id: 'email-exception', recipientEmail: 'boom@example.test', orderId: 'order-exception'}
+      ]),
+      issueDownloadToken: vi
+        .fn()
+        .mockResolvedValueOnce({rawToken: 'retry-token', expiresAt: new Date(now.getTime() + 86_400_000).toISOString()})
+        .mockResolvedValueOnce({rawToken: 'failed-token', expiresAt: new Date(now.getTime() + 86_400_000).toISOString()})
+        .mockRejectedValueOnce(new Error('token issue failed for boom@example.test')),
+      issueGuestToken: vi.fn(),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markRetry: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined)
+    };
+    const sender = {
+      send: vi
+        .fn()
+        .mockResolvedValueOnce({status: 'retry', code: 'rate_limited'})
+        .mockResolvedValueOnce({status: 'failed', code: 'invalid_recipient'})
+    };
+    const operationalFailureRecorder = vi.fn().mockResolvedValue({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'});
+
+    const result = await processTransactionalEmailBatch({
+      repository,
+      sender,
+      operationalFailureRecorder,
+      now: () => now,
+      config: {siteUrl: 'https://shop.example.test', fromEmail: 'orders@example.test', batchSize: 5}
+    });
+
+    expect(result).toEqual({status: 'processed', claimed: 3, sent: 0, retry: 1, failed: 2});
+    expect(operationalFailureRecorder).toHaveBeenCalledTimes(3);
+    expect(operationalFailureRecorder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'email',
+        severity: 'warning',
+        errorCode: 'rate_limited',
+        summary: 'Transactional email send scheduled for retry',
+        facts: expect.objectContaining({emailType: 'digital_access_granted', orderId: 'order-retry'})
+      })
+    );
+    expect(operationalFailureRecorder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'email',
+        severity: 'error',
+        errorCode: 'invalid_recipient',
+        summary: 'Transactional email send failed',
+        facts: expect.objectContaining({emailType: 'digital_access_granted', orderId: 'order-failed'})
+      })
+    );
+    expect(operationalFailureRecorder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'email',
+        severity: 'error',
+        errorCode: 'email_worker_error',
+        summary: 'Transactional email worker failed',
+        facts: expect.objectContaining({emailType: 'digital_access_granted', orderId: 'order-exception'})
+      })
+    );
+    expect(JSON.stringify(operationalFailureRecorder.mock.calls)).not.toMatch(/buyer@example\.test|boom@example\.test|retry-token|failed-token/i);
+  });
+
   test('immediate paid trigger is a safe no-op when transactional email is unconfigured', async () => {
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://shop.example.test');
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://supabase.example.test');

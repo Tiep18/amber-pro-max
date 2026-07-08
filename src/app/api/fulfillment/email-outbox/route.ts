@@ -2,6 +2,7 @@ import {NextResponse} from 'next/server';
 
 import {processTransactionalEmailBatch} from '@/fulfillment/email-outbox';
 import {getServerEnv} from '@/lib/env/server';
+import {recordOperationalFailure} from '@/operations/errors';
 
 export const runtime = 'nodejs';
 
@@ -60,7 +61,8 @@ export async function POST(request: Request) {
       siteUrl: env.NEXT_PUBLIC_SITE_URL,
       fromEmail: env.transactionalEmail.fromEmail,
       batchSize: parsed.batchSize
-    }
+    },
+    operationalFailureRecorder: recordOperationalFailure
   });
 
   return json(200, result);

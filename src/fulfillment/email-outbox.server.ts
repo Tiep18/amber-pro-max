@@ -7,6 +7,7 @@ import {hashFulfillmentAccessToken} from '@/fulfillment/downloads';
 import {processTransactionalEmailBatch, type TransactionalEmailRepository, type TransactionalEmailSender} from '@/fulfillment/email-outbox';
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
+import {recordOperationalFailure} from '@/operations/errors';
 import {createNewsletterUnsubscribeToken, hashNewsletterUnsubscribeToken} from '@/newsletter/consent';
 
 type SupabaseLike = {
@@ -194,7 +195,8 @@ export async function triggerTransactionalEmailOutboxNow(input: {reason: Immedia
         siteUrl: env.NEXT_PUBLIC_SITE_URL,
         fromEmail: env.transactionalEmail.fromEmail,
         batchSize: input.batchSize
-      }
+      },
+      operationalFailureRecorder: recordOperationalFailure
     });
   } catch {
     return {status: 'error' as const, code: 'transactional_email_worker_trigger_failed' as const};

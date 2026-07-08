@@ -42,9 +42,18 @@ export type DownloadStorage = {
   createSignedUrl: (bucketId: string, objectPath: string, expiresInSeconds: number) => Promise<{url: string} | null>;
 };
 
+type OperationalFailureRecorder = (input: {
+  area: string;
+  severity?: string;
+  errorCode: string;
+  summary: unknown;
+  facts?: unknown;
+}) => Promise<unknown>;
+
 export type DownloadAuthorizationDeps = {
   repository: DownloadRepository;
   storage: DownloadStorage;
+  operationalFailureRecorder?: OperationalFailureRecorder;
   now?: () => Date;
 };
 
@@ -69,6 +78,19 @@ function isOwner(record: EntitlementDownloadRecord, userId: string | null | unde
   return Boolean(userId && record.ownerUserId && record.ownerUserId === userId);
 }
 
+async function recordDownloadFailure(
+  deps: DownloadAuthorizationDeps,
+  input: {errorCode: string; summary: string; facts: Record<string, unknown>}
+) {
+  await deps.operationalFailureRecorder?.({
+    area: 'fulfillment',
+    severity: 'error',
+    errorCode: input.errorCode,
+    summary: input.summary,
+    facts: input.facts
+  });
+}
+
 export async function authorizeDownloadRequest(
   input: DownloadRequestInput,
   deps: DownloadAuthorizationDeps
@@ -82,6 +104,14 @@ export async function authorizeDownloadRequest(
   try {
     records = await deps.repository.findActiveEntitlementsForOrder(parsed.data.orderNumber);
   } catch {
+    await recordDownloadFailure(deps, {
+      errorCode: 'download_lookup_failed',
+      summary: 'Download entitlement lookup failed',
+      facts: {
+        orderNumber: parsed.data.orderNumber,
+        productId: parsed.data.productId ?? undefined
+      }
+    });
     return {status: 'error', code: 'download_lookup_failed'};
   }
 
@@ -103,10 +133,28 @@ export async function authorizeDownloadRequest(
     try {
       const signed = await deps.storage.createSignedUrl(record.asset.bucketId, record.asset.objectPath, SIGNED_URL_TTL_SECONDS);
       if (!signed?.url) {
+        await recordDownloadFailure(deps, {
+          errorCode: 'signed_url_failed',
+          summary: 'Download signed URL creation failed',
+          facts: {
+            orderNumber: record.orderNumber,
+            productId: record.productId,
+            entitlementId: record.entitlementId
+          }
+        });
         return {status: 'error', code: 'signed_url_failed'};
       }
       return {status: 'authorized', url: signed.url, fileName: record.asset.fileName};
     } catch {
+      await recordDownloadFailure(deps, {
+        errorCode: 'signed_url_failed',
+        summary: 'Download signed URL creation failed',
+        facts: {
+          orderNumber: record.orderNumber,
+          productId: record.productId,
+          entitlementId: record.entitlementId
+        }
+      });
       return {status: 'error', code: 'signed_url_failed'};
     }
   }
