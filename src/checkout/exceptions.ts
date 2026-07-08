@@ -1,5 +1,6 @@
 import {createHash, randomBytes} from 'node:crypto';
 import {z} from 'zod';
+import {recordOperationalFailure} from '@/operations/errors';
 
 type RpcClient = {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
@@ -71,6 +72,34 @@ export function maskEmail(email: string) {
   return `${name[0]}***@${domain}`;
 }
 
+async function recordExceptionFailure(input: {
+  action: string;
+  errorCode: string;
+  summary: string;
+  code: string;
+  productId?: string | null;
+  referenceId?: string | null;
+  market?: 'vn' | 'intl' | null;
+  currency?: 'VND' | 'USD' | null;
+  amountValue?: number | null;
+}) {
+  await recordOperationalFailure({
+    area: 'checkout',
+    severity: 'error',
+    errorCode: input.errorCode,
+    summary: input.summary,
+    facts: {
+      action: input.action,
+      productId: input.productId ?? null,
+      referenceId: input.referenceId ?? null,
+      market: input.market ?? null,
+      currency: input.currency ?? null,
+      amountValue: input.amountValue ?? null,
+      code: input.code
+    }
+  });
+}
+
 function mapCreateResult(value: unknown): CreateExceptionRequestResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {status: 'error', code: 'exception_request_failed'};
@@ -93,6 +122,15 @@ export async function createExceptionRequest(input: unknown, client?: RpcClient)
   const supabase = client ?? (await createServerClient());
   const {data, error} = await supabase.rpc('create_market_exception_request', {p_payload: parsed.data});
   if (error) {
+    await recordExceptionFailure({
+      action: 'exception_request_create',
+      errorCode: 'checkout_exception_request_failed',
+      summary: 'Checkout exception request failed',
+      code: 'exception_request_failed',
+      productId: parsed.data.productId,
+      referenceId: parsed.data.variantId ?? null,
+      market: parsed.data.market
+    });
     return {status: 'error', code: 'exception_request_failed'};
   }
   return mapCreateResult(data);
@@ -111,7 +149,17 @@ export async function approveExceptionRequest(input: unknown): Promise<ApproveEx
     .select('id,product_id,variant_id,market,destination_country_code,status')
     .eq('id', parsed.data.requestId)
     .maybeSingle();
-  if (requestError || !request || request.status !== 'pending') {
+  if (requestError) {
+    await recordExceptionFailure({
+      action: 'exception_request_lookup',
+      errorCode: 'checkout_exception_request_lookup_failed',
+      summary: 'Checkout exception request lookup failed',
+      code: 'invalid_exception_request',
+      referenceId: parsed.data.requestId
+    });
+    return {status: 'invalid', code: 'invalid_exception_request'};
+  }
+  if (!request || request.status !== 'pending') {
     return {status: 'invalid', code: 'invalid_exception_request'};
   }
 
@@ -134,10 +182,21 @@ export async function approveExceptionRequest(input: unknown): Promise<ApproveEx
     .select('id')
     .single();
   if (grantError || !grant) {
+    await recordExceptionFailure({
+      action: 'exception_request_approve',
+      errorCode: 'checkout_exception_approval_failed',
+      summary: 'Checkout exception approval failed',
+      code: 'exception_approval_failed',
+      productId: typeof request.product_id === 'string' ? request.product_id : null,
+      referenceId: String(request.id),
+      market: request.market === 'vn' || request.market === 'intl' ? request.market : null,
+      currency: parsed.data.currencyCode,
+      amountValue: parsed.data.shippingFeeMinor
+    });
     return {status: 'error', code: 'exception_approval_failed'};
   }
 
-  await supabase
+  const approvalUpdate = await supabase
     .from('market_exception_requests')
     .update({
       status: 'approved',
@@ -147,6 +206,17 @@ export async function approveExceptionRequest(input: unknown): Promise<ApproveEx
       updated_at: new Date().toISOString()
     })
     .eq('id', request.id);
+  if (approvalUpdate.error) {
+    await recordExceptionFailure({
+      action: 'exception_request_mark_approved',
+      errorCode: 'checkout_exception_approval_update_failed',
+      summary: 'Checkout exception approval status update failed',
+      code: 'exception_approval_failed',
+      productId: typeof request.product_id === 'string' ? request.product_id : null,
+      referenceId: String(request.id),
+      market: request.market === 'vn' || request.market === 'intl' ? request.market : null
+    });
+  }
   revalidatePath('/admin/exceptions');
   return {status: 'approved', grantId: String(grant.id), token, expiresAt};
 }
@@ -171,7 +241,17 @@ export async function rejectExceptionRequest(input: unknown) {
     .eq('id', parsed.data.requestId)
     .eq('status', 'pending');
   revalidatePath('/admin/exceptions');
-  return error ? ({status: 'error', code: 'exception_rejection_failed'} as const) : ({status: 'rejected'} as const);
+  if (error) {
+    await recordExceptionFailure({
+      action: 'exception_request_reject',
+      errorCode: 'checkout_exception_rejection_failed',
+      summary: 'Checkout exception rejection failed',
+      code: 'exception_rejection_failed',
+      referenceId: parsed.data.requestId
+    });
+    return {status: 'error', code: 'exception_rejection_failed'} as const;
+  }
+  return {status: 'rejected'} as const;
 }
 
 export async function validateExceptionGrant(
@@ -187,6 +267,12 @@ export async function validateExceptionGrant(
     p_token_hash: hashExceptionToken(token)
   });
   if (error || !data || typeof data !== 'object' || Array.isArray(data)) {
+    await recordExceptionFailure({
+      action: 'exception_grant_validate',
+      errorCode: 'checkout_exception_grant_failed',
+      summary: 'Checkout exception grant validation failed',
+      code: 'exception_grant_failed'
+    });
     return {status: 'error', code: 'exception_grant_failed'};
   }
   const row = data as Record<string, unknown>;
