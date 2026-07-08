@@ -217,7 +217,7 @@ describe('saved shipping address contracts (ACC-03, D-01, D-02, D-04)', () => {
       expect.objectContaining({
         area: 'application',
         errorCode: 'account.address.save_failed',
-        facts: expect.objectContaining({action: 'save', referenceId: addressId})
+        facts: expect.objectContaining({action: 'address_save', referenceId: addressId})
       })
     );
     expect(recordOperationalFailure).toHaveBeenNthCalledWith(
@@ -225,7 +225,7 @@ describe('saved shipping address contracts (ACC-03, D-01, D-02, D-04)', () => {
       expect.objectContaining({
         area: 'application',
         errorCode: 'account.address.delete_failed',
-        facts: expect.objectContaining({action: 'delete', referenceId: addressId, status: 'unknown'})
+        facts: expect.objectContaining({action: 'address_delete', referenceId: addressId, status: 'unknown'})
       })
     );
     expect(recordOperationalFailure).toHaveBeenNthCalledWith(
@@ -233,11 +233,42 @@ describe('saved shipping address contracts (ACC-03, D-01, D-02, D-04)', () => {
       expect.objectContaining({
         area: 'application',
         errorCode: 'account.address.default_failed',
-        facts: expect.objectContaining({action: 'set_default', referenceId: addressId})
+        facts: expect.objectContaining({action: 'address_default', referenceId: addressId})
       })
     );
     expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(
       /Taylor Customer|\+15551234567|Market Street|94105|email|token/i
     );
+  });
+
+  test('keeps address error states when operational recording fails', async () => {
+    vi.mocked(recordOperationalFailure).mockRejectedValue(new Error('operational table unavailable'));
+
+    const order = vi.fn(() => Promise.resolve({data: null, error: {message: 'load failed'}}));
+    const eq = vi.fn(() => ({order}));
+    const select = vi.fn(() => ({eq}));
+    const loadClient = {from: vi.fn(() => ({select}))};
+
+    await expect(getCustomerShippingAddresses({userId: ownerId, client: loadClient as never})).resolves.toEqual({
+      status: 'error',
+      code: 'addresses_load_failed'
+    });
+
+    const saveRpc = vi.fn(() => Promise.resolve({data: null, error: {message: 'save failed'}}));
+    await expect(
+      saveCustomerShippingAddress({addressId, input: validInput, client: {rpc: saveRpc} as never})
+    ).resolves.toEqual({status: 'error', code: 'address_action_failed'});
+
+    const deleteRpc = vi.fn(() => Promise.resolve({data: {status: 'unknown'}, error: null}));
+    await expect(deleteCustomerShippingAddress({addressId, client: {rpc: deleteRpc} as never})).resolves.toEqual({
+      status: 'error',
+      code: 'address_action_failed'
+    });
+
+    const defaultRpc = vi.fn(() => Promise.resolve({data: null, error: {message: 'default failed'}}));
+    await expect(setDefaultCustomerShippingAddress({addressId, client: {rpc: defaultRpc} as never})).resolves.toEqual({
+      status: 'error',
+      code: 'address_action_failed'
+    });
   });
 });

@@ -6,7 +6,7 @@ import {parseCustomerShippingAddressInput} from '@/account/addresses';
 import {requireUser} from '@/auth/guards';
 import type {Locale} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 type RpcClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
@@ -59,29 +59,14 @@ function actionStatus(data: unknown): string | null {
   return isRecord(data) && typeof data.status === 'string' ? data.status : null;
 }
 
-async function recordAddressFailure({
-  action,
-  addressId,
-  summary,
-  status
-}: {
-  action: 'save' | 'delete' | 'set_default';
-  addressId: string | null;
-  summary: string;
-  status?: string | null;
-}) {
-  await recordOperationalFailure({
-    area: 'application',
-    severity: 'error',
-    errorCode: `account.address.${action === 'set_default' ? 'default' : action}_failed`,
-    summary,
-    facts: {
-      action,
-      referenceId: addressId,
-      status: status ?? null,
-      code: 'address_action_failed'
-    }
-  });
+type AddressMutationAction = 'save' | 'delete' | 'set_default';
+
+function addressActionName(action: AddressMutationAction) {
+  return `address_${action === 'set_default' ? 'default' : action}`;
+}
+
+function addressFailureCode(action: AddressMutationAction) {
+  return `account.address.${action === 'set_default' ? 'default' : action}_failed`;
 }
 
 export async function saveCustomerShippingAddress({
@@ -102,43 +87,50 @@ export async function saveCustomerShippingAddress({
   }
 
   const address = parsedAddress.data;
-  const {data, error} = await client.rpc('save_customer_shipping_address', {
-    p_address_id: addressId,
-    p_label: address.label,
-    p_recipient_name: address.recipientName,
-    p_phone_number: address.phoneNumber,
-    p_country_code: address.countryCode,
-    p_region: address.region,
-    p_locality: address.locality,
-    p_address_line_1: address.addressLine1,
-    p_address_line_2: address.addressLine2,
-    p_postal_code: address.postalCode,
-    p_is_default: address.isDefault
+  let failureStatus: string | null = null;
+
+  return runMonitoredAction({
+    area: 'application',
+    action: addressActionName('save'),
+    errorCode: addressFailureCode('save'),
+    summary: 'Customer address save failed',
+    facts: {
+      referenceId: addressId,
+      code: 'address_action_failed'
+    },
+    errorResult: {status: 'error', code: 'address_action_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    factsFromResult: () => ({status: failureStatus}),
+    operation: async () => {
+      const {data, error} = await client.rpc('save_customer_shipping_address', {
+        p_address_id: addressId,
+        p_label: address.label,
+        p_recipient_name: address.recipientName,
+        p_phone_number: address.phoneNumber,
+        p_country_code: address.countryCode,
+        p_region: address.region,
+        p_locality: address.locality,
+        p_address_line_1: address.addressLine1,
+        p_address_line_2: address.addressLine2,
+        p_postal_code: address.postalCode,
+        p_is_default: address.isDefault
+      });
+      if (error || !isRecord(data)) {
+        return {status: 'error', code: 'address_action_failed'} as const;
+      }
+      if (data.status === 'saved' && typeof data.address_id === 'string') {
+        return {status: 'saved', addressId: data.address_id} as const;
+      }
+      if (data.status === 'not_found') {
+        return {status: 'not_found'} as const;
+      }
+      if (data.status === 'invalid') {
+        return {status: 'invalid', code: 'invalid_address'} as const;
+      }
+      failureStatus = typeof data.status === 'string' ? data.status : null;
+      return {status: 'error', code: 'address_action_failed'} as const;
+    }
   });
-  if (error || !isRecord(data)) {
-    await recordAddressFailure({
-      action: 'save',
-      addressId,
-      summary: error ? 'Customer address save RPC failed' : 'Customer address save returned an unexpected result'
-    });
-    return {status: 'error', code: 'address_action_failed'};
-  }
-  if (data.status === 'saved' && typeof data.address_id === 'string') {
-    return {status: 'saved', addressId: data.address_id};
-  }
-  if (data.status === 'not_found') {
-    return {status: 'not_found'};
-  }
-  if (data.status === 'invalid') {
-    return {status: 'invalid', code: 'invalid_address'};
-  }
-  await recordAddressFailure({
-    action: 'save',
-    addressId,
-    summary: 'Customer address save returned an unsupported status',
-    status: typeof data.status === 'string' ? data.status : null
-  });
-  return {status: 'error', code: 'address_action_failed'};
 }
 
 export async function deleteCustomerShippingAddress({
@@ -151,25 +143,32 @@ export async function deleteCustomerShippingAddress({
   if (!addressIdSchema.safeParse(addressId).success) {
     return {status: 'invalid', code: 'invalid_address_id'};
   }
-  const {data, error} = await client.rpc('delete_customer_shipping_address', {p_address_id: addressId});
-  if (error) {
-    await recordAddressFailure({
-      action: 'delete',
-      addressId,
-      summary: 'Customer address delete RPC failed'
-    });
-    return {status: 'error', code: 'address_action_failed'};
-  }
-  const status = actionStatus(data);
-  if (status === 'deleted') return {status: 'deleted'};
-  if (status === 'not_found') return {status: 'not_found'};
-  await recordAddressFailure({
-    action: 'delete',
-    addressId,
-    summary: 'Customer address delete returned an unsupported status',
-    status
+  let failureStatus: string | null = null;
+
+  return runMonitoredAction({
+    area: 'application',
+    action: addressActionName('delete'),
+    errorCode: addressFailureCode('delete'),
+    summary: 'Customer address delete failed',
+    facts: {
+      referenceId: addressId,
+      code: 'address_action_failed'
+    },
+    errorResult: {status: 'error', code: 'address_action_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    factsFromResult: () => ({status: failureStatus}),
+    operation: async () => {
+      const {data, error} = await client.rpc('delete_customer_shipping_address', {p_address_id: addressId});
+      if (error) {
+        return {status: 'error', code: 'address_action_failed'} as const;
+      }
+      const status = actionStatus(data);
+      if (status === 'deleted') return {status: 'deleted'} as const;
+      if (status === 'not_found') return {status: 'not_found'} as const;
+      failureStatus = status;
+      return {status: 'error', code: 'address_action_failed'} as const;
+    }
   });
-  return {status: 'error', code: 'address_action_failed'};
 }
 
 export async function setDefaultCustomerShippingAddress({
@@ -182,25 +181,32 @@ export async function setDefaultCustomerShippingAddress({
   if (!addressIdSchema.safeParse(addressId).success) {
     return {status: 'invalid', code: 'invalid_address_id'};
   }
-  const {data, error} = await client.rpc('set_default_customer_shipping_address', {p_address_id: addressId});
-  if (error) {
-    await recordAddressFailure({
-      action: 'set_default',
-      addressId,
-      summary: 'Customer address default RPC failed'
-    });
-    return {status: 'error', code: 'address_action_failed'};
-  }
-  const status = actionStatus(data);
-  if (status === 'default_set') return {status: 'default_set'};
-  if (status === 'not_found') return {status: 'not_found'};
-  await recordAddressFailure({
-    action: 'set_default',
-    addressId,
-    summary: 'Customer address default returned an unsupported status',
-    status
+  let failureStatus: string | null = null;
+
+  return runMonitoredAction({
+    area: 'application',
+    action: addressActionName('set_default'),
+    errorCode: addressFailureCode('set_default'),
+    summary: 'Customer address default failed',
+    facts: {
+      referenceId: addressId,
+      code: 'address_action_failed'
+    },
+    errorResult: {status: 'error', code: 'address_action_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    factsFromResult: () => ({status: failureStatus}),
+    operation: async () => {
+      const {data, error} = await client.rpc('set_default_customer_shipping_address', {p_address_id: addressId});
+      if (error) {
+        return {status: 'error', code: 'address_action_failed'} as const;
+      }
+      const status = actionStatus(data);
+      if (status === 'default_set') return {status: 'default_set'} as const;
+      if (status === 'not_found') return {status: 'not_found'} as const;
+      failureStatus = status;
+      return {status: 'error', code: 'address_action_failed'} as const;
+    }
   });
-  return {status: 'error', code: 'address_action_failed'};
 }
 
 async function authenticatedClient(locale: Locale): Promise<RpcClient> {

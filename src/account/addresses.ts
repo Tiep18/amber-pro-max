@@ -1,6 +1,6 @@
 import {z} from 'zod';
 import {shippingAddressSchema, type ShippingAddress} from '@/checkout/shipping-address';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 export const customerShippingAddressInputSchema = shippingAddressSchema.extend({
   label: z.string().trim().min(1).max(80),
@@ -100,28 +100,33 @@ export async function getCustomerShippingAddresses({
   userId: string;
   client: QueryClient;
 }): Promise<CustomerShippingAddressResult> {
-  const query = client
-    .from('customer_shipping_addresses')
-    .select(
-      'id,label,recipient_name,phone_number,country_code,region,locality,address_line_1,address_line_2,postal_code,is_default,created_at,updated_at'
-    );
-  const {data, error} = await query.eq('user_id', userId).order('created_at', {ascending: true});
-  if (error || !Array.isArray(data)) {
-    await recordOperationalFailure({
-      area: 'application',
-      severity: 'error',
-      errorCode: 'account.addresses.load_failed',
-      summary: error ? 'Customer shipping addresses load failed' : 'Customer shipping addresses returned an unexpected result',
-      facts: {
-        action: 'addresses_load',
-        code: 'addresses_load_failed'
+  return runMonitoredAction({
+    area: 'application',
+    action: 'addresses_load',
+    errorCode: 'account.addresses.load_failed',
+    summary: 'Customer shipping addresses load failed',
+    facts: {
+      code: 'addresses_load_failed'
+    },
+    errorResult: {status: 'error', code: 'addresses_load_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    operation: async () => {
+      const query = client
+        .from('customer_shipping_addresses')
+        .select(
+          'id,label,recipient_name,phone_number,country_code,region,locality,address_line_1,address_line_2,postal_code,is_default,created_at,updated_at'
+        );
+      const {data, error} = await query.eq('user_id', userId).order('created_at', {ascending: true});
+      if (error || !Array.isArray(data)) {
+        return {status: 'error', code: 'addresses_load_failed'} as const;
       }
-    });
-    return {status: 'error', code: 'addresses_load_failed'};
-  }
 
-  return {
-    status: 'success',
-    addresses: data.map(mapCustomerShippingAddressRow).filter((address): address is CustomerShippingAddress => Boolean(address))
-  };
+      return {
+        status: 'success',
+        addresses: data
+          .map(mapCustomerShippingAddressRow)
+          .filter((address): address is CustomerShippingAddress => Boolean(address))
+      } as const;
+    }
+  });
 }
