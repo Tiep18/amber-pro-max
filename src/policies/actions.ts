@@ -4,7 +4,7 @@ import {revalidatePath} from 'next/cache';
 import {requireAdmin} from '@/auth/guards';
 import {invalidatePolicyCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import {mapPolicyPublishIssues, type PolicyPublishBlocker} from './publish-checks';
 import {policyDraftSchema, policyIdSchema, type PolicyDraftInput} from './schemas';
 
@@ -41,16 +41,17 @@ async function recordPolicyFailure({
   summary: string;
   referenceId?: string | null;
 }) {
-  await recordOperationalFailure({
+  await runMonitoredAction({
     area: 'admin',
-    severity: 'error',
+    action,
     errorCode,
     summary,
+    errorResult: {status: 'error', code: errorCode} as const,
+    shouldRecordResult: () => true,
     facts: {
-      action,
-      referenceId: referenceId ?? null,
-      code: errorCode
-    }
+      referenceId: referenceId ?? null
+    },
+    operation: async () => ({status: 'error', code: errorCode}) as const
   });
 }
 

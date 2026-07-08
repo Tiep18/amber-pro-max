@@ -139,4 +139,19 @@ describe('policy admin action operational recording', () => {
     );
     expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/private unpublish|constraint|email|token/i);
   });
+
+  it('keeps policy action error states when operational recording fails', async () => {
+    recordOperationalFailureMock.mockRejectedValueOnce(new Error('operational table unavailable'));
+    const single = vi.fn(async () => ({data: null, error: {message: 'policy save failed'}}));
+    const select = vi.fn(() => ({single}));
+    const insert = vi.fn(() => ({select}));
+    createSupabaseServerClientMock.mockResolvedValue({
+      from: vi.fn(() => ({insert}))
+    });
+
+    await expect(savePolicyDraftAction(validDraft())).resolves.toEqual({
+      status: 'error',
+      code: 'policy_save_failed'
+    });
+  });
 });

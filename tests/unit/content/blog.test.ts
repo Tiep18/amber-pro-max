@@ -263,6 +263,23 @@ describe('blog admin actions - BLOG-02 D-01 D-03', () => {
     );
     expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/unpublish constraint detail/i);
   });
+
+  it('keeps blog action error states when operational recording fails', async () => {
+    recordOperationalFailureMock.mockRejectedValueOnce(new Error('operational table unavailable'));
+    const postQuery = {
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(async () => ({data: null, error: {message: 'post save failed'}}))
+        }))
+      }))
+    };
+    createSupabaseServerClientMock.mockResolvedValue({from: vi.fn(() => postQuery)});
+
+    await expect(saveBlogPostDraftAction(validDraft())).resolves.toEqual({
+      status: 'error',
+      code: 'save_failed'
+    });
+  });
 });
 
 describe('public blog query operational recording', () => {

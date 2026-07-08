@@ -3,7 +3,7 @@
 import {requireAdmin} from '@/auth/guards';
 import {invalidateBlogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import {mapBlogPublishIssues, type BlogPublishBlocker} from './publish-checks';
 import {blogPostDraftSchema, blogPostIdSchema, type BlogPostDraft, type BlogPostDraftInput} from './schemas';
 
@@ -56,17 +56,18 @@ async function recordBlogFailure(input: {
   referenceId?: string;
   status?: string;
 }) {
-  await recordOperationalFailure({
+  await runMonitoredAction({
     area: 'admin',
-    severity: 'error',
+    action: input.action,
     errorCode: input.errorCode,
     summary: input.summary,
+    errorResult: {status: 'error', code: input.resultCode} as const,
+    shouldRecordResult: () => true,
     facts: {
-      action: input.action,
-      referenceId: input.referenceId,
-      status: input.status,
-      code: input.resultCode
-    }
+      ...(input.referenceId ? {referenceId: input.referenceId} : {}),
+      ...(input.status ? {status: input.status} : {})
+    },
+    operation: async () => ({status: 'error', code: input.resultCode}) as const
   });
 }
 
