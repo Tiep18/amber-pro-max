@@ -1,8 +1,12 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {createSupabaseServerClientMock, requireAdminMock} = vi.hoisted(() => ({
+const {createSupabaseServerClientMock, requireAdminMock, recordOperationalFailureMock} = vi.hoisted(() => ({
   createSupabaseServerClientMock: vi.fn(),
-  requireAdminMock: vi.fn()
+  requireAdminMock: vi.fn(),
+  recordOperationalFailureMock: vi.fn(async () => ({
+    status: 'recorded',
+    errorId: '76000000-0000-4000-8000-000000000001'
+  }))
 }));
 
 vi.mock('server-only', () => ({}));
@@ -12,8 +16,16 @@ vi.mock('@/auth/guards', () => ({
 vi.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: createSupabaseServerClientMock
 }));
+vi.mock('@/operations/errors', () => ({
+  recordOperationalFailure: recordOperationalFailureMock
+}));
 
-import {publishBlogPostAction, saveBlogPostDraftAction} from '@/content/blog/actions';
+import {
+  publishBlogPostAction,
+  saveBlogPostDraftAction,
+  scheduleBlogPostAction,
+  unpublishBlogPostAction
+} from '@/content/blog/actions';
 import {blogPostDraftSchema} from '@/content/blog/schemas';
 import type {BlogPostDraftInput} from '@/content/blog/schemas';
 
@@ -113,5 +125,138 @@ describe('blog admin actions - BLOG-02 D-01 D-03', () => {
         {code: 'publish_requirement', group: 'general', field: 'blogPost'}
       ]
     });
+  });
+
+  it('records publish RPC failures without exposing raw database details', async () => {
+    const postId = '44444444-4444-4444-8444-444444444444';
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {message: 'relation private.blog_secret does not exist'}
+    });
+    createSupabaseServerClientMock.mockResolvedValue({rpc});
+
+    await expect(publishBlogPostAction(postId)).resolves.toEqual({
+      status: 'error',
+      code: 'publish_failed'
+    });
+
+    expect(recordOperationalFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'blog_publish_failed',
+        summary: 'Blog post publish failed',
+        facts: expect.objectContaining({
+          action: 'blog_publish',
+          referenceId: postId,
+          code: 'publish_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/blog_secret|relation|Crochet bear|huong-dan|storage|body/i);
+  });
+
+  it('records draft relation failures without exposing raw post content', async () => {
+    const postId = '55555555-5555-4555-8555-555555555555';
+    const postQuery = {
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(async () => ({data: {id: postId}, error: null}))
+        }))
+      }))
+    };
+    const from = vi.fn((table: string) => {
+      if (table === 'blog_posts') {
+        return postQuery;
+      }
+      if (table === 'blog_post_tags') {
+        return {delete: vi.fn(() => ({eq: vi.fn(async () => ({error: {message: 'private tag detail'}}))}))};
+      }
+      return {
+        delete: vi.fn(() => ({eq: vi.fn(async () => ({error: null}))})),
+        upsert: vi.fn(async () => ({error: null})),
+        insert: vi.fn(async () => ({error: null}))
+      };
+    });
+    createSupabaseServerClientMock.mockResolvedValue({from});
+
+    await expect(saveBlogPostDraftAction(validDraft())).resolves.toEqual({
+      status: 'error',
+      code: 'save_failed'
+    });
+
+    expect(recordOperationalFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'blog_save_failed',
+        summary: 'Blog post relation save failed',
+        facts: expect.objectContaining({
+          action: 'blog_save_relations',
+          referenceId: postId,
+          status: 'draft',
+          code: 'save_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/Crochet bear|Huong dan|private tag|blog\/bear|seo|slug|body/i);
+  });
+
+  it('records schedule blocker lookup failures without exposing raw content', async () => {
+    const postId = '66666666-6666-4666-8666-666666666666';
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({data: [{published: false}], error: null})
+      .mockResolvedValueOnce({data: null, error: {message: 'raw issue lookup failed'}});
+    createSupabaseServerClientMock.mockResolvedValue({rpc});
+
+    await expect(scheduleBlogPostAction(postId, '2026-07-01T09:00:00.000Z')).resolves.toEqual({
+      status: 'error',
+      code: 'schedule_failed'
+    });
+
+    expect(recordOperationalFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'blog_schedule_failed',
+        summary: 'Blog post schedule issue lookup failed',
+        facts: expect.objectContaining({
+          action: 'blog_schedule_issues',
+          referenceId: postId,
+          code: 'schedule_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/raw issue lookup/i);
+  });
+
+  it('records unpublish failures with only the post reference', async () => {
+    const postId = '77777777-7777-4777-8777-777777777777';
+    const eq = vi.fn(async () => ({error: {message: 'unpublish constraint detail'}}));
+    const update = vi.fn(() => ({eq}));
+    createSupabaseServerClientMock.mockResolvedValue({
+      from: vi.fn(() => ({update}))
+    });
+
+    await expect(unpublishBlogPostAction(postId)).resolves.toEqual({
+      status: 'error',
+      code: 'unpublish_failed'
+    });
+
+    expect(recordOperationalFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'blog_unpublish_failed',
+        summary: 'Blog post unpublish failed',
+        facts: expect.objectContaining({
+          action: 'blog_unpublish',
+          referenceId: postId,
+          code: 'unpublish_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/unpublish constraint detail/i);
   });
 });

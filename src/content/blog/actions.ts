@@ -3,6 +3,7 @@
 import {requireAdmin} from '@/auth/guards';
 import {invalidateBlogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {recordOperationalFailure} from '@/operations/errors';
 import {mapBlogPublishIssues, type BlogPublishBlocker} from './publish-checks';
 import {blogPostDraftSchema, blogPostIdSchema, type BlogPostDraft, type BlogPostDraftInput} from './schemas';
 
@@ -38,6 +39,35 @@ function validationIssues(error: {issues: {path: PropertyKey[]; message: string}
     path: issue.path.join('.'),
     code: issue.message
   }));
+}
+
+async function recordBlogFailure(input: {
+  action:
+    | 'blog_save_post'
+    | 'blog_save_relations'
+    | 'blog_publish'
+    | 'blog_publish_issues'
+    | 'blog_schedule'
+    | 'blog_schedule_issues'
+    | 'blog_unpublish';
+  errorCode: 'blog_save_failed' | 'blog_publish_failed' | 'blog_schedule_failed' | 'blog_unpublish_failed';
+  resultCode: 'save_failed' | 'publish_failed' | 'schedule_failed' | 'unpublish_failed';
+  summary: string;
+  referenceId?: string;
+  status?: string;
+}) {
+  await recordOperationalFailure({
+    area: 'admin',
+    severity: 'error',
+    errorCode: input.errorCode,
+    summary: input.summary,
+    facts: {
+      action: input.action,
+      referenceId: input.referenceId,
+      status: input.status,
+      code: input.resultCode
+    }
+  });
 }
 
 async function replaceBlogRelations(
@@ -118,6 +148,14 @@ export async function saveBlogPostDraftAction(input: BlogPostDraftInput): Promis
         .single();
 
   if (postResult.error || !postResult.data) {
+    await recordBlogFailure({
+      action: 'blog_save_post',
+      errorCode: 'blog_save_failed',
+      resultCode: 'save_failed',
+      summary: 'Blog post save failed',
+      referenceId: draft.postId,
+      status: draft.status
+    });
     return {status: 'error', code: 'save_failed'};
   }
 
@@ -144,6 +182,14 @@ export async function saveBlogPostDraftAction(input: BlogPostDraftInput): Promis
   ]);
 
   if (translationError || !relationsSaved) {
+    await recordBlogFailure({
+      action: 'blog_save_relations',
+      errorCode: 'blog_save_failed',
+      resultCode: 'save_failed',
+      summary: 'Blog post relation save failed',
+      referenceId: postId,
+      status: draft.status
+    });
     return {status: 'error', code: 'save_failed'};
   }
 
@@ -164,6 +210,13 @@ export async function publishBlogPostAction(postId: string): Promise<PublishBlog
     target_published_at: new Date().toISOString()
   });
   if (error || !data?.[0]) {
+    await recordBlogFailure({
+      action: 'blog_publish',
+      errorCode: 'blog_publish_failed',
+      resultCode: 'publish_failed',
+      summary: 'Blog post publish failed',
+      referenceId: parsed.data
+    });
     return {status: 'error', code: 'publish_failed'};
   }
 
@@ -174,6 +227,13 @@ export async function publishBlogPostAction(postId: string): Promise<PublishBlog
 
   const issues = await blogPublishBlockers(supabase, parsed.data);
   if (!issues) {
+    await recordBlogFailure({
+      action: 'blog_publish_issues',
+      errorCode: 'blog_publish_failed',
+      resultCode: 'publish_failed',
+      summary: 'Blog post publish issue lookup failed',
+      referenceId: parsed.data
+    });
     return {status: 'error', code: 'publish_failed'};
   }
 
@@ -197,6 +257,13 @@ export async function scheduleBlogPostAction(
     target_published_at: parsedDate.data
   });
   if (error || !data?.[0]) {
+    await recordBlogFailure({
+      action: 'blog_schedule',
+      errorCode: 'blog_schedule_failed',
+      resultCode: 'schedule_failed',
+      summary: 'Blog post schedule failed',
+      referenceId: parsedPostId.data
+    });
     return {status: 'error', code: 'schedule_failed'};
   }
 
@@ -207,6 +274,13 @@ export async function scheduleBlogPostAction(
 
   const issues = await blogPublishBlockers(supabase, parsedPostId.data);
   if (!issues) {
+    await recordBlogFailure({
+      action: 'blog_schedule_issues',
+      errorCode: 'blog_schedule_failed',
+      resultCode: 'schedule_failed',
+      summary: 'Blog post schedule issue lookup failed',
+      referenceId: parsedPostId.data
+    });
     return {status: 'error', code: 'schedule_failed'};
   }
 
@@ -227,6 +301,13 @@ export async function unpublishBlogPostAction(postId: string): Promise<Unpublish
     .eq('id', parsed.data);
 
   if (error) {
+    await recordBlogFailure({
+      action: 'blog_unpublish',
+      errorCode: 'blog_unpublish_failed',
+      resultCode: 'unpublish_failed',
+      summary: 'Blog post unpublish failed',
+      referenceId: parsed.data
+    });
     return {status: 'error', code: 'unpublish_failed'};
   }
 
