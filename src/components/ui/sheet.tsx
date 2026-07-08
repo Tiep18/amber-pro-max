@@ -20,6 +20,7 @@ export function Sheet({
   onOpenChange,
   showTrigger = true,
   triggerClassName,
+  triggerIcon,
   contentClassName,
   headerClassName,
   bodyClassName,
@@ -34,6 +35,7 @@ export function Sheet({
   onOpenChange?: (open: boolean) => void;
   showTrigger?: boolean;
   triggerClassName?: string;
+  triggerIcon?: ReactNode;
   contentClassName?: string;
   headerClassName?: string;
   bodyClassName?: string;
@@ -44,7 +46,7 @@ export function Sheet({
       {showTrigger ? (
         <SheetPrimitive.Trigger asChild>
           <Button variant="secondary" className={cn('min-h-11 gap-2 px-3', triggerClassName)}>
-            <Menu aria-hidden="true" className="h-5 w-5" />
+            {triggerIcon ?? <Menu aria-hidden="true" className="h-5 w-5" />}
             <span className={showTriggerLabel ? '' : 'sr-only'}>{triggerLabel}</span>
           </Button>
         </SheetPrimitive.Trigger>

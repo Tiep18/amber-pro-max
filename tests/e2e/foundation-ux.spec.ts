@@ -7,6 +7,13 @@ const viewports = [
   {width: 1280, height: 900}
 ];
 
+test('root shell declares its smooth-scroll route-transition behavior', async ({page}) => {
+  await page.goto('/en');
+
+  await expect(page.locator('html')).toHaveAttribute('data-scroll-behavior', 'smooth');
+  await expect(page.locator('html')).toHaveCSS('scroll-behavior', 'smooth');
+});
+
 for (const viewport of viewports) {
   test(`localized public shells fit ${viewport.width}px viewport`, async ({page}) => {
     await page.setViewportSize(viewport);

@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-07-02 - Completed quick task 260702-homepage-text-color-hierarchy
+last_activity: 2026-07-06 - Completed quick task 260706-catalog-ui-ux-polish
 progress:
   total_phases: 7
   completed_phases: 6
@@ -174,12 +174,17 @@ None yet.
 | 260702-homepage-pattern-hero-polish | Change homepage pattern areas away from beige and reduce desktop hero height while preserving mobile layout and SEO                 | 2026-07-02 | pending     | [260702-homepage-pattern-hero-polish](./quick/260702-homepage-pattern-hero-polish/)                                 |
 | 260702-homepage-hero-collage-polish | Refine desktop hero image collage so the three images feel integrated without overlap while preserving mobile and SEO               | 2026-07-02 | pending     | [260702-homepage-hero-collage-polish](./quick/260702-homepage-hero-collage-polish/)                                 |
 | 260702-homepage-text-color-hierarchy | Reduce homepage and product-card brown text monotony with a clearer brand, body, price, and badge color hierarchy                   | 2026-07-02 | pending     | [260702-homepage-text-color-hierarchy](./quick/260702-homepage-text-color-hierarchy/)                               |
+| 260706-catalog-ui-ux-polish | Polish catalog header, filters, active filter summary, mobile controls, and image fallback while preserving SEO/ISR behavior | 2026-07-06 | this commit | [260706-catalog-ui-ux-polish](./quick/260706-catalog-ui-ux-polish/) |
+| 260706-oez | Compact two-column mobile product-card text and spacing while preserving desktop presentation and rendering behavior | 2026-07-06 | this commit | [260706-oez-compact-mobile-product-cards](./quick/260706-oez-compact-mobile-product-cards/) |
+| 260706-on4 | Restyle the catalog load-more control with a lightweight Ambertinybear treatment | 2026-07-06 | this commit | [260706-on4-brand-load-more](./quick/260706-on4-brand-load-more/) |
 
 ### Debug Sessions Resolved
 
 | #               | Description                                                                                                 | Date       | Directory                                     |
 | --------------- | ----------------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------- |
 | header-overlays | Fix header dropdown outside-click behavior and modal sheet/cart background interaction after header upgrade | 2026-06-27 | [header-overlays](./debug/header-overlays.md) |
+| catalog-lcp-and-repeated-requests | Verify catalog request behavior and remove the first product image LCP warning | 2026-07-06 | [catalog-lcp-and-repeated-requests](./debug/catalog-lcp-and-repeated-requests.md) |
+| product-route-smooth-scroll-warning | Declare Next.js 16 smooth-scroll transition behavior and verify product navigation | 2026-07-06 | [product-route-smooth-scroll-warning](./debug/product-route-smooth-scroll-warning.md) |
 
 ## Deferred Items
 
