@@ -1,6 +1,7 @@
 ﻿import {z} from 'zod';
 import type {AuthUser} from '@/auth/guards';
 import type {Locale} from '@/i18n/routing';
+import {recordOperationalFailure} from '@/operations/errors';
 import {hashGuestOrderAccessToken} from '@/payments/guest-access';
 
 const reopenSchema = z.object({
@@ -132,6 +133,38 @@ function tokenUsable(row: GuestTokenRow | null, now = new Date()) {
   return Number.isFinite(expiresMs) && expiresMs > now.getTime();
 }
 
+async function recordGuestOrderFailure({
+  action,
+  orderNumber,
+  errorCode,
+  summary,
+  code,
+  referenceId,
+  status
+}: {
+  action: 'guest_order_reopen' | 'guest_order_claim_email' | 'guest_order_claim';
+  orderNumber: string;
+  errorCode: string;
+  summary: string;
+  code?: string;
+  referenceId?: string | null;
+  status?: string | null;
+}) {
+  await recordOperationalFailure({
+    area: 'fulfillment',
+    severity: 'error',
+    errorCode,
+    summary,
+    facts: {
+      action,
+      orderNumber,
+      referenceId: referenceId ?? null,
+      status: status ?? null,
+      code: code ?? null
+    }
+  });
+}
+
 export async function requestGuestOrderReopen(input: z.input<typeof reopenSchema>, client: QueryClient): Promise<GuestReopenResult> {
   const parsed = reopenSchema.safeParse(input);
   if (!parsed.success) {
@@ -146,13 +179,22 @@ export async function requestGuestOrderReopen(input: z.input<typeof reopenSchema
   const outbox = client.from('transactional_email_outbox') as {
     insert: (value: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
   };
-  await outbox.insert({
+  const {error} = await outbox.insert({
     order_id: order.id,
     event_type: 'guest_order_reopen',
     recipient_email: order.contact_email,
     locale: order.locale ?? parsed.data.locale,
     payload: {orderNumber: order.order_number, expiresInHours: 24}
   });
+  if (error) {
+    await recordGuestOrderFailure({
+      action: 'guest_order_reopen',
+      orderNumber: order.order_number,
+      referenceId: order.id,
+      errorCode: 'guest_order.reopen_email_enqueue_failed',
+      summary: 'Guest order reopen email enqueue failed'
+    });
+  }
   return {status: 'sent'};
 }
 
@@ -170,13 +212,22 @@ export async function requestGuestOrderClaimEmail(input: z.input<typeof reopenSc
   const outbox = client.from('transactional_email_outbox') as {
     insert: (value: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
   };
-  await outbox.insert({
+  const {error} = await outbox.insert({
     order_id: order.id,
     event_type: 'guest_order_claim',
     recipient_email: order.contact_email,
     locale: order.locale ?? parsed.data.locale,
     payload: {orderNumber: order.order_number, expiresInHours: 24}
   });
+  if (error) {
+    await recordGuestOrderFailure({
+      action: 'guest_order_claim_email',
+      orderNumber: order.order_number,
+      referenceId: order.id,
+      errorCode: 'guest_order.claim_email_enqueue_failed',
+      summary: 'Guest order claim email enqueue failed'
+    });
+  }
   return {status: 'sent'};
 }
 
@@ -207,9 +258,33 @@ export async function claimGuestOrder(input: z.input<typeof claimSchema>, client
       insert: (value: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
     };
     const now = new Date().toISOString();
-    await orders.update({owner_user_id: parsed.data.user.id, updated_at: now}).eq('id', order.id);
-    await tokenTable.update({status: 'revoked', revoked_at: now, consumed_at: now}).eq('order_id', order.id);
-    await audit.insert({
+    const orderUpdate = await orders.update({owner_user_id: parsed.data.user.id, updated_at: now}).eq('id', order.id);
+    if (orderUpdate.error) {
+      await recordGuestOrderFailure({
+        action: 'guest_order_claim',
+        orderNumber: order.order_number,
+        referenceId: order.id,
+        errorCode: 'guest_order.claim_failed',
+        summary: 'Guest order claim owner update failed',
+        code: 'claim_failed',
+        status: 'order_update_failed'
+      });
+      return {status: 'error', code: 'claim_failed'};
+    }
+    const tokenUpdate = await tokenTable.update({status: 'revoked', revoked_at: now, consumed_at: now}).eq('order_id', order.id);
+    if (tokenUpdate.error) {
+      await recordGuestOrderFailure({
+        action: 'guest_order_claim',
+        orderNumber: order.order_number,
+        referenceId: order.id,
+        errorCode: 'guest_order.claim_failed',
+        summary: 'Guest order claim token revoke failed',
+        code: 'claim_failed',
+        status: 'token_revoke_failed'
+      });
+      return {status: 'error', code: 'claim_failed'};
+    }
+    const auditInsert = await audit.insert({
       event_key: `guest_order_claim:${order.id}:${token.id}`,
       order_id: order.id,
       event_type: 'guest_order_claim',
@@ -217,8 +292,28 @@ export async function claimGuestOrder(input: z.input<typeof claimSchema>, client
       actor_id: parsed.data.user.id,
       metadata: {orderNumber: order.order_number}
     });
+    if (auditInsert.error) {
+      await recordGuestOrderFailure({
+        action: 'guest_order_claim',
+        orderNumber: order.order_number,
+        referenceId: order.id,
+        errorCode: 'guest_order.claim_failed',
+        summary: 'Guest order claim audit insert failed',
+        code: 'claim_failed',
+        status: 'audit_insert_failed'
+      });
+      return {status: 'error', code: 'claim_failed'};
+    }
     return {status: 'claimed'};
   } catch {
+    await recordGuestOrderFailure({
+      action: 'guest_order_claim',
+      orderNumber: order.order_number,
+      referenceId: order.id,
+      errorCode: 'guest_order.claim_failed',
+      summary: 'Guest order claim mutation threw an exception',
+      code: 'claim_failed'
+    });
     return {status: 'error', code: 'claim_failed'};
   }
 }

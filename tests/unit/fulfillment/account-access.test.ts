@@ -1,6 +1,9 @@
 ﻿import {describe, expect, test, vi} from 'vitest';
+vi.mock('@/operations/errors', () => ({recordOperationalFailure: vi.fn()}));
+
 import {getCustomerOrderHistory, getCustomerPatternLibrary} from '@/fulfillment/account-queries';
 import {claimGuestOrder, requestGuestOrderReopen} from '@/fulfillment/order-claim';
+import {recordOperationalFailure} from '@/operations/errors';
 
 const ownerId = '11111111-1111-4111-8111-111111111111';
 
@@ -69,6 +72,46 @@ describe('customer fulfillment account access', () => {
     expect(result.patterns[0].orders.map((order) => order.orderNumber)).toEqual(['ATB-2', 'ATB-1']);
     expect(JSON.stringify(result.patterns)).not.toMatch(/token|bucket|object_path|signedUrl|entitlement-1/i);
   });
+
+  test('records sanitized operational failures for account fulfillment query errors', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
+    const failedQuery = {
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          order: vi.fn(() => Promise.resolve({data: null, error: {message: 'query failed'}}))
+        }))
+      }))
+    };
+    const client = {from: vi.fn(() => failedQuery)};
+
+    await expect(getCustomerOrderHistory({userId: ownerId, client: client as never})).resolves.toEqual({
+      status: 'error',
+      code: 'account_orders_failed'
+    });
+    await expect(getCustomerPatternLibrary({userId: ownerId, locale: 'en', client: client as never})).resolves.toEqual({
+      status: 'error',
+      code: 'pattern_library_failed'
+    });
+
+    expect(recordOperationalFailure).toHaveBeenCalledTimes(2);
+    expect(recordOperationalFailure).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        area: 'fulfillment',
+        errorCode: 'customer.account_orders.query_failed',
+        facts: expect.objectContaining({action: 'account_orders', code: 'account_orders_failed'})
+      })
+    );
+    expect(recordOperationalFailure).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        area: 'fulfillment',
+        errorCode: 'customer.pattern_library.query_failed',
+        facts: expect.objectContaining({action: 'pattern_library', code: 'pattern_library_failed'})
+      })
+    );
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/owner|email|token|signedUrl/i);
+  });
 });
 
 
@@ -123,6 +166,39 @@ describe('guest reopen and same-email order claim', () => {
     await expect(requestGuestOrderReopen({orderNumber: 'ATB-404', email: 'nobody@example.test', locale: 'en'}, client as never)).resolves.toEqual({status: 'sent'});
     expect(client.from).toHaveBeenCalledWith('checkout_orders');
     expect(client.from).not.toHaveBeenCalledWith('transactional_email_outbox');
+  });
+
+  test('records sanitized operational failures when guest reopen email enqueue fails', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
+    const client = {
+      from: vi.fn((table: string) => {
+        if (table === 'checkout_orders') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'order-1', order_number: 'ATB-1', contact_email: 'buyer@example.test', locale: 'en'}, error: null}))
+                }))
+              }))
+            }))
+          };
+        }
+        return {
+          insert: vi.fn(() => Promise.resolve({data: null, error: {message: 'outbox unavailable'}}))
+        };
+      })
+    };
+
+    await expect(requestGuestOrderReopen({orderNumber: 'ATB-1', email: 'buyer@example.test', locale: 'en'}, client as never)).resolves.toEqual({status: 'sent'});
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'fulfillment',
+        errorCode: 'guest_order.reopen_email_enqueue_failed',
+        facts: expect.objectContaining({action: 'guest_order_reopen', orderNumber: 'ATB-1'})
+      })
+    );
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/buyer@example|claim-token|rawToken/i);
   });
 
   test('claim requires same-email token proof and revokes old guest tokens', async () => {
@@ -188,5 +264,49 @@ describe('guest reopen and same-email order claim', () => {
     await expect(claimGuestOrder({orderNumber: 'ATB-1', rawToken: 'claim-token', user: {id: ownerId, email: 'other@example.test'}}, baseClient({id: 'token-1', order_id: 'order-1', contact_email: 'buyer@example.test', status: 'active', expires_at: new Date(Date.now() + 60_000).toISOString()}) as never)).resolves.toEqual({status: 'denied', code: 'claim_not_available'});
     await expect(claimGuestOrder({orderNumber: 'ATB-1', rawToken: 'claim-token', user: {id: ownerId, email: 'buyer@example.test'}}, baseClient({id: 'token-1', order_id: 'order-1', contact_email: 'buyer@example.test', status: 'active', expires_at: new Date(Date.now() - 60_000).toISOString()}) as never)).resolves.toEqual({status: 'denied', code: 'claim_not_available'});
     await expect(claimGuestOrder({orderNumber: 'ATB-1', rawToken: 'claim-token', user: {id: ownerId, email: 'buyer@example.test'}}, baseClient({id: 'token-1', order_id: 'order-1', contact_email: 'buyer@example.test', status: 'consumed', expires_at: new Date(Date.now() + 60_000).toISOString()}) as never)).resolves.toEqual({status: 'denied', code: 'claim_not_available'});
+  });
+
+  test('records sanitized operational failures and rejects claim when mutation returns an error', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
+    const client = {
+      from: vi.fn((table: string) => {
+        if (table === 'guest_order_access_tokens') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  eq: vi.fn(() => ({
+                    maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'token-1', order_id: 'order-1', contact_email: 'buyer@example.test', status: 'active', expires_at: new Date(Date.now() + 60_000).toISOString()}, error: null}))
+                  }))
+                }))
+              }))
+            })),
+            update: vi.fn(() => ({
+              eq: vi.fn(() => Promise.resolve({data: null, error: null}))
+            }))
+          };
+        }
+        if (table === 'checkout_orders') {
+          return {
+            select: vi.fn(() => ({eq: vi.fn(() => ({maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'order-1', order_number: 'ATB-1', contact_email: 'buyer@example.test', owner_user_id: null}, error: null}))}))})),
+            update: vi.fn(() => ({
+              eq: vi.fn(() => Promise.resolve({data: null, error: {message: 'update rejected'}}))
+            }))
+          };
+        }
+        return {insert: vi.fn(() => Promise.resolve({data: null, error: null}))};
+      })
+    };
+
+    await expect(claimGuestOrder({orderNumber: 'ATB-1', rawToken: 'claim-token', user: {id: ownerId, email: 'buyer@example.test'}}, client as never)).resolves.toEqual({status: 'error', code: 'claim_failed'});
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'fulfillment',
+        errorCode: 'guest_order.claim_failed',
+        facts: expect.objectContaining({action: 'guest_order_claim', orderNumber: 'ATB-1', code: 'claim_failed'})
+      })
+    );
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/buyer@example|claim-token|rawToken|token_hash/i);
   });
 });
