@@ -73,6 +73,24 @@ describe('OPS-03 D-11 operational error redaction', () => {
       facts: {orderNumber: 'AM-1001'}
     });
   });
+
+  it('keeps storefront as a first-class operational area', () => {
+    expect(
+      sanitizeOperationalErrorInput({
+        area: 'storefront',
+        severity: 'warning',
+        errorCode: 'storefront.catalog.query_failed',
+        summary: 'Storefront catalog query failed',
+        facts: {locale: 'en', market: 'intl'}
+      })
+    ).toEqual({
+      area: 'storefront',
+      severity: 'warning',
+      errorCode: 'storefront.catalog.query_failed',
+      summary: 'Storefront catalog query failed',
+      facts: {locale: 'en', market: 'intl'}
+    });
+  });
 });
 
 describe('OPS-03 D-12 operational error admin actions', () => {

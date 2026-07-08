@@ -18,6 +18,7 @@ const statuses: Array<{ value: AdminOperationalErrorFilters['status']; label: st
 const areas: Array<{ value: AdminOperationalErrorFilters['area']; label: string }> = [
   { value: 'all', label: 'All areas' },
   { value: 'application', label: 'Application' },
+  { value: 'storefront', label: 'Storefront' },
   { value: 'payment', label: 'Payment' },
   { value: 'email', label: 'Email' },
   { value: 'fulfillment', label: 'Fulfillment' },

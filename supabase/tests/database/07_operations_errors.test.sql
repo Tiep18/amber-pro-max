@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(12);
+select plan(13);
 
 select has_table('public', 'operational_errors', 'operational errors table exists');
 select has_function('private', 'operational_error_safe_json', array['jsonb'], 'operational error safe json function exists');
@@ -24,6 +24,33 @@ values (
   'paypal:capture_failed',
   'PayPal capture failed after provider verification',
   '{"providerOrderId":"ORDER-123","status":"DECLINED","amountCurrency":"USD"}'::jsonb
+);
+
+insert into public.operational_errors (
+  id,
+  area,
+  severity,
+  error_code,
+  summary,
+  sanitized_facts
+)
+values (
+  '76000000-0000-0000-0000-000000000002',
+  'storefront',
+  'warning',
+  'storefront.home.featured_products_failed',
+  'Home featured products failed',
+  '{"action":"home_featured_products","locale":"en","market":"intl"}'::jsonb
+);
+
+select is(
+  (
+    select area
+    from public.operational_errors
+    where id = '76000000-0000-0000-0000-000000000002'
+  ),
+  'storefront',
+  'storefront operational area accepts namespaced dotted error codes'
 );
 
 select is(

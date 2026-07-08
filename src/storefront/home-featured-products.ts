@@ -2,6 +2,7 @@ import type { CatalogProduct, CatalogProductType } from '@/catalog/queries';
 import { marketForLocale } from '@/catalog/seo-market';
 import type { MarketCode } from '@/catalog/market';
 import type { Locale } from '@/i18n/routing';
+import { runMonitoredQuery } from '@/operations/monitoring';
 
 type CatalogProductLoader = (input: {
   locale: Locale;
@@ -42,28 +43,27 @@ export async function getHomeFeaturedProducts({
   recordOperationalFailure: recordFailure = recordHomeFeaturedProductsFailure
 }: HomeFeaturedProductsInput): Promise<CatalogProduct[]> {
   const market = marketForLocale(locale);
-  try {
-    const products = await getProducts({
+  return runMonitoredQuery({
+    area: 'storefront',
+    severity: 'warning',
+    action: 'home_featured_products',
+    errorCode: 'storefront.home.featured_products_failed',
+    summary: 'Home featured products failed',
+    facts: {
       locale,
       market,
-      productType,
-      sort: 'newest'
-    });
-    return products.slice(0, 4);
-  } catch {
-    await recordFailure({
-      area: 'storefront',
-      severity: 'warning',
-      errorCode: 'storefront.home.featured_products_failed',
-      summary: 'Home featured products failed',
-      facts: {
-        action: 'home_featured_products',
+      productType
+    },
+    fallback: [],
+    recordOperationalFailure: recordFailure,
+    query: async () => {
+      const products = await getProducts({
         locale,
         market,
         productType,
-        code: 'home_featured_products_failed'
-      }
-    });
-    return [];
-  }
+        sort: 'newest'
+      });
+      return products.slice(0, 4);
+    }
+  });
 }

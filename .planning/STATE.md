@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-07-09 - Completed quick task 260709-storefront-error-visibility: Storefront silent degradation and wishlist UI feedback hardening
+last_activity: 2026-07-09 - Completed quick task 260709-global-operational-pattern: Shared monitored action/query wrappers and conventions
 progress:
   total_phases: 7
   completed_phases: 6
@@ -201,6 +201,7 @@ None yet.
 | 260708-ops22 | Admin email actions operational instrumentation | 2026-07-08 | this commit | [260708-ops-admin-email-actions-operational-instrumentation](./quick/260708-ops-admin-email-actions-operational-instrumentation/) |
 | 260708-ops23 | Review query and eligibility operational instrumentation | 2026-07-08 | this commit | [260708-ops-review-query-eligibility-operational-instrumentation](./quick/260708-ops-review-query-eligibility-operational-instrumentation/) |
 | 260709-storefront-error-visibility | Storefront silent degradation and wishlist UI feedback hardening | 2026-07-09 | this commit | [260709-storefront-error-visibility](./quick/260709-storefront-error-visibility/) |
+| 260709-global-operational-pattern | Shared monitored action/query wrappers and operational monitoring conventions | 2026-07-09 | this commit | [260709-global-operational-pattern](./quick/260709-global-operational-pattern/) |
 
 ### Debug Sessions Resolved
 

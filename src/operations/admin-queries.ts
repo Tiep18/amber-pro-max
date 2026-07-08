@@ -61,6 +61,7 @@ function normalizeFilters(filters: AdminOperationalErrorFilters | undefined): Re
     status: filters?.status === 'resolved' || filters?.status === 'all' ? filters.status : 'unresolved',
     area:
       filters?.area === 'application' ||
+      filters?.area === 'storefront' ||
       filters?.area === 'payment' ||
       filters?.area === 'email' ||
       filters?.area === 'fulfillment' ||
@@ -73,7 +74,12 @@ function normalizeFilters(filters: AdminOperationalErrorFilters | undefined): Re
 }
 
 function asArea(value: string): OperationalErrorArea {
-  return value === 'payment' || value === 'email' || value === 'fulfillment' || value === 'checkout' || value === 'admin'
+  return value === 'storefront' ||
+    value === 'payment' ||
+    value === 'email' ||
+    value === 'fulfillment' ||
+    value === 'checkout' ||
+    value === 'admin'
     ? value
     : 'application';
 }

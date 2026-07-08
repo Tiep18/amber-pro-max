@@ -25,7 +25,7 @@ describe('home featured products loader', () => {
         locale: 'en',
         market: 'intl',
         productType: 'pdf_pattern',
-        code: 'home_featured_products_failed'
+        code: 'storefront.home.featured_products_failed'
       }
     });
   });

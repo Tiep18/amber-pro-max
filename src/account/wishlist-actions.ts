@@ -5,7 +5,7 @@ import {requireUser} from '@/auth/guards';
 import {isPostgresUuid} from '@/account/wishlist-client-state';
 import type {Locale} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 type DeleteClient = {
   from: (table: string) => {
@@ -68,28 +68,6 @@ function actionReturnPath(locale: Locale, formData: FormData) {
   return formValue(formData, 'returnTo') ?? wishlistPath(locale);
 }
 
-async function recordWishlistFailure({
-  action,
-  productId,
-  summary
-}: {
-  action: 'add' | 'remove';
-  productId: string;
-  summary: string;
-}) {
-  await recordOperationalFailure({
-    area: 'application',
-    severity: 'error',
-    errorCode: `account.wishlist.${action}_failed`,
-    summary,
-    facts: {
-      action,
-      productId,
-      code: 'wishlist_action_failed'
-    }
-  });
-}
-
 export async function addCustomerWishlistItem({
   userId,
   productId,
@@ -103,23 +81,29 @@ export async function addCustomerWishlistItem({
     return {status: 'invalid', code: 'invalid_product_id'};
   }
 
-  const {data, error} = await client
-    .from('wishlist_items')
-    .upsert(
-      {user_id: userId, product_id: productId},
-      {onConflict: 'user_id,product_id', ignoreDuplicates: true}
-    )
-    .select('id');
+  return runMonitoredAction({
+    area: 'application',
+    action: 'add',
+    errorCode: 'account.wishlist.add_failed',
+    summary: 'Wishlist add failed',
+    facts: {productId},
+    errorResult: {status: 'error', code: 'wishlist_action_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    operation: async () => {
+      const {data, error} = await client
+        .from('wishlist_items')
+        .upsert(
+          {user_id: userId, product_id: productId},
+          {onConflict: 'user_id,product_id', ignoreDuplicates: true}
+        )
+        .select('id');
 
-  if (error || !Array.isArray(data)) {
-    await recordWishlistFailure({
-      action: 'add',
-      productId,
-      summary: error ? 'Wishlist add persistence failed' : 'Wishlist add returned an unexpected result'
-    });
-    return {status: 'error', code: 'wishlist_action_failed'};
-  }
-  return {status: 'saved'};
+      if (error || !Array.isArray(data)) {
+        return {status: 'error', code: 'wishlist_action_failed'} as const;
+      }
+      return {status: 'saved'} as const;
+    }
+  });
 }
 
 export async function removeCustomerWishlistItem({
@@ -135,22 +119,28 @@ export async function removeCustomerWishlistItem({
     return {status: 'invalid', code: 'invalid_product_id'};
   }
 
-  const {data, error} = await client
-    .from('wishlist_items')
-    .delete()
-    .select('id')
-    .eq('user_id', userId)
-    .eq('product_id', productId);
+  return runMonitoredAction({
+    area: 'application',
+    action: 'remove',
+    errorCode: 'account.wishlist.remove_failed',
+    summary: 'Wishlist remove failed',
+    facts: {productId},
+    errorResult: {status: 'error', code: 'wishlist_action_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    operation: async () => {
+      const {data, error} = await client
+        .from('wishlist_items')
+        .delete()
+        .select('id')
+        .eq('user_id', userId)
+        .eq('product_id', productId);
 
-  if (error || !Array.isArray(data)) {
-    await recordWishlistFailure({
-      action: 'remove',
-      productId,
-      summary: error ? 'Wishlist remove persistence failed' : 'Wishlist remove returned an unexpected result'
-    });
-    return {status: 'error', code: 'wishlist_action_failed'};
-  }
-  return data.length > 0 ? {status: 'removed'} : {status: 'not_found'};
+      if (error || !Array.isArray(data)) {
+        return {status: 'error', code: 'wishlist_action_failed'} as const;
+      }
+      return data.length > 0 ? ({status: 'removed'} as const) : ({status: 'not_found'} as const);
+    }
+  });
 }
 
 export async function removeCustomerWishlistItemAction(

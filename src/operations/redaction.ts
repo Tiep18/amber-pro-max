@@ -1,4 +1,4 @@
-export type OperationalErrorArea = 'application' | 'payment' | 'email' | 'fulfillment' | 'checkout' | 'admin';
+export type OperationalErrorArea = 'application' | 'storefront' | 'payment' | 'email' | 'fulfillment' | 'checkout' | 'admin';
 export type OperationalErrorSeverity = 'warning' | 'error' | 'critical';
 export type SafeOperationalFact = string | number | boolean | null | SafeOperationalFact[] | {[key: string]: SafeOperationalFact};
 
@@ -10,7 +10,7 @@ export type SanitizedOperationalErrorInput = {
   facts: Record<string, SafeOperationalFact>;
 };
 
-const allowedAreas = new Set<OperationalErrorArea>(['application', 'payment', 'email', 'fulfillment', 'checkout', 'admin']);
+const allowedAreas = new Set<OperationalErrorArea>(['application', 'storefront', 'payment', 'email', 'fulfillment', 'checkout', 'admin']);
 const allowedSeverities = new Set<OperationalErrorSeverity>(['warning', 'error', 'critical']);
 const allowedFactKeys = new Set([
   'amountCurrency',
@@ -29,6 +29,7 @@ const allowedFactKeys = new Set([
   'httpStatus',
   'invoiceId',
   'lastStatus',
+  'locale',
   'market',
   'orderId',
   'orderNumber',
@@ -143,7 +144,7 @@ export function sanitizeOperationalErrorInput(input: {
     severity: allowedSeverities.has(input.severity as OperationalErrorSeverity)
       ? (input.severity as OperationalErrorSeverity)
       : 'error',
-    errorCode: input.errorCode.trim().toLowerCase().replace(/[^a-z0-9_:-]/g, '_').slice(0, 120) || 'operational_error',
+    errorCode: input.errorCode.trim().toLowerCase().replace(/[^a-z0-9_.:-]/g, '_').slice(0, 120) || 'operational_error',
     summary: sanitizeOperationalErrorSummary(input.summary),
     facts: sanitizeOperationalErrorFacts(input.facts)
   };
