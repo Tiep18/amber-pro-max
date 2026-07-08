@@ -8,6 +8,8 @@ export type OperationalFailureRecorder = (input: {
   facts?: unknown;
 }) => Promise<unknown>;
 
+type OperationalRecordResult = Awaited<ReturnType<OperationalFailureRecorder>>;
+
 type SafeFacts = Record<string, SafeOperationalFact>;
 
 type MonitoredBase = {
@@ -32,6 +34,7 @@ type MonitoredActionInput<TSuccess extends ActionResultWithStatus, TError extend
     shouldRecordResult?: (result: TSuccess) => boolean;
     factsFromResult?: (result: TSuccess) => SafeFacts;
     factsFromError?: (error: unknown) => SafeFacts;
+    decorateErrorResult?: (errorResult: TError, recordResult: OperationalRecordResult | undefined) => TError;
   };
 
 type MonitoredQueryInput<T> = MonitoredBase & {
@@ -55,7 +58,7 @@ async function recordFailure(
   dynamicFacts?: SafeFacts,
   recorder = input.recordOperationalFailure ?? defaultOperationalFailureRecorder
 ) {
-  await recorder({
+  return recorder({
     area: input.area,
     severity: input.severity ?? 'error',
     errorCode: input.errorCode,
@@ -71,9 +74,10 @@ async function recordFailure(
 
 async function safeRecordFailure(input: MonitoredBase, code: string, dynamicFacts?: SafeFacts) {
   try {
-    await recordFailure(input, code, dynamicFacts);
+    return await recordFailure(input, code, dynamicFacts);
   } catch {
     // Operational monitoring must never change the business result.
+    return undefined;
   }
 }
 
@@ -92,8 +96,12 @@ export async function runMonitoredAction<
     }
     return result;
   } catch (error) {
-    await safeRecordFailure(input, input.errorResult.code ?? input.errorCode, input.factsFromError?.(error));
-    return input.errorResult;
+    const recordResult = await safeRecordFailure(
+      input,
+      input.errorResult.code ?? input.errorCode,
+      input.factsFromError?.(error)
+    );
+    return input.decorateErrorResult?.(input.errorResult, recordResult) ?? input.errorResult;
   }
 }
 

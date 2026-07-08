@@ -123,4 +123,19 @@ describe('checkout operational error instrumentation', () => {
       })
     );
   });
+
+  it('returns checkout error states when operational recording fails', async () => {
+    recordOperationalFailureMock.mockRejectedValue(new Error('operational table unavailable'));
+    quoteCartIntentMock.mockRejectedValue(new Error('quote failed'));
+    submitCheckoutMock.mockRejectedValue(new Error('submit failed'));
+
+    await expect(refreshCheckoutQuoteAction(validCheckoutInput())).resolves.toEqual({
+      status: 'error',
+      code: 'checkout_quote_failed'
+    });
+    await expect(submitCheckoutAction(validCheckoutInput())).resolves.toEqual({
+      status: 'error',
+      code: 'checkout_submit_failed'
+    });
+  });
 });

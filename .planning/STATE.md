@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-07-09 - Completed quick task 260709-monitor-cart-actions: Cart quote action uses monitored action wrapper
+last_activity: 2026-07-09 - Completed quick task 260709-monitor-checkout-actions: Checkout actions use monitored action wrapper
 progress:
   total_phases: 7
   completed_phases: 6
@@ -204,6 +204,7 @@ None yet.
 | 260709-global-operational-pattern | Shared monitored action/query wrappers and operational monitoring conventions | 2026-07-09 | this commit | [260709-global-operational-pattern](./quick/260709-global-operational-pattern/) |
 | 260709-monitoring-wrapper-hardening | Best-effort monitored action/query recorder behavior and dynamic facts | 2026-07-09 | this commit | [260709-monitoring-wrapper-hardening](./quick/260709-monitoring-wrapper-hardening/) |
 | 260709-monitor-cart-actions | Cart quote action uses monitored action wrapper | 2026-07-09 | this commit | [260709-monitor-cart-actions](./quick/260709-monitor-cart-actions/) |
+| 260709-monitor-checkout-actions | Checkout quote and submit actions use monitored action wrapper | 2026-07-09 | this commit | [260709-monitor-checkout-actions](./quick/260709-monitor-checkout-actions/) |
 
 ### Debug Sessions Resolved
 

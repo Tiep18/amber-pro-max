@@ -208,4 +208,32 @@ describe('operational monitoring wrappers', () => {
       })
     );
   });
+
+  it('can decorate an action error result with the operational record result', async () => {
+    const recordOperationalFailure: OperationalFailureRecorder = vi.fn(() =>
+      Promise.resolve({ status: 'recorded', errorId: 'error-1' })
+    );
+
+    await expect(
+      runMonitoredAction({
+        area: 'checkout',
+        action: 'checkout_submit',
+        errorCode: 'checkout_submit_failed',
+        summary: 'Checkout submit failed',
+        errorResult: { status: 'error' as const, code: 'checkout_submit_failed' as const },
+        recordOperationalFailure,
+        decorateErrorResult: (errorResult, recordResult) =>
+          recordResult && typeof recordResult === 'object' && 'errorId' in recordResult
+            ? { ...errorResult, errorId: recordResult.errorId as string }
+            : errorResult,
+        operation: async () => {
+          throw new Error('submit failed');
+        }
+      })
+    ).resolves.toEqual({
+      status: 'error',
+      code: 'checkout_submit_failed',
+      errorId: 'error-1'
+    });
+  });
 });
