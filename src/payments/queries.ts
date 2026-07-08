@@ -1,6 +1,7 @@
 ﻿import type {CustomerPaymentStatus, FulfillmentGateStatus, PaymentInternalStatus, PaymentProvider} from '@/payments/types';
 import {shippingAddressSchema, type ShippingAddress} from '@/checkout/shipping-address';
 import {maskEmailForAdmin, sanitizeEmailFailureCode} from '@/fulfillment/admin-email-actions';
+import {recordOperationalFailure} from '@/operations/errors';
 import type {Json} from '@/types/supabase';
 
 type RpcClient = {
@@ -215,6 +216,37 @@ async function defaultRequireAdmin() {
   return requireAdmin();
 }
 
+async function recordOrderQueryFailure({
+  area,
+  action,
+  errorCode,
+  summary,
+  code,
+  orderNumber,
+  orderId
+}: {
+  area: 'payment' | 'admin';
+  action: string;
+  errorCode: string;
+  summary: string;
+  code: string;
+  orderNumber?: string | null;
+  orderId?: string | null;
+}) {
+  await recordOperationalFailure({
+    area,
+    severity: 'error',
+    errorCode,
+    summary,
+    facts: {
+      action,
+      orderNumber: orderNumber ?? null,
+      orderId: orderId ?? null,
+      code
+    }
+  });
+}
+
 export async function getAuthorizedOrderPayment({
   orderNumber,
   guestSecretHash,
@@ -229,12 +261,28 @@ export async function getAuthorizedOrderPayment({
     p_guest_secret_hash: guestSecretHash ?? null
   });
   if (error) {
+    await recordOrderQueryFailure({
+      area: 'payment',
+      action: 'order_payment_lookup',
+      errorCode: 'order_payment_lookup_failed',
+      summary: 'Customer order payment lookup failed',
+      code: 'order_payment_lookup_failed',
+      orderNumber
+    });
     return {status: 'error', code: 'order_payment_lookup_failed'};
   }
   if (!isRecord(data) || data.status !== 'found') {
     return {status: 'not_found'};
   }
   if (typeof data.orderNumber !== 'string' || typeof data.amountMinor !== 'number') {
+    await recordOrderQueryFailure({
+      area: 'payment',
+      action: 'order_payment_lookup',
+      errorCode: 'order_payment_lookup_failed',
+      summary: 'Customer order payment lookup returned an unexpected result',
+      code: 'order_payment_lookup_failed',
+      orderNumber
+    });
     return {status: 'error', code: 'order_payment_lookup_failed'};
   }
 
@@ -522,6 +570,13 @@ export async function getAdminOrderQueue({
   const query = client.from('order_payment_statuses').select(ADMIN_QUEUE_SELECT) as Orderable<unknown[]>;
   const {data, error} = await query.order('updated_at', {ascending: false});
   if (error || !Array.isArray(data)) {
+    await recordOrderQueryFailure({
+      area: 'admin',
+      action: 'admin_order_queue',
+      errorCode: 'admin_order_queue_failed',
+      summary: error ? 'Admin order queue query failed' : 'Admin order queue returned an unexpected result',
+      code: 'admin_order_queue_failed'
+    });
     return {status: 'error', code: 'admin_order_queue_failed'};
   }
 
@@ -549,6 +604,14 @@ export async function getAdminOrderDetail({
   const detailQuery = client.from('order_payment_statuses').select(ADMIN_DETAIL_SELECT) as Filterable<unknown>;
   const {data, error} = await detailQuery.eq('order_id', orderId).maybeSingle();
   if (error) {
+    await recordOrderQueryFailure({
+      area: 'admin',
+      action: 'admin_order_detail',
+      errorCode: 'admin_order_detail_failed',
+      summary: 'Admin order detail query failed',
+      code: 'admin_order_detail_failed',
+      orderId
+    });
     return {status: 'error', code: 'admin_order_detail_failed'};
   }
   if (!isRecord(data)) {
@@ -557,11 +620,27 @@ export async function getAdminOrderDetail({
 
   const base = mapQueueItem(data);
   if (!base) {
+    await recordOrderQueryFailure({
+      area: 'admin',
+      action: 'admin_order_detail',
+      errorCode: 'admin_order_detail_failed',
+      summary: 'Admin order detail returned an unexpected result',
+      code: 'admin_order_detail_failed',
+      orderId
+    });
     return {status: 'error', code: 'admin_order_detail_failed'};
   }
 
   const {data: timelineData, error: timelineError} = await client.rpc('get_admin_order_timeline', {p_order_id: orderId});
   if (timelineError || !Array.isArray(timelineData)) {
+    await recordOrderQueryFailure({
+      area: 'admin',
+      action: 'admin_order_timeline',
+      errorCode: 'admin_order_detail_failed',
+      summary: timelineError ? 'Admin order timeline query failed' : 'Admin order timeline returned an unexpected result',
+      code: 'admin_order_detail_failed',
+      orderId
+    });
     return {status: 'error', code: 'admin_order_detail_failed'};
   }
 
@@ -609,6 +688,14 @@ export async function getAdminOrderDetailByOrderNumber({
   const lookupQuery = client.from('order_payment_statuses').select('order_id') as Filterable<unknown>;
   const {data, error} = await lookupQuery.eq('order_number', orderNumber).maybeSingle();
   if (error) {
+    await recordOrderQueryFailure({
+      area: 'admin',
+      action: 'admin_order_number_lookup',
+      errorCode: 'admin_order_detail_failed',
+      summary: 'Admin order number lookup failed',
+      code: 'admin_order_detail_failed',
+      orderNumber
+    });
     return {status: 'error', code: 'admin_order_detail_failed'};
   }
   if (!isRecord(data) || typeof data.order_id !== 'string') {

@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-07-08 - Completed quick task 260708-ops14: Storefront cart and account loaders operational instrumentation
+last_activity: 2026-07-08 - Completed quick task 260708-ops15: Payment order query operational instrumentation
 progress:
   total_phases: 7
   completed_phases: 6
@@ -191,6 +191,7 @@ None yet.
 | 260708-ops12 | Customer fulfillment operational instrumentation | 2026-07-08 | this commit | [260708-ops-customer-fulfillment-operational-instrumentation](./quick/260708-ops-customer-fulfillment-operational-instrumentation/) |
 | 260708-ops13 | Storefront public loaders operational instrumentation | 2026-07-08 | this commit | [260708-ops-storefront-public-loaders-operational-instrumentation](./quick/260708-ops-storefront-public-loaders-operational-instrumentation/) |
 | 260708-ops14 | Storefront cart and account loaders operational instrumentation | 2026-07-08 | this commit | [260708-ops-storefront-cart-account-loaders-operational-instrumentation](./quick/260708-ops-storefront-cart-account-loaders-operational-instrumentation/) |
+| 260708-ops15 | Payment order query operational instrumentation | 2026-07-08 | this commit | [260708-ops-payment-order-query-operational-instrumentation](./quick/260708-ops-payment-order-query-operational-instrumentation/) |
 
 ### Debug Sessions Resolved
 

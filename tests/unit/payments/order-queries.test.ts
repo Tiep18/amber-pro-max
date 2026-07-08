@@ -1,5 +1,9 @@
 import {describe, expect, test, vi} from 'vitest';
+
+vi.mock('@/operations/errors', () => ({recordOperationalFailure: vi.fn()}));
+
 import {getAuthorizedOrderPayment, getAdminOrderDetail, getAdminOrderQueue} from '@/payments/queries';
+import {recordOperationalFailure} from '@/operations/errors';
 
 describe('payment order projections', () => {
   const shippingAddress = {
@@ -50,6 +54,35 @@ describe('payment order projections', () => {
         shippingAddress
       }
     });
+  });
+
+  test('records customer order lookup failures without exposing guest access or address details', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {message: 'relation private.order_secret does not exist for customer@example.com'}
+    });
+
+    await expect(getAuthorizedOrderPayment({
+      orderNumber: 'ATB-20260616-0001',
+      guestSecretHash: 'super-secret-hash',
+      client: {rpc} as never
+    })).resolves.toEqual({status: 'error', code: 'order_payment_lookup_failed'});
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'payment',
+        severity: 'error',
+        errorCode: 'order_payment_lookup_failed',
+        summary: 'Customer order payment lookup failed',
+        facts: expect.objectContaining({
+          action: 'order_payment_lookup',
+          orderNumber: 'ATB-20260616-0001',
+          code: 'order_payment_lookup_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/super-secret-hash|customer@example|order_secret|relation|Market Street|\+1555/i);
   });
 
   test('admin queue and detail require application authorization before querying projections', async () => {
@@ -121,5 +154,74 @@ describe('payment order projections', () => {
         shippingAddress
       }
     });
+  });
+
+  test('records admin order queue and detail query failures without exposing customer PII', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
+    const requireAdmin = vi.fn().mockResolvedValue({id: 'admin-user'});
+    const queueOrder = vi.fn().mockResolvedValue({
+      data: null,
+      error: {message: 'queue failed for customer@example.com'}
+    });
+    const queueSelect = vi.fn().mockReturnValue({order: queueOrder});
+
+    await expect(getAdminOrderQueue({
+      client: {from: vi.fn().mockReturnValue({select: queueSelect})} as never,
+      requireAdmin
+    })).resolves.toEqual({status: 'error', code: 'admin_order_queue_failed'});
+
+    const detailSingle = vi.fn().mockResolvedValue({
+      data: {
+        order_id: 'order-id',
+        order_number: 'ATB-20260616-0001',
+        contact_email: 'customer@example.com',
+        total_minor: 1200,
+        currency_code: 'USD',
+        provider: 'paypal',
+        shipping_address: shippingAddress
+      },
+      error: null
+    });
+    const eq = vi.fn().mockReturnValue({maybeSingle: detailSingle});
+    const detailSelect = vi.fn().mockReturnValue({eq});
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {message: 'timeline private detail failed'}
+    });
+
+    await expect(getAdminOrderDetail({
+      orderId: 'order-id',
+      client: {from: vi.fn().mockReturnValue({select: detailSelect}), rpc} as never,
+      requireAdmin
+    })).resolves.toEqual({status: 'error', code: 'admin_order_detail_failed'});
+
+    expect(recordOperationalFailure).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'admin_order_queue_failed',
+        summary: 'Admin order queue query failed',
+        facts: expect.objectContaining({
+          action: 'admin_order_queue',
+          code: 'admin_order_queue_failed'
+        })
+      })
+    );
+    expect(recordOperationalFailure).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'admin_order_detail_failed',
+        summary: 'Admin order timeline query failed',
+        facts: expect.objectContaining({
+          action: 'admin_order_timeline',
+          orderId: 'order-id',
+          code: 'admin_order_detail_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/customer@example|Market Street|\+1555|timeline private|queue failed/i);
   });
 });
