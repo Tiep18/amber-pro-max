@@ -91,10 +91,15 @@ function createActionClient({
 
 async function importAdminActions({
   client = createActionClient(),
-  requireAdmin = vi.fn(async () => ({ id: 'admin-user' }))
+  requireAdmin = vi.fn(async () => ({ id: 'admin-user' })),
+  recordOperationalFailure = vi.fn(async () => ({
+    status: 'recorded',
+    errorId: '76000000-0000-4000-8000-000000000001'
+  }))
 }: {
   client?: ReturnType<typeof createActionClient>;
   requireAdmin?: ReturnType<typeof vi.fn>;
+  recordOperationalFailure?: ReturnType<typeof vi.fn>;
 } = {}) {
   vi.resetModules();
   vi.doMock('server-only', () => ({}));
@@ -121,6 +126,9 @@ async function importAdminActions({
       failed: 0
     }))
   }));
+  vi.doMock('@/operations/errors', () => ({
+    recordOperationalFailure
+  }));
   const actions = await import('@/payments/admin-actions');
   const transitions = await import('@/payments/transitions');
   const emailOutbox = await import('@/fulfillment/email-outbox.server');
@@ -133,6 +141,7 @@ async function importAdminActions({
     ) => Promise<unknown>,
     applyPaymentTransition: vi.mocked(transitions.applyPaymentTransition),
     triggerTransactionalEmailOutboxNow: vi.mocked(emailOutbox.triggerTransactionalEmailOutboxNow),
+    recordOperationalFailure,
     requireAdmin,
     client
   };
@@ -423,5 +432,80 @@ describe('VietQR instruction and evidence contract', () => {
       status: 'duplicate',
       paymentStatus: 'paid'
     });
+  });
+
+  test('admin confirmation records mismatched bank evidence for operations review', async () => {
+    const recordOperationalFailure = vi.fn(async () => ({
+      status: 'recorded',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    }));
+    const { confirmVietQrPaymentAction, applyPaymentTransition } = await importAdminActions({
+      recordOperationalFailure
+    });
+
+    await expect(
+      confirmVietQrPaymentAction(confirmForm({ bankReference: 'WRONG-REFERENCE' }))
+    ).resolves.toEqual({ status: 'invalid', code: 'vietqr_reference_mismatch' });
+
+    expect(applyPaymentTransition).not.toHaveBeenCalled();
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'payment',
+        severity: 'warning',
+        errorCode: 'vietqr_reference_mismatch',
+        summary: 'VietQR admin confirmation evidence rejected',
+        facts: expect.objectContaining({
+          provider: 'vietqr',
+          action: 'confirm',
+          orderId: order.orderId,
+          orderNumber: order.orderNumber,
+          paymentId: order.paymentId,
+          paymentStatus: 'pending',
+          code: 'vietqr_reference_mismatch'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(
+      /WRONG-REFERENCE|privateReceiptPath|adminNote|bankReference|receipt/i
+    );
+  });
+
+  test('admin rejection records transition failures for operations review', async () => {
+    const recordOperationalFailure = vi.fn(async () => ({
+      status: 'recorded',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    }));
+    const { rejectVietQrPaymentAction } = await importAdminActions({
+      client: createActionClient({
+        transition: { status: 'error', code: 'transition_rpc_failed' }
+      }),
+      recordOperationalFailure
+    });
+
+    await expect(rejectVietQrPaymentAction(rejectForm())).resolves.toEqual({
+      status: 'error',
+      code: 'vietqr_action_failed'
+    });
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'payment',
+        severity: 'error',
+        errorCode: 'vietqr_action_failed',
+        summary: 'VietQR admin rejection transition failed',
+        facts: expect.objectContaining({
+          provider: 'vietqr',
+          action: 'reject',
+          orderId: order.orderId,
+          orderNumber: order.orderNumber,
+          paymentId: order.paymentId,
+          paymentStatus: 'pending',
+          code: 'vietqr_action_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(
+      /Customer transferred|bankReference|privateReceiptPath|adminNote|receipt/i
+    );
   });
 });

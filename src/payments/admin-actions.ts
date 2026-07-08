@@ -4,6 +4,7 @@ import {revalidatePath} from 'next/cache';
 
 import {requireAdmin} from '@/auth/guards';
 import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
+import {recordOperationalFailure} from '@/operations/errors';
 import {createAdminOrderQueryClient, getAdminOrderDetail, type AdminOrderDetail} from '@/payments/queries';
 import {applyPaymentTransition} from '@/payments/transitions';
 import {
@@ -73,6 +74,33 @@ function mapRejectResult(status: string, paymentStatus?: string): VietQrAdminAct
   return {status: 'error', code: 'vietqr_action_failed'};
 }
 
+async function recordVietQrAdminFailure(input: {
+  action: 'confirm' | 'reject';
+  severity?: 'warning' | 'error';
+  code: string;
+  summary: string;
+  expected?: VietQrExpectedPayment | null;
+  orderId?: string;
+}) {
+  await recordOperationalFailure({
+    area: 'payment',
+    severity: input.severity ?? 'error',
+    errorCode: input.code,
+    summary: input.summary,
+    facts: {
+      provider: 'vietqr',
+      action: input.action,
+      code: input.code,
+      orderId: input.expected?.orderId ?? input.orderId,
+      orderNumber: input.expected?.orderNumber,
+      paymentId: input.expected?.paymentId ?? undefined,
+      paymentStatus: input.expected?.paymentStatus,
+      amountValue: input.expected?.amountMinor,
+      currency: input.expected?.currencyCode
+    }
+  });
+}
+
 async function loadExpectedPayment(orderId: string, admin: unknown) {
   const client = await createAdminOrderQueryClient();
   const detail = await getAdminOrderDetail({
@@ -106,16 +134,38 @@ export async function confirmVietQrPaymentAction(formData: FormData): Promise<Vi
       privateReceiptPath: getFormString(formData, 'privateReceiptPath') ?? undefined
     });
   if (!parsed.success) {
+    await recordVietQrAdminFailure({
+      action: 'confirm',
+      severity: 'warning',
+      code: 'invalid_vietqr_evidence',
+      summary: 'VietQR admin confirmation evidence validation failed',
+      orderId: getFormString(formData, 'orderId')
+    });
     return {status: 'invalid', code: 'invalid_vietqr_evidence'};
   }
 
   const loaded = await loadExpectedPayment(parsed.data.orderId, admin);
   if (loaded.status !== 'success' || !loaded.expected) {
+    await recordVietQrAdminFailure({
+      action: 'confirm',
+      severity: 'warning',
+      code: 'vietqr_action_not_available',
+      summary: 'VietQR admin confirmation action unavailable',
+      expected: loaded.expected,
+      orderId: parsed.data.orderId
+    });
     return {status: loaded.status === 'stale' ? 'stale' : 'invalid', code: 'vietqr_action_not_available'};
   }
 
   const comparison = compareVietQrEvidence(loaded.expected, parsed.data);
   if (comparison.status === 'mismatch') {
+    await recordVietQrAdminFailure({
+      action: 'confirm',
+      severity: 'warning',
+      code: comparison.code,
+      summary: 'VietQR admin confirmation evidence rejected',
+      expected: loaded.expected
+    });
     return {status: 'invalid', code: comparison.code};
   }
 
@@ -125,6 +175,15 @@ export async function confirmVietQrPaymentAction(formData: FormData): Promise<Vi
   );
   if ((transition.status === 'applied' || transition.status === 'duplicate') && transition.paymentStatus === 'paid') {
     await triggerTransactionalEmailOutboxNow({reason: 'vietqr_admin_paid'});
+  }
+  if (transition.status !== 'applied' && transition.status !== 'duplicate' && transition.status !== 'stale') {
+    await recordVietQrAdminFailure({
+      action: 'confirm',
+      severity: 'error',
+      code: 'vietqr_action_failed',
+      summary: 'VietQR admin confirmation transition failed',
+      expected: loaded.expected
+    });
   }
   revalidatePath('/admin/orders');
   return mapConfirmResult(transition.status, transition.paymentStatus);
@@ -141,11 +200,26 @@ export async function rejectVietQrPaymentAction(formData: FormData): Promise<Vie
       idempotencyKey: getFormString(formData, 'idempotencyKey')
     });
   if (!parsed.success) {
+    await recordVietQrAdminFailure({
+      action: 'reject',
+      severity: 'warning',
+      code: 'invalid_vietqr_rejection',
+      summary: 'VietQR admin rejection validation failed',
+      orderId: getFormString(formData, 'orderId')
+    });
     return {status: 'invalid', code: 'invalid_vietqr_rejection'};
   }
 
   const loaded = await loadExpectedPayment(parsed.data.orderId, admin);
   if (loaded.status !== 'success' || !loaded.expected) {
+    await recordVietQrAdminFailure({
+      action: 'reject',
+      severity: 'warning',
+      code: 'vietqr_action_not_available',
+      summary: 'VietQR admin rejection action unavailable',
+      expected: loaded.expected,
+      orderId: parsed.data.orderId
+    });
     return {status: loaded.status === 'stale' ? 'stale' : 'invalid', code: 'vietqr_action_not_available'};
   }
 
@@ -153,6 +227,15 @@ export async function rejectVietQrPaymentAction(formData: FormData): Promise<Vie
     buildVietQrRejectTransition({expected: loaded.expected, rejection: parsed.data}),
     loaded.client
   );
+  if (transition.status !== 'applied' && transition.status !== 'duplicate' && transition.status !== 'stale') {
+    await recordVietQrAdminFailure({
+      action: 'reject',
+      severity: 'error',
+      code: 'vietqr_action_failed',
+      summary: 'VietQR admin rejection transition failed',
+      expected: loaded.expected
+    });
+  }
   revalidatePath('/admin/orders');
   return mapRejectResult(transition.status, transition.paymentStatus);
 }

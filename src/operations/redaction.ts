@@ -15,6 +15,7 @@ const allowedSeverities = new Set<OperationalErrorSeverity>(['warning', 'error',
 const allowedFactKeys = new Set([
   'amountCurrency',
   'amountValue',
+  'action',
   'area',
   'attempt',
   'captureStatus',
