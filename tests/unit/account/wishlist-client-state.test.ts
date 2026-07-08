@@ -6,6 +6,7 @@ import {
 
 const firstId = '33333333-3333-4333-8333-333333333333';
 const secondId = '44444444-4444-4444-8444-444444444444';
+const postgresId = '50000000-0000-0000-0000-000000000003';
 
 describe('wishlist client state', () => {
   it('accepts a bounded, deduplicated UUID batch', () => {
@@ -13,6 +14,10 @@ describe('wishlist client state', () => {
       firstId,
       secondId
     ]);
+  });
+
+  it('accepts PostgreSQL UUIDs that are not RFC-versioned', () => {
+    expect(parseWishlistProductIds(`${postgresId},${firstId}`)).toEqual([postgresId, firstId]);
   });
 
   it('rejects malformed or oversized batches', () => {

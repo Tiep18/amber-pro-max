@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-07-08 - Completed quick task 260708-ops23: Review query and eligibility operational instrumentation
+last_activity: 2026-07-09 - Resolved debug session wishlist-invalid-product-id: Wishlist accepts PostgreSQL-valid product UUIDs
 progress:
   total_phases: 7
   completed_phases: 6
@@ -208,6 +208,7 @@ None yet.
 | header-overlays | Fix header dropdown outside-click behavior and modal sheet/cart background interaction after header upgrade | 2026-06-27 | [header-overlays](./debug/header-overlays.md) |
 | catalog-lcp-and-repeated-requests | Verify catalog request behavior and remove the first product image LCP warning | 2026-07-06 | [catalog-lcp-and-repeated-requests](./debug/catalog-lcp-and-repeated-requests.md) |
 | product-route-smooth-scroll-warning | Declare Next.js 16 smooth-scroll transition behavior and verify product navigation | 2026-07-06 | [product-route-smooth-scroll-warning](./debug/product-route-smooth-scroll-warning.md) |
+| wishlist-invalid-product-id | Accept PostgreSQL-valid product UUIDs in wishlist actions and client wishlist state | 2026-07-09 | [wishlist-invalid-product-id](./debug/wishlist-invalid-product-id.md) |
 
 ## Deferred Items
 

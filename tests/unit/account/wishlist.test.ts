@@ -18,6 +18,7 @@ import {recordOperationalFailure} from '@/operations/errors';
 
 const ownerId = '22222222-2222-4222-8222-222222222222';
 const productId = '33333333-3333-4333-8333-333333333333';
+const postgresProductId = '50000000-0000-0000-0000-000000000003';
 const wishlistId = '44444444-4444-4444-8444-444444444444';
 
 const availableRow: WishlistHydrationRow = {
@@ -162,6 +163,30 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
       {user_id: ownerId, product_id: productId},
       {onConflict: 'user_id,product_id', ignoreDuplicates: true}
     );
+  });
+
+  test('accepts PostgreSQL UUID product ids that are not RFC-versioned', async () => {
+    const select = vi.fn(() => Promise.resolve({data: [{id: wishlistId}], error: null}));
+    const upsert = vi.fn(() => ({select}));
+    await expect(
+      addCustomerWishlistItem({
+        userId: ownerId,
+        productId: postgresProductId,
+        client: {from: vi.fn(() => ({upsert}))} as never
+      })
+    ).resolves.toEqual({status: 'saved'});
+
+    const removeEqProduct = vi.fn(() => Promise.resolve({data: [{id: wishlistId}], error: null}));
+    const removeEqUser = vi.fn(() => ({eq: removeEqProduct}));
+    const removeSelect = vi.fn(() => ({eq: removeEqUser}));
+    const deleteCall = vi.fn(() => ({select: removeSelect}));
+    await expect(
+      removeCustomerWishlistItem({
+        userId: ownerId,
+        productId: postgresProductId,
+        client: {from: vi.fn(() => ({delete: deleteCall}))} as never
+      })
+    ).resolves.toEqual({status: 'removed'});
   });
 
   test('records sanitized operational failures for wishlist persistence errors', async () => {

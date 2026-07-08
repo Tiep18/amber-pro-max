@@ -1,8 +1,8 @@
 'use server';
 
 import {revalidatePath} from 'next/cache';
-import {z} from 'zod';
 import {requireUser} from '@/auth/guards';
+import {isPostgresUuid} from '@/account/wishlist-client-state';
 import type {Locale} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {recordOperationalFailure} from '@/operations/errors';
@@ -29,8 +29,6 @@ type UpsertClient = {
     };
   };
 };
-
-const productIdSchema = z.string().uuid();
 
 export type WishlistActionState =
   | {status: 'idle'}
@@ -101,7 +99,7 @@ export async function addCustomerWishlistItem({
   productId: string;
   client: UpsertClient;
 }): Promise<WishlistActionState> {
-  if (!productIdSchema.safeParse(productId).success) {
+  if (!isPostgresUuid(productId)) {
     return {status: 'invalid', code: 'invalid_product_id'};
   }
 
@@ -133,7 +131,7 @@ export async function removeCustomerWishlistItem({
   productId: string;
   client: DeleteClient;
 }): Promise<WishlistActionState> {
-  if (!productIdSchema.safeParse(productId).success) {
+  if (!isPostgresUuid(productId)) {
     return {status: 'invalid', code: 'invalid_product_id'};
   }
 
