@@ -1,6 +1,7 @@
 import type {SupabaseClient} from '@supabase/supabase-js';
 import type {Locale} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {recordOperationalFailure} from '@/operations/errors';
 import type {Database} from '@/types/supabase';
 import type {MarketCode} from './market';
 
@@ -41,6 +42,28 @@ function cleanOptional(value: string | null | undefined, maxLength = 100) {
   return cleaned.slice(0, maxLength);
 }
 
+async function recordCatalogQueryFailure({
+  action,
+  market,
+  summary
+}: {
+  action: 'catalog_products' | 'catalog_facets' | 'catalog_product_detail' | 'catalog_category_detail' | 'catalog_collection_detail';
+  market: MarketCode;
+  summary: string;
+}) {
+  await recordOperationalFailure({
+    area: 'application',
+    severity: 'error',
+    errorCode: 'storefront.catalog.query_failed',
+    summary,
+    facts: {
+      action,
+      market,
+      code: 'catalog_query_failed'
+    }
+  });
+}
+
 function catalogQueryError(): never {
   throw new Error('catalog_query_failed');
 }
@@ -61,6 +84,11 @@ export async function listCatalogProducts(input: CatalogListInput, client?: Cata
   });
 
   if (error) {
+    await recordCatalogQueryFailure({
+      action: 'catalog_products',
+      market: input.market,
+      summary: 'Storefront catalog product list query failed'
+    });
     catalogQueryError();
   }
 
@@ -78,6 +106,11 @@ export async function listCatalogFacets(
   });
 
   if (error) {
+    await recordCatalogQueryFailure({
+      action: 'catalog_facets',
+      market: input.market,
+      summary: 'Storefront catalog facets query failed'
+    });
     catalogQueryError();
   }
 
@@ -101,6 +134,11 @@ export async function getCatalogProductBySlug(
   });
 
   if (error) {
+    await recordCatalogQueryFailure({
+      action: 'catalog_product_detail',
+      market: input.market,
+      summary: 'Storefront catalog product detail query failed'
+    });
     catalogQueryError();
   }
 
@@ -124,6 +162,11 @@ export async function getCatalogCategoryBySlug(
   });
 
   if (error) {
+    await recordCatalogQueryFailure({
+      action: 'catalog_category_detail',
+      market: input.market,
+      summary: 'Storefront catalog category detail query failed'
+    });
     catalogQueryError();
   }
 
@@ -147,6 +190,11 @@ export async function getCatalogCollectionBySlug(
   });
 
   if (error) {
+    await recordCatalogQueryFailure({
+      action: 'catalog_collection_detail',
+      market: input.market,
+      summary: 'Storefront catalog collection detail query failed'
+    });
     catalogQueryError();
   }
 

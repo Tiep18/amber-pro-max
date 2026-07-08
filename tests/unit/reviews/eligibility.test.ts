@@ -4,6 +4,7 @@ vi.mock('server-only', () => ({}));
 vi.mock('next/cache', () => ({revalidatePath: vi.fn()}));
 vi.mock('@/auth/guards', () => ({requireUser: vi.fn()}));
 vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient: vi.fn()}));
+vi.mock('@/operations/errors', () => ({recordOperationalFailure: vi.fn()}));
 
 import {
   canReviewProduct,
@@ -17,6 +18,8 @@ import {
   submitProductReview,
   upsertReviewReply
 } from '@/reviews/actions';
+import {getApprovedProductReviews} from '@/reviews/queries';
+import {recordOperationalFailure} from '@/operations/errors';
 
 const productId = '33333333-3333-4333-8333-333333333333';
 
@@ -87,6 +90,34 @@ describe('verified product review contracts (REV-01, D-09, D-10, D-11)', () => {
         verifiedPurchase: true
       })
     ]);
+  });
+
+  test('records public review query failures without exposing raw review details', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
+    const order = vi.fn(() => Promise.resolve({data: null, error: {message: 'relation private.review_notes does not exist'}}));
+    const eq = vi.fn(() => ({order}));
+    const select = vi.fn(() => ({eq}));
+    const client = {from: vi.fn(() => ({select}))};
+
+    await expect(getApprovedProductReviews({productId, client: client as never})).resolves.toEqual({
+      status: 'error',
+      code: 'reviews_load_failed'
+    });
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'application',
+        severity: 'error',
+        errorCode: 'storefront.reviews.query_failed',
+        summary: 'Storefront product reviews query failed',
+        facts: expect.objectContaining({
+          action: 'public_reviews',
+          productId,
+          code: 'reviews_load_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/review_notes|relation|private|body|email|token/i);
   });
 });
 

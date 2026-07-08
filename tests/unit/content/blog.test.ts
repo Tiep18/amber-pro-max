@@ -26,6 +26,10 @@ import {
   scheduleBlogPostAction,
   unpublishBlogPostAction
 } from '@/content/blog/actions';
+import {
+  getPublishedBlogPostBySlug,
+  listPublishedBlogPosts
+} from '@/content/blog/queries';
 import {blogPostDraftSchema} from '@/content/blog/schemas';
 import type {BlogPostDraftInput} from '@/content/blog/schemas';
 
@@ -258,5 +262,53 @@ describe('blog admin actions - BLOG-02 D-01 D-03', () => {
       })
     );
     expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/unpublish constraint detail/i);
+  });
+});
+
+describe('public blog query operational recording', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('records list and detail query failures without exposing raw database details', async () => {
+    const client = {
+      rpc: vi.fn()
+        .mockResolvedValueOnce({data: null, error: {message: 'relation private.blog_secret does not exist'}})
+        .mockResolvedValueOnce({data: null, error: {message: 'raw blog detail failed'}})
+    };
+
+    await expect(listPublishedBlogPosts('en', client as never)).rejects.toThrow('blog_list_query_failed');
+    await expect(
+      getPublishedBlogPostBySlug({locale: 'en', slug: 'crochet-bear-guide'}, client as never)
+    ).rejects.toThrow('blog_detail_query_failed');
+
+    expect(recordOperationalFailureMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        area: 'application',
+        severity: 'error',
+        errorCode: 'storefront.blog.list_query_failed',
+        summary: 'Storefront blog list query failed',
+        facts: expect.objectContaining({
+          action: 'blog_list',
+          code: 'blog_list_query_failed'
+        })
+      })
+    );
+    expect(recordOperationalFailureMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        area: 'application',
+        severity: 'error',
+        errorCode: 'storefront.blog.detail_query_failed',
+        summary: 'Storefront blog detail query failed',
+        facts: expect.objectContaining({
+          action: 'blog_detail',
+          referenceId: 'crochet-bear-guide',
+          code: 'blog_detail_query_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/blog_secret|relation|raw blog detail|body|email|token/i);
   });
 });

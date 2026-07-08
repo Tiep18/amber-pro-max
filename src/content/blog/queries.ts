@@ -3,6 +3,7 @@ import 'server-only';
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {notFound} from 'next/navigation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {recordOperationalFailure} from '@/operations/errors';
 import type {Json} from '@/types/supabase';
 import type {Database} from '@/types/supabase';
 import type {BlogPostFormInitial, BlogSelectOption} from '@/components/admin/blog/blog-post-form';
@@ -89,6 +90,30 @@ function publicRelatedProducts(value: Json): PublicBlogPostDetail['relatedProduc
       typeof row.displayOrder === 'number'
       ? [{productId: row.productId, title: row.title, slug: row.slug, displayOrder: row.displayOrder}]
       : [];
+  });
+}
+
+async function recordPublicBlogQueryFailure({
+  action,
+  code,
+  summary,
+  referenceId
+}: {
+  action: 'blog_list' | 'blog_detail';
+  code: 'blog_list_query_failed' | 'blog_detail_query_failed';
+  summary: string;
+  referenceId?: string | null;
+}) {
+  await recordOperationalFailure({
+    area: 'application',
+    severity: 'error',
+    errorCode: `storefront.blog.${action === 'blog_list' ? 'list' : 'detail'}_query_failed`,
+    summary,
+    facts: {
+      action,
+      referenceId: referenceId ?? null,
+      code
+    }
   });
 }
 
@@ -207,6 +232,11 @@ export async function listPublishedBlogPosts(
   const supabase = client ?? await createSupabaseServerClient();
   const {data, error} = await supabase.rpc('list_published_blog_posts', {target_locale: locale});
   if (error) {
+    await recordPublicBlogQueryFailure({
+      action: 'blog_list',
+      code: 'blog_list_query_failed',
+      summary: 'Storefront blog list query failed'
+    });
     throw new Error('blog_list_query_failed');
   }
 
@@ -241,6 +271,12 @@ export async function getPublishedBlogPostBySlug({
     target_slug: cleanedSlug
   });
   if (error) {
+    await recordPublicBlogQueryFailure({
+      action: 'blog_detail',
+      code: 'blog_detail_query_failed',
+      summary: 'Storefront blog detail query failed',
+      referenceId: cleanedSlug
+    });
     throw new Error('blog_detail_query_failed');
   }
   const post = data?.[0];

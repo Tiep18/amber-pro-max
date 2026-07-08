@@ -1,10 +1,14 @@
 import {describe, expect, it, vi} from 'vitest';
+
+vi.mock('@/operations/errors', () => ({recordOperationalFailure: vi.fn()}));
+
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {
   getCatalogProductBySlug,
   listCatalogFacets,
   listCatalogProducts
 } from '@/catalog/queries';
+import {recordOperationalFailure} from '@/operations/errors';
 import type {Database} from '@/types/supabase';
 
 function mockClient(result: {data: unknown; error: unknown}) {
@@ -87,6 +91,7 @@ describe('catalog query helpers', () => {
   });
 
   it('does not expose raw database errors', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
     const client = mockClient({
       data: null,
       error: {message: 'relation private.inventory_records does not exist'}
@@ -95,5 +100,20 @@ describe('catalog query helpers', () => {
     await expect(
       listCatalogProducts({locale: 'en', market: 'intl'}, client)
     ).rejects.toThrow('catalog_query_failed');
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'application',
+        severity: 'error',
+        errorCode: 'storefront.catalog.query_failed',
+        summary: 'Storefront catalog product list query failed',
+        facts: expect.objectContaining({
+          action: 'catalog_products',
+          market: 'intl',
+          code: 'catalog_query_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/inventory_records|relation|private|email|token/i);
   });
 });

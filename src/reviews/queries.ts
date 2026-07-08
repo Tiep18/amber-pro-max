@@ -1,5 +1,6 @@
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {createSupabasePublicClient} from '@/lib/supabase/public';
+import {recordOperationalFailure} from '@/operations/errors';
 import {mapPublicReviewRows, type PublicProductReview} from '@/reviews/eligibility';
 
 type QueryClient = {
@@ -78,6 +79,20 @@ function mapAdminRows(rows: unknown[]): AdminProductReview[] {
   });
 }
 
+async function recordPublicReviewQueryFailure(productId: string, summary: string) {
+  await recordOperationalFailure({
+    area: 'application',
+    severity: 'error',
+    errorCode: 'storefront.reviews.query_failed',
+    summary,
+    facts: {
+      action: 'public_reviews',
+      productId,
+      code: 'reviews_load_failed'
+    }
+  });
+}
+
 export async function getApprovedProductReviews({
   productId,
   client
@@ -93,6 +108,10 @@ export async function getApprovedProductReviews({
     .order('approved_at', {ascending: false});
 
   if (error || !Array.isArray(data)) {
+    await recordPublicReviewQueryFailure(
+      productId,
+      error ? 'Storefront product reviews query failed' : 'Storefront product reviews returned an unexpected result'
+    );
     return {status: 'error', code: 'reviews_load_failed'};
   }
   return {status: 'success', reviews: mapPublicReviewRows(data)};

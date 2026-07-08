@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-07-08 - Completed quick task 260708-ops12: Customer fulfillment operational instrumentation
+last_activity: 2026-07-08 - Completed quick task 260708-ops13: Storefront public loaders operational instrumentation
 progress:
   total_phases: 7
   completed_phases: 6
@@ -189,6 +189,7 @@ None yet.
 | 260708-ops10 | Newsletter operational instrumentation | 2026-07-08 | this commit | [260708-ops-newsletter-operational-instrumentation](./quick/260708-ops-newsletter-operational-instrumentation/) |
 | 260708-ops11 | Account customer operational instrumentation | 2026-07-08 | this commit | [260708-ops-account-customer-operational-instrumentation](./quick/260708-ops-account-customer-operational-instrumentation/) |
 | 260708-ops12 | Customer fulfillment operational instrumentation | 2026-07-08 | this commit | [260708-ops-customer-fulfillment-operational-instrumentation](./quick/260708-ops-customer-fulfillment-operational-instrumentation/) |
+| 260708-ops13 | Storefront public loaders operational instrumentation | 2026-07-08 | this commit | [260708-ops-storefront-public-loaders-operational-instrumentation](./quick/260708-ops-storefront-public-loaders-operational-instrumentation/) |
 
 ### Debug Sessions Resolved
 
