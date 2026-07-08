@@ -23,7 +23,8 @@ vi.mock('server-only', () => ({}));
 const routeMocks = vi.hoisted(() => ({
   adminClient: null as unknown,
   paypalVerificationStatus: 'SUCCESS' as 'SUCCESS' | 'FAILURE',
-  triggerTransactionalEmailOutboxNow: vi.fn(async () => ({status: 'processed', claimed: 1, sent: 1, retry: 0, failed: 0}))
+  triggerTransactionalEmailOutboxNow: vi.fn(async () => ({status: 'processed', claimed: 1, sent: 1, retry: 0, failed: 0})),
+  recordOperationalFailure: vi.fn(async () => ({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'}))
 }));
 
 vi.mock('@/lib/env/server', () => ({
@@ -47,6 +48,10 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 vi.mock('@/fulfillment/email-outbox.server', () => ({
   triggerTransactionalEmailOutboxNow: routeMocks.triggerTransactionalEmailOutboxNow
+}));
+
+vi.mock('@/operations/errors', () => ({
+  recordOperationalFailure: routeMocks.recordOperationalFailure
 }));
 
 const configuredPayPal = {
@@ -202,6 +207,7 @@ async function loadWebhookRoute() {
 beforeEach(() => {
   routeMocks.paypalVerificationStatus = 'SUCCESS';
   routeMocks.triggerTransactionalEmailOutboxNow.mockClear();
+  routeMocks.recordOperationalFailure.mockClear();
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => {
@@ -438,6 +444,19 @@ describe('PayPal webhook route contract', () => {
     expect(state.updates).toHaveLength(0);
     expect(state.rpc).not.toHaveBeenCalled();
     expect(routeMocks.triggerTransactionalEmailOutboxNow).not.toHaveBeenCalled();
+    expect(routeMocks.recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'payment',
+        severity: 'warning',
+        errorCode: 'paypal_webhook_signature_rejected',
+        summary: 'PayPal webhook verification failed',
+        facts: expect.objectContaining({
+          eventType: paypalCompletedCaptureEvent.event_type,
+          providerEventId: paypalCompletedCaptureEvent.id
+        })
+      })
+    );
+    expect(JSON.stringify(routeMocks.recordOperationalFailure.mock.calls)).not.toMatch(/paypal-transmission-sig|rawBody|fixture-signature/i);
   });
 
   test('pending out-of-order event records a verified no-op receipt without transition', async () => {

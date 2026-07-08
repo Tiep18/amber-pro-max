@@ -142,12 +142,14 @@ async function importCreateRoute({
   client = createRouteClient({payment: {...paymentRow, provider_order_id: null}}),
   authClient = {rpc: vi.fn()},
   authorized = true,
-  createResult = {status: 'created', paypalOrderId: paypalFixtureIds.paypalOrderId}
+  createResult = {status: 'created', paypalOrderId: paypalFixtureIds.paypalOrderId},
+  recordOperationalFailure = vi.fn(async () => ({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'}))
 }: {
   client?: ReturnType<typeof createRouteClient>;
   authClient?: {rpc: ReturnType<typeof vi.fn>};
   authorized?: boolean;
   createResult?: unknown;
+  recordOperationalFailure?: ReturnType<typeof vi.fn>;
 } = {}) {
   vi.resetModules();
   vi.doMock('server-only', () => ({}));
@@ -164,6 +166,9 @@ async function importCreateRoute({
     createPayPalOrder: vi.fn(async () => createResult),
     getPayPalOrder: vi.fn()
   }));
+  vi.doMock('@/operations/errors', () => ({
+    recordOperationalFailure
+  }));
   const route = await import('@/app/api/paypal/orders/route');
   const clientModule = await import('@/payments/paypal/client');
   const queries = await import('@/payments/queries');
@@ -172,7 +177,8 @@ async function importCreateRoute({
     client,
     authClient,
     createPayPalOrder: vi.mocked(clientModule.createPayPalOrder),
-    getAuthorizedOrderPayment: vi.mocked(queries.getAuthorizedOrderPayment)
+    getAuthorizedOrderPayment: vi.mocked(queries.getAuthorizedOrderPayment),
+    recordOperationalFailure
   };
 }
 
@@ -203,11 +209,13 @@ async function importCaptureRoute({
         }
       ]
     }
-  }
+  },
+  recordOperationalFailure = vi.fn(async () => ({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'}))
 }: {
   client?: ReturnType<typeof createRouteClient>;
   authClient?: {rpc: ReturnType<typeof vi.fn>};
   captureResult?: unknown;
+  recordOperationalFailure?: ReturnType<typeof vi.fn>;
 } = {}) {
   vi.resetModules();
   vi.doMock('server-only', () => ({}));
@@ -228,6 +236,9 @@ async function importCaptureRoute({
   vi.doMock('@/fulfillment/email-outbox.server', () => ({
     triggerTransactionalEmailOutboxNow: vi.fn(async () => ({status: 'processed', claimed: 1, sent: 1, retry: 0, failed: 0}))
   }));
+  vi.doMock('@/operations/errors', () => ({
+    recordOperationalFailure
+  }));
   const route = await import('@/app/api/paypal/orders/[paypalOrderId]/capture/route');
   const clientModule = await import('@/payments/paypal/client');
   const transitions = await import('@/payments/transitions');
@@ -240,7 +251,8 @@ async function importCaptureRoute({
     capturePayPalOrder: vi.mocked(clientModule.capturePayPalOrder),
     applyPaymentTransition: vi.mocked(transitions.applyPaymentTransition),
     triggerTransactionalEmailOutboxNow: vi.mocked(emailOutbox.triggerTransactionalEmailOutboxNow),
-    getAuthorizedOrderPayment: vi.mocked(queries.getAuthorizedOrderPayment)
+    getAuthorizedOrderPayment: vi.mocked(queries.getAuthorizedOrderPayment),
+    recordOperationalFailure
   };
 }
 
@@ -512,6 +524,37 @@ describe('PayPal route contract', () => {
     expect(createPayPalOrder).not.toHaveBeenCalled();
   });
 
+  test('create records provider failures for admin operations review', async () => {
+    const recordOperationalFailure = vi.fn(async () => ({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'}));
+    const {POST} = await importCreateRoute({
+      createResult: {status: 'error', code: 'paypal_provider_error'},
+      recordOperationalFailure
+    });
+
+    const response = await POST(
+      new Request('http://localhost/api/paypal/orders', {
+        method: 'POST',
+        body: JSON.stringify({orderNumber: paypalFixtureIds.orderNumber})
+      })
+    );
+
+    expect(response.status).toBe(502);
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'payment',
+        severity: 'error',
+        errorCode: 'paypal_provider_error',
+        summary: 'PayPal order create failed',
+        facts: expect.objectContaining({
+          orderId: paypalFixtureIds.localOrderId,
+          orderNumber: paypalFixtureIds.orderNumber,
+          provider: 'paypal',
+          status: 'error'
+        })
+      })
+    );
+  });
+
   test('capture returns verifying on uncertain provider outcome', async () => {
     const {POST, applyPaymentTransition, triggerTransactionalEmailOutboxNow} = await importCaptureRoute({
       captureResult: {status: 'verifying', code: 'paypal_capture_uncertain', paypalOrderId: paypalFixtureIds.paypalOrderId}
@@ -560,5 +603,59 @@ describe('PayPal route contract', () => {
       expect.any(Object)
     );
     expect(triggerTransactionalEmailOutboxNow).toHaveBeenCalledWith({reason: 'paypal_capture_paid'});
+  });
+
+  test('capture records reconciliation rejection for admin operations review', async () => {
+    const recordOperationalFailure = vi.fn(async () => ({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'}));
+    const {POST, applyPaymentTransition} = await importCaptureRoute({
+      recordOperationalFailure,
+      captureResult: {
+        status: 'captured',
+        paypalOrderId: paypalFixtureIds.paypalOrderId,
+        providerOrder: {
+          id: paypalFixtureIds.paypalOrderId,
+          status: 'COMPLETED',
+          purchase_units: [
+            {
+              invoice_id: paypalFixtureIds.orderNumber,
+              custom_id: paypalFixtureIds.localOrderId,
+              payee: {merchant_id: 'MERCHANT-MISMATCH'},
+              payments: {
+                captures: [
+                  {
+                    id: paypalFixtureIds.paypalCaptureId,
+                    status: 'COMPLETED',
+                    amount: {currency_code: 'USD', value: '42.50'}
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    });
+
+    const response = await POST(new Request('http://localhost/api/paypal/orders/id/capture', {method: 'POST'}), {
+      params: Promise.resolve({paypalOrderId: paypalFixtureIds.paypalOrderId})
+    });
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({status: 'review_required', code: 'paypal_merchant_mismatch'});
+    expect(applyPaymentTransition).not.toHaveBeenCalled();
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'payment',
+        severity: 'warning',
+        errorCode: 'paypal_merchant_mismatch',
+        summary: 'PayPal capture reconciliation rejected',
+        facts: expect.objectContaining({
+          orderId: paypalFixtureIds.localOrderId,
+          orderNumber: paypalFixtureIds.orderNumber,
+          provider: 'paypal',
+          providerOrderId: paypalFixtureIds.paypalOrderId
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/email_address|access_token|rawPayload|signature/i);
   });
 });

@@ -4,6 +4,7 @@ import {z} from 'zod';
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {recordOperationalFailure} from '@/operations/errors';
 import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
 import {createPayPalOrder, getPayPalOrder, type PayPalOrderSource} from '@/payments/paypal/client';
 import {logPayPalStage} from '@/payments/paypal/logging';
@@ -39,6 +40,29 @@ function requestIds(payment: Record<string, unknown>, orderId: string) {
   const createId = typeof payment.provider_request_id === 'string' && payment.provider_request_id ? payment.provider_request_id : orderId;
   const captureId = typeof payment.request_id === 'string' && payment.request_id ? payment.request_id : orderId;
   return {createId, captureId};
+}
+
+async function recordPayPalCreateFailure(input: {
+  order: PayPalOrderSource;
+  status: string;
+  code?: string;
+  severity?: 'warning' | 'error';
+  summary: string;
+}) {
+  await recordOperationalFailure({
+    area: 'payment',
+    severity: input.severity ?? 'error',
+    errorCode: input.code ?? 'paypal_create_failed',
+    summary: input.summary,
+    facts: {
+      provider: 'paypal',
+      status: input.status,
+      code: input.code,
+      orderId: input.order.orderId,
+      orderNumber: input.order.orderNumber,
+      providerOrderId: input.order.providerOrderId ?? undefined
+    }
+  });
 }
 
 async function loadPayPalOrderSourceByOrderNumber(client: RouteClient, orderNumber: string): Promise<PayPalOrderSource | null> {
@@ -145,5 +169,11 @@ export async function POST(request: Request) {
   }
 
   logPayPalStage('create.failed', {orderNumber: order.orderNumber, status: created.status, code: 'code' in created ? created.code : undefined}, 'error');
+  await recordPayPalCreateFailure({
+    order,
+    status: created.status,
+    code: 'code' in created ? created.code : undefined,
+    summary: 'PayPal order create failed'
+  });
   return json(created.status === 'invalid' ? 409 : 502, created);
 }

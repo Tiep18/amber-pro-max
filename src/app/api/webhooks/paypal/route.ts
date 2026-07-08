@@ -3,6 +3,7 @@ import {NextResponse} from 'next/server';
 import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
+import {recordOperationalFailure} from '@/operations/errors';
 import type {PayPalOrderSource} from '@/payments/paypal/client';
 import {logPayPalStage} from '@/payments/paypal/logging';
 import {
@@ -66,6 +67,35 @@ function eventOrderHints(event: unknown) {
   }
 
   return {orderNumber, orderId, providerOrderId};
+}
+
+function webhookEventHints(event: unknown) {
+  if (!isRecord(event)) {
+    return {};
+  }
+  return {
+    providerEventId: typeof event.id === 'string' ? event.id : undefined,
+    eventType: typeof event.event_type === 'string' ? event.event_type : undefined
+  };
+}
+
+async function recordPayPalWebhookFailure(input: {
+  code: string;
+  summary: string;
+  severity?: 'warning' | 'error';
+  event?: unknown;
+}) {
+  await recordOperationalFailure({
+    area: 'payment',
+    severity: input.severity ?? 'error',
+    errorCode: input.code,
+    summary: input.summary,
+    facts: {
+      provider: 'paypal',
+      code: input.code,
+      ...webhookEventHints(input.event)
+    }
+  });
 }
 
 async function findExistingEvent(client: WebhookClient, providerEventId: string) {
@@ -244,6 +274,18 @@ export async function POST(request: Request) {
       verificationStatus: verification.status,
       code: 'code' in verification ? verification.code : undefined
     }, verification.status === 'error' ? 'error' : 'warn');
+    let parsedEvent: unknown;
+    try {
+      parsedEvent = JSON.parse(rawBody);
+    } catch {
+      parsedEvent = null;
+    }
+    await recordPayPalWebhookFailure({
+      code: verification.code,
+      summary: 'PayPal webhook verification failed',
+      severity: verification.status === 'error' ? 'error' : 'warning',
+      event: parsedEvent
+    });
     return json(statusForRejected(verification), {status: verification.status, code: verification.code});
   }
 
