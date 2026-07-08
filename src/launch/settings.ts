@@ -4,6 +4,7 @@ import {revalidatePath} from 'next/cache';
 import {requireAdmin as requireAdminGuard} from '@/auth/guards';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import type {Locale} from '@/i18n/routing';
+import {recordOperationalFailure} from '@/operations/errors';
 import {
   evaluateLaunchReadiness,
   requiredPolicyKinds,
@@ -116,6 +117,16 @@ export async function getAdminLaunchReadiness({
   ]);
 
   if (settingsResult.error || policiesResult.error) {
+    await recordOperationalFailure({
+      area: 'admin',
+      severity: 'error',
+      errorCode: 'admin_launch_load_failed',
+      summary: 'Admin launch readiness load failed',
+      facts: {
+        action: 'admin_launch_readiness_load',
+        code: 'admin_launch_load_failed'
+      }
+    });
     return {status: 'error', code: 'admin_launch_load_failed'};
   }
 
