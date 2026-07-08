@@ -5,7 +5,7 @@ import {revalidatePath} from 'next/cache';
 import {requireAdmin} from '@/auth/guards';
 import {invalidateCatalogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import {
   MAX_PATTERN_PDF_BYTES,
   MAX_PRODUCT_IMAGE_BYTES,
@@ -59,7 +59,7 @@ function revalidateMedia(productId: string) {
   invalidateCatalogCache();
 }
 
-async function recordMediaFailure(input: {
+async function monitoredMediaFailure(input: {
   action: string;
   errorCode: string;
   summary: string;
@@ -67,18 +67,20 @@ async function recordMediaFailure(input: {
   referenceId?: string;
   code: MediaActionCode;
   severity?: 'warning' | 'error';
-}) {
-  await recordOperationalFailure({
+}): Promise<MediaActionResult> {
+  return runMonitoredAction({
     area: 'admin',
     severity: input.severity ?? 'error',
+    action: input.action,
     errorCode: input.errorCode,
     summary: input.summary,
+    errorResult: {status: 'error', code: input.code} as const,
+    shouldRecordResult: () => true,
     facts: {
-      action: input.action,
       productId: input.productId ?? null,
-      referenceId: input.referenceId ?? null,
-      code: input.code
-    }
+      referenceId: input.referenceId ?? null
+    },
+    operation: async () => ({status: 'error', code: input.code}) as const
   });
 }
 
@@ -149,7 +151,7 @@ export async function uploadProductImageAction(formData: FormData): Promise<Medi
     upsert: false
   });
   if (upload.error) {
-    await recordMediaFailure({
+    await monitoredMediaFailure({
       action: 'media_upload',
       errorCode: 'catalog_media_upload_failed',
       summary: 'Catalog media upload failed',
@@ -170,7 +172,7 @@ export async function uploadProductImageAction(formData: FormData): Promise<Medi
   });
   if (error) {
     await removeStorageObject(PRODUCT_MEDIA_BUCKET, objectPath);
-    await recordMediaFailure({
+    await monitoredMediaFailure({
       action: 'media_association',
       errorCode: 'catalog_media_association_failed',
       summary: 'Catalog media association failed',
@@ -208,7 +210,7 @@ export async function updateProductMediaDetailsAction(formData: FormData): Promi
     .eq('id', parsed.data.mediaId)
     .eq('product_id', parsed.data.productId);
   if (error) {
-    await recordMediaFailure({
+    await monitoredMediaFailure({
       action: 'media_update',
       errorCode: 'catalog_media_update_failed',
       summary: 'Catalog media update failed',
@@ -240,7 +242,7 @@ export async function setPrimaryProductImageAction(productId: string, mediaId: s
     .eq('product_id', parsed.data.productId)
     .eq('is_primary', true);
   if (clearResult.error) {
-    await recordMediaFailure({
+    await monitoredMediaFailure({
       action: 'media_primary_clear',
       errorCode: 'catalog_media_primary_update_failed',
       summary: 'Catalog media primary update failed',
@@ -257,7 +259,7 @@ export async function setPrimaryProductImageAction(productId: string, mediaId: s
     .eq('id', parsed.data.mediaId)
     .eq('product_id', parsed.data.productId);
   if (error) {
-    await recordMediaFailure({
+    await monitoredMediaFailure({
       action: 'media_primary_set',
       errorCode: 'catalog_media_primary_update_failed',
       summary: 'Catalog media primary update failed',
@@ -298,7 +300,7 @@ export async function setProductSocialImageAction(
     .eq('product_id', parsed.data.productId)
     .eq('locale', parsed.data.locale);
   if (error) {
-    await recordMediaFailure({
+    await monitoredMediaFailure({
       action: 'media_social_set',
       errorCode: 'catalog_media_social_update_failed',
       summary: 'Catalog media social image update failed',
@@ -334,7 +336,7 @@ export async function removeProductMediaAction(productId: string, mediaId: strin
     .eq('product_id', parsed.data.productId)
     .eq('social_image_path', media.object_path);
   if (clearSocialResult.error) {
-    await recordMediaFailure({
+    await monitoredMediaFailure({
       action: 'media_remove_social_clear',
       errorCode: 'catalog_media_social_clear_failed',
       summary: 'Catalog media social image clear failed',
@@ -350,7 +352,7 @@ export async function removeProductMediaAction(productId: string, mediaId: strin
     .eq('id', parsed.data.mediaId)
     .eq('product_id', parsed.data.productId);
   if (error) {
-    await recordMediaFailure({
+    await monitoredMediaFailure({
       action: 'media_remove',
       errorCode: 'catalog_media_remove_failed',
       summary: 'Catalog media remove failed',
@@ -400,7 +402,7 @@ export async function uploadPatternPdfAction(formData: FormData): Promise<MediaA
     upsert: false
   });
   if (upload.error) {
-    await recordMediaFailure({
+    await monitoredMediaFailure({
       action: 'pattern_pdf_upload',
       errorCode: 'catalog_pattern_pdf_upload_failed',
       summary: 'Catalog pattern PDF upload failed',
@@ -426,7 +428,7 @@ export async function uploadPatternPdfAction(formData: FormData): Promise<MediaA
   );
   if (error) {
     await removeStorageObject(PATTERN_PDF_BUCKET, objectPath);
-    await recordMediaFailure({
+    await monitoredMediaFailure({
       action: 'pattern_pdf_association',
       errorCode: 'catalog_pattern_pdf_association_failed',
       summary: 'Catalog pattern PDF association failed',
@@ -463,7 +465,7 @@ export async function removePatternPdfAction(productId: string): Promise<MediaAc
 
   const {error} = await supabase.from('product_digital_assets').delete().eq('product_id', parsed.data.productId);
   if (error) {
-    await recordMediaFailure({
+    await monitoredMediaFailure({
       action: 'pattern_pdf_remove',
       errorCode: 'catalog_pattern_pdf_remove_failed',
       summary: 'Catalog pattern PDF remove failed',

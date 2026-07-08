@@ -118,4 +118,52 @@ describe('catalog media operational recording', () => {
       /private-path|private media|constraint|email|token/i
     );
   });
+
+  it('keeps media error states when operational recording fails', async () => {
+    recordOperationalFailureMock.mockRejectedValue(new Error('operational table unavailable'));
+
+    const updateEqProduct = vi.fn(async () => ({error: {message: 'update failed'}}));
+    const updateEqMedia = vi.fn(() => ({eq: updateEqProduct}));
+    const update = vi.fn(() => ({eq: updateEqMedia}));
+    createSupabaseServerClientMock.mockResolvedValueOnce({
+      from: vi.fn(() => ({update}))
+    });
+    const formData = new FormData();
+    formData.set('productId', productId);
+    formData.set('mediaId', mediaId);
+    formData.set('altTextVi', 'Alt rieng tu');
+    formData.set('altTextEn', 'Private alt');
+    formData.set('displayOrder', '2');
+
+    await expect(updateProductMediaDetailsAction(formData)).resolves.toEqual({
+      status: 'error',
+      code: 'update_failed'
+    });
+
+    const mediaQuery = {
+      select: vi.fn(() => mediaQuery),
+      eq: vi.fn(() => mediaQuery),
+      maybeSingle: vi.fn(async () => ({
+        data: {id: mediaId, product_id: productId, object_path: 'products/private-path.jpg'},
+        error: null
+      }))
+    };
+    const clearEqPath = vi.fn(async () => ({error: null}));
+    const clearEqProduct = vi.fn(() => ({eq: clearEqPath}));
+    const clearUpdate = vi.fn(() => ({eq: clearEqProduct}));
+    const deleteEqProduct = vi.fn(async () => ({error: {message: 'remove failed'}}));
+    const deleteEqMedia = vi.fn(() => ({eq: deleteEqProduct}));
+    const deleteCall = vi.fn(() => ({eq: deleteEqMedia}));
+    const writeFrom = vi.fn((table: string) =>
+      table === 'product_translations' ? {update: clearUpdate} : {delete: deleteCall}
+    );
+    createSupabaseServerClientMock
+      .mockResolvedValueOnce({from: vi.fn(() => mediaQuery)})
+      .mockResolvedValueOnce({from: writeFrom});
+
+    await expect(removeProductMediaAction(productId, mediaId)).resolves.toEqual({
+      status: 'error',
+      code: 'remove_failed'
+    });
+  });
 });
