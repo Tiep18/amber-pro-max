@@ -7,6 +7,14 @@ type RpcClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
 };
 
+type OperationalFailureRecorder = (input: {
+  area: string;
+  severity?: string;
+  errorCode: string;
+  summary: unknown;
+  facts?: unknown;
+}) => Promise<unknown>;
+
 const emailSchema = z.string().trim().email().max(320).transform((value) => value.toLowerCase());
 const hashSchema = z.string().regex(/^[a-f0-9]{64}$/).optional().nullable();
 const subscribeInputSchema = z.object({
@@ -51,7 +59,36 @@ export function hashNewsletterUnsubscribeToken(rawToken: string) {
   return createHash('sha256').update(rawToken, 'utf8').digest('hex');
 }
 
-export async function subscribeNewsletter(input: unknown, client: RpcClient): Promise<NewsletterSubscribeResult> {
+async function recordNewsletterFailure(
+  recorder: OperationalFailureRecorder | undefined,
+  input: {
+    action: 'newsletter_subscribe' | 'newsletter_unsubscribe';
+    errorCode: 'newsletter_subscribe_failed' | 'newsletter_unsubscribe_failed';
+    summary: string;
+    market?: string;
+  }
+) {
+  if (!recorder) {
+    return;
+  }
+  await recorder({
+    area: 'application',
+    severity: 'error',
+    errorCode: input.errorCode,
+    summary: input.summary,
+    facts: {
+      action: input.action,
+      market: input.market,
+      code: input.errorCode
+    }
+  });
+}
+
+export async function subscribeNewsletter(
+  input: unknown,
+  client: RpcClient,
+  recordOperationalFailure?: OperationalFailureRecorder
+): Promise<NewsletterSubscribeResult> {
   const parsed = subscribeInputSchema.safeParse(input);
   if (!parsed.success) {
     return {status: 'invalid'};
@@ -67,18 +104,33 @@ export async function subscribeNewsletter(input: unknown, client: RpcClient): Pr
   });
 
   if (error || !isRecord(data)) {
+    await recordNewsletterFailure(recordOperationalFailure, {
+      action: 'newsletter_subscribe',
+      errorCode: 'newsletter_subscribe_failed',
+      summary: 'Newsletter subscribe failed',
+      market: parsed.data.market
+    });
     return {status: 'error'};
   }
-  return data.status === 'subscribed' || data.status === 'resubscribed'
-    ? {status: 'subscribed'}
-    : data.status === 'invalid'
-      ? {status: 'invalid'}
-      : {status: 'error'};
+  if (data.status === 'subscribed' || data.status === 'resubscribed') {
+    return {status: 'subscribed'};
+  }
+  if (data.status === 'invalid') {
+    return {status: 'invalid'};
+  }
+  await recordNewsletterFailure(recordOperationalFailure, {
+    action: 'newsletter_subscribe',
+    errorCode: 'newsletter_subscribe_failed',
+    summary: 'Newsletter subscribe returned an unexpected result',
+    market: parsed.data.market
+  });
+  return {status: 'error'};
 }
 
 export async function unsubscribeNewsletter(
   {rawToken}: {rawToken: unknown},
-  client: RpcClient
+  client: RpcClient,
+  recordOperationalFailure?: OperationalFailureRecorder
 ): Promise<NewsletterUnsubscribeResult> {
   if (typeof rawToken !== 'string' || !/^[a-f0-9]{64}$/.test(rawToken)) {
     return {status: 'invalid'};
@@ -88,10 +140,20 @@ export async function unsubscribeNewsletter(
     p_token_hash: hashNewsletterUnsubscribeToken(rawToken)
   });
   if (error || !isRecord(data)) {
+    await recordNewsletterFailure(recordOperationalFailure, {
+      action: 'newsletter_unsubscribe',
+      errorCode: 'newsletter_unsubscribe_failed',
+      summary: 'Newsletter unsubscribe failed'
+    });
     return {status: 'error'};
   }
   if (data.status === 'unsubscribed' || data.status === 'unavailable' || data.status === 'invalid') {
     return {status: data.status};
   }
+  await recordNewsletterFailure(recordOperationalFailure, {
+    action: 'newsletter_unsubscribe',
+    errorCode: 'newsletter_unsubscribe_failed',
+    summary: 'Newsletter unsubscribe returned an unexpected result'
+  });
   return {status: 'error'};
 }

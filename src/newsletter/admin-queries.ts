@@ -57,6 +57,14 @@ type QueryClient = {
 
 type RequireAdmin = () => Promise<unknown>;
 
+type OperationalFailureRecorder = (input: {
+  area: string;
+  severity?: string;
+  errorCode: string;
+  summary: unknown;
+  facts?: unknown;
+}) => Promise<unknown>;
+
 type NewsletterSubscriberRow = {
   normalized_email: string;
   status: string;
@@ -117,11 +125,13 @@ function latestConsentByEmail(rows: NewsletterConsentRow[]) {
 export async function getAdminNewsletterSubscribers({
   client,
   requireAdmin,
-  filters
+  filters,
+  recordOperationalFailure
 }: {
   client: QueryClient;
   requireAdmin: RequireAdmin;
   filters?: AdminNewsletterFilters;
+  recordOperationalFailure?: OperationalFailureRecorder;
 }): Promise<AdminNewsletterResult> {
   await requireAdmin();
   const normalized = normalizeFilters(filters);
@@ -145,6 +155,18 @@ export async function getAdminNewsletterSubscribers({
 
   const subscriberResult = await query.order('updated_at', {ascending: false}).limit(100);
   if (subscriberResult.error) {
+    await recordOperationalFailure?.({
+      area: 'admin',
+      severity: 'error',
+      errorCode: 'admin_newsletter_lookup_failed',
+      summary: 'Admin newsletter subscriber lookup failed',
+      facts: {
+        action: 'admin_newsletter_subscribers',
+        status: normalized.status,
+        market: normalized.market,
+        code: 'admin_newsletter_lookup_failed'
+      }
+    });
     return {status: 'error', code: 'admin_newsletter_lookup_failed', filters: normalized};
   }
 
@@ -158,6 +180,18 @@ export async function getAdminNewsletterSubscribers({
       .select('normalized_email,event_type,consent_source,occurred_at,ip_hash,user_agent_hash') as ConsentQuery;
     const consentResult = await consentQuery.in('normalized_email', emails).order('occurred_at', {ascending: false}).limit(300);
     if (consentResult.error) {
+      await recordOperationalFailure?.({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'admin_newsletter_lookup_failed',
+        summary: 'Admin newsletter consent lookup failed',
+        facts: {
+          action: 'admin_newsletter_consents',
+          status: normalized.status,
+          market: normalized.market,
+          code: 'admin_newsletter_lookup_failed'
+        }
+      });
       return {status: 'error', code: 'admin_newsletter_lookup_failed', filters: normalized};
     }
     consentByEmail = latestConsentByEmail(consentResult.data ?? []);

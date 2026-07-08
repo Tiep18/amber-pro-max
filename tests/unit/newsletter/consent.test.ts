@@ -72,6 +72,38 @@ describe('newsletter consent contracts (NEWS-01, NEWS-02, D-13, D-16)', () => {
       status: 'error'
     });
   });
+
+  test('records subscribe failures without exposing subscriber email or request hashes', async () => {
+    const recordOperationalFailure = vi.fn(async () => ({
+      status: 'recorded',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    }));
+    const client = {rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'private subscriber detail'}})};
+
+    await expect(subscribeNewsletter({
+      email: ' Taylor@Example.com ',
+      locale: 'en',
+      market: 'intl',
+      source: 'footer',
+      ipHash: 'a'.repeat(64),
+      userAgentHash: 'b'.repeat(64)
+    }, client, recordOperationalFailure)).resolves.toEqual({status: 'error'});
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'application',
+        severity: 'error',
+        errorCode: 'newsletter_subscribe_failed',
+        summary: 'Newsletter subscribe failed',
+        facts: expect.objectContaining({
+          action: 'newsletter_subscribe',
+          market: 'intl',
+          code: 'newsletter_subscribe_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/Taylor|example\.com|private subscriber|aaaaaaaa|bbbbbbbb|ipHash|userAgentHash/i);
+  });
 });
 
 describe('newsletter unsubscribe contracts (NEWS-02, D-14, D-16)', () => {
@@ -105,6 +137,31 @@ describe('newsletter unsubscribe contracts (NEWS-02, D-14, D-16)', () => {
 
     await expect(unsubscribeNewsletter({rawToken: 'short'}, client)).resolves.toEqual({status: 'invalid'});
     expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  test('records unsubscribe failures without exposing raw token or token hash', async () => {
+    const recordOperationalFailure = vi.fn(async () => ({
+      status: 'recorded',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    }));
+    const rawToken = 'c'.repeat(64);
+    const client = {rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'private token detail'}})};
+
+    await expect(unsubscribeNewsletter({rawToken}, client, recordOperationalFailure)).resolves.toEqual({status: 'error'});
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'application',
+        severity: 'error',
+        errorCode: 'newsletter_unsubscribe_failed',
+        summary: 'Newsletter unsubscribe failed',
+        facts: expect.objectContaining({
+          action: 'newsletter_unsubscribe',
+          code: 'newsletter_unsubscribe_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(new RegExp(`${rawToken}|${hashNewsletterUnsubscribeToken(rawToken)}|private token|token`, 'i'));
   });
 
   test('renders localized subscribe confirmation with one-click unsubscribe URL', () => {

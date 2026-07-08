@@ -9,6 +9,7 @@ import {
   type NewsletterSubscribeResult
 } from '@/newsletter/consent';
 import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
+import {recordOperationalFailure} from '@/operations/errors';
 
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -34,7 +35,7 @@ export async function subscribeNewsletterAction(
     market,
     source: 'footer',
     ...evidence
-  }, client as never);
+  }, client as never, recordOperationalFailure);
   if (result.status === 'subscribed') {
     await triggerTransactionalEmailOutboxNow({reason: 'newsletter_subscribed'});
   }

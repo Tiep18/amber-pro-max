@@ -4,13 +4,15 @@ vi.mock('server-only', () => ({}));
 
 import {getAdminNewsletterSubscribers} from '@/newsletter/admin-queries';
 
+type QueryResult = {data: unknown[] | null; error: unknown};
+
 function createQuery(data: unknown[]) {
   const query = {
     eq: vi.fn(() => query),
     ilike: vi.fn(() => query),
     in: vi.fn(() => query),
     order: vi.fn(() => query),
-    limit: vi.fn(async () => ({data, error: null}))
+    limit: vi.fn<() => Promise<QueryResult>>(async () => ({data, error: null}))
   };
   return query;
 }
@@ -117,5 +119,88 @@ describe('newsletter admin queries (NEWS-03, D-15, D-16)', () => {
         }
       ]
     });
+  });
+
+  test('records subscriber lookup failures without exposing search or subscriber details', async () => {
+    const requireAdmin = vi.fn(async () => ({id: 'admin-user'}));
+    const recordOperationalFailure = vi.fn(async () => ({
+      status: 'recorded',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    }));
+    const subscriberQuery = createQuery([]);
+    subscriberQuery.limit.mockResolvedValueOnce({data: null, error: {message: 'private subscriber lookup'}});
+    const from = vi.fn(() => ({select: vi.fn(() => subscriberQuery)}));
+
+    await expect(getAdminNewsletterSubscribers({
+      client: {from} as never,
+      requireAdmin,
+      filters: {status: 'subscribed', locale: 'en', market: 'intl', search: 'reader@example.test'},
+      recordOperationalFailure
+    })).resolves.toMatchObject({
+      status: 'error',
+      code: 'admin_newsletter_lookup_failed'
+    });
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'admin_newsletter_lookup_failed',
+        summary: 'Admin newsletter subscriber lookup failed',
+        facts: expect.objectContaining({
+          action: 'admin_newsletter_subscribers',
+          status: 'subscribed',
+          market: 'intl',
+          code: 'admin_newsletter_lookup_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/reader@example|private subscriber|ip_hash|token/i);
+  });
+
+  test('records consent lookup failures without exposing subscriber emails or hashes', async () => {
+    const requireAdmin = vi.fn(async () => ({id: 'admin-user'}));
+    const recordOperationalFailure = vi.fn(async () => ({
+      status: 'recorded',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    }));
+    const subscriberQuery = createQuery([
+      {
+        normalized_email: 'reader@example.test',
+        status: 'subscribed',
+        latest_locale: 'en',
+        latest_market: 'intl',
+        subscribed_at: '2026-06-21T10:00:00.000Z',
+        unsubscribed_at: null,
+        updated_at: '2026-06-21T10:00:00.000Z'
+      }
+    ]);
+    const consentQuery = createQuery([]);
+    consentQuery.limit.mockResolvedValueOnce({data: null, error: {message: 'private consent lookup'}});
+    const from = vi.fn((table: string) => ({select: vi.fn(() => table === 'newsletter_subscribers' ? subscriberQuery : consentQuery)}));
+
+    await expect(getAdminNewsletterSubscribers({
+      client: {from} as never,
+      requireAdmin,
+      filters: {status: 'all', locale: 'all', market: 'all'},
+      recordOperationalFailure
+    })).resolves.toMatchObject({
+      status: 'error',
+      code: 'admin_newsletter_lookup_failed'
+    });
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'admin',
+        severity: 'error',
+        errorCode: 'admin_newsletter_lookup_failed',
+        summary: 'Admin newsletter consent lookup failed',
+        facts: expect.objectContaining({
+          action: 'admin_newsletter_consents',
+          code: 'admin_newsletter_lookup_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/reader@example|private consent|ip_hash|user_agent_hash|token/i);
   });
 });
