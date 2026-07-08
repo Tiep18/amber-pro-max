@@ -61,7 +61,10 @@
       "save": "Luu {title} vao yeu thich",
       "remove": "Xoa {title} khoi yeu thich",
       "saving": "Dang luu vao yeu thich",
-      "removing": "Dang xoa khoi yeu thich"
+      "removing": "Dang xoa khoi yeu thich",
+      "signedOut": "Dang nhap de luu san pham yeu thich.",
+      "invalid": "San pham nay khong the luu.",
+      "failed": "Khong the cap nhat yeu thich. Thu lai sau."
     },
     "reviews": {
       "title": "Danh gia cua khach hang",
@@ -97,7 +100,10 @@
       "save": "Luu {title} vao yeu thich",
       "remove": "Xoa {title} khoi yeu thich",
       "saving": "Dang luu vao yeu thich",
-      "removing": "Dang xoa khoi yeu thich"
+      "removing": "Dang xoa khoi yeu thich",
+      "signedOut": "Dang nhap de luu san pham yeu thich.",
+      "invalid": "San pham nay khong the luu.",
+      "failed": "Khong the cap nhat yeu thich. Thu lai sau."
     }
   },
   "market": {

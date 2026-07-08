@@ -15,31 +15,15 @@ import {
 } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { localizedMetadata } from '@/catalog/metadata';
-import { marketForLocale } from '@/catalog/seo-market';
 import { type CatalogProduct, type CatalogProductType } from '@/catalog/queries';
-import { getCachedCatalogProducts } from '@/catalog/public-cache';
 import { ProductCard } from '@/components/catalog/product-card';
 import { JsonLd, organizationJsonLd, websiteJsonLd } from '@/content/seo/json-ld';
 import type { Locale } from '@/i18n/routing';
 import { getCatalogPath } from '@/i18n/routing';
+import { getHomeFeaturedProducts } from '@/storefront/home-featured-products';
 
 export const revalidate = 300;
 export const dynamic = 'force-static';
-
-async function featuredProducts(locale: Locale, productType: CatalogProductType) {
-  try {
-    const market = marketForLocale(locale);
-    const products = await getCachedCatalogProducts({
-      locale,
-      market,
-      productType,
-      sort: 'newest'
-    });
-    return products.slice(0, 4);
-  } catch {
-    return [];
-  }
-}
 
 function catalogTypePath(locale: Locale, type: CatalogProductType) {
   return `${getCatalogPath(locale)}?type=${type}`;
@@ -149,8 +133,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
   setRequestLocale(locale);
   const [t, handmadeProducts, patternProducts] = await Promise.all([
     getTranslations('home'),
-    featuredProducts(locale, 'physical_finished'),
-    featuredProducts(locale, 'pdf_pattern')
+    getHomeFeaturedProducts({ locale, productType: 'physical_finished' }),
+    getHomeFeaturedProducts({ locale, productType: 'pdf_pattern' })
   ]);
   const handmadePath = catalogTypePath(locale, 'physical_finished');
   const patternPath = catalogTypePath(locale, 'pdf_pattern');

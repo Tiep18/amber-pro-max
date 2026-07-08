@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseWishlistProductIds,
-  selectionAfterWishlistResult
+  selectionAfterWishlistResult,
+  wishlistFeedbackAfterResult
 } from '@/account/wishlist-client-state';
 
 const firstId = '33333333-3333-4333-8333-333333333333';
@@ -40,5 +41,24 @@ describe('wishlist client state', () => {
         code: 'wishlist_action_failed'
       })
     ).toBe(false);
+  });
+
+  it('returns user-visible feedback for failed wishlist mutations', () => {
+    const labels = {
+      signedOut: 'Sign in to save wishlist items.',
+      invalid: 'This product cannot be saved.',
+      failed: 'We could not update your wishlist. Try again.'
+    };
+
+    expect(
+      wishlistFeedbackAfterResult({ status: 'error', code: 'wishlist_action_failed' }, labels)
+    ).toBe(labels.failed);
+    expect(
+      wishlistFeedbackAfterResult({ status: 'invalid', code: 'invalid_product_id' }, labels)
+    ).toBe(labels.invalid);
+    expect(
+      wishlistFeedbackAfterResult({ status: 'unauthenticated', redirectTo: '/en/sign-in' }, labels)
+    ).toBe(labels.signedOut);
+    expect(wishlistFeedbackAfterResult({ status: 'saved' }, labels)).toBeUndefined();
   });
 });

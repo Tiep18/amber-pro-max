@@ -443,7 +443,10 @@ export default async function ProductPage({ params }: { params: Params }) {
                 save: t('wishlist.save', { title: product.title }),
                 remove: t('wishlist.remove', { title: product.title }),
                 saving: t('wishlist.saving'),
-                removing: t('wishlist.removing')
+                removing: t('wishlist.removing'),
+                signedOut: t('wishlist.signedOut'),
+                invalid: t('wishlist.invalid'),
+                failed: t('wishlist.failed')
               }}
             />
           </div>

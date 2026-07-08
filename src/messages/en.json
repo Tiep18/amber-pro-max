@@ -61,7 +61,10 @@
       "save": "Save {title} to wishlist",
       "remove": "Remove {title} from wishlist",
       "saving": "Saving to wishlist",
-      "removing": "Removing from wishlist"
+      "removing": "Removing from wishlist",
+      "signedOut": "Sign in to save wishlist items.",
+      "invalid": "This product cannot be saved.",
+      "failed": "We could not update your wishlist. Try again."
     },
     "reviews": {
       "title": "Customer reviews",
@@ -97,7 +100,10 @@
       "save": "Save {title} to wishlist",
       "remove": "Remove {title} from wishlist",
       "saving": "Saving to wishlist",
-      "removing": "Removing from wishlist"
+      "removing": "Removing from wishlist",
+      "signedOut": "Sign in to save wishlist items.",
+      "invalid": "This product cannot be saved.",
+      "failed": "We could not update your wishlist. Try again."
     }
   },
   "market": {

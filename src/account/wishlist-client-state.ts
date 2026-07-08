@@ -3,6 +3,14 @@ import type { WishlistActionState } from './wishlist-actions';
 const postgresUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_WISHLIST_BATCH_SIZE = 100;
 
+type WishlistFeedbackResult = WishlistActionState | { status: 'unauthenticated'; redirectTo: string };
+
+type WishlistFeedbackLabels = {
+  signedOut: string;
+  invalid: string;
+  failed: string;
+};
+
 export function isPostgresUuid(value: string) {
   return postgresUuidPattern.test(value);
 }
@@ -22,4 +30,14 @@ export function selectionAfterWishlistResult(
   if (result.status === 'saved') return true;
   if (result.status === 'removed' || result.status === 'not_found') return false;
   return previous;
+}
+
+export function wishlistFeedbackAfterResult(
+  result: WishlistFeedbackResult,
+  labels: WishlistFeedbackLabels
+) {
+  if (result.status === 'error') return labels.failed;
+  if (result.status === 'invalid') return labels.invalid;
+  if (result.status === 'unauthenticated') return labels.signedOut;
+  return undefined;
 }
