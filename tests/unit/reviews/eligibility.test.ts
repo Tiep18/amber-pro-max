@@ -146,6 +146,28 @@ describe('verified product review contracts (REV-01, D-09, D-10, D-11)', () => {
     );
     expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/review_notes|relation|private|body|email|token/i);
   });
+
+  test('keeps review eligibility and public query error states when operational recording fails', async () => {
+    vi.mocked(recordOperationalFailure).mockRejectedValue(new Error('operational table unavailable'));
+    const eligibilityClient = {
+      rpc: vi.fn(() => Promise.resolve({data: null, error: {message: 'eligibility failed'}}))
+    };
+
+    await expect(canReviewProduct({productId, client: eligibilityClient as never})).resolves.toEqual({
+      status: 'error',
+      code: 'review_eligibility_failed'
+    });
+
+    const order = vi.fn(() => Promise.resolve({data: null, error: {message: 'reviews failed'}}));
+    const eq = vi.fn(() => ({order}));
+    const select = vi.fn(() => ({eq}));
+    const queryClient = {from: vi.fn(() => ({select}))};
+
+    await expect(getApprovedProductReviews({productId, client: queryClient as never})).resolves.toEqual({
+      status: 'error',
+      code: 'reviews_load_failed'
+    });
+  });
 });
 
 describe('admin review query operational recording', () => {
@@ -176,6 +198,18 @@ describe('admin review query operational recording', () => {
     expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(
       /buyer@example|private admin|relation|review body|email|token/i
     );
+  });
+
+  test('keeps admin review query error states when operational recording fails', async () => {
+    vi.mocked(recordOperationalFailure).mockRejectedValue(new Error('operational table unavailable'));
+    const client = {
+      rpc: vi.fn(() => Promise.resolve({data: null, error: {message: 'admin reviews failed'}}))
+    };
+
+    await expect(getAdminProductReviews({status: 'pending', client})).resolves.toEqual({
+      status: 'error',
+      code: 'admin_reviews_load_failed'
+    });
   });
 });
 
