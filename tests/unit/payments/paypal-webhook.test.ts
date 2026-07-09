@@ -459,6 +459,25 @@ describe('PayPal webhook route contract', () => {
     expect(JSON.stringify(routeMocks.recordOperationalFailure.mock.calls)).not.toMatch(/paypal-transmission-sig|rawBody|fixture-signature/i);
   });
 
+  test('forged signatures keep rejection response stable when operational recording fails', async () => {
+    const state = createRouteClient();
+    routeMocks.adminClient = state.client;
+    routeMocks.paypalVerificationStatus = 'FAILURE';
+    routeMocks.recordOperationalFailure.mockRejectedValueOnce(new Error('operational table unavailable'));
+    const {POST} = await loadWebhookRoute();
+
+    const response = await POST(webhookRequest(paypalCompletedCaptureEvent));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      status: 'rejected',
+      code: 'paypal_webhook_signature_rejected'
+    });
+    expect(state.inserts).toHaveLength(0);
+    expect(state.updates).toHaveLength(0);
+    expect(state.rpc).not.toHaveBeenCalled();
+  });
+
   test('pending out-of-order event records a verified no-op receipt without transition', async () => {
     const state = createRouteClient({orderPaymentStatus: 'paid'});
     routeMocks.adminClient = state.client;

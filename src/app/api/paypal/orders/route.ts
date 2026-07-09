@@ -4,7 +4,7 @@ import {z} from 'zod';
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
 import {createPayPalOrder, getPayPalOrder, type PayPalOrderSource} from '@/payments/paypal/client';
 import {logPayPalStage} from '@/payments/paypal/logging';
@@ -49,19 +49,23 @@ async function recordPayPalCreateFailure(input: {
   severity?: 'warning' | 'error';
   summary: string;
 }) {
-  await recordOperationalFailure({
+  const code = input.code ?? 'paypal_create_failed';
+  await runMonitoredAction({
     area: 'payment',
+    action: 'paypal_create',
     severity: input.severity ?? 'error',
-    errorCode: input.code ?? 'paypal_create_failed',
+    errorCode: code,
     summary: input.summary,
+    errorResult: {status: 'error', code},
+    shouldRecordResult: () => true,
     facts: {
       provider: 'paypal',
       status: input.status,
-      code: input.code,
       orderId: input.order.orderId,
       orderNumber: input.order.orderNumber,
-      providerOrderId: input.order.providerOrderId ?? undefined
-    }
+      providerOrderId: input.order.providerOrderId ?? null
+    },
+    operation: async () => ({status: 'error', code})
   });
 }
 

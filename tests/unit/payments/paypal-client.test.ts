@@ -555,6 +555,27 @@ describe('PayPal route contract', () => {
     );
   });
 
+  test('create keeps provider failure response stable when operational recording fails', async () => {
+    const recordOperationalFailure = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const {POST} = await importCreateRoute({
+      createResult: {status: 'error', code: 'paypal_provider_error'},
+      recordOperationalFailure
+    });
+
+    const response = await POST(
+      new Request('http://localhost/api/paypal/orders', {
+        method: 'POST',
+        body: JSON.stringify({orderNumber: paypalFixtureIds.orderNumber})
+      })
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({status: 'error', code: 'paypal_provider_error'});
+    expect(recordOperationalFailure).toHaveBeenCalledOnce();
+  });
+
   test('capture returns verifying on uncertain provider outcome', async () => {
     const {POST, applyPaymentTransition, triggerTransactionalEmailOutboxNow} = await importCaptureRoute({
       captureResult: {status: 'verifying', code: 'paypal_capture_uncertain', paypalOrderId: paypalFixtureIds.paypalOrderId}
@@ -657,5 +678,47 @@ describe('PayPal route contract', () => {
       })
     );
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/email_address|access_token|rawPayload|signature/i);
+  });
+
+  test('capture keeps reconciliation rejection response stable when operational recording fails', async () => {
+    const recordOperationalFailure = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const {POST, applyPaymentTransition} = await importCaptureRoute({
+      recordOperationalFailure,
+      captureResult: {
+        status: 'captured',
+        paypalOrderId: paypalFixtureIds.paypalOrderId,
+        providerOrder: {
+          id: paypalFixtureIds.paypalOrderId,
+          status: 'COMPLETED',
+          purchase_units: [
+            {
+              invoice_id: paypalFixtureIds.orderNumber,
+              custom_id: paypalFixtureIds.localOrderId,
+              payee: {merchant_id: 'MERCHANT-MISMATCH'},
+              payments: {
+                captures: [
+                  {
+                    id: paypalFixtureIds.paypalCaptureId,
+                    status: 'COMPLETED',
+                    amount: {currency_code: 'USD', value: '42.50'}
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    });
+
+    const response = await POST(new Request('http://localhost/api/paypal/orders/id/capture', {method: 'POST'}), {
+      params: Promise.resolve({paypalOrderId: paypalFixtureIds.paypalOrderId})
+    });
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({status: 'review_required', code: 'paypal_merchant_mismatch'});
+    expect(applyPaymentTransition).not.toHaveBeenCalled();
+    expect(recordOperationalFailure).toHaveBeenCalledOnce();
   });
 });

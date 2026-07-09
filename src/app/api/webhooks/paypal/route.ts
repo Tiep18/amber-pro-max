@@ -3,7 +3,7 @@ import {NextResponse} from 'next/server';
 import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import type {PayPalOrderSource} from '@/payments/paypal/client';
 import {logPayPalStage} from '@/payments/paypal/logging';
 import {
@@ -71,11 +71,14 @@ function eventOrderHints(event: unknown) {
 
 function webhookEventHints(event: unknown) {
   if (!isRecord(event)) {
-    return {};
+    return {
+      providerEventId: null,
+      eventType: null
+    };
   }
   return {
-    providerEventId: typeof event.id === 'string' ? event.id : undefined,
-    eventType: typeof event.event_type === 'string' ? event.event_type : undefined
+    providerEventId: typeof event.id === 'string' ? event.id : null,
+    eventType: typeof event.event_type === 'string' ? event.event_type : null
   };
 }
 
@@ -85,16 +88,19 @@ async function recordPayPalWebhookFailure(input: {
   severity?: 'warning' | 'error';
   event?: unknown;
 }) {
-  await recordOperationalFailure({
+  await runMonitoredAction({
     area: 'payment',
+    action: 'paypal_webhook',
     severity: input.severity ?? 'error',
     errorCode: input.code,
     summary: input.summary,
+    errorResult: {status: 'error', code: input.code},
+    shouldRecordResult: () => true,
     facts: {
       provider: 'paypal',
-      code: input.code,
       ...webhookEventHints(input.event)
-    }
+    },
+    operation: async () => ({status: 'error', code: input.code})
   });
 }
 

@@ -5,7 +5,7 @@ import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.ser
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
 import {capturePayPalOrder, getPayPalOrder, type PayPalOrderSource} from '@/payments/paypal/client';
 import {logPayPalStage, sanitizePayPalProviderOrderForLog} from '@/payments/paypal/logging';
@@ -51,19 +51,23 @@ async function recordPayPalCaptureFailure(input: {
   severity?: 'warning' | 'error';
   summary: string;
 }) {
-  await recordOperationalFailure({
+  const code = input.code ?? 'paypal_capture_failed';
+  await runMonitoredAction({
     area: 'payment',
+    action: 'paypal_capture',
     severity: input.severity ?? 'error',
-    errorCode: input.code ?? 'paypal_capture_failed',
+    errorCode: code,
     summary: input.summary,
+    errorResult: {status: 'error', code},
+    shouldRecordResult: () => true,
     facts: {
       provider: 'paypal',
-      status: input.status,
-      code: input.code,
+      status: input.status ?? null,
       orderId: input.order.orderId,
       orderNumber: input.order.orderNumber,
-      providerOrderId: input.order.providerOrderId ?? undefined
-    }
+      providerOrderId: input.order.providerOrderId ?? null
+    },
+    operation: async () => ({status: 'error', code})
   });
 }
 
