@@ -1,6 +1,6 @@
 import 'server-only';
 
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import {applyPaymentTransition} from '@/payments/transitions';
 import type {PaymentInternalStatus, PaymentTransitionResult} from '@/payments/types';
 
@@ -128,22 +128,23 @@ function buildInstruction({
 }
 
 async function recordVietQrInstructionFailure(order: VietQrInstructionOrder) {
-  await recordOperationalFailure({
+  return runMonitoredAction({
     area: 'payment',
-    severity: 'error',
+    action: 'instruction_snapshot',
     errorCode: 'vietqr_instruction_snapshot_failed',
     summary: 'VietQR instruction snapshot transition failed',
+    errorResult: {status: 'error', code: 'vietqr_instruction_snapshot_failed'} as const,
+    shouldRecordResult: () => true,
     facts: {
       provider: 'vietqr',
-      action: 'instruction_snapshot',
       orderId: order.orderId,
       orderNumber: order.orderNumber,
       paymentId: order.paymentId ?? null,
       paymentStatus: order.paymentStatus,
       amountValue: order.amountMinor,
-      currency: 'VND',
-      code: 'vietqr_instruction_snapshot_failed'
-    }
+      currency: 'VND'
+    },
+    operation: async () => ({status: 'error', code: 'vietqr_instruction_snapshot_failed'}) as const
   });
 }
 
@@ -199,8 +200,7 @@ export async function getVietQrInstructions({
   );
 
   if (transition.status === 'error' || transition.status === 'invalid') {
-    await recordVietQrInstructionFailure(order);
-    return {status: 'error', code: 'vietqr_instruction_snapshot_failed'};
+    return recordVietQrInstructionFailure(order);
   }
 
   return {status: 'ready', instruction, transition};

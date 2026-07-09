@@ -63,4 +63,28 @@ describe('payment transition operational recording', () => {
       /provider-order-private|secret-provider-order|raw_payload|token|private transition/i
     );
   });
+
+  it('keeps transition error states when operational recording fails', async () => {
+    recordOperationalFailureMock.mockRejectedValueOnce(new Error('operational table unavailable'));
+    const rpc = vi.fn(async () => ({
+      data: null,
+      error: {message: 'transition rpc failed'}
+    }));
+
+    await expect(
+      applyPaymentTransition(
+        {
+          transitionKey: 'paypal-capture:provider-order-private',
+          source: 'paypal_recheck',
+          targetStatus: 'paid',
+          paymentId: '11111111-1111-4111-8111-111111111111',
+          orderNumber: 'ATB-20260708-0001',
+          providerEventId: 'WH-private-provider-event',
+          amountMinor: 1200,
+          currencyCode: 'USD'
+        },
+        {rpc}
+      )
+    ).resolves.toEqual({status: 'error', code: 'payment_transition_failed'});
+  });
 });

@@ -340,6 +340,23 @@ describe('VietQR instruction and evidence contract', () => {
     );
   });
 
+  test('keeps VietQR instruction errors when operational recording fails', async () => {
+    recordOperationalFailureMock.mockRejectedValueOnce(new Error('operational table unavailable'));
+    const rpc = vi.fn(async () => ({
+      data: null,
+      error: {message: 'private vietqr snapshot failed'}
+    }));
+
+    await expect(
+      getVietQrInstructions({
+        config,
+        order,
+        now: new Date('2026-06-16T09:00:00.000Z'),
+        transitionClient: {rpc}
+      })
+    ).resolves.toEqual({status: 'error', code: 'vietqr_instruction_snapshot_failed'});
+  });
+
   test('requires exact bank reference, received amount and timestamp before confirmation', () => {
     const comparison = compareVietQrEvidence(expectedPayment, {
       bankReference: order.orderNumber,

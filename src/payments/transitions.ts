@@ -1,4 +1,4 @@
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import {paymentTransitionInputSchema, paymentTransitionResultSchema} from './schemas';
 import type {PaymentTransitionInput, PaymentTransitionResult} from './types';
 
@@ -16,21 +16,22 @@ function mapPaymentTransitionResult(value: unknown): PaymentTransitionResult {
 }
 
 async function recordPaymentTransitionFailure(input: PaymentTransitionInput & {code: string}) {
-  await recordOperationalFailure({
+  return runMonitoredAction({
     area: 'payment',
-    severity: 'error',
+    action: 'apply_payment_transition',
     errorCode: input.code,
     summary: 'Payment transition RPC failed',
+    errorResult: {status: 'error', code: 'payment_transition_failed'} as const,
+    shouldRecordResult: () => true,
     facts: {
-      action: 'apply_payment_transition',
       transition: `${input.source}:${input.targetStatus}`,
-      paymentId: input.paymentId,
-      orderNumber: input.orderNumber,
-      providerEventId: input.providerEventId,
-      amountValue: input.amountMinor,
-      currency: input.currencyCode,
-      code: input.code
-    }
+      ...(input.paymentId ? {paymentId: input.paymentId} : {}),
+      ...(input.orderNumber ? {orderNumber: input.orderNumber} : {}),
+      ...(input.providerEventId ? {providerEventId: input.providerEventId} : {}),
+      ...(typeof input.amountMinor === 'number' ? {amountValue: input.amountMinor} : {}),
+      ...(input.currencyCode ? {currency: input.currencyCode} : {})
+    },
+    operation: async () => ({status: 'error', code: 'payment_transition_failed'}) as const
   });
 }
 
@@ -45,8 +46,7 @@ export async function applyPaymentTransition(
 
   const {data, error} = await client.rpc('apply_payment_transition', {p_payload: parsed.data});
   if (error) {
-    await recordPaymentTransitionFailure({...parsed.data, code: 'payment_transition_failed'});
-    return {status: 'error', code: 'payment_transition_failed'};
+    return recordPaymentTransitionFailure({...parsed.data, code: 'payment_transition_failed'});
   }
 
   return mapPaymentTransitionResult(data);
