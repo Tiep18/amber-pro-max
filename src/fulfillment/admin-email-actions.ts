@@ -1,5 +1,6 @@
 import {revalidatePath} from 'next/cache';
 import {z} from 'zod';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 
 const retryInputSchema = z.object({
@@ -36,21 +37,21 @@ async function recordAdminEmailFailure(input: {
   entitlementId?: string;
   emailType?: string;
 }) {
-  const {recordOperationalFailure} = await import('@/operations/errors');
-  await recordOperationalFailure({
+  await runMonitoredAction({
     area: 'email',
-    severity: 'error',
+    action: input.action,
     errorCode: input.errorCode,
     summary: input.summary,
+    errorResult: {status: 'error', code: input.code},
+    shouldRecordResult: () => true,
     facts: {
-      action: input.action,
-      referenceId: input.emailId,
-      orderId: input.orderId,
-      orderNumber: input.orderNumber,
-      entitlementId: input.entitlementId,
-      emailType: input.emailType,
-      code: input.code
-    }
+      referenceId: input.emailId ?? null,
+      orderId: input.orderId ?? null,
+      orderNumber: input.orderNumber ?? null,
+      entitlementId: input.entitlementId ?? null,
+      emailType: input.emailType ?? null
+    },
+    operation: async () => ({status: 'error', code: input.code})
   });
 }
 

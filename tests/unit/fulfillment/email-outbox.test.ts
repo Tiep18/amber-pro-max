@@ -302,6 +302,35 @@ describe('admin transactional email recovery helpers', () => {
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/buyer@example|admin@example|private retry|token|signed/i);
   });
 
+  test('keeps retry failure result stable when operational recording fails', async () => {
+    vi.resetModules();
+    const requireAdmin = vi.fn(async () => ({id: 'admin-1', email: 'admin@example.test'}));
+    const recordOperationalFailure = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const maybeSingle = vi.fn(async () => ({
+      data: {id: 'email-1', status: 'failed', available_at: null},
+      error: null
+    }));
+    const updateEq = vi.fn(async () => ({data: null, error: {message: 'private retry update for buyer@example.test'}}));
+    const from = vi.fn(() => ({
+      select: vi.fn(() => ({eq: vi.fn(() => ({maybeSingle}))})),
+      update: vi.fn(() => ({eq: updateEq}))
+    }));
+    vi.doMock('next/cache', () => ({revalidatePath: vi.fn()}));
+    vi.doMock('@/auth/guards', () => ({requireAdmin}));
+    vi.doMock('@/lib/supabase/admin', () => ({createSupabaseAdminClient: vi.fn(() => ({from}))}));
+    vi.doMock('@/operations/errors', () => ({recordOperationalFailure}));
+    const {retryTransactionalEmailAction} = await import('@/fulfillment/admin-email-actions');
+    const formData = new FormData();
+    formData.set('emailId', 'email-1');
+
+    await expect(retryTransactionalEmailAction(formData)).resolves.toEqual({
+      status: 'error',
+      code: 'email_action_failed'
+    });
+  });
+
   test('records download resend insert failures without exposing recipient email or payload', async () => {
     vi.resetModules();
     const requireAdmin = vi.fn(async () => ({id: 'admin-1', email: 'admin@example.test'}));
@@ -353,5 +382,37 @@ describe('admin transactional email recovery helpers', () => {
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(
       /buyer@example|admin@example|private outbox|recipient_email|expiresInHours|raw_token|signed_url|token/i
     );
+  });
+
+  test('keeps download resend failure result stable when operational recording fails', async () => {
+    vi.resetModules();
+    const requireAdmin = vi.fn(async () => ({id: 'admin-1', email: 'admin@example.test'}));
+    const recordOperationalFailure = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const outboxInsert = vi.fn(async () => ({data: null, error: {message: 'private outbox insert for buyer@example.test'}}));
+    const auditInsert = vi.fn(async () => ({data: null, error: null}));
+    const from = vi.fn((table: string) => {
+      if (table === 'transactional_email_outbox') {
+        return {insert: outboxInsert};
+      }
+      return {insert: auditInsert};
+    });
+    vi.doMock('next/cache', () => ({revalidatePath: vi.fn()}));
+    vi.doMock('@/auth/guards', () => ({requireAdmin}));
+    vi.doMock('@/lib/supabase/admin', () => ({createSupabaseAdminClient: vi.fn(() => ({from}))}));
+    vi.doMock('@/operations/errors', () => ({recordOperationalFailure}));
+    const {resendDownloadEmailAction} = await import('@/fulfillment/admin-email-actions');
+    const formData = new FormData();
+    formData.set('orderId', 'order-1');
+    formData.set('orderNumber', 'ATB-20260708-0001');
+    formData.set('entitlementId', 'entitlement-1');
+    formData.set('recipientEmail', 'buyer@example.test');
+    formData.set('locale', 'en');
+
+    await expect(resendDownloadEmailAction(formData)).resolves.toEqual({
+      status: 'error',
+      code: 'email_action_failed'
+    });
   });
 });
