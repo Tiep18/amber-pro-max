@@ -133,6 +133,17 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
     expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/wishlist_secret|relation|private|owner|user_id|email|token/i);
   });
 
+  test('keeps wishlist load error result stable when operational recording fails', async () => {
+    vi.mocked(recordOperationalFailure).mockRejectedValueOnce(new Error('operational table unavailable'));
+    const client = {
+      rpc: vi.fn(() => Promise.resolve({data: null, error: {message: 'relation private.wishlist_secret does not exist'}}))
+    };
+
+    await expect(
+      getCustomerWishlist({userId: ownerId, locale: 'en', market: 'intl', client: client as never})
+    ).resolves.toEqual({status: 'error', code: 'wishlist_load_failed'});
+  });
+
   test('maps remove results without mutating cart state', async () => {
     const eqProduct = vi.fn(() => Promise.resolve({data: [{id: wishlistId}], error: null}));
     const eqUser = vi.fn(() => ({eq: eqProduct}));
