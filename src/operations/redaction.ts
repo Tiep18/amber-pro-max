@@ -21,6 +21,12 @@ const allowedFactKeys = new Set([
   'captureStatus',
   'code',
   'currency',
+  'authRole',
+  'authState',
+  'dbCode',
+  'dbDetails',
+  'dbHint',
+  'dbMessage',
   'emailType',
   'entitlementId',
   'errorCode',
@@ -51,7 +57,8 @@ const allowedFactKeys = new Set([
   'source',
   'status',
   'timestamp',
-  'transition'
+  'transition',
+  'userPresent'
 ]);
 
 const unsafeKeyPattern = /authorization|bearer|cookie|password|secret|signature|token|signed[_-]?url|raw[_-]?payload|payload|stack|trace|email|address|phone/i;

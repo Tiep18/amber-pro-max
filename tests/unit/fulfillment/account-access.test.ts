@@ -78,7 +78,15 @@ describe('customer fulfillment account access', () => {
     const failedQuery = {
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          order: vi.fn(() => Promise.resolve({data: null, error: {message: 'query failed'}}))
+          order: vi.fn(() => Promise.resolve({
+            data: null,
+            error: {
+              code: '42501',
+              message: 'permission denied for table checkout_orders',
+              hint: 'Grant SELECT on public.checkout_orders to authenticated',
+              details: 'view order_payment_statuses'
+            }
+          }))
         }))
       }))
     };
@@ -99,7 +107,18 @@ describe('customer fulfillment account access', () => {
       expect.objectContaining({
         area: 'fulfillment',
         errorCode: 'customer.account_orders.query_failed',
-        facts: expect.objectContaining({action: 'account_orders', code: 'account_orders_failed'})
+        facts: expect.objectContaining({
+          action: 'account_orders',
+          code: 'account_orders_failed',
+          source: 'supabase.postgrest',
+          authState: 'required_user_present',
+          authRole: 'authenticated',
+          userPresent: true,
+          dbCode: '42501',
+          dbMessage: 'permission denied for table checkout_orders',
+          dbHint: 'Grant SELECT on public.checkout_orders to authenticated',
+          dbDetails: 'view order_payment_statuses'
+        })
       })
     );
     expect(recordOperationalFailure).toHaveBeenNthCalledWith(
@@ -107,7 +126,18 @@ describe('customer fulfillment account access', () => {
       expect.objectContaining({
         area: 'fulfillment',
         errorCode: 'customer.pattern_library.query_failed',
-        facts: expect.objectContaining({action: 'pattern_library', code: 'pattern_library_failed'})
+        facts: expect.objectContaining({
+          action: 'pattern_library',
+          code: 'pattern_library_failed',
+          source: 'supabase.postgrest',
+          authState: 'required_user_present',
+          authRole: 'authenticated',
+          userPresent: true,
+          dbCode: '42501',
+          dbMessage: 'permission denied for table checkout_orders',
+          dbHint: 'Grant SELECT on public.checkout_orders to authenticated',
+          dbDetails: 'view order_payment_statuses'
+        })
       })
     );
     expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/owner|email|token|signedUrl/i);

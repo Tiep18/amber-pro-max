@@ -121,7 +121,15 @@ describe('verified product review contracts (REV-01, D-09, D-10, D-11)', () => {
 
   test('records public review query failures without exposing raw review details', async () => {
     vi.mocked(recordOperationalFailure).mockClear();
-    const order = vi.fn(() => Promise.resolve({data: null, error: {message: 'relation private.review_notes does not exist'}}));
+    const order = vi.fn(() => Promise.resolve({
+      data: null,
+      error: {
+        code: '42501',
+        message: 'permission denied for function mask_review_author',
+        hint: 'Grant EXECUTE on the function to the current role',
+        details: 'view approved_product_reviews'
+      }
+    }));
     const eq = vi.fn(() => ({order}));
     const select = vi.fn(() => ({eq}));
     const client = {from: vi.fn(() => ({select}))};
@@ -140,11 +148,16 @@ describe('verified product review contracts (REV-01, D-09, D-10, D-11)', () => {
         facts: expect.objectContaining({
           action: 'public_reviews',
           productId,
-          code: 'reviews_load_failed'
+          code: 'reviews_load_failed',
+          source: 'supabase.postgrest',
+          dbCode: '42501',
+          dbMessage: 'permission denied for function mask_review_author',
+          dbHint: 'Grant EXECUTE on the function to the current role',
+          dbDetails: 'view approved_product_reviews'
         })
       })
     );
-    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/review_notes|relation|private|body|email|token/i);
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/review_notes|body|email|token/i);
   });
 
   test('keeps review eligibility and public query error states when operational recording fails', async () => {
@@ -174,7 +187,14 @@ describe('admin review query operational recording', () => {
   test('records admin review queue failures without exposing customer or review content', async () => {
     vi.mocked(recordOperationalFailure).mockClear();
     const client = {
-      rpc: vi.fn(() => Promise.resolve({data: null, error: {message: 'private admin review relation failed for buyer@example.test'}}))
+      rpc: vi.fn(() => Promise.resolve({
+        data: null,
+        error: {
+          code: '42501',
+          message: 'permission denied for function get_admin_product_reviews',
+          details: 'rpc get_admin_product_reviews'
+        }
+      }))
     };
 
     await expect(getAdminProductReviews({status: 'pending', client})).resolves.toEqual({
@@ -191,12 +211,16 @@ describe('admin review query operational recording', () => {
         facts: expect.objectContaining({
           action: 'admin_reviews',
           status: 'pending',
-          code: 'admin_reviews_load_failed'
+          code: 'admin_reviews_load_failed',
+          source: 'supabase.rpc',
+          dbCode: '42501',
+          dbMessage: 'permission denied for function get_admin_product_reviews',
+          dbDetails: 'rpc get_admin_product_reviews'
         })
       })
     );
     expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(
-      /buyer@example|private admin|relation|review body|email|token/i
+      /buyer@example|review body|email|token/i
     );
   });
 

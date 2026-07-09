@@ -12,6 +12,13 @@ type OperationalRecordResult = Awaited<ReturnType<OperationalFailureRecorder>>;
 
 type SafeFacts = Record<string, SafeOperationalFact>;
 
+type DiagnosticContext = {
+  source?: string;
+  authState?: string;
+  authRole?: string | null;
+  userPresent?: boolean;
+};
+
 type MonitoredBase = {
   area: OperationalErrorArea;
   action: string;
@@ -19,6 +26,10 @@ type MonitoredBase = {
   summary: string;
   severity?: OperationalErrorSeverity;
   facts?: SafeFacts;
+  source?: string;
+  authState?: string;
+  authRole?: string | null;
+  userPresent?: boolean;
   recordOperationalFailure?: OperationalFailureRecorder;
 };
 
@@ -53,6 +64,60 @@ type MonitoredThrowingQueryInput<T> = MonitoredBase & {
 async function defaultOperationalFailureRecorder(input: Parameters<OperationalFailureRecorder>[0]) {
   const { recordOperationalFailure } = await import('./errors');
   return recordOperationalFailure(input);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function safeDiagnosticString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim().slice(0, 200) : undefined;
+}
+
+function safeHttpStatus(value: unknown) {
+  return typeof value === 'number' && Number.isInteger(value) ? value : undefined;
+}
+
+function diagnosticContextFacts(context?: DiagnosticContext): SafeFacts {
+  const facts: SafeFacts = {};
+  if (context?.source) facts.source = context.source;
+  if (context?.authState) facts.authState = context.authState;
+  if (context?.authRole) facts.authRole = context.authRole;
+  if (typeof context?.userPresent === 'boolean') facts.userPresent = context.userPresent;
+  return facts;
+}
+
+export function safeSupabaseErrorFacts(error: unknown, context?: DiagnosticContext): SafeFacts {
+  const facts = diagnosticContextFacts(context);
+  if (!isRecord(error)) {
+    return facts;
+  }
+  if (!('code' in error) && !('hint' in error) && !('details' in error) && !('status' in error)) {
+    return facts;
+  }
+
+  const dbCode = safeDiagnosticString(error.code);
+  const dbMessage = safeDiagnosticString(error.message);
+  const dbHint = safeDiagnosticString(error.hint);
+  const dbDetails = safeDiagnosticString(error.details);
+  const httpStatus = safeHttpStatus(error.status);
+
+  if (dbCode) facts.dbCode = dbCode;
+  if (dbMessage) facts.dbMessage = dbMessage;
+  if (dbHint) facts.dbHint = dbHint;
+  if (dbDetails) facts.dbDetails = dbDetails;
+  if (httpStatus) facts.httpStatus = httpStatus;
+
+  return facts;
+}
+
+function monitoredDiagnosticContext(input: MonitoredBase): DiagnosticContext {
+  return {
+    source: input.source,
+    authState: input.authState,
+    authRole: input.authRole,
+    userPresent: input.userPresent
+  };
 }
 
 function errorCodeFromResult(result: ActionResultWithStatus, fallbackCode: string) {
@@ -98,7 +163,10 @@ export async function runMonitoredAction<
       await safeRecordFailure(
         input,
         errorCodeFromResult(result, input.errorResult.code ?? input.errorCode),
-        input.factsFromResult?.(result)
+        {
+          ...diagnosticContextFacts(monitoredDiagnosticContext(input)),
+          ...input.factsFromResult?.(result)
+        }
       );
     }
     return result;
@@ -106,7 +174,10 @@ export async function runMonitoredAction<
     const recordResult = await safeRecordFailure(
       input,
       input.errorResult.code ?? input.errorCode,
-      input.factsFromError?.(error)
+      {
+        ...safeSupabaseErrorFacts(error, monitoredDiagnosticContext(input)),
+        ...input.factsFromError?.(error)
+      }
     );
     return input.decorateErrorResult?.(input.errorResult, recordResult) ?? input.errorResult;
   }
@@ -116,7 +187,10 @@ export async function runMonitoredQuery<T>(input: MonitoredQueryInput<T>): Promi
   try {
     return await input.query();
   } catch (error) {
-    await safeRecordFailure(input, input.errorCode, input.factsFromError?.(error));
+    await safeRecordFailure(input, input.errorCode, {
+      ...safeSupabaseErrorFacts(error, monitoredDiagnosticContext(input)),
+      ...input.factsFromError?.(error)
+    });
     return input.fallback;
   }
 }
@@ -125,7 +199,10 @@ export async function runMonitoredThrowingQuery<T>(input: MonitoredThrowingQuery
   try {
     return await input.query();
   } catch (error) {
-    await safeRecordFailure(input, input.code ?? input.errorCode, input.factsFromError?.(error));
+    await safeRecordFailure(input, input.code ?? input.errorCode, {
+      ...safeSupabaseErrorFacts(error, monitoredDiagnosticContext(input)),
+      ...input.factsFromError?.(error)
+    });
     throw typeof input.publicError === 'function' ? input.publicError() : input.publicError;
   }
 }

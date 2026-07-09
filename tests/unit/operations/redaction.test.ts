@@ -91,6 +91,33 @@ describe('OPS-03 D-11 operational error redaction', () => {
       facts: {locale: 'en', market: 'intl'}
     });
   });
+
+  it('keeps safe database diagnostics while dropping unsafe diagnostic values', () => {
+    expect(
+      sanitizeOperationalErrorFacts({
+        source: 'supabase.postgrest',
+        dbCode: '42501',
+        dbMessage: 'permission denied for table checkout_orders',
+        dbHint: 'Grant the required privileges to the current role',
+        dbDetails: 'function public.get_order_payment_status(text,text)',
+        authState: 'required_user_present',
+        authRole: 'authenticated',
+        userPresent: true,
+        unsafeMessage: 'buyer@example.test',
+        dbUnsafeEmail: 'buyer@example.test',
+        dbUnsafeBearer: 'Bearer abc.def'
+      })
+    ).toEqual({
+      source: 'supabase.postgrest',
+      dbCode: '42501',
+      dbMessage: 'permission denied for table checkout_orders',
+      dbHint: 'Grant the required privileges to the current role',
+      dbDetails: 'function public.get_order_payment_status(text,text)',
+      authState: 'required_user_present',
+      authRole: 'authenticated',
+      userPresent: true
+    });
+  });
 });
 
 describe('OPS-03 D-12 operational error admin actions', () => {

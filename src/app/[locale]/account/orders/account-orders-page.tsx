@@ -13,7 +13,13 @@ export async function renderAccountOrdersPage({ params }: { params: Promise<{ lo
   const user = await requireUser({ locale, next: getAccountOrdersPath(locale) });
   const t = await getTranslations({ locale, namespace: 'accountPurchases.orders' });
   const client = await createSupabaseServerClient();
-  const result = await getCustomerOrderHistory({ userId: user.id, client: client as never });
+  const claims = await client.auth.getClaims();
+  const result = await getCustomerOrderHistory({
+    userId: user.id,
+    client: client as never,
+    authRole: typeof claims.data?.claims?.role === 'string' ? claims.data.claims.role : null,
+    authState: claims.error || !claims.data?.claims?.sub ? 'claims_missing_after_require_user' : 'claims_present'
+  });
 
   return result.status === 'success' ? (
     <AccountOrderHistory

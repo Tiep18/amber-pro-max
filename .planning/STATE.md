@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-07-09 - Completed quick task 260709-secure-approved-review-projection: Approved reviews use sanitized RLS projection instead of public security-definer view
+last_activity: 2026-07-09 - Completed quick task 260709-monitoring-diagnostic-facts: Operational monitoring records safe DB diagnostics and account auth facts
 progress:
   total_phases: 7
   completed_phases: 6
@@ -227,6 +227,7 @@ None yet.
 | 260709-monitor-review-action-recorders | Review action recorders use monitored action wrapper | 2026-07-09 | this commit | [260709-monitor-review-action-recorders](./quick/260709-monitor-review-action-recorders/) |
 | 260709-storefront-performance-test-boundary | Storefront product-card image performance test follows component boundary | 2026-07-09 | this commit | [260709-storefront-performance-test-boundary](./quick/260709-storefront-performance-test-boundary/) |
 | 260709-secure-approved-review-projection | Approved reviews use sanitized RLS projection instead of public security-definer view | 2026-07-09 | this commit | [260709-secure-approved-review-projection](./quick/260709-secure-approved-review-projection/) |
+| 260709-monitoring-diagnostic-facts | Operational monitoring records safe DB diagnostics and account auth facts | 2026-07-09 | this commit | [260709-monitoring-diagnostic-facts](./quick/260709-monitoring-diagnostic-facts/) |
 
 ### Debug Sessions Resolved
 

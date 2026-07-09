@@ -3,6 +3,7 @@ import {
   runMonitoredAction,
   runMonitoredQuery,
   runMonitoredThrowingQuery,
+  safeSupabaseErrorFacts,
   type OperationalFailureRecorder
 } from '@/operations/monitoring';
 
@@ -92,6 +93,73 @@ describe('operational monitoring wrappers', () => {
         market: 'intl',
         productType: 'pdf_pattern'
       }
+    });
+  });
+
+  it('extracts safe Supabase diagnostics from thrown errors', async () => {
+    const recordOperationalFailure: OperationalFailureRecorder = vi.fn(() =>
+      Promise.resolve({ status: 'recorded', errorId: 'error-1' })
+    );
+
+    await expect(
+      runMonitoredQuery({
+        area: 'fulfillment',
+        action: 'account_orders',
+        source: 'supabase.postgrest',
+        authState: 'required_user_present',
+        authRole: 'authenticated',
+        userPresent: true,
+        errorCode: 'customer.account_orders.query_failed',
+        summary: 'Customer account order history query failed',
+        fallback: [],
+        recordOperationalFailure,
+        query: async () => {
+          throw {
+            code: '42501',
+            message: 'permission denied for table checkout_orders',
+            hint: 'Grant the required privileges to the current role',
+            details: 'view order_payment_statuses',
+            status: 403
+          };
+        }
+      })
+    ).resolves.toEqual([]);
+
+    expect(recordOperationalFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        facts: expect.objectContaining({
+          source: 'supabase.postgrest',
+          authState: 'required_user_present',
+          authRole: 'authenticated',
+          userPresent: true,
+          dbCode: '42501',
+          dbMessage: 'permission denied for table checkout_orders',
+          dbHint: 'Grant the required privileges to the current role',
+          dbDetails: 'view order_payment_statuses',
+          httpStatus: 403
+        })
+      })
+    );
+  });
+
+  it('keeps safe diagnostics available for result-based Supabase errors', () => {
+    expect(
+      safeSupabaseErrorFacts(
+        {
+          code: '42501',
+          message: 'permission denied for function mask_review_author',
+          hint: null,
+          details: 'public approved reviews',
+          status: 403
+        },
+        { source: 'supabase.postgrest' }
+      )
+    ).toEqual({
+      source: 'supabase.postgrest',
+      dbCode: '42501',
+      dbMessage: 'permission denied for function mask_review_author',
+      dbDetails: 'public approved reviews',
+      httpStatus: 403
     });
   });
 

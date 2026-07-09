@@ -1,5 +1,5 @@
 import type {Locale} from '@/i18n/routing';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {runMonitoredAction, safeSupabaseErrorFacts} from '@/operations/monitoring';
 
 type QueryClient = {
   from: (table: string) => {
@@ -90,24 +90,47 @@ function orderNumberFor(row: Record<string, unknown>) {
 async function recordCustomerFulfillmentQueryFailure({
   action,
   code,
-  summary
+  summary,
+  error,
+  authState,
+  authRole,
+  userPresent
 }: {
   action: 'account_orders' | 'pattern_library';
   code: 'account_orders_failed' | 'pattern_library_failed';
   summary: string;
+  error?: unknown;
+  authState?: string;
+  authRole?: string | null;
+  userPresent?: boolean;
 }) {
   await runMonitoredAction({
     area: 'fulfillment',
     action,
+    source: 'supabase.postgrest',
+    authState,
+    authRole,
+    userPresent,
     errorCode: `customer.${action}.query_failed`,
     summary,
     errorResult: {status: 'error', code},
     shouldRecordResult: () => true,
+    factsFromResult: () => safeSupabaseErrorFacts(error),
     operation: async () => ({status: 'error', code})
   });
 }
 
-export async function getCustomerOrderHistory({userId, client}: {userId: string; client: QueryClient}): Promise<CustomerOrderHistoryResult> {
+export async function getCustomerOrderHistory({
+  userId,
+  client,
+  authRole = 'authenticated',
+  authState = 'required_user_present'
+}: {
+  userId: string;
+  client: QueryClient;
+  authRole?: string | null;
+  authState?: string;
+}): Promise<CustomerOrderHistoryResult> {
   const query = client.from('order_payment_statuses').select(
     'order_id,order_number,customer_payment_status,payment_status,fulfillment_gate_status,digital_fulfillment_status,physical_fulfillment_status,total_minor,currency_code,updated_at'
   );
@@ -116,14 +139,30 @@ export async function getCustomerOrderHistory({userId, client}: {userId: string;
     await recordCustomerFulfillmentQueryFailure({
       action: 'account_orders',
       code: 'account_orders_failed',
-      summary: error ? 'Customer account order history query failed' : 'Customer account order history returned an unexpected result'
+      summary: error ? 'Customer account order history query failed' : 'Customer account order history returned an unexpected result',
+      error,
+      authRole,
+      authState,
+      userPresent: Boolean(userId)
     });
     return {status: 'error', code: 'account_orders_failed'};
   }
   return {status: 'success', orders: data.filter(isRecord).map(mapOrderRow).filter((row): row is CustomerOrderHistoryItem => Boolean(row))};
 }
 
-export async function getCustomerPatternLibrary({userId, locale, client}: {userId: string; locale: Locale; client: QueryClient}): Promise<CustomerPatternLibraryResult> {
+export async function getCustomerPatternLibrary({
+  userId,
+  locale,
+  client,
+  authRole = 'authenticated',
+  authState = 'required_user_present'
+}: {
+  userId: string;
+  locale: Locale;
+  client: QueryClient;
+  authRole?: string | null;
+  authState?: string;
+}): Promise<CustomerPatternLibraryResult> {
   const query = client.from('digital_entitlements').select(
     'id,product_id,status,created_at,checkout_orders(order_number),products(product_translations(locale,title))'
   );
@@ -132,7 +171,11 @@ export async function getCustomerPatternLibrary({userId, locale, client}: {userI
     await recordCustomerFulfillmentQueryFailure({
       action: 'pattern_library',
       code: 'pattern_library_failed',
-      summary: error ? 'Customer pattern library query failed' : 'Customer pattern library returned an unexpected result'
+      summary: error ? 'Customer pattern library query failed' : 'Customer pattern library returned an unexpected result',
+      error,
+      authRole,
+      authState,
+      userPresent: Boolean(userId)
     });
     return {status: 'error', code: 'pattern_library_failed'};
   }

@@ -1,6 +1,6 @@
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {createSupabasePublicClient} from '@/lib/supabase/public';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {runMonitoredAction, safeSupabaseErrorFacts} from '@/operations/monitoring';
 import {mapPublicReviewRows, type PublicProductReview} from '@/reviews/eligibility';
 
 type QueryClient = {
@@ -79,14 +79,16 @@ function mapAdminRows(rows: unknown[]): AdminProductReview[] {
   });
 }
 
-async function publicReviewQueryError(productId: string, summary: string) {
+async function publicReviewQueryError(productId: string, summary: string, error?: unknown) {
   return runMonitoredAction({
     area: 'application',
     action: 'public_reviews',
+    source: 'supabase.postgrest',
     errorCode: 'storefront.reviews.query_failed',
     summary,
     errorResult: {status: 'error', code: 'reviews_load_failed'} as const,
     shouldRecordResult: () => true,
+    factsFromResult: () => safeSupabaseErrorFacts(error),
     facts: {
       productId
     },
@@ -94,14 +96,16 @@ async function publicReviewQueryError(productId: string, summary: string) {
   });
 }
 
-async function adminReviewQueryError(status: ReviewStatus | undefined, summary: string) {
+async function adminReviewQueryError(status: ReviewStatus | undefined, summary: string, error?: unknown) {
   return runMonitoredAction({
     area: 'admin',
     action: 'admin_reviews',
+    source: 'supabase.rpc',
     errorCode: 'admin_reviews_load_failed',
     summary,
     errorResult: {status: 'error', code: 'admin_reviews_load_failed'} as const,
     shouldRecordResult: () => true,
+    factsFromResult: () => safeSupabaseErrorFacts(error),
     facts: {
       status: status ?? null
     },
@@ -126,7 +130,8 @@ export async function getApprovedProductReviews({
   if (error || !Array.isArray(data)) {
     return publicReviewQueryError(
       productId,
-      error ? 'Storefront product reviews query failed' : 'Storefront product reviews returned an unexpected result'
+      error ? 'Storefront product reviews query failed' : 'Storefront product reviews returned an unexpected result',
+      error
     );
   }
   return {status: 'success', reviews: mapPublicReviewRows(data)};
@@ -144,7 +149,8 @@ export async function getAdminProductReviews({
   if (error || !Array.isArray(data)) {
     return adminReviewQueryError(
       status,
-      error ? 'Admin product reviews query failed' : 'Admin product reviews returned an unexpected result'
+      error ? 'Admin product reviews query failed' : 'Admin product reviews returned an unexpected result',
+      error
     );
   }
   return {status: 'success', reviews: mapAdminRows(data)};
