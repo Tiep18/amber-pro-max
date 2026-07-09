@@ -143,4 +143,33 @@ describe('admin system loader operational recording', () => {
     );
     expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/secret-signature|buyer@example|raw evidence|paypal=/i);
   });
+
+  it('keeps launch readiness error result stable when operational recording fails', async () => {
+    recordOperationalFailureMock.mockRejectedValueOnce(new Error('operational table unavailable'));
+    const settingsMaybeSingle = vi.fn(async () => ({
+      data: null,
+      error: {message: 'raw evidence paypal=secret-signature buyer@example.com'}
+    }));
+    const from = vi.fn((table: string) => {
+      if (table === 'launch_settings') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({maybeSingle: settingsMaybeSingle}))
+          }))
+        };
+      }
+      return {
+        select: vi.fn(async () => ({
+          data: [],
+          error: null
+        }))
+      };
+    });
+    createSupabaseServerClientMock.mockResolvedValue({from});
+
+    await expect(getAdminLaunchReadiness({requireAdmin: requireAdminMock})).resolves.toEqual({
+      status: 'error',
+      code: 'admin_launch_load_failed'
+    });
+  });
 });

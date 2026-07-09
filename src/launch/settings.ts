@@ -4,7 +4,7 @@ import {revalidatePath} from 'next/cache';
 import {requireAdmin as requireAdminGuard} from '@/auth/guards';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import type {Locale} from '@/i18n/routing';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import {
   evaluateLaunchReadiness,
   requiredPolicyKinds,
@@ -117,17 +117,15 @@ export async function getAdminLaunchReadiness({
   ]);
 
   if (settingsResult.error || policiesResult.error) {
-    await recordOperationalFailure({
+    return runMonitoredAction({
       area: 'admin',
-      severity: 'error',
+      action: 'admin_launch_readiness_load',
       errorCode: 'admin_launch_load_failed',
       summary: 'Admin launch readiness load failed',
-      facts: {
-        action: 'admin_launch_readiness_load',
-        code: 'admin_launch_load_failed'
-      }
+      errorResult: {status: 'error', code: 'admin_launch_load_failed'},
+      shouldRecordResult: () => true,
+      operation: async () => ({status: 'error', code: 'admin_launch_load_failed'})
     });
-    return {status: 'error', code: 'admin_launch_load_failed'};
   }
 
   const policies = {...emptyPolicyStatus};
