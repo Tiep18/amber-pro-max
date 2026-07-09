@@ -537,6 +537,22 @@ describe('VietQR instruction and evidence contract', () => {
     );
   });
 
+  test('admin confirmation keeps invalid result stable when operational recording fails', async () => {
+    const recordOperationalFailure = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const { confirmVietQrPaymentAction, applyPaymentTransition } = await importAdminActions({
+      recordOperationalFailure
+    });
+
+    await expect(
+      confirmVietQrPaymentAction(confirmForm({ bankReference: 'WRONG-REFERENCE' }))
+    ).resolves.toEqual({ status: 'invalid', code: 'vietqr_reference_mismatch' });
+
+    expect(applyPaymentTransition).not.toHaveBeenCalled();
+    expect(recordOperationalFailure).toHaveBeenCalledOnce();
+  });
+
   test('admin rejection records transition failures for operations review', async () => {
     const recordOperationalFailure = vi.fn(async () => ({
       status: 'recorded',

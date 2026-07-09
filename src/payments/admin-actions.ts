@@ -4,7 +4,7 @@ import {revalidatePath} from 'next/cache';
 
 import {requireAdmin} from '@/auth/guards';
 import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import {createAdminOrderQueryClient, getAdminOrderDetail, type AdminOrderDetail} from '@/payments/queries';
 import {applyPaymentTransition} from '@/payments/transitions';
 import {
@@ -82,22 +82,24 @@ async function recordVietQrAdminFailure(input: {
   expected?: VietQrExpectedPayment | null;
   orderId?: string;
 }) {
-  await recordOperationalFailure({
+  await runMonitoredAction({
     area: 'payment',
+    action: input.action,
     severity: input.severity ?? 'error',
     errorCode: input.code,
     summary: input.summary,
+    errorResult: {status: 'error', code: input.code},
+    shouldRecordResult: () => true,
     facts: {
       provider: 'vietqr',
-      action: input.action,
-      code: input.code,
-      orderId: input.expected?.orderId ?? input.orderId,
-      orderNumber: input.expected?.orderNumber,
-      paymentId: input.expected?.paymentId ?? undefined,
-      paymentStatus: input.expected?.paymentStatus,
-      amountValue: input.expected?.amountMinor,
-      currency: input.expected?.currencyCode
-    }
+      orderId: input.expected?.orderId ?? input.orderId ?? null,
+      orderNumber: input.expected?.orderNumber ?? null,
+      paymentId: input.expected?.paymentId ?? null,
+      paymentStatus: input.expected?.paymentStatus ?? null,
+      amountValue: input.expected?.amountMinor ?? null,
+      currency: input.expected?.currencyCode ?? null
+    },
+    operation: async () => ({status: 'error', code: input.code})
   });
 }
 
