@@ -13,6 +13,7 @@ Server-side code must use the shared operational monitoring wrappers for recover
 - Do record database errors, RPC errors, provider outages, unexpected result shapes, thrown exceptions, worker failures, and silent degradation fallbacks that hide missing server data from users or admins.
 - Monitoring is best-effort: recorder failures must never change action/query return values or throw to the caller.
 - Use `factsFromResult` and `factsFromError` for dynamic safe facts such as provider, status, request id, HTTP status, or transition result. Keep static facts for stable context such as locale, market, product id, and product type.
+- When an action result is recorded as an operational error and the recorder returns an `errorId`, `runMonitoredAction` must return that `errorId` on the public error state. UI may show the `errorId` as a support/admin reference, but must not expose `dbMessage`, `dbDetails`, provider payloads, stack traces, or other internal diagnostics to customers.
 
 Safe facts are allow-listed by `src/operations/redaction.ts`. Do not pass raw payloads, tokens, emails, addresses, phone numbers, signatures, stack traces, cookies, or signed URLs.
 

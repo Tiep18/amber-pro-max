@@ -54,6 +54,16 @@ describe('wishlist client state', () => {
       wishlistFeedbackAfterResult({ status: 'error', code: 'wishlist_action_failed' }, labels)
     ).toBe(labels.failed);
     expect(
+      wishlistFeedbackAfterResult(
+        {
+          status: 'error',
+          code: 'wishlist_action_failed',
+          errorId: '76000000-0000-4000-8000-000000000001'
+        },
+        labels
+      )
+    ).toBe(`${labels.failed} Error ID: 76000000-0000-4000-8000-000000000001`);
+    expect(
       wishlistFeedbackAfterResult({ status: 'invalid', code: 'invalid_product_id' }, labels)
     ).toBe(labels.invalid);
     expect(

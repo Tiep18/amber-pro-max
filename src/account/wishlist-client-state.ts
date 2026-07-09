@@ -36,7 +36,9 @@ export function wishlistFeedbackAfterResult(
   result: WishlistFeedbackResult,
   labels: WishlistFeedbackLabels
 ) {
-  if (result.status === 'error') return labels.failed;
+  if (result.status === 'error') {
+    return result.errorId ? `${labels.failed} Error ID: ${result.errorId}` : labels.failed;
+  }
   if (result.status === 'invalid') return labels.invalid;
   if (result.status === 'unauthenticated') return labels.signedOut;
   return undefined;

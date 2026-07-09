@@ -8,7 +8,7 @@ import {
 } from '@/operations/monitoring';
 
 describe('operational monitoring wrappers', () => {
-  it('records thrown action failures and returns the configured error result', async () => {
+  it('records thrown action failures and returns the configured error result with an error id', async () => {
     const recordOperationalFailure: OperationalFailureRecorder = vi.fn(() =>
       Promise.resolve({ status: 'recorded', errorId: 'error-1' })
     );
@@ -26,7 +26,7 @@ describe('operational monitoring wrappers', () => {
           throw new Error('private connection string leaked');
         }
       })
-    ).resolves.toEqual({ status: 'error', code: 'checkout_submit_failed' });
+    ).resolves.toEqual({ status: 'error', code: 'checkout_submit_failed', errorId: 'error-1' });
 
     expect(recordOperationalFailure).toHaveBeenCalledWith({
       area: 'checkout',
@@ -207,6 +207,29 @@ describe('operational monitoring wrappers', () => {
     expect(recordOperationalFailure).toHaveBeenCalledTimes(1);
   });
 
+  it('attaches the operational error id to recorded result-based failures', async () => {
+    const recordOperationalFailure: OperationalFailureRecorder = vi.fn(() =>
+      Promise.resolve({ status: 'recorded', errorId: 'error-1' })
+    );
+
+    await expect(
+      runMonitoredAction({
+        area: 'application',
+        action: 'wishlist_add',
+        errorCode: 'account.wishlist.add_failed',
+        summary: 'Wishlist add failed',
+        errorResult: { status: 'error' as const, code: 'wishlist_action_failed' as const },
+        recordOperationalFailure,
+        shouldRecordResult: (value) => value.status === 'error',
+        operation: async () => ({ status: 'error' as const, code: 'wishlist_action_failed' as const })
+      })
+    ).resolves.toEqual({
+      status: 'error',
+      code: 'wishlist_action_failed',
+      errorId: 'error-1'
+    });
+  });
+
   it('returns query fallback when operational recording fails after a query exception', async () => {
     const recordOperationalFailure: OperationalFailureRecorder = vi.fn(() =>
       Promise.reject(new Error('operational table unavailable'))
@@ -302,7 +325,7 @@ describe('operational monitoring wrappers', () => {
     );
   });
 
-  it('can decorate an action error result with the operational record result', async () => {
+  it('can override the default action error result decoration', async () => {
     const recordOperationalFailure: OperationalFailureRecorder = vi.fn(() =>
       Promise.resolve({ status: 'recorded', errorId: 'error-1' })
     );
@@ -317,7 +340,7 @@ describe('operational monitoring wrappers', () => {
         recordOperationalFailure,
         decorateErrorResult: (errorResult, recordResult) =>
           recordResult && typeof recordResult === 'object' && 'errorId' in recordResult
-            ? { ...errorResult, errorId: recordResult.errorId as string }
+            ? { ...errorResult, publicTraceCode: recordResult.errorId as string }
             : errorResult,
         operation: async () => {
           throw new Error('submit failed');
@@ -326,7 +349,7 @@ describe('operational monitoring wrappers', () => {
     ).resolves.toEqual({
       status: 'error',
       code: 'checkout_submit_failed',
-      errorId: 'error-1'
+      publicTraceCode: 'error-1'
     });
   });
 });

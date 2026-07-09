@@ -182,7 +182,11 @@ function rejectForm(overrides: Record<string, string> = {}) {
 
 describe('VietQR instruction and evidence contract', () => {
   beforeEach(() => {
-    recordOperationalFailureMock.mockClear();
+    recordOperationalFailureMock.mockReset();
+    recordOperationalFailureMock.mockImplementation(async () => ({
+      status: 'recorded',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    }));
   });
 
   test('keeps VietQR as exact VND payment instructions, not customer self-confirmation', () => {
@@ -315,7 +319,7 @@ describe('VietQR instruction and evidence contract', () => {
         now: new Date('2026-06-16T09:00:00.000Z'),
         transitionClient: {rpc}
       })
-    ).resolves.toEqual({status: 'error', code: 'vietqr_instruction_snapshot_failed'});
+    ).resolves.toMatchObject({status: 'error', code: 'vietqr_instruction_snapshot_failed'});
 
     expect(recordOperationalFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -341,7 +345,7 @@ describe('VietQR instruction and evidence contract', () => {
   });
 
   test('keeps VietQR instruction errors when operational recording fails', async () => {
-    recordOperationalFailureMock.mockRejectedValueOnce(new Error('operational table unavailable'));
+    recordOperationalFailureMock.mockRejectedValue(new Error('operational table unavailable'));
     const rpc = vi.fn(async () => ({
       data: null,
       error: {message: 'private vietqr snapshot failed'}

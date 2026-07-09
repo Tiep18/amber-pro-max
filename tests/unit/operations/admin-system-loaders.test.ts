@@ -57,7 +57,7 @@ describe('admin system loader operational recording', () => {
       }))
     });
 
-    await expect(getAdminDashboard({requireAdmin: requireAdminMock})).resolves.toEqual({
+    await expect(getAdminDashboard({requireAdmin: requireAdminMock})).resolves.toMatchObject({
       status: 'error',
       code: 'admin_dashboard_load_failed'
     });
@@ -124,7 +124,7 @@ describe('admin system loader operational recording', () => {
     });
     createSupabaseServerClientMock.mockResolvedValue({from});
 
-    await expect(getAdminLaunchReadiness({requireAdmin: requireAdminMock})).resolves.toEqual({
+    await expect(getAdminLaunchReadiness({requireAdmin: requireAdminMock})).resolves.toMatchObject({
       status: 'error',
       code: 'admin_launch_load_failed'
     });

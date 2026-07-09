@@ -50,7 +50,7 @@ describe('cart action operational recording', () => {
       ],
       destinationCountryCode: 'US',
       discountCode: 'SECRET-DISCOUNT'
-    })).resolves.toEqual({status: 'error', code: 'quote_failed'});
+    })).resolves.toMatchObject({status: 'error', code: 'quote_failed'});
 
     expect(recordOperationalFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -34,20 +34,6 @@ const checkoutQuoteInputSchema = quoteCartInputSchema.extend({
   acceptedQuote: z.custom<CartQuote>().optional().nullable()
 });
 
-function attachOperationalErrorId<T extends object>(
-  errorResult: T,
-  recordResult: unknown
-): T {
-  return recordResult &&
-    typeof recordResult === 'object' &&
-    'status' in recordResult &&
-    recordResult.status === 'recorded' &&
-    'errorId' in recordResult &&
-    typeof recordResult.errorId === 'string'
-    ? ({...errorResult, errorId: recordResult.errorId} as T)
-    : errorResult;
-}
-
 export async function refreshCheckoutQuoteAction(input: unknown): Promise<CheckoutQuoteActionState> {
   const parsed = checkoutQuoteInputSchema.safeParse(input);
   if (!parsed.success) {
@@ -63,7 +49,6 @@ export async function refreshCheckoutQuoteAction(input: unknown): Promise<Checko
       market: parsed.data.market
     },
     errorResult: {status: 'error', code: 'checkout_quote_failed'} as const,
-    decorateErrorResult: attachOperationalErrorId,
     operation: async () => {
     const client = await createSupabaseServerClient();
     const {
@@ -93,7 +78,6 @@ export async function submitCheckoutAction(input: unknown): Promise<SubmitChecko
       ...(typeof inputRecord.paymentIntent === 'string' ? {paymentIntent: inputRecord.paymentIntent} : {})
     },
     errorResult: {status: 'error', code: 'checkout_submit_failed'} as const,
-    decorateErrorResult: attachOperationalErrorId,
     operation: async () => {
     const client = await createSupabaseServerClient();
     const {

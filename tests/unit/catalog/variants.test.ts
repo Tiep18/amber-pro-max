@@ -264,7 +264,7 @@ describe('variant actions', () => {
         displayOrder: 0,
         mediaId: null
       })
-    ).resolves.toEqual({ status: 'error', code: 'save_failed' });
+    ).resolves.toMatchObject({ status: 'error', code: 'save_failed' });
 
     expect(recordOperationalFailure).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -291,7 +291,7 @@ describe('variant actions', () => {
       from: vi.fn(() => ({ delete: deleteCall }))
     });
 
-    await expect(removeVariantAction({ productId, variantId })).resolves.toEqual({
+    await expect(removeVariantAction({ productId, variantId })).resolves.toMatchObject({
       status: 'error',
       code: 'remove_failed'
     });

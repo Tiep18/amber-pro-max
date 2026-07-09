@@ -64,7 +64,7 @@ describe('admin commerce operational recording', () => {
       from: vi.fn(() => ({insert}))
     });
 
-    await expect(createDiscountCodeAction(discountForm())).resolves.toEqual({status: 'error', code: 'create_failed'});
+    await expect(createDiscountCodeAction(discountForm())).resolves.toMatchObject({status: 'error', code: 'create_failed'});
 
     expect(recordOperationalFailure).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -90,7 +90,7 @@ describe('admin commerce operational recording', () => {
       from: vi.fn(() => ({update}))
     });
 
-    await expect(disableDiscountCodeAction(discountId)).resolves.toEqual({status: 'error', code: 'disable_failed'});
+    await expect(disableDiscountCodeAction(discountId)).resolves.toMatchObject({status: 'error', code: 'disable_failed'});
 
     expect(recordOperationalFailure).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -123,7 +123,7 @@ describe('admin commerce operational recording', () => {
     });
     createSupabaseServerClient.mockResolvedValue({from});
 
-    await expect(createShippingProfileAction(shippingForm())).resolves.toEqual({status: 'error', code: 'create_failed'});
+    await expect(createShippingProfileAction(shippingForm())).resolves.toMatchObject({status: 'error', code: 'create_failed'});
 
     expect(recordOperationalFailure).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -150,7 +150,7 @@ describe('admin commerce operational recording', () => {
       from: vi.fn(() => ({update}))
     });
 
-    await expect(deactivateShippingProfileAction(profileId)).resolves.toEqual({status: 'error', code: 'deactivate_failed'});
+    await expect(deactivateShippingProfileAction(profileId)).resolves.toMatchObject({status: 'error', code: 'deactivate_failed'});
 
     expect(recordOperationalFailure).toHaveBeenCalledWith(
       expect.objectContaining({

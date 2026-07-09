@@ -202,19 +202,50 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
 
   test('records sanitized operational failures for wishlist persistence errors', async () => {
     vi.mocked(recordOperationalFailure).mockClear();
-    const addSelect = vi.fn(() => Promise.resolve({data: null, error: {message: 'db unavailable'}}));
+    vi.mocked(recordOperationalFailure).mockResolvedValue({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'});
+    const addSelect = vi.fn(() =>
+      Promise.resolve({
+        data: null,
+        error: {
+          code: '42501',
+          message: 'permission denied for table wishlist_items',
+          hint: 'Grant insert to authenticated',
+          details: 'wishlist_items insert policy',
+          status: 403
+        }
+      })
+    );
     const upsert = vi.fn(() => ({select: addSelect}));
     await expect(
       addCustomerWishlistItem({userId: ownerId, productId, client: {from: vi.fn(() => ({upsert}))} as never})
-    ).resolves.toEqual({status: 'error', code: 'wishlist_action_failed'});
+    ).resolves.toEqual({
+      status: 'error',
+      code: 'wishlist_action_failed',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    });
 
-    const removeEqProduct = vi.fn(() => Promise.resolve({data: null, error: {message: 'delete failed'}}));
+    const removeEqProduct = vi.fn(() =>
+      Promise.resolve({
+        data: null,
+        error: {
+          code: '42501',
+          message: 'permission denied for table wishlist_items',
+          hint: 'Grant delete to authenticated',
+          details: 'wishlist_items delete policy',
+          status: 403
+        }
+      })
+    );
     const removeEqUser = vi.fn(() => ({eq: removeEqProduct}));
     const removeSelect = vi.fn(() => ({eq: removeEqUser}));
     const deleteCall = vi.fn(() => ({select: removeSelect}));
     await expect(
       removeCustomerWishlistItem({userId: ownerId, productId, client: {from: vi.fn(() => ({delete: deleteCall}))} as never})
-    ).resolves.toEqual({status: 'error', code: 'wishlist_action_failed'});
+    ).resolves.toMatchObject({
+      status: 'error',
+      code: 'wishlist_action_failed',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    });
 
     expect(recordOperationalFailure).toHaveBeenCalledTimes(2);
     expect(recordOperationalFailure).toHaveBeenNthCalledWith(
@@ -222,7 +253,16 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
       expect.objectContaining({
         area: 'application',
         errorCode: 'account.wishlist.add_failed',
-        facts: expect.objectContaining({action: 'add', productId})
+          facts: expect.objectContaining({
+            action: 'add',
+            productId,
+            source: 'supabase.postgrest',
+            dbCode: '42501',
+            dbMessage: 'permission denied for table wishlist_items',
+            dbHint: 'Grant insert to authenticated',
+            dbDetails: 'wishlist_items insert policy',
+            httpStatus: 403
+          })
       })
     );
     expect(recordOperationalFailure).toHaveBeenNthCalledWith(
@@ -230,7 +270,16 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
       expect.objectContaining({
         area: 'application',
         errorCode: 'account.wishlist.remove_failed',
-        facts: expect.objectContaining({action: 'remove', productId})
+          facts: expect.objectContaining({
+            action: 'remove',
+            productId,
+            source: 'supabase.postgrest',
+            dbCode: '42501',
+            dbMessage: 'permission denied for table wishlist_items',
+            dbHint: 'Grant delete to authenticated',
+            dbDetails: 'wishlist_items delete policy',
+            httpStatus: 403
+          })
       })
     );
     expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/user_id|owner|email|phone|address|token/i);

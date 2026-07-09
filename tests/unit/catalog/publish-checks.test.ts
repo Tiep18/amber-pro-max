@@ -221,7 +221,7 @@ describe('catalog actions', () => {
     });
     createSupabaseServerClient.mockResolvedValue({rpc});
 
-    await expect(publishProductAction(productId)).resolves.toEqual({
+    await expect(publishProductAction(productId)).resolves.toMatchObject({
       status: 'error',
       code: 'publish_failed'
     });
@@ -234,7 +234,7 @@ describe('catalog actions', () => {
     });
     createSupabaseServerClient.mockResolvedValue({rpc});
 
-    await expect(publishProductAction(productId)).resolves.toEqual({
+    await expect(publishProductAction(productId)).resolves.toMatchObject({
       status: 'error',
       code: 'publish_failed'
     });
@@ -281,7 +281,7 @@ describe('catalog actions', () => {
     });
     createSupabaseServerClient.mockResolvedValue({from});
 
-    await expect(saveProductDraftAction(validDraft())).resolves.toEqual({
+    await expect(saveProductDraftAction(validDraft())).resolves.toMatchObject({
       status: 'error',
       code: 'save_failed'
     });
@@ -310,7 +310,7 @@ describe('catalog actions', () => {
       from: vi.fn(() => ({update}))
     });
 
-    await expect(archiveProductAction(productId)).resolves.toEqual({
+    await expect(archiveProductAction(productId)).resolves.toMatchObject({
       status: 'error',
       code: 'archive_failed'
     });

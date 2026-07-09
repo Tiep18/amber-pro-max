@@ -153,6 +153,28 @@ async function safeRecordFailure(input: MonitoredBase, code: string, dynamicFact
   }
 }
 
+function recordedErrorId(recordResult: OperationalRecordResult | undefined) {
+  return recordResult &&
+    typeof recordResult === 'object' &&
+    'status' in recordResult &&
+    recordResult.status === 'recorded' &&
+    'errorId' in recordResult &&
+    typeof recordResult.errorId === 'string'
+    ? recordResult.errorId
+    : undefined;
+}
+
+function withRecordedErrorId<T extends ActionResultWithStatus>(
+  result: T,
+  recordResult: OperationalRecordResult | undefined
+): T {
+  const errorId = recordedErrorId(recordResult);
+  if (!errorId || result.status === 'success') {
+    return result;
+  }
+  return {...result, errorId} as T;
+}
+
 export async function runMonitoredAction<
   TSuccess extends ActionResultWithStatus,
   TError extends ActionResultWithStatus
@@ -160,7 +182,7 @@ export async function runMonitoredAction<
   try {
     const result = await input.operation();
     if (input.shouldRecordResult?.(result)) {
-      await safeRecordFailure(
+      const recordResult = await safeRecordFailure(
         input,
         errorCodeFromResult(result, input.errorResult.code ?? input.errorCode),
         {
@@ -168,6 +190,7 @@ export async function runMonitoredAction<
           ...input.factsFromResult?.(result)
         }
       );
+      return withRecordedErrorId(result, recordResult);
     }
     return result;
   } catch (error) {
@@ -179,7 +202,7 @@ export async function runMonitoredAction<
         ...input.factsFromError?.(error)
       }
     );
-    return input.decorateErrorResult?.(input.errorResult, recordResult) ?? input.errorResult;
+    return input.decorateErrorResult?.(input.errorResult, recordResult) ?? withRecordedErrorId(input.errorResult, recordResult);
   }
 }
 

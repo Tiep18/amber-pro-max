@@ -39,7 +39,7 @@ describe('payment transition operational recording', () => {
         },
         {rpc}
       )
-    ).resolves.toEqual({status: 'error', code: 'payment_transition_failed'});
+    ).resolves.toMatchObject({status: 'error', code: 'payment_transition_failed'});
 
     expect(recordOperationalFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -5,7 +5,7 @@ import {requireUser} from '@/auth/guards';
 import {isPostgresUuid} from '@/account/wishlist-client-state';
 import type {Locale} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {runMonitoredAction, safeSupabaseErrorFacts} from '@/operations/monitoring';
 
 type DeleteClient = {
   from: (table: string) => {
@@ -36,7 +36,7 @@ export type WishlistActionState =
   | {status: 'removed'}
   | {status: 'not_found'}
   | {status: 'invalid'; code: 'invalid_product_id'}
-  | {status: 'error'; code: 'wishlist_action_failed'};
+  | {status: 'error'; code: 'wishlist_action_failed'; errorId?: string};
 
 function localeFromForm(formData: FormData): Locale {
   return formData.get('locale') === 'en' ? 'en' : 'vi';
@@ -81,14 +81,17 @@ export async function addCustomerWishlistItem({
     return {status: 'invalid', code: 'invalid_product_id'};
   }
 
+  let operationError: unknown;
   return runMonitoredAction({
     area: 'application',
     action: 'add',
+    source: 'supabase.postgrest',
     errorCode: 'account.wishlist.add_failed',
     summary: 'Wishlist add failed',
     facts: {productId},
     errorResult: {status: 'error', code: 'wishlist_action_failed'} as const,
     shouldRecordResult: (result) => result.status === 'error',
+    factsFromResult: () => safeSupabaseErrorFacts(operationError),
     operation: async () => {
       const {data, error} = await client
         .from('wishlist_items')
@@ -99,6 +102,7 @@ export async function addCustomerWishlistItem({
         .select('id');
 
       if (error || !Array.isArray(data)) {
+        operationError = error;
         return {status: 'error', code: 'wishlist_action_failed'} as const;
       }
       return {status: 'saved'} as const;
@@ -119,14 +123,17 @@ export async function removeCustomerWishlistItem({
     return {status: 'invalid', code: 'invalid_product_id'};
   }
 
+  let operationError: unknown;
   return runMonitoredAction({
     area: 'application',
     action: 'remove',
+    source: 'supabase.postgrest',
     errorCode: 'account.wishlist.remove_failed',
     summary: 'Wishlist remove failed',
     facts: {productId},
     errorResult: {status: 'error', code: 'wishlist_action_failed'} as const,
     shouldRecordResult: (result) => result.status === 'error',
+    factsFromResult: () => safeSupabaseErrorFacts(operationError),
     operation: async () => {
       const {data, error} = await client
         .from('wishlist_items')
@@ -136,6 +143,7 @@ export async function removeCustomerWishlistItem({
         .eq('product_id', productId);
 
       if (error || !Array.isArray(data)) {
+        operationError = error;
         return {status: 'error', code: 'wishlist_action_failed'} as const;
       }
       return data.length > 0 ? ({status: 'removed'} as const) : ({status: 'not_found'} as const);
