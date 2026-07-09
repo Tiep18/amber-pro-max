@@ -7,6 +7,7 @@ import {requireAdmin, requireUser} from '@/auth/guards';
 import type {Locale} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {recordOperationalFailure as sharedRecordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 type RpcClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
@@ -112,17 +113,19 @@ async function recordReviewAdminFailure(
   if (!recorder) {
     return;
   }
-  await recorder({
+  await runMonitoredAction({
     area: 'admin',
-    severity: 'error',
+    action: input.action,
     errorCode: 'review_admin_action_failed',
     summary: input.summary,
+    errorResult: {status: 'error', code: 'review_admin_action_failed'},
+    shouldRecordResult: () => true,
     facts: {
-      action: input.action,
-      referenceId: input.referenceId,
-      status: input.status,
-      code: 'review_admin_action_failed'
-    }
+      referenceId: input.referenceId ?? null,
+      status: input.status ?? null
+    },
+    recordOperationalFailure: recorder,
+    operation: async () => ({status: 'error', code: 'review_admin_action_failed'})
   });
 }
 
@@ -133,16 +136,18 @@ async function recordReviewSubmitFailure(
   if (!recorder) {
     return;
   }
-  await recorder({
+  await runMonitoredAction({
     area: 'application',
-    severity: 'error',
+    action: 'review_submit',
     errorCode: 'review_submit_failed',
     summary: input.summary,
+    errorResult: {status: 'error', code: 'review_submit_failed'},
+    shouldRecordResult: () => true,
     facts: {
-      action: 'review_submit',
-      productId: input.productId,
-      code: 'review_submit_failed'
-    }
+      productId: input.productId
+    },
+    recordOperationalFailure: recorder,
+    operation: async () => ({status: 'error', code: 'review_submit_failed'})
   });
 }
 

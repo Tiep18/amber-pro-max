@@ -328,6 +328,23 @@ describe('admin review moderation contracts (REV-02, D-12)', () => {
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/Internal customer note|private moderation|email|body/i);
   });
 
+  test('keeps moderation error result stable when operational recording fails', async () => {
+    const recordOperationalFailure = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const client = {
+      rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'private moderation rpc detail'}})
+    };
+
+    await expect(moderateProductReview({
+      reviewId: productId,
+      expectedVersion: 2,
+      expectedStatus: 'pending',
+      targetStatus: 'approved',
+      moderationNote: 'Internal customer note'
+    }, client, recordOperationalFailure)).resolves.toEqual({status: 'error', code: 'review_admin_action_failed'});
+  });
+
   test('reply upsert records unexpected RPC results without exposing reply body', async () => {
     const recordOperationalFailure = vi.fn(async () => ({
       status: 'recorded',
@@ -391,5 +408,21 @@ describe('product review submit operational recording', () => {
       })
     );
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/Sweet bear|loved making|private submit|body/i);
+  });
+
+  test('keeps submit error result stable when operational recording fails', async () => {
+    const recordOperationalFailure = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const client = {
+      rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'private submit rpc detail'}})
+    };
+
+    await expect(submitProductReview({
+      productId,
+      input: {rating: 5, title: 'Sweet bear', body: 'I loved making this pattern.'},
+      client,
+      recordOperationalFailure
+    })).resolves.toEqual({status: 'error', code: 'review_submit_failed'});
   });
 });
