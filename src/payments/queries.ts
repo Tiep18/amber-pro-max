@@ -1,7 +1,7 @@
 ﻿import type {CustomerPaymentStatus, FulfillmentGateStatus, PaymentInternalStatus, PaymentProvider} from '@/payments/types';
 import {shippingAddressSchema, type ShippingAddress} from '@/checkout/shipping-address';
 import {maskEmailForAdmin, sanitizeEmailFailureCode} from '@/fulfillment/admin-email-actions';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import type {Json} from '@/types/supabase';
 
 type RpcClient = {
@@ -216,7 +216,13 @@ async function defaultRequireAdmin() {
   return requireAdmin();
 }
 
-async function recordOrderQueryFailure({
+type OrderQueryFailureCode = 'order_payment_lookup_failed' | 'admin_order_queue_failed' | 'admin_order_detail_failed';
+type OrderQueryFailureResult<TCode extends OrderQueryFailureCode = OrderQueryFailureCode> = {
+  status: 'error';
+  code: TCode;
+};
+
+async function monitoredOrderQueryFailure<TCode extends OrderQueryFailureCode>({
   area,
   action,
   errorCode,
@@ -229,21 +235,23 @@ async function recordOrderQueryFailure({
   action: string;
   errorCode: string;
   summary: string;
-  code: string;
+  code: TCode;
   orderNumber?: string | null;
   orderId?: string | null;
-}) {
-  await recordOperationalFailure({
+}): Promise<OrderQueryFailureResult<TCode>> {
+  const errorResult = {status: 'error', code} as const satisfies OrderQueryFailureResult<TCode>;
+  return runMonitoredAction({
     area,
-    severity: 'error',
+    action,
     errorCode,
     summary,
+    errorResult,
+    shouldRecordResult: () => true,
     facts: {
-      action,
-      orderNumber: orderNumber ?? null,
-      orderId: orderId ?? null,
-      code
-    }
+      ...(orderNumber ? {orderNumber} : {}),
+      ...(orderId ? {orderId} : {})
+    },
+    operation: async () => errorResult
   });
 }
 
@@ -261,7 +269,7 @@ export async function getAuthorizedOrderPayment({
     p_guest_secret_hash: guestSecretHash ?? null
   });
   if (error) {
-    await recordOrderQueryFailure({
+    return monitoredOrderQueryFailure({
       area: 'payment',
       action: 'order_payment_lookup',
       errorCode: 'order_payment_lookup_failed',
@@ -269,13 +277,12 @@ export async function getAuthorizedOrderPayment({
       code: 'order_payment_lookup_failed',
       orderNumber
     });
-    return {status: 'error', code: 'order_payment_lookup_failed'};
   }
   if (!isRecord(data) || data.status !== 'found') {
     return {status: 'not_found'};
   }
   if (typeof data.orderNumber !== 'string' || typeof data.amountMinor !== 'number') {
-    await recordOrderQueryFailure({
+    return monitoredOrderQueryFailure({
       area: 'payment',
       action: 'order_payment_lookup',
       errorCode: 'order_payment_lookup_failed',
@@ -283,7 +290,6 @@ export async function getAuthorizedOrderPayment({
       code: 'order_payment_lookup_failed',
       orderNumber
     });
-    return {status: 'error', code: 'order_payment_lookup_failed'};
   }
 
   const order: CustomerOrderPaymentProjection = {
@@ -570,14 +576,13 @@ export async function getAdminOrderQueue({
   const query = client.from('order_payment_statuses').select(ADMIN_QUEUE_SELECT) as Orderable<unknown[]>;
   const {data, error} = await query.order('updated_at', {ascending: false});
   if (error || !Array.isArray(data)) {
-    await recordOrderQueryFailure({
+    return monitoredOrderQueryFailure({
       area: 'admin',
       action: 'admin_order_queue',
       errorCode: 'admin_order_queue_failed',
       summary: error ? 'Admin order queue query failed' : 'Admin order queue returned an unexpected result',
       code: 'admin_order_queue_failed'
     });
-    return {status: 'error', code: 'admin_order_queue_failed'};
   }
 
   const counts = await getFailedEmailCounts(client);
@@ -604,7 +609,7 @@ export async function getAdminOrderDetail({
   const detailQuery = client.from('order_payment_statuses').select(ADMIN_DETAIL_SELECT) as Filterable<unknown>;
   const {data, error} = await detailQuery.eq('order_id', orderId).maybeSingle();
   if (error) {
-    await recordOrderQueryFailure({
+    return monitoredOrderQueryFailure({
       area: 'admin',
       action: 'admin_order_detail',
       errorCode: 'admin_order_detail_failed',
@@ -612,7 +617,6 @@ export async function getAdminOrderDetail({
       code: 'admin_order_detail_failed',
       orderId
     });
-    return {status: 'error', code: 'admin_order_detail_failed'};
   }
   if (!isRecord(data)) {
     return {status: 'not_found'};
@@ -620,7 +624,7 @@ export async function getAdminOrderDetail({
 
   const base = mapQueueItem(data);
   if (!base) {
-    await recordOrderQueryFailure({
+    return monitoredOrderQueryFailure({
       area: 'admin',
       action: 'admin_order_detail',
       errorCode: 'admin_order_detail_failed',
@@ -628,12 +632,11 @@ export async function getAdminOrderDetail({
       code: 'admin_order_detail_failed',
       orderId
     });
-    return {status: 'error', code: 'admin_order_detail_failed'};
   }
 
   const {data: timelineData, error: timelineError} = await client.rpc('get_admin_order_timeline', {p_order_id: orderId});
   if (timelineError || !Array.isArray(timelineData)) {
-    await recordOrderQueryFailure({
+    return monitoredOrderQueryFailure({
       area: 'admin',
       action: 'admin_order_timeline',
       errorCode: 'admin_order_detail_failed',
@@ -641,7 +644,6 @@ export async function getAdminOrderDetail({
       code: 'admin_order_detail_failed',
       orderId
     });
-    return {status: 'error', code: 'admin_order_detail_failed'};
   }
 
   return {
@@ -688,7 +690,7 @@ export async function getAdminOrderDetailByOrderNumber({
   const lookupQuery = client.from('order_payment_statuses').select('order_id') as Filterable<unknown>;
   const {data, error} = await lookupQuery.eq('order_number', orderNumber).maybeSingle();
   if (error) {
-    await recordOrderQueryFailure({
+    return monitoredOrderQueryFailure({
       area: 'admin',
       action: 'admin_order_number_lookup',
       errorCode: 'admin_order_detail_failed',
@@ -696,7 +698,6 @@ export async function getAdminOrderDetailByOrderNumber({
       code: 'admin_order_detail_failed',
       orderNumber
     });
-    return {status: 'error', code: 'admin_order_detail_failed'};
   }
   if (!isRecord(data) || typeof data.order_id !== 'string') {
     return {status: 'not_found'};

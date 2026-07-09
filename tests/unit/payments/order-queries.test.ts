@@ -85,6 +85,33 @@ describe('payment order projections', () => {
     expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/super-secret-hash|customer@example|order_secret|relation|Market Street|\+1555/i);
   });
 
+  test('keeps payment query error results stable when operational recording fails', async () => {
+    vi.mocked(recordOperationalFailure).mockClear();
+    vi.mocked(recordOperationalFailure).mockRejectedValueOnce(new Error('operational table unavailable'));
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {message: 'private customer lookup failed'}
+    });
+
+    await expect(getAuthorizedOrderPayment({
+      orderNumber: 'ATB-20260616-0001',
+      guestSecretHash: 'super-secret-hash',
+      client: {rpc} as never
+    })).resolves.toEqual({status: 'error', code: 'order_payment_lookup_failed'});
+
+    vi.mocked(recordOperationalFailure).mockRejectedValueOnce(new Error('operational table unavailable'));
+    const queueOrder = vi.fn().mockResolvedValue({
+      data: null,
+      error: {message: 'queue failed'}
+    });
+    const queueSelect = vi.fn().mockReturnValue({order: queueOrder});
+
+    await expect(getAdminOrderQueue({
+      client: {from: vi.fn().mockReturnValue({select: queueSelect})} as never,
+      requireAdmin: vi.fn().mockResolvedValue({id: 'admin-user'})
+    })).resolves.toEqual({status: 'error', code: 'admin_order_queue_failed'});
+  });
+
   test('admin queue and detail require application authorization before querying projections', async () => {
     const requireAdmin = vi.fn().mockResolvedValue({id: 'admin-user'});
     const queueOrder = vi.fn().mockResolvedValue({
