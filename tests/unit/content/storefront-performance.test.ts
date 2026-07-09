@@ -13,7 +13,7 @@ describe('storefront performance boundaries', () => {
   });
 
   it.each([
-    '../../../src/components/catalog/product-card.tsx',
+    '../../../src/components/catalog/product-card-image.tsx',
     '../../../src/components/catalog/product-gallery.tsx',
     '../../../src/app/[locale]/blog/page.tsx',
     '../../../src/app/[locale]/blog/[postSlug]/page.tsx'
@@ -22,6 +22,12 @@ describe('storefront performance boundaries', () => {
     expect(component).toContain("from 'next/image'");
     expect(component).not.toMatch(/<img\s/);
     expect(component).toContain('sizes=');
+  });
+
+  it('keeps product cards routed through the optimized image boundary', async () => {
+    const component = await source('../../../src/components/catalog/product-card.tsx');
+    expect(component).toContain("from '@/components/catalog/product-card-image'");
+    expect(component).not.toMatch(/<img\s/);
   });
 
   it('protects cart state from stale quote responses', async () => {

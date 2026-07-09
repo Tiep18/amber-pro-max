@@ -1,7 +1,17 @@
-import {describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {articleJsonLd, breadcrumbJsonLd, productJsonLd, serializeJsonLd} from '@/content/seo/json-ld';
 
 describe('safe JSON-LD (SEO-03, D-08)', () => {
+  beforeEach(() => {
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://example.test');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://supabase.example.test');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'publishable-key');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('escapes less-than characters before rendering into a script tag', () => {
     const serialized = serializeJsonLd({name: '</script><script>alert(1)</script>'});
 
@@ -10,8 +20,6 @@ describe('safe JSON-LD (SEO-03, D-08)', () => {
   });
 
   it('builds Product JSON-LD with authoritative offer facts', () => {
-    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://example.test');
-
     expect(
       productJsonLd({
         name: 'Both-market bear',
@@ -34,8 +42,6 @@ describe('safe JSON-LD (SEO-03, D-08)', () => {
   });
 
   it('builds Article and Breadcrumb JSON-LD from public localized paths only', () => {
-    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://example.test');
-
     expect(articleJsonLd({headline: 'Care', description: 'Care notes.', path: '/en/blog/care'})).toMatchObject({
       '@type': 'Article',
       url: 'https://example.test/en/blog/care'
