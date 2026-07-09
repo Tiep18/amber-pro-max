@@ -125,6 +125,34 @@ describe('admin physical fulfillment transitions', () => {
     );
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/buyer@example|TRACK123|tracking.example|admin_note|db unavailable/i);
   });
+
+  test('keeps physical update error result stable when operational recording fails', async () => {
+    const recordOperationalFailure = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const client = {
+      from: vi.fn((table: string) => {
+        if (table === 'physical_fulfillments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'phys-1', order_id: '11111111-1111-4111-8111-111111111111', status: 'packing', version: 2}, error: null}))}))
+            })),
+            update: vi.fn(() => ({eq: vi.fn(() => Promise.resolve({data: null, error: null}))}))
+          };
+        }
+        if (table === 'transactional_email_outbox') {
+          return {insert: vi.fn(() => Promise.resolve({data: null, error: {message: 'db unavailable'}}))};
+        }
+        return {insert: vi.fn(() => Promise.resolve({data: null, error: null}))};
+      })
+    };
+
+    await expect(updatePhysicalFulfillment(
+      {orderId: '11111111-1111-4111-8111-111111111111', expectedStatus: 'packing', expectedVersion: 2, status: 'shipped', locale: 'en', orderNumber: 'ATB-1', recipientEmail: 'buyer@example.test'},
+      client as never,
+      recordOperationalFailure
+    )).resolves.toEqual({status: 'error', code: 'physical_update_failed'});
+  });
 });
 
 

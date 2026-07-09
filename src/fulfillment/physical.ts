@@ -1,5 +1,6 @@
 ﻿import {revalidatePath} from 'next/cache';
 import {z} from 'zod';
+import {runMonitoredAction} from '@/operations/monitoring';
 import {physicalFulfillmentStatusSchema, type PhysicalFulfillmentStatus} from '@/fulfillment/schemas';
 
 const updateInputSchema = z.object({
@@ -93,18 +94,20 @@ async function recordPhysicalFailure(
   if (!recorder) {
     return;
   }
-  await recorder({
+  await runMonitoredAction({
     area: 'fulfillment',
-    severity: 'error',
+    action: input.action,
     errorCode: 'physical_update_failed',
     summary: input.summary,
+    errorResult: {status: 'error', code: 'physical_update_failed'},
+    shouldRecordResult: () => true,
     facts: {
-      action: input.action,
-      orderId: input.orderId,
-      orderNumber: input.orderNumber,
-      fulfillmentStatus: input.fulfillmentStatus,
-      code: 'physical_update_failed'
-    }
+      orderId: input.orderId ?? null,
+      orderNumber: input.orderNumber ?? null,
+      fulfillmentStatus: input.fulfillmentStatus ?? null
+    },
+    recordOperationalFailure: recorder,
+    operation: async () => ({status: 'error', code: 'physical_update_failed'})
   });
 }
 

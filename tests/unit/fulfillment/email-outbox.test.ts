@@ -188,6 +188,34 @@ describe('transactional email outbox worker', () => {
     expect(JSON.stringify(operationalFailureRecorder.mock.calls)).not.toMatch(/buyer@example\.test|boom@example\.test|retry-token|failed-token/i);
   });
 
+  test('keeps email worker counts stable when operational recording fails', async () => {
+    const repository = {
+      claimDueRows: vi.fn().mockResolvedValue([{...digitalRow, id: 'email-retry', orderId: 'order-retry'}]),
+      issueDownloadToken: vi.fn().mockResolvedValue({rawToken: 'retry-token', expiresAt: new Date(now.getTime() + 86_400_000).toISOString()}),
+      issueGuestToken: vi.fn(),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markRetry: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined)
+    };
+    const sender = {
+      send: vi.fn().mockResolvedValueOnce({status: 'retry', code: 'rate_limited'})
+    };
+    const operationalFailureRecorder = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+
+    const result = await processTransactionalEmailBatch({
+      repository,
+      sender,
+      operationalFailureRecorder,
+      now: () => now,
+      config: {siteUrl: 'https://shop.example.test', fromEmail: 'orders@example.test', batchSize: 5}
+    });
+
+    expect(result).toEqual({status: 'processed', claimed: 1, sent: 0, retry: 1, failed: 0});
+    expect(repository.markFailed).not.toHaveBeenCalled();
+  });
+
   test('immediate paid trigger is a safe no-op when transactional email is unconfigured', async () => {
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://shop.example.test');
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://supabase.example.test');

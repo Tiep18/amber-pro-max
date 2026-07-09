@@ -1,5 +1,7 @@
 import {createHash} from 'node:crypto';
 import {z} from 'zod';
+import {runMonitoredAction} from '@/operations/monitoring';
+import type {SafeOperationalFact} from '@/operations/redaction';
 
 const SIGNED_URL_TTL_SECONDS = 300;
 
@@ -80,14 +82,21 @@ function isOwner(record: EntitlementDownloadRecord, userId: string | null | unde
 
 async function recordDownloadFailure(
   deps: DownloadAuthorizationDeps,
-  input: {errorCode: string; summary: string; facts: Record<string, unknown>}
+  input: {errorCode: string; summary: string; facts: Record<string, SafeOperationalFact>}
 ) {
-  await deps.operationalFailureRecorder?.({
+  if (!deps.operationalFailureRecorder) {
+    return;
+  }
+  await runMonitoredAction({
     area: 'fulfillment',
-    severity: 'error',
+    action: 'download_authorize',
     errorCode: input.errorCode,
     summary: input.summary,
-    facts: input.facts
+    errorResult: {status: 'error', code: input.errorCode},
+    shouldRecordResult: () => true,
+    facts: input.facts,
+    recordOperationalFailure: deps.operationalFailureRecorder,
+    operation: async () => ({status: 'error', code: input.errorCode})
   });
 }
 
@@ -109,7 +118,7 @@ export async function authorizeDownloadRequest(
       summary: 'Download entitlement lookup failed',
       facts: {
         orderNumber: parsed.data.orderNumber,
-        productId: parsed.data.productId ?? undefined
+        productId: parsed.data.productId ?? null
       }
     });
     return {status: 'error', code: 'download_lookup_failed'};

@@ -132,6 +132,27 @@ describe('fulfillment download authorization', () => {
     expect(JSON.stringify(recorder.mock.calls)).not.toMatch(/buyer@example\.test|raw-token/i);
   });
 
+  test('keeps download lookup error result stable when operational recording fails', async () => {
+    const recorder = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const fake = {
+      repository: {
+        findActiveEntitlementsForOrder: vi.fn().mockRejectedValue(new Error('lookup failed for buyer@example.test'))
+      },
+      storage: {
+        createSignedUrl: vi.fn()
+      },
+      operationalFailureRecorder: recorder,
+      now: () => new Date()
+    };
+
+    await expect(authorizeDownloadRequest({orderNumber: activeEntitlement.orderNumber}, fake)).resolves.toEqual({
+      status: 'error',
+      code: 'download_lookup_failed'
+    });
+  });
+
   test('records operational failure when signed URL creation fails', async () => {
     const recorder = vi.fn().mockResolvedValue({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'});
     const fake = deps();
@@ -285,5 +306,23 @@ describe('admin entitlement revoke and reissue wrappers', () => {
       })
     );
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/fresh-raw-token|token_hash|rpc down|password|secret/i);
+  });
+
+  test('keeps entitlement action error result stable when operational recording fails', async () => {
+    const recordOperationalFailure = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const client = {
+      rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'rpc down'}})
+    };
+
+    await expect(
+      reissueDigitalEntitlement(
+        {entitlementId: '44444444-4444-4444-8444-444444444444', expectedVersion: 1},
+        client,
+        () => 'fresh-raw-token',
+        recordOperationalFailure
+      )
+    ).resolves.toEqual({status: 'error', code: 'entitlement_action_failed'});
   });
 });

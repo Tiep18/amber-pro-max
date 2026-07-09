@@ -2,6 +2,7 @@ import 'server-only';
 
 import {createHash, randomBytes} from 'node:crypto';
 import {z} from 'zod';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 type RpcClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
@@ -71,16 +72,18 @@ async function recordNewsletterFailure(
   if (!recorder) {
     return;
   }
-  await recorder({
+  await runMonitoredAction({
     area: 'application',
-    severity: 'error',
+    action: input.action,
     errorCode: input.errorCode,
     summary: input.summary,
+    errorResult: {status: 'error', code: input.errorCode},
+    shouldRecordResult: () => true,
     facts: {
-      action: input.action,
-      market: input.market,
-      code: input.errorCode
-    }
+      market: input.market ?? null
+    },
+    recordOperationalFailure: recorder,
+    operation: async () => ({status: 'error', code: input.errorCode})
   });
 }
 

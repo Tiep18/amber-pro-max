@@ -104,6 +104,20 @@ describe('newsletter consent contracts (NEWS-01, NEWS-02, D-13, D-16)', () => {
     );
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/Taylor|example\.com|private subscriber|aaaaaaaa|bbbbbbbb|ipHash|userAgentHash/i);
   });
+
+  test('keeps subscribe error result stable when operational recording fails', async () => {
+    const recordOperationalFailure = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const client = {rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'private subscriber detail'}})};
+
+    await expect(subscribeNewsletter({
+      email: ' Taylor@Example.com ',
+      locale: 'en',
+      market: 'intl',
+      source: 'footer'
+    }, client, recordOperationalFailure)).resolves.toEqual({status: 'error'});
+  });
 });
 
 describe('newsletter unsubscribe contracts (NEWS-02, D-14, D-16)', () => {

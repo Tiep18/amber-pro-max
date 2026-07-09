@@ -158,6 +158,26 @@ describe('newsletter admin queries (NEWS-03, D-15, D-16)', () => {
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/reader@example|private subscriber|ip_hash|token/i);
   });
 
+  test('keeps subscriber lookup error result stable when operational recording fails', async () => {
+    const requireAdmin = vi.fn(async () => ({id: 'admin-user'}));
+    const recordOperationalFailure = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const subscriberQuery = createQuery([]);
+    subscriberQuery.limit.mockResolvedValueOnce({data: null, error: {message: 'private subscriber lookup'}});
+    const from = vi.fn(() => ({select: vi.fn(() => subscriberQuery)}));
+
+    await expect(getAdminNewsletterSubscribers({
+      client: {from} as never,
+      requireAdmin,
+      filters: {status: 'subscribed', locale: 'en', market: 'intl', search: 'reader@example.test'},
+      recordOperationalFailure
+    })).resolves.toMatchObject({
+      status: 'error',
+      code: 'admin_newsletter_lookup_failed'
+    });
+  });
+
   test('records consent lookup failures without exposing subscriber emails or hashes', async () => {
     const requireAdmin = vi.fn(async () => ({id: 'admin-user'}));
     const recordOperationalFailure = vi.fn(async () => ({

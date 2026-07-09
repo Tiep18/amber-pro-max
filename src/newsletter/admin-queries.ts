@@ -1,6 +1,7 @@
 import 'server-only';
 
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 type NewsletterStatus = 'subscribed' | 'unsubscribed';
 type NewsletterLocale = 'en' | 'vi';
@@ -84,6 +85,34 @@ type NewsletterConsentRow = {
   user_agent_hash: string | null;
 };
 
+async function recordAdminNewsletterFailure(
+  recorder: OperationalFailureRecorder | undefined,
+  input: {
+    action: 'admin_newsletter_subscribers' | 'admin_newsletter_consents';
+    summary: string;
+    status: string;
+    market: string;
+  }
+) {
+  if (!recorder) {
+    return;
+  }
+  await runMonitoredAction({
+    area: 'admin',
+    action: input.action,
+    errorCode: 'admin_newsletter_lookup_failed',
+    summary: input.summary,
+    errorResult: {status: 'error', code: 'admin_newsletter_lookup_failed'},
+    shouldRecordResult: () => true,
+    facts: {
+      status: input.status,
+      market: input.market
+    },
+    recordOperationalFailure: recorder,
+    operation: async () => ({status: 'error', code: 'admin_newsletter_lookup_failed'})
+  });
+}
+
 function normalizeFilters(filters: AdminNewsletterFilters | undefined): Required<AdminNewsletterFilters> {
   return {
     status: filters?.status === 'subscribed' || filters?.status === 'unsubscribed' ? filters.status : 'all',
@@ -155,17 +184,11 @@ export async function getAdminNewsletterSubscribers({
 
   const subscriberResult = await query.order('updated_at', {ascending: false}).limit(100);
   if (subscriberResult.error) {
-    await recordOperationalFailure?.({
-      area: 'admin',
-      severity: 'error',
-      errorCode: 'admin_newsletter_lookup_failed',
+    await recordAdminNewsletterFailure(recordOperationalFailure, {
+      action: 'admin_newsletter_subscribers',
       summary: 'Admin newsletter subscriber lookup failed',
-      facts: {
-        action: 'admin_newsletter_subscribers',
-        status: normalized.status,
-        market: normalized.market,
-        code: 'admin_newsletter_lookup_failed'
-      }
+      status: normalized.status,
+      market: normalized.market
     });
     return {status: 'error', code: 'admin_newsletter_lookup_failed', filters: normalized};
   }
@@ -180,17 +203,11 @@ export async function getAdminNewsletterSubscribers({
       .select('normalized_email,event_type,consent_source,occurred_at,ip_hash,user_agent_hash') as ConsentQuery;
     const consentResult = await consentQuery.in('normalized_email', emails).order('occurred_at', {ascending: false}).limit(300);
     if (consentResult.error) {
-      await recordOperationalFailure?.({
-        area: 'admin',
-        severity: 'error',
-        errorCode: 'admin_newsletter_lookup_failed',
+      await recordAdminNewsletterFailure(recordOperationalFailure, {
+        action: 'admin_newsletter_consents',
         summary: 'Admin newsletter consent lookup failed',
-        facts: {
-          action: 'admin_newsletter_consents',
-          status: normalized.status,
-          market: normalized.market,
-          code: 'admin_newsletter_lookup_failed'
-        }
+        status: normalized.status,
+        market: normalized.market
       });
       return {status: 'error', code: 'admin_newsletter_lookup_failed', filters: normalized};
     }

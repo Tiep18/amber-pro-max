@@ -1,4 +1,5 @@
 import {renderTransactionalEmail, type TransactionalEmailRow} from '@/emails/transactional';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 const DEFAULT_BATCH_SIZE = 10;
 const MAX_BATCH_SIZE = 25;
@@ -85,16 +86,24 @@ async function recordEmailFailure(
   row: TransactionalEmailRow,
   input: {severity: 'warning' | 'error'; errorCode: string; summary: string}
 ) {
-  await recorder?.({
+  if (!recorder) {
+    return;
+  }
+  await runMonitoredAction({
     area: 'email',
+    action: 'transactional_email_send',
     severity: input.severity,
     errorCode: input.errorCode,
     summary: input.summary,
+    errorResult: {status: 'error', code: input.errorCode},
+    shouldRecordResult: () => true,
     facts: {
       emailType: row.eventType,
-      orderId: row.orderId ?? undefined,
-      entitlementId: row.entitlementId ?? undefined
-    }
+      orderId: row.orderId ?? null,
+      entitlementId: row.entitlementId ?? null
+    },
+    recordOperationalFailure: recorder,
+    operation: async () => ({status: 'error', code: input.errorCode})
   });
 }
 

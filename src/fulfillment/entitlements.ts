@@ -1,6 +1,7 @@
 ﻿import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {hashFulfillmentAccessToken} from '@/fulfillment/downloads';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 const entitlementActionSchema = z.object({
   entitlementId: z.uuid(),
@@ -68,16 +69,18 @@ async function recordEntitlementFailure(
   if (!recorder) {
     return;
   }
-  await recorder({
+  await runMonitoredAction({
     area: 'fulfillment',
-    severity: 'error',
+    action: input.action,
     errorCode: 'entitlement_action_failed',
     summary: input.summary,
+    errorResult: {status: 'error', code: 'entitlement_action_failed'},
+    shouldRecordResult: () => true,
     facts: {
-      action: input.action,
-      entitlementId: input.entitlementId,
-      code: 'entitlement_action_failed'
-    }
+      entitlementId: input.entitlementId
+    },
+    recordOperationalFailure: recorder,
+    operation: async () => ({status: 'error', code: 'entitlement_action_failed'})
   });
 }
 
