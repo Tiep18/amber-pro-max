@@ -3,7 +3,7 @@ import 'server-only';
 import {requireAdmin as requireAdminGuard} from '@/auth/guards';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 import {getAdminLaunchReadiness} from '@/launch/settings';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import {buildAdminDashboardItems, type AdminDashboardCounts, type AdminDashboardItem} from './dashboard-model';
 
 export {buildAdminDashboardItems, type AdminDashboardCounts, type AdminDashboardItem} from './dashboard-model';
@@ -85,16 +85,14 @@ export async function getAdminDashboard({
 
     return {status: 'success', counts, items: buildAdminDashboardItems(counts)};
   } catch {
-    await recordOperationalFailure({
+    return runMonitoredAction({
       area: 'admin',
-      severity: 'error',
+      action: 'admin_dashboard_load',
       errorCode: 'admin_dashboard_load_failed',
       summary: 'Admin dashboard load failed',
-      facts: {
-        action: 'admin_dashboard_load',
-        code: 'admin_dashboard_load_failed'
-      }
+      errorResult: {status: 'error', code: 'admin_dashboard_load_failed'},
+      shouldRecordResult: () => true,
+      operation: async () => ({status: 'error', code: 'admin_dashboard_load_failed'})
     });
-    return {status: 'error', code: 'admin_dashboard_load_failed'};
   }
 }

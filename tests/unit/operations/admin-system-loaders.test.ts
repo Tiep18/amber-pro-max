@@ -77,6 +77,31 @@ describe('admin system loader operational recording', () => {
     expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/dashboard_secret|relation|private|email|token/i);
   });
 
+  it('keeps admin dashboard error result stable when operational recording fails', async () => {
+    recordOperationalFailureMock.mockRejectedValueOnce(new Error('operational table unavailable'));
+    const paymentsCount = countBuilder({
+      count: null,
+      error: {message: 'relation private.dashboard_secret does not exist'}
+    });
+    createSupabaseAdminClientMock.mockReturnValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => paymentsCount)
+      }))
+    });
+    createSupabaseServerClientMock.mockResolvedValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({maybeSingle: vi.fn(async () => ({data: null, error: null}))}))
+        }))
+      }))
+    });
+
+    await expect(getAdminDashboard({requireAdmin: requireAdminMock})).resolves.toEqual({
+      status: 'error',
+      code: 'admin_dashboard_load_failed'
+    });
+  });
+
   it('records launch readiness load failures without exposing launch evidence values', async () => {
     const settingsMaybeSingle = vi.fn(async () => ({
       data: null,
