@@ -106,6 +106,19 @@ describe('exception helpers', () => {
     );
   });
 
+  test('keeps create request error result stable when operational recording fails', async () => {
+    recordOperationalFailureMock.mockRejectedValueOnce(new Error('operational table unavailable'));
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {message: 'private request rpc failed for customer@example.test'}
+    });
+
+    await expect(createExceptionRequest(exceptionRequestInput(), {rpc})).resolves.toEqual({
+      status: 'error',
+      code: 'exception_request_failed'
+    });
+  });
+
   test('records approval grant insert failures without exposing admin notes or tokens', async () => {
     const requestQuery = {
       select: vi.fn(() => requestQuery),
@@ -164,6 +177,56 @@ describe('exception helpers', () => {
     expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(
       /Private approval note|private grant|token|hash|admin@example/i
     );
+  });
+
+  test('keeps approved result stable when approval status warning recording fails', async () => {
+    recordOperationalFailureMock.mockRejectedValueOnce(new Error('operational table unavailable'));
+    const requestQuery = {
+      select: vi.fn(() => requestQuery),
+      eq: vi.fn(() => requestQuery),
+      maybeSingle: vi.fn(async () => ({
+        data: {
+          id: requestId,
+          product_id: productId,
+          variant_id: variantId,
+          market: 'intl',
+          destination_country_code: 'US',
+          status: 'pending'
+        },
+        error: null
+      }))
+    };
+    const grantSingle = vi.fn(async () => ({
+      data: {id: '44444444-4444-4444-8444-444444444444'},
+      error: null
+    }));
+    const grantSelect = vi.fn(() => ({single: grantSingle}));
+    const grantInsert = vi.fn(() => ({select: grantSelect}));
+    const approvalEq = vi.fn(async () => ({error: {message: 'private approval update failed'}}));
+    const approvalUpdate = vi.fn(() => ({eq: approvalEq}));
+    const requestSources = [requestQuery, {update: approvalUpdate}];
+    createSupabaseServerClientMock.mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === 'market_exception_grants') {
+          return {insert: grantInsert};
+        }
+        return requestSources.shift();
+      })
+    });
+
+    const result = await approveExceptionRequest({
+      requestId,
+      shippingFeeMinor: 1200,
+      currencyCode: 'USD',
+      adminNote: 'Private approval note must not be logged'
+    });
+
+    expect(result).toMatchObject({
+      status: 'approved',
+      grantId: '44444444-4444-4444-8444-444444444444'
+    });
+    expect(result).toHaveProperty('token');
+    expect(revalidatePathMock).toHaveBeenCalledWith('/admin/exceptions');
   });
 
   test('records rejection update failures without exposing rejection reasons', async () => {

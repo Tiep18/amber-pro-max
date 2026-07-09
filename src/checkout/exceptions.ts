@@ -1,6 +1,6 @@
 import {createHash, randomBytes} from 'node:crypto';
 import {z} from 'zod';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 type RpcClient = {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
@@ -83,20 +83,21 @@ async function recordExceptionFailure(input: {
   currency?: 'VND' | 'USD' | null;
   amountValue?: number | null;
 }) {
-  await recordOperationalFailure({
+  await runMonitoredAction({
     area: 'checkout',
-    severity: 'error',
+    action: input.action,
     errorCode: input.errorCode,
     summary: input.summary,
+    errorResult: {status: 'error', code: input.code},
+    shouldRecordResult: () => true,
     facts: {
-      action: input.action,
       productId: input.productId ?? null,
       referenceId: input.referenceId ?? null,
       market: input.market ?? null,
       currency: input.currency ?? null,
-      amountValue: input.amountValue ?? null,
-      code: input.code
-    }
+      amountValue: input.amountValue ?? null
+    },
+    operation: async () => ({status: 'error', code: input.code})
   });
 }
 
