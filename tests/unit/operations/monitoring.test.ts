@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   runMonitoredAction,
   runMonitoredQuery,
+  runMonitoredThrowingQuery,
   type OperationalFailureRecorder
 } from '@/operations/monitoring';
 
@@ -156,6 +157,30 @@ describe('operational monitoring wrappers', () => {
         }
       })
     ).resolves.toEqual(['fallback']);
+  });
+
+  it('throws the stable public query error when operational recording fails', async () => {
+    const recordOperationalFailure: OperationalFailureRecorder = vi.fn(() =>
+      Promise.reject(new Error('operational table unavailable'))
+    );
+
+    await expect(
+      runMonitoredThrowingQuery({
+        area: 'storefront',
+        action: 'catalog_products',
+        errorCode: 'storefront.catalog.query_failed',
+        summary: 'Storefront catalog product list query failed',
+        code: 'catalog_query_failed',
+        facts: {market: 'intl'},
+        publicError: () => new Error('catalog_query_failed'),
+        recordOperationalFailure,
+        query: async () => {
+          throw new Error('private catalog rpc failed');
+        }
+      })
+    ).rejects.toThrow('catalog_query_failed');
+
+    expect(recordOperationalFailure).toHaveBeenCalledTimes(1);
   });
 
   it('adds dynamic facts from action results and query exceptions', async () => {

@@ -1,7 +1,7 @@
 import type {SupabaseClient} from '@supabase/supabase-js';
 import type {Locale} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredThrowingQuery} from '@/operations/monitoring';
 import type {Database} from '@/types/supabase';
 import type {MarketCode} from './market';
 
@@ -42,7 +42,7 @@ function cleanOptional(value: string | null | undefined, maxLength = 100) {
   return cleaned.slice(0, maxLength);
 }
 
-async function recordCatalogQueryFailure({
+function catalogQueryFailureInput({
   action,
   market,
   summary
@@ -51,48 +51,44 @@ async function recordCatalogQueryFailure({
   market: MarketCode;
   summary: string;
 }) {
-  await recordOperationalFailure({
+  return {
     area: 'application',
-    severity: 'error',
+    action,
     errorCode: 'storefront.catalog.query_failed',
     summary,
     facts: {
-      action,
-      market,
-      code: 'catalog_query_failed'
-    }
-  });
-}
-
-function catalogQueryError(): never {
-  throw new Error('catalog_query_failed');
+      market
+    },
+    code: 'catalog_query_failed',
+    publicError: () => new Error('catalog_query_failed')
+  } as const;
 }
 
 export async function listCatalogProducts(input: CatalogListInput, client?: CatalogClient) {
   const supabase = await getClient(client);
   const collectionSlug = cleanOptional(input.collectionSlug);
   const sort = collectionSlug ? `collection:${collectionSlug}` : (input.sort ?? 'newest');
-  const {data, error} = await supabase.rpc('list_catalog_products', {
-    p_locale: input.locale,
-    p_market: input.market,
-    p_search: cleanOptional(input.search),
-    p_product_type: input.productType ?? undefined,
-    p_category_slug: cleanOptional(input.categorySlug),
-    p_technique_id: cleanOptional(input.techniqueId),
-    p_tag_id: cleanOptional(input.tagId),
-    p_sort: sort
-  });
-
-  if (error) {
-    await recordCatalogQueryFailure({
+  return runMonitoredThrowingQuery({
+    ...catalogQueryFailureInput({
       action: 'catalog_products',
       market: input.market,
       summary: 'Storefront catalog product list query failed'
-    });
-    catalogQueryError();
-  }
-
-  return data ?? [];
+    }),
+    query: async () => {
+      const {data, error} = await supabase.rpc('list_catalog_products', {
+        p_locale: input.locale,
+        p_market: input.market,
+        p_search: cleanOptional(input.search),
+        p_product_type: input.productType ?? undefined,
+        p_category_slug: cleanOptional(input.categorySlug),
+        p_technique_id: cleanOptional(input.techniqueId),
+        p_tag_id: cleanOptional(input.tagId),
+        p_sort: sort
+      });
+      if (error) throw error;
+      return data ?? [];
+    }
+  });
 }
 
 export async function listCatalogFacets(
@@ -100,21 +96,21 @@ export async function listCatalogFacets(
   client?: CatalogClient
 ) {
   const supabase = await getClient(client);
-  const {data, error} = await supabase.rpc('list_catalog_facets', {
-    p_locale: input.locale,
-    p_market: input.market
-  });
-
-  if (error) {
-    await recordCatalogQueryFailure({
+  return runMonitoredThrowingQuery({
+    ...catalogQueryFailureInput({
       action: 'catalog_facets',
       market: input.market,
       summary: 'Storefront catalog facets query failed'
-    });
-    catalogQueryError();
-  }
-
-  return data ?? [];
+    }),
+    query: async () => {
+      const {data, error} = await supabase.rpc('list_catalog_facets', {
+        p_locale: input.locale,
+        p_market: input.market
+      });
+      if (error) throw error;
+      return data ?? [];
+    }
+  });
 }
 
 export async function getCatalogProductBySlug(
@@ -127,22 +123,22 @@ export async function getCatalogProductBySlug(
     return null;
   }
 
-  const {data, error} = await supabase.rpc('get_catalog_product_by_slug', {
-    p_locale: input.locale,
-    p_market: input.market,
-    p_slug: slug
-  });
-
-  if (error) {
-    await recordCatalogQueryFailure({
+  return runMonitoredThrowingQuery({
+    ...catalogQueryFailureInput({
       action: 'catalog_product_detail',
       market: input.market,
       summary: 'Storefront catalog product detail query failed'
-    });
-    catalogQueryError();
-  }
-
-  return data?.[0] ?? null;
+    }),
+    query: async () => {
+      const {data, error} = await supabase.rpc('get_catalog_product_by_slug', {
+        p_locale: input.locale,
+        p_market: input.market,
+        p_slug: slug
+      });
+      if (error) throw error;
+      return data?.[0] ?? null;
+    }
+  });
 }
 
 export async function getCatalogCategoryBySlug(
@@ -155,22 +151,22 @@ export async function getCatalogCategoryBySlug(
     return null;
   }
 
-  const {data, error} = await supabase.rpc('get_catalog_category_by_slug', {
-    p_locale: input.locale,
-    p_market: input.market,
-    p_slug: slug
-  });
-
-  if (error) {
-    await recordCatalogQueryFailure({
+  return runMonitoredThrowingQuery({
+    ...catalogQueryFailureInput({
       action: 'catalog_category_detail',
       market: input.market,
       summary: 'Storefront catalog category detail query failed'
-    });
-    catalogQueryError();
-  }
-
-  return data?.[0] ?? null;
+    }),
+    query: async () => {
+      const {data, error} = await supabase.rpc('get_catalog_category_by_slug', {
+        p_locale: input.locale,
+        p_market: input.market,
+        p_slug: slug
+      });
+      if (error) throw error;
+      return data?.[0] ?? null;
+    }
+  });
 }
 
 export async function getCatalogCollectionBySlug(
@@ -183,20 +179,20 @@ export async function getCatalogCollectionBySlug(
     return null;
   }
 
-  const {data, error} = await supabase.rpc('get_catalog_collection_by_slug', {
-    p_locale: input.locale,
-    p_market: input.market,
-    p_slug: slug
-  });
-
-  if (error) {
-    await recordCatalogQueryFailure({
+  return runMonitoredThrowingQuery({
+    ...catalogQueryFailureInput({
       action: 'catalog_collection_detail',
       market: input.market,
       summary: 'Storefront catalog collection detail query failed'
-    });
-    catalogQueryError();
-  }
-
-  return data?.[0] ?? null;
+    }),
+    query: async () => {
+      const {data, error} = await supabase.rpc('get_catalog_collection_by_slug', {
+        p_locale: input.locale,
+        p_market: input.market,
+        p_slug: slug
+      });
+      if (error) throw error;
+      return data?.[0] ?? null;
+    }
+  });
 }

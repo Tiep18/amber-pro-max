@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-07-09 - Completed quick task 260709-monitor-content-policy-actions: Blog and policy actions use monitored action wrapper
+last_activity: 2026-07-09 - Completed quick task 260709-monitor-throwing-storefront-queries: Throwing storefront queries use monitored wrapper
 progress:
   total_phases: 7
   completed_phases: 6
@@ -211,6 +211,7 @@ None yet.
 | 260709-monitor-catalog-variant-actions | Catalog variant, price override, and inventory actions use monitored action wrapper | 2026-07-09 | this commit | [260709-monitor-catalog-variant-actions](./quick/260709-monitor-catalog-variant-actions/) |
 | 260709-monitor-catalog-media-actions | Catalog media and PDF actions use monitored action wrapper | 2026-07-09 | this commit | [260709-monitor-catalog-media-actions](./quick/260709-monitor-catalog-media-actions/) |
 | 260709-monitor-content-policy-actions | Blog and policy admin actions use monitored action wrapper | 2026-07-09 | this commit | [260709-monitor-content-policy-actions](./quick/260709-monitor-content-policy-actions/) |
+| 260709-monitor-throwing-storefront-queries | Storefront catalog and blog throwing queries use monitored wrapper | 2026-07-09 | this commit | [260709-monitor-throwing-storefront-queries](./quick/260709-monitor-throwing-storefront-queries/) |
 
 ### Debug Sessions Resolved
 

@@ -6,6 +6,7 @@ Server-side code must use the shared operational monitoring wrappers for recover
 
 - Use `runMonitoredAction` from `src/operations/monitoring.ts` for Server Actions and domain mutation helpers that return action states.
 - Use `runMonitoredQuery` from `src/operations/monitoring.ts` for server loaders, cached queries, RPC reads, and fallback-producing data access.
+- Use `runMonitoredThrowingQuery` from `src/operations/monitoring.ts` for query helpers that intentionally throw a stable public error for the caller.
 - Always provide `area`, `action`, `errorCode`, `summary`, and safe `facts`.
 - Use namespaced error codes such as `storefront.home.featured_products_failed` or `account.wishlist.add_failed`.
 - Do not record expected user-controlled outcomes as operational errors: invalid form input, unauthenticated redirects, forbidden access, not found, duplicate webhook delivery, unsupported provider events, and safe client storage/cache misses.
@@ -46,6 +47,25 @@ return runMonitoredQuery({
   facts: { locale, market, productType },
   fallback: [],
   query: async () => getCachedCatalogProducts({ locale, market, productType, sort: 'newest' })
+});
+```
+
+### Throwing Query Example
+
+```ts
+return runMonitoredThrowingQuery({
+  area: 'storefront',
+  action: 'catalog_products',
+  errorCode: 'storefront.catalog.query_failed',
+  summary: 'Storefront catalog product list query failed',
+  facts: { market },
+  code: 'catalog_query_failed',
+  publicError: () => new Error('catalog_query_failed'),
+  query: async () => {
+    const { data, error } = await supabase.rpc('list_catalog_products', input);
+    if (error) throw error;
+    return data ?? [];
+  }
 });
 ```
 

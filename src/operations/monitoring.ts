@@ -43,6 +43,13 @@ type MonitoredQueryInput<T> = MonitoredBase & {
   factsFromError?: (error: unknown) => SafeFacts;
 };
 
+type MonitoredThrowingQueryInput<T> = MonitoredBase & {
+  query: () => Promise<T>;
+  publicError: Error | (() => Error);
+  code?: string;
+  factsFromError?: (error: unknown) => SafeFacts;
+};
+
 async function defaultOperationalFailureRecorder(input: Parameters<OperationalFailureRecorder>[0]) {
   const { recordOperationalFailure } = await import('./errors');
   return recordOperationalFailure(input);
@@ -111,5 +118,14 @@ export async function runMonitoredQuery<T>(input: MonitoredQueryInput<T>): Promi
   } catch (error) {
     await safeRecordFailure(input, input.errorCode, input.factsFromError?.(error));
     return input.fallback;
+  }
+}
+
+export async function runMonitoredThrowingQuery<T>(input: MonitoredThrowingQueryInput<T>): Promise<T> {
+  try {
+    return await input.query();
+  } catch (error) {
+    await safeRecordFailure(input, input.code ?? input.errorCode, input.factsFromError?.(error));
+    throw typeof input.publicError === 'function' ? input.publicError() : input.publicError;
   }
 }

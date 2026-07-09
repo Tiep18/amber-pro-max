@@ -3,7 +3,7 @@ import 'server-only';
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {notFound} from 'next/navigation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredThrowingQuery} from '@/operations/monitoring';
 import type {Json} from '@/types/supabase';
 import type {Database} from '@/types/supabase';
 import type {BlogPostFormInitial, BlogSelectOption} from '@/components/admin/blog/blog-post-form';
@@ -93,7 +93,7 @@ function publicRelatedProducts(value: Json): PublicBlogPostDetail['relatedProduc
   });
 }
 
-async function recordPublicBlogQueryFailure({
+function publicBlogQueryFailureInput({
   action,
   code,
   summary,
@@ -104,17 +104,17 @@ async function recordPublicBlogQueryFailure({
   summary: string;
   referenceId?: string | null;
 }) {
-  await recordOperationalFailure({
+  return {
     area: 'application',
-    severity: 'error',
+    action,
     errorCode: `storefront.blog.${action === 'blog_list' ? 'list' : 'detail'}_query_failed`,
     summary,
     facts: {
-      action,
-      referenceId: referenceId ?? null,
-      code
-    }
-  });
+      referenceId: referenceId ?? null
+    },
+    code,
+    publicError: () => new Error(code)
+  } as const;
 }
 
 async function localizedOptions(
@@ -230,27 +230,28 @@ export async function listPublishedBlogPosts(
   client?: SupabaseClient<Database>
 ): Promise<PublicBlogPostListItem[]> {
   const supabase = client ?? await createSupabaseServerClient();
-  const {data, error} = await supabase.rpc('list_published_blog_posts', {target_locale: locale});
-  if (error) {
-    await recordPublicBlogQueryFailure({
+  return runMonitoredThrowingQuery({
+    ...publicBlogQueryFailureInput({
       action: 'blog_list',
       code: 'blog_list_query_failed',
       summary: 'Storefront blog list query failed'
-    });
-    throw new Error('blog_list_query_failed');
-  }
-
-  return (data ?? []).map((post) => ({
-    postId: post.post_id,
-    slug: post.slug,
-    title: post.title,
-    description: post.description,
-    publishedAt: post.published_at,
-    categorySlug: post.category_slug,
-    categoryName: post.category_name,
-    socialImageBucket: post.social_image_bucket,
-    socialImagePath: post.social_image_path
-  }));
+    }),
+    query: async () => {
+      const {data, error} = await supabase.rpc('list_published_blog_posts', {target_locale: locale});
+      if (error) throw error;
+      return (data ?? []).map((post) => ({
+        postId: post.post_id,
+        slug: post.slug,
+        title: post.title,
+        description: post.description,
+        publishedAt: post.published_at,
+        categorySlug: post.category_slug,
+        categoryName: post.category_name,
+        socialImageBucket: post.social_image_bucket,
+        socialImagePath: post.social_image_path
+      }));
+    }
+  });
 }
 
 export async function getPublishedBlogPostBySlug({
@@ -266,20 +267,22 @@ export async function getPublishedBlogPostBySlug({
   }
 
   const supabase = client ?? await createSupabaseServerClient();
-  const {data, error} = await supabase.rpc('get_published_blog_post_by_slug', {
-    target_locale: locale,
-    target_slug: cleanedSlug
-  });
-  if (error) {
-    await recordPublicBlogQueryFailure({
+  const post = await runMonitoredThrowingQuery({
+    ...publicBlogQueryFailureInput({
       action: 'blog_detail',
       code: 'blog_detail_query_failed',
       summary: 'Storefront blog detail query failed',
       referenceId: cleanedSlug
-    });
-    throw new Error('blog_detail_query_failed');
-  }
-  const post = data?.[0];
+    }),
+    query: async () => {
+      const {data, error} = await supabase.rpc('get_published_blog_post_by_slug', {
+        target_locale: locale,
+        target_slug: cleanedSlug
+      });
+      if (error) throw error;
+      return data?.[0] ?? null;
+    }
+  });
   if (!post) {
     return null;
   }

@@ -328,4 +328,13 @@ describe('public blog query operational recording', () => {
     );
     expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/blog_secret|relation|raw blog detail|body|email|token/i);
   });
+
+  it('keeps stable public blog query errors when operational recording fails', async () => {
+    recordOperationalFailureMock.mockRejectedValueOnce(new Error('operational table unavailable'));
+    const client = {
+      rpc: vi.fn().mockResolvedValueOnce({data: null, error: {message: 'blog list failed'}})
+    };
+
+    await expect(listPublishedBlogPosts('en', client as never)).rejects.toThrow('blog_list_query_failed');
+  });
 });

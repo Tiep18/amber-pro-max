@@ -116,4 +116,14 @@ describe('catalog query helpers', () => {
     );
     expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/inventory_records|relation|private|email|token/i);
   });
+
+  it('keeps stable catalog query errors when operational recording fails', async () => {
+    vi.mocked(recordOperationalFailure).mockRejectedValueOnce(new Error('operational table unavailable'));
+    const client = mockClient({
+      data: null,
+      error: {message: 'catalog rpc failed'}
+    });
+
+    await expect(listCatalogProducts({locale: 'en', market: 'intl'}, client)).rejects.toThrow('catalog_query_failed');
+  });
 });
