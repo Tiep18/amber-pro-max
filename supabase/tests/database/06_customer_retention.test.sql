@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(105);
+select plan(111);
 
 select has_table('public', 'customer_shipping_addresses', 'customer shipping address table exists');
 select col_is_fk('public', 'customer_shipping_addresses', 'user_id', 'saved addresses belong to auth users');
@@ -324,9 +324,25 @@ select has_function(
   array['uuid', 'integer', 'text', 'text'],
   'review submit/update RPC exists'
 );
-select has_view('public', 'approved_product_reviews', 'approved reviews public projection exists');
+select has_table('public', 'approved_product_reviews', 'approved reviews public projection exists as an RLS table');
 select col_type_is('public', 'approved_product_reviews', 'masked_author', 'text', 'public reviews expose masked author text');
 select col_type_is('public', 'approved_product_reviews', 'verified_purchase', 'boolean', 'public reviews expose verified purchase badge fact');
+select hasnt_column('public', 'approved_product_reviews', 'user_id', 'public reviews never expose reviewer user ids');
+select hasnt_column('public', 'approved_product_reviews', 'customer_email', 'public reviews never expose customer emails');
+select hasnt_column('public', 'approved_product_reviews', 'moderation_note', 'public reviews never expose moderation notes');
+select table_privs_are(
+  'public',
+  'approved_product_reviews',
+  'anon',
+  array['SELECT'],
+  'anonymous visitors can only read sanitized approved review projections'
+);
+select policies_are(
+  'public',
+  'approved_product_reviews',
+  array['approved product reviews are public readable'],
+  'approved review projection is protected by explicit RLS policy'
+);
 
 delete from public.payments
 where id in (
@@ -571,6 +587,11 @@ select results_eq(
   $$select title from public.approved_product_reviews where product_id = '50000000-0000-0000-0000-000000000003'$$,
   $$values ('Sweet bear'::text)$$,
   'approved review becomes public'
+);
+select results_eq(
+  $$select masked_author from public.approved_product_reviews where product_id = '50000000-0000-0000-0000-000000000003'$$,
+  $$values ('a***@example.test'::text)$$,
+  'approved review stores only a masked author identity'
 );
 select is(
   (public.moderate_product_review(

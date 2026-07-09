@@ -34,6 +34,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      approved_product_reviews: {
+        Row: {
+          approved_at: string
+          body: string | null
+          created_at: string
+          id: string
+          masked_author: string
+          product_id: string
+          rating: number
+          shop_reply_body: string | null
+          shop_reply_updated_at: string | null
+          title: string | null
+          updated_at: string
+          verified_purchase: boolean
+        }
+        Insert: {
+          approved_at: string
+          body?: string | null
+          created_at: string
+          id: string
+          masked_author: string
+          product_id: string
+          rating: number
+          shop_reply_body?: string | null
+          shop_reply_updated_at?: string | null
+          title?: string | null
+          updated_at: string
+          verified_purchase?: boolean
+        }
+        Update: {
+          approved_at?: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          masked_author?: string
+          product_id?: string
+          rating?: number
+          shop_reply_body?: string | null
+          shop_reply_updated_at?: string | null
+          title?: string | null
+          updated_at?: string
+          verified_purchase?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approved_product_reviews_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "product_reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approved_product_reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_categories: {
         Row: {
           created_at: string
@@ -2677,13 +2737,6 @@ export type Database = {
             foreignKeyName: "review_admin_replies_review_id_fkey"
             columns: ["review_id"]
             isOneToOne: true
-            referencedRelation: "approved_product_reviews"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "review_admin_replies_review_id_fkey"
-            columns: ["review_id"]
-            isOneToOne: true
             referencedRelation: "product_reviews"
             referencedColumns: ["id"]
           },
@@ -3128,31 +3181,6 @@ export type Database = {
           },
         ]
       }
-      approved_product_reviews: {
-        Row: {
-          approved_at: string | null
-          body: string | null
-          created_at: string | null
-          id: string | null
-          masked_author: string | null
-          product_id: string | null
-          rating: number | null
-          shop_reply_body: string | null
-          shop_reply_updated_at: string | null
-          title: string | null
-          updated_at: string | null
-          verified_purchase: boolean | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "product_reviews_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       order_payment_statuses: {
         Row: {
           contact_email: string | null
@@ -3303,12 +3331,12 @@ export type Database = {
           description: string
           in_stock: boolean
           localized_slugs: Json
+          media_images: Json
           other_market_code: string
           price_minor: number
           primary_image_alt: string
           primary_image_bucket: string
           primary_image_path: string
-          media_images: Json
           product_id: string
           product_type: string
           seo_description: string
@@ -3736,3 +3764,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
