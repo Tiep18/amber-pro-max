@@ -1,7 +1,7 @@
 ﻿import {z} from 'zod';
 import type {AuthUser} from '@/auth/guards';
 import type {Locale} from '@/i18n/routing';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 import {hashGuestOrderAccessToken} from '@/payments/guest-access';
 
 const reopenSchema = z.object({
@@ -150,18 +150,19 @@ async function recordGuestOrderFailure({
   referenceId?: string | null;
   status?: string | null;
 }) {
-  await recordOperationalFailure({
+  await runMonitoredAction({
     area: 'fulfillment',
-    severity: 'error',
+    action,
     errorCode,
     summary,
+    errorResult: {status: 'error', code: code ?? errorCode},
+    shouldRecordResult: () => true,
     facts: {
-      action,
       orderNumber,
       referenceId: referenceId ?? null,
-      status: status ?? null,
-      code: code ?? null
-    }
+      status: status ?? null
+    },
+    operation: async () => ({status: 'error', code: code ?? errorCode})
   });
 }
 

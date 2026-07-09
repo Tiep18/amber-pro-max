@@ -112,6 +112,23 @@ describe('customer fulfillment account access', () => {
     );
     expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/owner|email|token|signedUrl/i);
   });
+
+  test('keeps account fulfillment query error results stable when operational recording fails', async () => {
+    vi.mocked(recordOperationalFailure).mockRejectedValueOnce(new Error('operational table unavailable'));
+    const failedQuery = {
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          order: vi.fn(() => Promise.resolve({data: null, error: {message: 'query failed'}}))
+        }))
+      }))
+    };
+    const client = {from: vi.fn(() => failedQuery)};
+
+    await expect(getCustomerOrderHistory({userId: ownerId, client: client as never})).resolves.toEqual({
+      status: 'error',
+      code: 'account_orders_failed'
+    });
+  });
 });
 
 
@@ -199,6 +216,30 @@ describe('guest reopen and same-email order claim', () => {
       })
     );
     expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/buyer@example|claim-token|rawToken/i);
+  });
+
+  test('keeps guest reopen response stable when operational recording fails', async () => {
+    vi.mocked(recordOperationalFailure).mockRejectedValueOnce(new Error('operational table unavailable'));
+    const client = {
+      from: vi.fn((table: string) => {
+        if (table === 'checkout_orders') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'order-1', order_number: 'ATB-1', contact_email: 'buyer@example.test', locale: 'en'}, error: null}))
+                }))
+              }))
+            }))
+          };
+        }
+        return {
+          insert: vi.fn(() => Promise.resolve({data: null, error: {message: 'outbox unavailable'}}))
+        };
+      })
+    };
+
+    await expect(requestGuestOrderReopen({orderNumber: 'ATB-1', email: 'buyer@example.test', locale: 'en'}, client as never)).resolves.toEqual({status: 'sent'});
   });
 
   test('claim requires same-email token proof and revokes old guest tokens', async () => {
@@ -308,5 +349,40 @@ describe('guest reopen and same-email order claim', () => {
       })
     );
     expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/buyer@example|claim-token|rawToken|token_hash/i);
+  });
+
+  test('keeps claim mutation error result stable when operational recording fails', async () => {
+    vi.mocked(recordOperationalFailure).mockRejectedValueOnce(new Error('operational table unavailable'));
+    const client = {
+      from: vi.fn((table: string) => {
+        if (table === 'guest_order_access_tokens') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  eq: vi.fn(() => ({
+                    maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'token-1', order_id: 'order-1', contact_email: 'buyer@example.test', status: 'active', expires_at: new Date(Date.now() + 60_000).toISOString()}, error: null}))
+                  }))
+                }))
+              }))
+            })),
+            update: vi.fn(() => ({
+              eq: vi.fn(() => Promise.resolve({data: null, error: null}))
+            }))
+          };
+        }
+        if (table === 'checkout_orders') {
+          return {
+            select: vi.fn(() => ({eq: vi.fn(() => ({maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'order-1', order_number: 'ATB-1', contact_email: 'buyer@example.test', owner_user_id: null}, error: null}))}))})),
+            update: vi.fn(() => ({
+              eq: vi.fn(() => Promise.resolve({data: null, error: {message: 'update rejected'}}))
+            }))
+          };
+        }
+        return {insert: vi.fn(() => Promise.resolve({data: null, error: null}))};
+      })
+    };
+
+    await expect(claimGuestOrder({orderNumber: 'ATB-1', rawToken: 'claim-token', user: {id: ownerId, email: 'buyer@example.test'}}, client as never)).resolves.toEqual({status: 'error', code: 'claim_failed'});
   });
 });

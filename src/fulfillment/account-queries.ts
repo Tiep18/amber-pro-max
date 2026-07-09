@@ -1,5 +1,5 @@
 import type {Locale} from '@/i18n/routing';
-import {recordOperationalFailure} from '@/operations/errors';
+import {runMonitoredAction} from '@/operations/monitoring';
 
 type QueryClient = {
   from: (table: string) => {
@@ -96,15 +96,14 @@ async function recordCustomerFulfillmentQueryFailure({
   code: 'account_orders_failed' | 'pattern_library_failed';
   summary: string;
 }) {
-  await recordOperationalFailure({
+  await runMonitoredAction({
     area: 'fulfillment',
-    severity: 'error',
+    action,
     errorCode: `customer.${action}.query_failed`,
     summary,
-    facts: {
-      action,
-      code
-    }
+    errorResult: {status: 'error', code},
+    shouldRecordResult: () => true,
+    operation: async () => ({status: 'error', code})
   });
 }
 
