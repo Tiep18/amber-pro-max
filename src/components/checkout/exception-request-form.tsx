@@ -4,6 +4,7 @@ import {startTransition, useActionState, useEffect} from 'react';
 import {useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {z} from 'zod';
+import {AlertCircle, CheckCircle2, Send} from 'lucide-react';
 import {createExceptionRequestAction, type CreateExceptionRequestResult} from '@/checkout/exception-actions';
 import type {Locale} from '@/i18n/routing';
 import {Alert} from '@/components/ui/alert';
@@ -23,7 +24,10 @@ const copy = {
     submit: 'Send request',
     pending: 'Sending',
     created: 'Request received. No inventory has been reserved.',
-    invalid: 'Check the request details.'
+    invalid: 'Check the request details.',
+    contactGroup: 'Contact',
+    productGroup: 'Product and destination',
+    optional: 'Optional'
   },
   vi: {
     title: 'Yeu cau ngoai le',
@@ -35,7 +39,10 @@ const copy = {
     submit: 'Gui yeu cau',
     pending: 'Dang gui',
     created: 'Da nhan yeu cau. Chua co hang nao duoc giu.',
-    invalid: 'Kiem tra thong tin yeu cau.'
+    invalid: 'Kiem tra thong tin yeu cau.',
+    contactGroup: 'Lien he',
+    productGroup: 'San pham va diem den',
+    optional: 'Khong bat buoc'
   }
 } as const;
 
@@ -103,65 +110,85 @@ export function ExceptionRequestForm({locale}: {locale: Locale}) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-        {result?.status === 'created' ? <Alert variant="success">{t.created}</Alert> : null}
-        {result && result.status !== 'created' ? <Alert variant="destructive">{t.invalid}</Alert> : null}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-5">
+        {result?.status === 'created' ? (
+          <Alert variant="success" className="flex items-start gap-3 text-sm leading-6">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{t.created}</span>
+          </Alert>
+        ) : null}
+        {result && result.status !== 'created' ? (
+          <Alert variant="destructive" className="flex items-start gap-3 text-sm leading-6">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{t.invalid}</span>
+          </Alert>
+        ) : null}
 
-        <FormField
-          control={form.control}
-          name="email"
-          render={({field}) => (
-            <FormItem>
-              <FormLabel className="font-semibold">{t.email}</FormLabel>
-              <FormControl>
-                <Input {...field} inputMode="email" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid gap-4 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-4">
+          <p className="text-sm font-semibold">{t.contactGroup}</p>
+          <FormField
+            control={form.control}
+            name="email"
+            render={({field}) => (
+              <FormItem>
+                <FormLabel className="font-semibold">{t.email}</FormLabel>
+                <FormControl>
+                  <Input {...field} inputMode="email" autoComplete="email" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
-        <FormField
-          control={form.control}
-          name="productId"
-          render={({field}) => (
-            <FormItem>
-              <FormLabel className="font-semibold">{t.productId}</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid gap-4 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-4">
+          <p className="text-sm font-semibold">{t.productGroup}</p>
+          <FormField
+            control={form.control}
+            name="productId"
+            render={({field}) => (
+              <FormItem>
+                <FormLabel className="font-semibold">{t.productId}</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={form.control}
-          name="variantId"
-          render={({field}) => (
-            <FormItem>
-              <FormLabel className="font-semibold">{t.variantId}</FormLabel>
-              <FormControl>
-                <Input {...field} value={field.value || ''} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_120px]">
+            <FormField
+              control={form.control}
+              name="variantId"
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel className="font-semibold">
+                    {t.variantId} <span className="font-normal text-[var(--muted-foreground)]">({t.optional})</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <FormField
-          control={form.control}
-          name="countryCode"
-          render={({field}) => (
-            <FormItem>
-              <FormLabel className="font-semibold">{t.country}</FormLabel>
-              <FormControl>
-                <Input {...field} maxLength={2} className="uppercase" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+            <FormField
+              control={form.control}
+              name="countryCode"
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel className="font-semibold">{t.country}</FormLabel>
+                  <FormControl>
+                    <Input {...field} maxLength={2} className="uppercase" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
 
         <FormField
           control={form.control}
@@ -170,14 +197,15 @@ export function ExceptionRequestForm({locale}: {locale: Locale}) {
             <FormItem>
               <FormLabel className="font-semibold">{t.note}</FormLabel>
               <FormControl>
-                <Textarea {...field} className="min-h-24" />
+                <Textarea {...field} className="min-h-28" />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <Button type="submit" disabled={pending} className="cursor-pointer">
+        <Button type="submit" disabled={pending} className="min-h-11 cursor-pointer gap-2">
+          <Send className="h-4 w-4" aria-hidden="true" />
           {pending ? t.pending : t.submit}
         </Button>
       </form>
