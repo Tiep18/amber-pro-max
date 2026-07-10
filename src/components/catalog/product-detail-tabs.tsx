@@ -75,15 +75,15 @@ export function ProductDetailTabs({locale, productType, description, specs}: Pro
   ];
 
   return (
-    <section className="grid gap-5 border-t border-[var(--border)] pt-8">
-      <div className="flex gap-2 overflow-x-auto border-b border-[var(--border)]" role="tablist">
+    <section className="grid gap-5 border-t border-[var(--border)] pt-8 lg:pt-10">
+      <div className="flex gap-1 overflow-x-auto border-b border-[var(--border)]" role="tablist">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             role="tab"
             aria-selected={active === tab.id}
-            className={`min-h-11 whitespace-nowrap border-b-2 px-4 text-sm font-semibold transition-colors ${
+            className={`min-h-10 whitespace-nowrap border-b-2 px-3 text-sm font-semibold transition-colors ${
               active === tab.id
                 ? 'border-[var(--accent)] text-[var(--accent)]'
                 : 'border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
@@ -97,22 +97,22 @@ export function ProductDetailTabs({locale, productType, description, specs}: Pro
 
       {active === 'description' ? (
         <article className="grid max-w-3xl gap-3">
-          <h2 className="text-2xl font-semibold">{t.storyTitle}</h2>
-          <p className="text-[var(--muted-foreground)]">{description}</p>
+          <h2 className="text-xl font-semibold leading-tight">{t.storyTitle}</h2>
+          <p className="text-pretty leading-relaxed text-[var(--muted-foreground)]">{description}</p>
         </article>
       ) : null}
 
       {active === 'details' ? (
         <article className="grid gap-4">
-          <h2 className="text-2xl font-semibold">{t.detailsTitle}</h2>
+          <h2 className="text-xl font-semibold leading-tight">{t.detailsTitle}</h2>
           {specRows.length ? (
-            <dl className="grid overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-[220px_1fr]">
+            <dl className="grid overflow-hidden border-y border-[var(--border)] sm:grid-cols-[220px_1fr]">
               {specRows.map(([key, value]) => (
                 <div key={key} className="contents">
-                  <dt className="border-b border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-sm font-semibold">
+                  <dt className="border-b border-[var(--border)] py-3 pr-4 text-sm font-semibold">
                     {humanizeSpecKey(key)}
                   </dt>
-                  <dd className="border-b border-[var(--border)] px-4 py-3 text-sm text-[var(--muted-foreground)]">
+                  <dd className="border-b border-[var(--border)] py-3 text-sm text-[var(--muted-foreground)] sm:px-4">
                     {value}
                   </dd>
                 </div>
@@ -126,7 +126,7 @@ export function ProductDetailTabs({locale, productType, description, specs}: Pro
 
       {active === 'care' ? (
         <article className="grid max-w-3xl gap-3">
-          <h2 className="text-2xl font-semibold">{t.careTitle}</h2>
+          <h2 className="text-xl font-semibold leading-tight">{t.careTitle}</h2>
           <ul className="grid gap-2 text-[var(--muted-foreground)]">
             {careItems.map((item) => (
               <li key={item} className="flex gap-2">

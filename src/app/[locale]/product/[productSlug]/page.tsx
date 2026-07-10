@@ -230,15 +230,17 @@ function PurchaseInfo({
         ];
 
   return (
-    <div className="grid gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-muted)] p-4">
+    <div className="grid gap-3 border-y border-[var(--border)] py-4">
       {items.map((item) => {
         const Icon = item.icon;
         return (
-          <div key={item.title} className="flex gap-3">
-            <Icon className="mt-0.5 h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
-            <div>
-              <p className="text-sm font-semibold">{item.title}</p>
-              <p className="text-sm text-[var(--muted-foreground)]">{item.body}</p>
+          <div key={item.title} className="grid grid-cols-[28px_1fr] gap-3">
+            <span className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-control)] bg-[var(--trust-surface)] text-[var(--trust-accent)]">
+              <Icon className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold leading-tight">{item.title}</p>
+              <p className="mt-1 text-sm leading-relaxed text-[var(--muted-foreground)]">{item.body}</p>
             </div>
           </div>
         );
@@ -284,16 +286,16 @@ function TrustBadges({
         ];
 
   return (
-    <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+    <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-[var(--muted-foreground)]">
       {badges.map((badge) => {
         const Icon = badge.icon;
         return (
           <div
             key={badge.label}
-            className="flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--trust-surface)] px-3 py-2 text-[var(--trust-accent)]"
+            className="flex items-center gap-1.5"
           >
-            <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="font-semibold">{badge.label}</span>
+            <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--trust-accent)]" aria-hidden="true" />
+            <span className="font-medium">{badge.label}</span>
           </div>
         );
       })}
@@ -408,12 +410,12 @@ export default async function ProductPage({ params }: { params: Params }) {
           ])
         ]}
       />
-      <main className="container grid gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.8fr)]">
-        <div className="lg:sticky lg:top-6 lg:self-start">
+      <main className="container grid gap-7 py-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.75fr)] lg:gap-12 lg:py-12">
+        <div className="lg:sticky lg:top-24 lg:self-start">
           <ProductGallery images={mediaImages} alt={product.primary_image_alt || product.title} />
         </div>
-        <section className="grid content-start gap-5 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-          <nav aria-label="Breadcrumb" className="text-sm text-[var(--muted-foreground)]">
+        <section className="grid content-start gap-5 lg:pt-1">
+          <nav aria-label="Breadcrumb" className="text-xs text-[var(--muted-foreground)]">
             <ol className="flex flex-wrap items-center gap-2">
               <li>
                 <Link className="hover:text-[var(--foreground)]" href={`/${locale}`}>
@@ -430,10 +432,15 @@ export default async function ProductPage({ params }: { params: Params }) {
               <li className="font-semibold text-[var(--foreground)]">{product.title}</li>
             </ol>
           </nav>
-          <div className="flex items-center justify-between gap-3">
-            <span className="w-fit rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-2 py-1 text-sm font-semibold text-[var(--accent)]">
-              {typeLabel}
-            </span>
+          <div className="flex items-start justify-between gap-4">
+            <div className="grid gap-3">
+              <span className="w-fit rounded-[var(--radius-control)] bg-[var(--trust-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--trust-accent)]">
+                {typeLabel}
+              </span>
+              <h1 className="max-w-[12ch] text-pretty text-[34px] font-semibold leading-[1.05] text-[var(--foreground)] sm:max-w-[14ch] sm:text-[42px] lg:text-[46px]">
+                {product.title}
+              </h1>
+            </div>
             <WishlistHeart
               productId={product.product_id}
               productTitle={product.title}
@@ -451,15 +458,15 @@ export default async function ProductPage({ params }: { params: Params }) {
             />
           </div>
           <div className="grid gap-3">
-            <h1 className="text-[34px] font-semibold leading-tight">{product.title}</h1>
             <ReviewInlineSummary
               average={averageRating}
               count={reviewList.length}
               locale={locale}
             />
-            <p className="text-[var(--muted-foreground)]">{product.description}</p>
+            <p className="max-w-[62ch] text-pretty leading-relaxed text-[var(--muted-foreground)]">
+              {product.description}
+            </p>
           </div>
-          <PurchaseInfo productType={productType} locale={locale} />
           {!product.available ? (
             <UnavailableMarket
               title={t('unavailableTitle')}
@@ -485,6 +492,7 @@ export default async function ProductPage({ params }: { params: Params }) {
               currencyCode={currencyCode}
             />
           ) : null}
+          <PurchaseInfo productType={productType} locale={locale} />
           <TrustBadges productType={productType} locale={locale} />
         </section>
       </main>

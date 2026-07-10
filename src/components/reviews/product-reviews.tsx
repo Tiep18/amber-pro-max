@@ -14,8 +14,12 @@ function ratingCounts(reviews: PublicProductReview[]) {
   }));
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en', {month: 'short', day: 'numeric', year: 'numeric'}).format(new Date(value));
+function formatDate(value: string, locale: 'vi' | 'en') {
+  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(new Date(value));
 }
 
 export function ProductReviews({
@@ -43,10 +47,10 @@ export function ProductReviews({
       : 'Verified buyers can share notes after purchase. Approved reviews will appear here.';
 
   return (
-    <section className="grid gap-5 border-t border-[var(--border)] pt-8">
-      <h2 className="text-2xl font-semibold leading-tight">{labels.title}</h2>
+    <section className="grid gap-5 border-t border-[var(--border)] pt-8 lg:pt-10">
+      <h2 className="text-xl font-semibold leading-tight">{labels.title}</h2>
       {reviews.length === 0 ? (
-        <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border)] bg-[var(--surface)] p-6">
+        <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border)] bg-[var(--surface-muted)] p-5">
           <p className="font-semibold">{labels.empty}</p>
           <p className="mt-2 max-w-2xl text-sm text-[var(--muted-foreground)]">
             {emptyDetail}
@@ -54,9 +58,9 @@ export function ProductReviews({
         </div>
       ) : (
         <div className="grid gap-5">
-          <div className="grid gap-5 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-5 sm:grid-cols-[180px_1fr]">
+          <div className="grid gap-5 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_14px_42px_rgba(91,55,35,0.06)] sm:grid-cols-[160px_1fr]">
             <div>
-              <p className="text-4xl font-semibold">{average.toFixed(1)}</p>
+              <p className="text-3xl font-semibold leading-none tabular-nums">{average.toFixed(1)}</p>
               <p className="mt-1 text-sm font-semibold text-[var(--warning)]" aria-label={`${labels.ratingLabel}: ${average.toFixed(1)}`}>
                 {'★'.repeat(Math.round(average))}{'☆'.repeat(5 - Math.round(average))}
               </p>
@@ -78,18 +82,18 @@ export function ProductReviews({
             </div>
           </div>
           {reviews.map((review) => (
-            <article key={`${review.productId}-${review.approvedAt}-${review.maskedAuthor}`} className="rounded-[var(--radius-card)] border border-[var(--border)] p-4">
+            <article key={`${review.productId}-${review.approvedAt}-${review.maskedAuthor}`} className="border-t border-[var(--border)] pt-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface-muted)] text-sm font-semibold">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-control)] bg-[var(--surface-muted)] text-sm font-semibold">
                     {review.maskedAuthor.slice(0, 1).toUpperCase()}
                   </span>
                   <div>
                     <p className="font-semibold">{review.maskedAuthor}</p>
-                    <p className="text-xs text-[var(--muted-foreground)]">{formatDate(review.approvedAt)}</p>
+                    <p className="text-xs text-[var(--muted-foreground)]">{formatDate(review.approvedAt, locale)}</p>
                   </div>
                 </div>
-                <span className="rounded-full bg-[var(--surface-muted)] px-2 py-1 text-sm font-semibold text-[var(--accent)]">
+                <span className="rounded-[var(--radius-control)] bg-[var(--trust-surface)] px-2 py-1 text-xs font-semibold text-[var(--trust-accent)]">
                   {labels.verifiedPurchase}
                 </span>
               </div>

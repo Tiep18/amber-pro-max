@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {canAddToCart} from '@/catalog/add-to-cart-eligibility';
 import {formatMoney, type CurrencyCode} from '@/catalog/money';
 import type {MarketCode} from '@/catalog/market';
@@ -71,6 +71,7 @@ export function AddToCart({
   const [selectedId, setSelectedId] = useState(firstAvailable?.variant_id ?? '');
   const [added, setAdded] = useState(false);
   const [showSticky, setShowSticky] = useState(false);
+  const actionRef = useRef<HTMLDivElement | null>(null);
   const {addLine} = useCart();
   const needsVariant = productType === 'physical_finished' && variants.length > 0;
   const selectedVariant = variants.find((variant) => variant.variant_id === selectedId) ?? null;
@@ -91,13 +92,19 @@ export function AddToCart({
   const actionLabel = productType === 'pdf_pattern' ? t.addPdf : t.add;
 
   useEffect(() => {
+    let frame = 0;
     const updateSticky = () => {
-      setShowSticky(window.scrollY > 360);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const action = actionRef.current;
+        setShowSticky(Boolean(action && action.getBoundingClientRect().bottom < 0));
+      });
     };
     updateSticky();
     window.addEventListener('scroll', updateSticky, {passive: true});
     window.addEventListener('resize', updateSticky);
     return () => {
+      cancelAnimationFrame(frame);
       window.removeEventListener('scroll', updateSticky);
       window.removeEventListener('resize', updateSticky);
     };
@@ -115,8 +122,10 @@ export function AddToCart({
   return (
     <div className="grid gap-4">
       {selectedPriceLabel ? (
-        <div className="grid gap-1">
-          <p className="text-3xl font-semibold leading-tight">{selectedPriceLabel}</p>
+        <div className="grid gap-1 border-t border-[var(--border)] pt-4">
+          <p className="text-[32px] font-semibold leading-none tabular-nums text-[var(--foreground)]">
+            {selectedPriceLabel}
+          </p>
           {selectedLabel ? (
             <p className="text-sm text-[var(--muted-foreground)]">
               {t.selected}: <span className="font-semibold text-[var(--foreground)]">{selectedLabel}</span>
@@ -135,13 +144,15 @@ export function AddToCart({
         />
       ) : null}
       {!canAdd ? <p className="text-sm font-semibold text-[var(--warning)]">{t.select}</p> : null}
-      <Button
-        disabled={!canAdd}
-        onClick={addCurrentLine}
-        className="min-h-12 text-base"
-      >
-        {actionLabel}
-      </Button>
+      <div ref={actionRef}>
+        <Button
+          disabled={!canAdd}
+          onClick={addCurrentLine}
+          className="min-h-12 w-full text-base transition-transform active:scale-[0.99]"
+        >
+          {actionLabel}
+        </Button>
+      </div>
       {added ? (
         <Alert variant="success">
           <div className="flex flex-wrap items-center gap-3">
@@ -152,7 +163,7 @@ export function AddToCart({
         </Alert>
       ) : null}
       <div
-        className={`fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] px-4 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] transition-transform md:hidden ${
+        className={`fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-16px_42px_rgba(91,55,35,0.10)] transition-transform duration-300 md:hidden ${
           showSticky ? 'translate-y-0' : 'translate-y-full'
         }`}
         aria-hidden={!showSticky}
@@ -164,7 +175,7 @@ export function AddToCart({
               {[selectedLabel, selectedPriceLabel].filter(Boolean).join(' · ') || (canAdd ? actionLabel : t.outOfStock)}
             </p>
           </div>
-          <Button type="button" disabled={!canAdd} onClick={addCurrentLine} className="min-h-10 px-3 text-sm">
+          <Button type="button" disabled={!canAdd} onClick={addCurrentLine} className="min-h-10 shrink-0 px-3 text-sm">
             {actionLabel}
           </Button>
         </div>

@@ -15,7 +15,7 @@ export function ProductGallery({ images, alt }: { images: ProductGalleryImage[];
 
   return (
     <section aria-label={alt} className="grid gap-3">
-      <div className="group overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-muted)]">
+      <div className="group overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-muted)] shadow-[0_18px_54px_rgba(91,55,35,0.08)]">
         <div className="relative aspect-square">
           {selected ? (
             <Image
@@ -26,12 +26,16 @@ export function ProductGallery({ images, alt }: { images: ProductGalleryImage[];
               sizes="(min-width: 1024px) 55vw, 100vw"
               className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             />
-          ) : null}
+          ) : (
+            <div className="flex h-full items-center justify-center px-6 text-center text-sm font-semibold text-[var(--muted-foreground)]">
+              {alt}
+            </div>
+          )}
         </div>
       </div>
       {normalizedImages.length > 1 ? (
         <div
-          className="grid grid-cols-4 gap-2 sm:grid-cols-5"
+          className="grid grid-cols-5 gap-2 sm:grid-cols-6 lg:grid-cols-5 xl:grid-cols-6"
           aria-label="Product image thumbnails"
         >
           {normalizedImages.map((image, index) => (
@@ -40,10 +44,10 @@ export function ProductGallery({ images, alt }: { images: ProductGalleryImage[];
               type="button"
               aria-label={`Show image ${index + 1}`}
               aria-current={selectedIndex === index}
-              className={`overflow-hidden rounded-[var(--radius-control)] border bg-[var(--surface)] ${
+              className={`overflow-hidden rounded-[var(--radius-control)] border bg-[var(--surface)] transition-all ${
                 selectedIndex === index
-                  ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]/20'
-                  : 'border-[var(--border)]'
+                  ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]/15'
+                  : 'border-[var(--border)] opacity-75 hover:opacity-100'
               }`}
               onClick={() => setSelectedIndex(index)}
             >

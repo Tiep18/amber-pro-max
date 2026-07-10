@@ -43,15 +43,20 @@ export function VariantSelector({
   const setSelectedId = onSelectedIdChange ?? setUncontrolledSelectedId;
 
   return (
-    <fieldset className="grid gap-3">
-      <legend className="font-semibold">{legend}</legend>
+    <fieldset className="grid gap-2.5">
+      <legend className="text-sm font-semibold">{legend}</legend>
       <div className="grid gap-2">
         {variants.map((variant) => {
           const selectable = variant.enabled && variant.stock;
+          const selected = selectedId === variant.variant_id;
           return (
             <label
               key={variant.variant_id}
-              className="flex min-h-12 items-center justify-between gap-4 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3"
+              className={`flex min-h-11 items-center justify-between gap-4 rounded-[var(--radius-control)] border px-3 text-sm transition-colors ${
+                selected
+                  ? 'border-[var(--accent)] bg-[var(--trust-surface)] text-[var(--foreground)]'
+                  : 'border-[var(--border)] bg-transparent text-[var(--foreground)] hover:border-[var(--accent)]/50'
+              } ${selectable ? 'cursor-pointer' : 'cursor-not-allowed opacity-55'}`}
             >
               <span className="flex items-center gap-3">
                 <input
@@ -62,10 +67,11 @@ export function VariantSelector({
                   checked={selectedId === variant.variant_id}
                   disabled={!selectable}
                   onChange={() => setSelectedId(variant.variant_id)}
+                  className="h-4 w-4 accent-[var(--accent)]"
                 />
-                <span className="font-semibold capitalize">{variantLabel(variant)}</span>
+                <span className="font-semibold capitalize leading-tight">{variantLabel(variant)}</span>
               </span>
-              <span className="text-sm text-[var(--muted-foreground)]">
+              <span className="text-xs font-medium text-[var(--muted-foreground)]">
                 {selectable ? inStockLabel : outOfStockLabel}
               </span>
             </label>
