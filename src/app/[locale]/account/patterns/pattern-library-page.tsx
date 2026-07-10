@@ -40,7 +40,10 @@ export async function renderPatternLibraryPage({
       }}
     />
   ) : (
-    <p role="alert" className="rounded-[var(--radius-card)] border border-[var(--border)] p-4">
+    <p
+      role="alert"
+      className="rounded-[var(--radius-card)] border border-[var(--destructive)]/20 bg-[var(--destructive-surface)] p-4 text-sm font-medium text-[var(--destructive)]"
+    >
       {t('error')}
     </p>
   );

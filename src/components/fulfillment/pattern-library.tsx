@@ -1,6 +1,5 @@
 import { ScrollText } from 'lucide-react';
-import { AccountEmptyState } from '@/components/account/account-empty-state';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
 import type { CustomerPatternLibraryItem } from '@/fulfillment/account-queries';
 import type { Locale } from '@/i18n/routing';
 import { PatternLibraryCard } from './pattern-library-card';
@@ -39,36 +38,45 @@ export function PatternLibrary({
   const t = copy[locale];
 
   return (
-    <Card className="shadow-sm">
-      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <CardTitle className="text-2xl">{labels.title}</CardTitle>
-          <p className="text-sm text-[var(--muted-foreground)]">
-            {patterns.length}{' '}
-            {locale === 'vi' ? 'pattern' : patterns.length === 1 ? 'pattern' : 'patterns'}
-          </p>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {patterns.length === 0 ? (
-          <AccountEmptyState
-            icon={<ScrollText className="h-6 w-6" aria-hidden="true" />}
-            title={t.emptyTitle}
-            body={labels.empty || t.emptyBody}
-            cta={{
-              href:
-                locale === 'vi' ? '/vi/cua-hang?type=pdf_pattern' : '/en/catalog?type=pdf_pattern',
-              label: t.cta
-            }}
-          />
-        ) : (
-          <div className="grid gap-4">
-            {patterns.map((pattern) => (
-              <PatternLibraryCard key={pattern.productId} pattern={pattern} labels={labels} />
-            ))}
+    <section className="grid gap-6">
+      <header className="border-b border-[var(--border)] pb-5">
+        <h1 className="text-[32px] font-semibold leading-tight">{labels.title}</h1>
+        <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+          {patterns.length}{' '}
+          {locale === 'vi' ? 'pattern' : patterns.length === 1 ? 'pattern' : 'patterns'}
+        </p>
+      </header>
+
+      {patterns.length === 0 ? (
+        <div className="grid min-h-60 place-items-center rounded-[var(--radius-card)] bg-[var(--surface-muted)] p-8 text-center">
+          <div className="mx-auto grid max-w-[380px] justify-items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-control)] bg-[var(--surface)] text-[var(--accent)]">
+              <ScrollText className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <h2 className="text-xl font-semibold">{t.emptyTitle}</h2>
+            <p className="text-sm leading-6 text-[var(--muted-foreground)]">
+              {labels.empty || t.emptyBody}
+            </p>
+            <Link
+              href={locale === 'vi' ? '/vi/cua-hang?type=pdf_pattern' : '/en/catalog?type=pdf_pattern'}
+              className="mt-1 inline-flex min-h-10 items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+            >
+              {t.cta}
+            </Link>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      ) : (
+        <div className="grid">
+          {patterns.map((pattern) => (
+            <PatternLibraryCard
+              key={pattern.productId}
+              pattern={pattern}
+              labels={labels}
+              locale={locale}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
