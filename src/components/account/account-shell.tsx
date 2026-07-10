@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Heart, Home, LogOut, MapPin, Package, ScrollText, UserRound } from 'lucide-react';
+import { ChevronRight, Heart, Home, LogOut, MapPin, Package, ScrollText, UserRound } from 'lucide-react';
 import { signOutAction } from '@/auth/actions';
 import {
   getAccountAddressesPath,
@@ -85,13 +85,13 @@ function AccountProfile({ email, locale }: { email: string; locale: Locale }) {
   const t = labels[locale];
 
   return (
-    <div className="flex items-center gap-3 rounded-[var(--radius-card)] bg-[var(--surface-muted)] p-3">
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--foreground)] text-base font-semibold text-white">
+    <div className="flex items-center gap-3 border-b border-[var(--border)] pb-4">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] text-base font-semibold text-white shadow-[0_10px_24px_rgba(150,73,50,0.18)]">
         {initialFor(email)}
       </span>
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold">{email}</p>
-        <p className="text-xs font-semibold text-[var(--muted-foreground)]">{t.verified}</p>
+        <p className="text-xs font-medium text-[var(--muted-foreground)]">{t.verified}</p>
       </div>
     </div>
   );
@@ -113,19 +113,26 @@ function AccountNavigation({ locale, onNavigate }: { locale: Locale; onNavigate?
             onClick={onNavigate}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'relative flex min-h-11 items-center gap-3 rounded-[var(--radius-control)] px-3 text-sm font-semibold text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]',
-              active && 'bg-[var(--surface-muted)] text-[var(--foreground)]'
+              'group relative flex min-h-10 items-center gap-3 rounded-[var(--radius-control)] px-3 text-sm font-semibold text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]',
+              active && 'bg-[var(--trust-surface)] text-[var(--foreground)]'
             )}
           >
             <span
               aria-hidden="true"
               className={cn(
-                'absolute left-0 top-2 h-7 w-1 rounded-r-full bg-transparent',
+                'absolute left-0 top-2 h-6 w-1 rounded-r-full bg-transparent',
                 active && 'bg-[var(--accent)]'
               )}
             />
-            <Icon className="h-4 w-4" aria-hidden="true" />
-            <span>{item.label}</span>
+            <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1">{item.label}</span>
+            <ChevronRight
+              className={cn(
+                'h-3.5 w-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-60',
+                active && 'opacity-60'
+              )}
+              aria-hidden="true"
+            />
           </Link>
         );
       })}
@@ -140,7 +147,7 @@ function SignOutButton({ locale }: { locale: Locale }) {
       <Button
         type="submit"
         variant="ghost"
-        className="w-full justify-start gap-3 px-3 text-sm font-semibold text-[var(--muted-foreground)] hover:text-[var(--destructive)]"
+        className="min-h-10 w-full justify-start gap-3 px-3 text-sm font-semibold text-[var(--muted-foreground)] hover:text-[var(--destructive)]"
       >
         <LogOut className="h-4 w-4" aria-hidden="true" />
         {labels[locale].signOut}
@@ -151,13 +158,13 @@ function SignOutButton({ locale }: { locale: Locale }) {
 
 function SidebarContent({ email, locale }: { email: string; locale: Locale }) {
   return (
-    <div className="flex h-full flex-col gap-5">
+    <div className="flex h-full flex-col gap-4">
       <AccountProfile email={email} locale={locale} />
       <AccountNavigation locale={locale} />
-      <Separator />
+      <Separator className="my-1" />
       <Link
         href={getLocalizedPath('/', locale)}
-        className="flex min-h-11 items-center gap-3 rounded-[var(--radius-control)] px-3 text-sm font-semibold text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
+        className="flex min-h-10 items-center gap-3 rounded-[var(--radius-control)] px-3 text-sm font-semibold text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
       >
         <Home className="h-4 w-4" aria-hidden="true" />
         Ambertinybear
@@ -184,13 +191,21 @@ export function AccountShell({
   const t = labels[locale];
 
   return (
-    <main className="container grid gap-6 py-8 lg:grid-cols-[260px_minmax(0,1fr)]">
+    <main className="container grid gap-5 py-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-9 lg:py-10">
       <div className="lg:hidden">
-        <Sheet triggerLabel={t.menu} title={t.area} side="left" showTriggerLabel>
+        <Sheet
+          triggerLabel={t.menu}
+          title={t.area}
+          side="left"
+          showTriggerLabel
+          triggerClassName="min-h-10 rounded-[var(--radius-control)] border-[var(--border)] bg-[var(--surface)] px-3 text-sm shadow-[0_10px_30px_rgba(91,55,35,0.08)]"
+          contentClassName="w-[min(360px,92vw)]"
+          bodyClassName="p-4"
+        >
           <SidebarContent email={email} locale={locale} />
         </Sheet>
       </div>
-      <aside className="sticky top-24 hidden h-[calc(100dvh-7rem)] rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm lg:block">
+      <aside className="sticky top-24 hidden h-[calc(100dvh-7rem)] border-r border-[var(--border)] pr-5 lg:block">
         <SidebarContent email={email} locale={locale} />
       </aside>
       <div className="min-w-0">{children}</div>
