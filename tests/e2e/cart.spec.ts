@@ -12,6 +12,65 @@ function storedCart(lines: unknown[]) {
   });
 }
 
+function storedQuoteCache(lines: unknown[]) {
+  const fingerprint = lines
+    .map((line) => {
+      const candidate = line as {
+        productId: string;
+        variantId?: string | null;
+        quantity: number;
+        marketAtAdd: string;
+      };
+      return `${candidate.productId}:${candidate.variantId ?? ''}:${candidate.quantity}:${candidate.marketAtAdd}`;
+    })
+    .sort()
+    .join('|');
+
+  return JSON.stringify({
+    locale: 'en',
+    fingerprint,
+    validatedAt: Date.now(),
+    quote: {
+      status: 'blocked',
+      locale: 'en',
+      market: 'intl',
+      currencyCode: 'USD',
+      lines: [
+        {
+          lineId: 'blocked-line',
+          productId: '50000000-0000-0000-0000-000000000001',
+          variantId: null,
+          slug: null,
+          title: 'Unavailable item',
+          fulfillmentType: 'physical',
+          status: 'unavailable',
+          quantity: 1,
+          requestedQuantity: 1,
+          marketAtAdd: 'vn',
+          currencyCode: 'USD',
+          unitPriceMinor: 0,
+          lineSubtotalMinor: 0,
+          excludedSubtotalMinor: 0,
+          variantLabel: null,
+          imageUrl: null,
+          categoryIds: [],
+          collectionIds: [],
+          discountAllocationMinor: 0,
+          change: { type: 'unavailable' }
+        }
+      ],
+      subtotalMinor: 0,
+      excludedSubtotalMinor: 0,
+      discount: { status: 'not_applied', amountMinor: 0 },
+      shipping: { status: 'not_calculated', amountMinor: 0 },
+      totalMinor: 0,
+      changes: [{ type: 'unavailable' }],
+      hash: 'blocked-quote',
+      quotedAt: now
+    }
+  });
+}
+
 test('Vietnamese shopper adds a PDF pattern and edits it in the cart', async ({ browser }) => {
   const context = await browser.newContext({ extraHTTPHeaders: { 'x-vercel-ip-country': 'VN' } });
   const page = await context.newPage();
@@ -26,6 +85,7 @@ test('Vietnamese shopper adds a PDF pattern and edits it in the cart', async ({ 
   await page.goto('/vi/gio-hang');
   await expect(page).toHaveURL(/\/vi\/gio-hang$/);
   const pdfLine = page.getByRole('article').filter({ hasText: 'Mau gau Viet Nam' });
+  await expect(pdfLine.getByTestId('cart-line-thumbnail')).toBeVisible();
   await expect(pdfLine.getByRole('heading', { name: 'Mau gau Viet Nam' })).toBeVisible();
   await expect(pdfLine.getByText('Mau PDF')).toBeVisible();
 
@@ -59,26 +119,31 @@ test('English shopper adds an in-stock physical variant through the mini cart', 
 });
 
 test('blocking cart lines remain visible and disable checkout', async ({ page }) => {
-  await page.goto('/en');
-  await page.evaluate(
-    (payload) => {
-      localStorage.setItem('amigurumi.guestCart.v1', payload);
+  const blockedLines = [
+    {
+      productId: '50000000-0000-0000-0000-000000000001',
+      variantId: null,
+      quantity: 1,
+      marketAtAdd: 'vn',
+      addedAt: now,
+      updatedAt: now
+    }
+  ];
+  await page.addInitScript(
+    ({ cart, quote }) => {
+      localStorage.setItem('amigurumi.guestCart.v1', cart);
+      sessionStorage.setItem('amigurumi.cartQuote.v1', quote);
     },
-    storedCart([
-      {
-        productId: '50000000-0000-0000-0000-000000000001',
-        variantId: null,
-        quantity: 1,
-        marketAtAdd: 'vn',
-        addedAt: now,
-        updatedAt: now
-      }
-    ])
+    {
+      cart: storedCart(blockedLines),
+      quote: storedQuoteCache(blockedLines)
+    }
   );
 
   await page.goto('/en/cart');
   await expect(page.getByRole('heading', { name: 'Unavailable item' })).toBeVisible();
-  await expect(page.getByText('Review unavailable items before checkout.').first()).toBeVisible();
+  await expect(page.getByText('Review unavailable items before checkout.')).toHaveCount(1);
+  await expect(page.getByTestId('cart-line-thumbnail')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Checkout' })).toBeDisabled();
   await expect(page.getByText(/PayPal|VietQR/i)).toHaveCount(0);
 });
