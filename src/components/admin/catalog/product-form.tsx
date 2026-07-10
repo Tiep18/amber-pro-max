@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -202,6 +203,42 @@ function OptionMultiSelect({
   );
 }
 
+function SmartSection({
+  id,
+  title,
+  description,
+  isOpen,
+  onToggle,
+  children
+}: {
+  id: string;
+  title: string;
+  description: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Card id={id} className="overflow-hidden p-0">
+      <button
+        type="button"
+        className="flex w-full items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-4 text-left transition-colors hover:bg-[var(--surface-muted)]"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+      >
+        <span>
+          <span className="block font-semibold">{title}</span>
+          <span className="mt-1 block text-sm text-[var(--muted-foreground)]">{description}</span>
+        </span>
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-[var(--surface-muted)] text-lg leading-none">
+          {isOpen ? '-' : '+'}
+        </span>
+      </button>
+      {isOpen ? <CardContent className="grid gap-5 p-5">{children}</CardContent> : null}
+    </Card>
+  );
+}
+
 export function ProductForm({
   initialProduct,
   initialNotice,
@@ -390,351 +427,335 @@ export function ProductForm({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="space-y-5">
-          <div className="grid gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-2 sm:grid-cols-3 xl:grid-cols-6">
-            {editorSections.map((section) => (
-              <button
-                key={section.id}
-                type="button"
-                onClick={() => toggleSection(section.id)}
-                className={`rounded-[var(--radius-control)] px-3 py-2 text-left transition-colors ${
-                  openSections[section.id]
-                    ? 'bg-[var(--accent)] text-white'
-                    : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]'
-                }`}
-                aria-expanded={openSections[section.id]}
-              >
-                <span className="block text-sm font-semibold">{section.label}</span>
-                <span className="mt-0.5 block text-xs opacity-80">{section.description}</span>
-              </button>
-            ))}
-          </div>
-
-          {openSections.basics ? (
-            <Card id="basics">
-              <CardHeader>
-                <CardTitle>Product basics</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-                <label className="block space-y-2">
-                  <span className="font-semibold">Product type</span>
-                  <select
-                    className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-white px-3"
-                    value={draft.productType}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        productType: event.target.value as ProductType
-                      }))
-                    }
-                  >
-                    <option value="pdf_pattern">PDF pattern</option>
-                    <option value="physical_finished">Physical finished good</option>
-                  </select>
-                </label>
-                <div className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-3 text-sm">
-                  <p className="font-semibold">{productId ? 'Saved draft' : 'New draft'}</p>
-                  <p className="mt-1 text-[var(--muted-foreground)]">
-                    {initialProduct?.status
-                      ? `Current status: ${initialProduct.status}`
-                      : 'Save once to unlock media and inventory workflows.'}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
-
-          {openSections.content
-            ? (['vi', 'en'] as const).map((locale) => {
-                const label = locale === 'vi' ? 'Vietnamese' : 'English';
-                const translation = draft.translations[locale];
-                return (
-                  <Card key={locale} id={`${locale}-content`}>
-                    <CardHeader>
-                      <CardTitle>{label} content</CardTitle>
-                      <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-                        Product-facing copy and specification notes for this locale.
-                      </p>
-                    </CardHeader>
-                    <CardContent className="grid gap-4">
-                      <label className="space-y-2">
-                        <span className="font-semibold">{label} title</span>
-                        <input
-                          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                          value={translation.title}
-                          onChange={(event) =>
-                            updateTranslation(locale, 'title', event.target.value)
-                          }
-                        />
-                      </label>
-                      <label className="space-y-2">
-                        <span className="font-semibold">{label} description</span>
-                        <textarea
-                          className="min-h-28 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2"
-                          value={translation.description}
-                          onChange={(event) =>
-                            updateTranslation(locale, 'description', event.target.value)
-                          }
-                        />
-                      </label>
-                      <label className="space-y-2">
-                        <span className="font-semibold">{label} specifications JSON</span>
-                        <textarea
-                          className="min-h-20 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 font-mono text-sm"
-                          value={String(translation.specifications)}
-                          onChange={(event) =>
-                            updateTranslation(locale, 'specifications', event.target.value)
-                          }
-                        />
-                      </label>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            : null}
-
-          {openSections.seo
-            ? (['vi', 'en'] as const).map((locale) => {
-                const label = locale === 'vi' ? 'Vietnamese' : 'English';
-                const translation = draft.translations[locale];
-                return (
-                  <Card key={`${locale}-seo`} id={`${locale}-seo`}>
-                    <CardHeader>
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                          <CardTitle>{label} SEO</CardTitle>
-                          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-                            Keep storefront URLs and search snippets ready without repeating copy by
-                            hand.
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                            onClick={() => generateSlug(locale)}
-                          >
-                            Generate slug
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                            onClick={() => copyTitleToSeo(locale)}
-                          >
-                            Title to SEO
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                            onClick={() => summarizeDescriptionToSeo(locale)}
-                          >
-                            Summary to SEO
-                          </button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="grid gap-4">
-                      <label className="space-y-2">
-                        <span className="font-semibold">{label} slug</span>
-                        <input
-                          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                          value={translation.slug}
-                          onChange={(event) =>
-                            updateTranslation(locale, 'slug', event.target.value)
-                          }
-                        />
-                      </label>
-                      <label className="space-y-2">
-                        <span className="font-semibold">{label} SEO title</span>
-                        <input
-                          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                          value={translation.seoTitle}
-                          onChange={(event) =>
-                            updateTranslation(locale, 'seoTitle', event.target.value)
-                          }
-                        />
-                      </label>
-                      <label className="space-y-2">
-                        <span className="font-semibold">{label} SEO description</span>
-                        <textarea
-                          className="min-h-20 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2"
-                          value={translation.seoDescription}
-                          onChange={(event) =>
-                            updateTranslation(locale, 'seoDescription', event.target.value)
-                          }
-                        />
-                      </label>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            : null}
-
-          {openSections.taxonomy ? (
-            <Card id="taxonomy">
-              <CardHeader>
-                <CardTitle>Taxonomy and collections</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-5">
-                <div className="grid gap-4 lg:grid-cols-3">
-                  <OptionMultiSelect
-                    label="Categories"
-                    options={categories}
-                    selectedIds={draft.categoryIds}
-                    onChange={(nextIds) =>
-                      setDraft((current) => ({ ...current, categoryIds: nextIds }))
-                    }
-                  />
-                  <OptionMultiSelect
-                    label="Techniques"
-                    options={techniques}
-                    selectedIds={draft.techniqueIds}
-                    onChange={(nextIds) =>
-                      setDraft((current) => ({ ...current, techniqueIds: nextIds }))
-                    }
-                  />
-                  <OptionMultiSelect
-                    label="Tags"
-                    options={tags}
-                    selectedIds={draft.tagIds}
-                    onChange={(nextIds) => setDraft((current) => ({ ...current, tagIds: nextIds }))}
-                  />
-                </div>
-                <OptionMultiSelect
-                  label="Collections"
-                  options={collections}
-                  selectedIds={draft.collections.map((collection) => collection.collectionId)}
-                  onChange={updateCollectionIds}
-                />
-                {draft.collections.length ? (
-                  <div className="grid gap-2">
-                    <p className="text-sm font-semibold">Collection display order</p>
-                    {draft.collections.map((collection) => {
-                      const option = collections.find(
-                        (item) => item.id === collection.collectionId
-                      );
-                      return (
-                        <label
-                          key={collection.collectionId}
-                          className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3 sm:grid-cols-[1fr_160px] sm:items-center"
-                        >
-                          <span className="font-semibold">{option?.label ?? 'Collection'}</span>
-                          <input
-                            type="number"
-                            min="0"
-                            className="min-h-10 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                            value={selectedCollections.get(collection.collectionId) ?? 0}
-                            onChange={(event) =>
-                              updateCollectionOrder(
-                                collection.collectionId,
-                                Number(event.target.value)
-                              )
-                            }
-                          />
-                        </label>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
-          ) : null}
-
-          {openSections.pricing ? (
-            <Card id="offers">
-              <CardHeader>
-                <CardTitle>Market offers</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                {[
-                  {
-                    key: 'vn' as const,
-                    label: 'Vietnam',
-                    currency: 'VND',
-                    ready: vnOfferReady
-                  },
-                  {
-                    key: 'intl' as const,
-                    label: 'International',
-                    currency: 'USD cents',
-                    ready: intlOfferReady
+          <SmartSection
+            id="basics"
+            title="Product basics"
+            description="Type and draft state"
+            isOpen={openSections.basics}
+            onToggle={() => toggleSection('basics')}
+          >
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+              <label className="block space-y-2">
+                <span className="font-semibold">Product type</span>
+                <select
+                  className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-white px-3"
+                  value={draft.productType}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      productType: event.target.value as ProductType
+                    }))
                   }
-                ].map((market) => (
-                  <div
-                    key={market.key}
-                    className="grid gap-3 rounded-[var(--radius-control)] border border-[var(--border)] p-3 lg:grid-cols-[1fr_160px_220px_150px] lg:items-center"
-                  >
-                    <div>
-                      <p className="font-semibold">{market.label}</p>
-                      <p className="text-sm text-[var(--muted-foreground)]">{market.currency}</p>
-                    </div>
-                    <label className="flex items-center gap-2 text-sm font-semibold">
+                >
+                  <option value="pdf_pattern">PDF pattern</option>
+                  <option value="physical_finished">Physical finished good</option>
+                </select>
+              </label>
+              <div className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-3 text-sm">
+                <p className="font-semibold">{productId ? 'Saved draft' : 'New draft'}</p>
+                <p className="mt-1 text-[var(--muted-foreground)]">
+                  {initialProduct?.status
+                    ? `Current status: ${initialProduct.status}`
+                    : 'Save once to unlock media and inventory workflows.'}
+                </p>
+              </div>
+            </div>
+          </SmartSection>
+
+          <SmartSection
+            id="content"
+            title="Content"
+            description="Vietnamese and English copy"
+            isOpen={openSections.content}
+            onToggle={() => toggleSection('content')}
+          >
+            {(['vi', 'en'] as const).map((locale) => {
+              const label = locale === 'vi' ? 'Vietnamese' : 'English';
+              const translation = draft.translations[locale];
+              return (
+                <Card key={locale} id={`${locale}-content`}>
+                  <CardHeader>
+                    <CardTitle>{label} content</CardTitle>
+                    <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                      Product-facing copy and specification notes for this locale.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    <label className="space-y-2">
+                      <span className="font-semibold">{label} title</span>
                       <input
-                        type="checkbox"
-                        checked={draft.offers[market.key].enabled}
+                        className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                        value={translation.title}
+                        onChange={(event) => updateTranslation(locale, 'title', event.target.value)}
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="font-semibold">{label} description</span>
+                      <textarea
+                        className="min-h-28 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2"
+                        value={translation.description}
                         onChange={(event) =>
-                          updateOffer(market.key, 'enabled', event.target.checked)
+                          updateTranslation(locale, 'description', event.target.value)
                         }
                       />
-                      Enabled
                     </label>
-                    <label className="space-y-1">
-                      <span className="text-sm font-semibold">Price</span>
+                    <label className="space-y-2">
+                      <span className="font-semibold">{label} specifications JSON</span>
+                      <textarea
+                        className="min-h-20 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 font-mono text-sm"
+                        value={String(translation.specifications)}
+                        onChange={(event) =>
+                          updateTranslation(locale, 'specifications', event.target.value)
+                        }
+                      />
+                    </label>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </SmartSection>
+
+          <SmartSection
+            id="seo"
+            title="SEO"
+            description="Slugs and search snippets"
+            isOpen={openSections.seo}
+            onToggle={() => toggleSection('seo')}
+          >
+            {(['vi', 'en'] as const).map((locale) => {
+              const label = locale === 'vi' ? 'Vietnamese' : 'English';
+              const translation = draft.translations[locale];
+              return (
+                <Card key={`${locale}-seo`} id={`${locale}-seo`}>
+                  <CardHeader>
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <CardTitle>{label} SEO</CardTitle>
+                        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                          Keep storefront URLs and search snippets ready without repeating copy by
+                          hand.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                          onClick={() => generateSlug(locale)}
+                        >
+                          Generate slug
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                          onClick={() => copyTitleToSeo(locale)}
+                        >
+                          Title to SEO
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                          onClick={() => summarizeDescriptionToSeo(locale)}
+                        >
+                          Summary to SEO
+                        </button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    <label className="space-y-2">
+                      <span className="font-semibold">{label} slug</span>
+                      <input
+                        className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                        value={translation.slug}
+                        onChange={(event) => updateTranslation(locale, 'slug', event.target.value)}
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="font-semibold">{label} SEO title</span>
+                      <input
+                        className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                        value={translation.seoTitle}
+                        onChange={(event) =>
+                          updateTranslation(locale, 'seoTitle', event.target.value)
+                        }
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="font-semibold">{label} SEO description</span>
+                      <textarea
+                        className="min-h-20 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2"
+                        value={translation.seoDescription}
+                        onChange={(event) =>
+                          updateTranslation(locale, 'seoDescription', event.target.value)
+                        }
+                      />
+                    </label>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </SmartSection>
+
+          <SmartSection
+            id="taxonomy"
+            title="Taxonomy and collections"
+            description="Search, select, and order catalog grouping"
+            isOpen={openSections.taxonomy}
+            onToggle={() => toggleSection('taxonomy')}
+          >
+            <div className="grid gap-4 lg:grid-cols-3">
+              <OptionMultiSelect
+                label="Categories"
+                options={categories}
+                selectedIds={draft.categoryIds}
+                onChange={(nextIds) =>
+                  setDraft((current) => ({ ...current, categoryIds: nextIds }))
+                }
+              />
+              <OptionMultiSelect
+                label="Techniques"
+                options={techniques}
+                selectedIds={draft.techniqueIds}
+                onChange={(nextIds) =>
+                  setDraft((current) => ({ ...current, techniqueIds: nextIds }))
+                }
+              />
+              <OptionMultiSelect
+                label="Tags"
+                options={tags}
+                selectedIds={draft.tagIds}
+                onChange={(nextIds) => setDraft((current) => ({ ...current, tagIds: nextIds }))}
+              />
+            </div>
+            <OptionMultiSelect
+              label="Collections"
+              options={collections}
+              selectedIds={draft.collections.map((collection) => collection.collectionId)}
+              onChange={updateCollectionIds}
+            />
+            {draft.collections.length ? (
+              <div className="grid gap-2">
+                <p className="text-sm font-semibold">Collection display order</p>
+                {draft.collections.map((collection) => {
+                  const option = collections.find((item) => item.id === collection.collectionId);
+                  return (
+                    <label
+                      key={collection.collectionId}
+                      className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3 sm:grid-cols-[1fr_160px] sm:items-center"
+                    >
+                      <span className="font-semibold">{option?.label ?? 'Collection'}</span>
                       <input
                         type="number"
                         min="0"
                         className="min-h-10 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                        value={draft.offers[market.key].priceMinor ?? ''}
+                        value={selectedCollections.get(collection.collectionId) ?? 0}
                         onChange={(event) =>
-                          updateOffer(market.key, 'priceMinor', numberOrNull(event.target.value))
+                          updateCollectionOrder(collection.collectionId, Number(event.target.value))
                         }
                       />
                     </label>
-                    <span
-                      className={`rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold ${readinessTone(market.ready)}`}
-                    >
-                      {market.ready ? 'Ready' : 'Needs price'}
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ) : null}
+                  );
+                })}
+              </div>
+            ) : null}
+          </SmartSection>
 
-          {openSections.publish ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Publish checklist</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3 text-sm">
-                <p className="text-[var(--muted-foreground)]">
-                  Use this checkpoint before publishing. Media, private PDF, and inventory stay in
-                  their dedicated workflows so the main editor remains fast.
-                </p>
-                <div className="grid gap-2 sm:grid-cols-2">
+          <SmartSection
+            id="offers"
+            title="Market offers"
+            description="Availability and pricing by market"
+            isOpen={openSections.pricing}
+            onToggle={() => toggleSection('pricing')}
+          >
+            <div className="grid gap-3">
+              {[
+                {
+                  key: 'vn' as const,
+                  label: 'Vietnam',
+                  currency: 'VND',
+                  ready: vnOfferReady
+                },
+                {
+                  key: 'intl' as const,
+                  label: 'International',
+                  currency: 'USD cents',
+                  ready: intlOfferReady
+                }
+              ].map((market) => (
+                <div
+                  key={market.key}
+                  className="grid gap-3 rounded-[var(--radius-control)] border border-[var(--border)] p-3 lg:grid-cols-[1fr_160px_220px_150px] lg:items-center"
+                >
+                  <div>
+                    <p className="font-semibold">{market.label}</p>
+                    <p className="text-sm text-[var(--muted-foreground)]">{market.currency}</p>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={draft.offers[market.key].enabled}
+                      onChange={(event) => updateOffer(market.key, 'enabled', event.target.checked)}
+                    />
+                    Enabled
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-sm font-semibold">Price</span>
+                    <input
+                      type="number"
+                      min="0"
+                      className="min-h-10 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                      value={draft.offers[market.key].priceMinor ?? ''}
+                      onChange={(event) =>
+                        updateOffer(market.key, 'priceMinor', numberOrNull(event.target.value))
+                      }
+                    />
+                  </label>
                   <span
-                    className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(viReady)}`}
+                    className={`rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold ${readinessTone(market.ready)}`}
                   >
-                    Vietnamese content {viReady ? 'ready' : 'needs review'}
-                  </span>
-                  <span
-                    className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(enReady)}`}
-                  >
-                    English content {enReady ? 'ready' : 'needs review'}
-                  </span>
-                  <span
-                    className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(vnOfferReady)}`}
-                  >
-                    Vietnam offer {vnOfferReady ? 'ready' : 'off or missing price'}
-                  </span>
-                  <span
-                    className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(intlOfferReady)}`}
-                  >
-                    International offer {intlOfferReady ? 'ready' : 'off or missing price'}
+                    {market.ready ? 'Ready' : 'Needs price'}
                   </span>
                 </div>
-              </CardContent>
-            </Card>
-          ) : null}
+              ))}
+            </div>
+          </SmartSection>
+
+          <SmartSection
+            id="publish"
+            title="Publish checklist"
+            description="Readiness and next workflows"
+            isOpen={openSections.publish}
+            onToggle={() => toggleSection('publish')}
+          >
+            <div className="grid gap-3 text-sm">
+              <p className="text-[var(--muted-foreground)]">
+                Use this checkpoint before publishing. Media, private PDF, and inventory stay in
+                their dedicated workflows so the main editor remains fast.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <span
+                  className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(viReady)}`}
+                >
+                  Vietnamese content {viReady ? 'ready' : 'needs review'}
+                </span>
+                <span
+                  className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(enReady)}`}
+                >
+                  English content {enReady ? 'ready' : 'needs review'}
+                </span>
+                <span
+                  className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(vnOfferReady)}`}
+                >
+                  Vietnam offer {vnOfferReady ? 'ready' : 'off or missing price'}
+                </span>
+                <span
+                  className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(intlOfferReady)}`}
+                >
+                  International offer {intlOfferReady ? 'ready' : 'off or missing price'}
+                </span>
+              </div>
+            </div>
+          </SmartSection>
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-20">
