@@ -1,5 +1,5 @@
-import { ScrollText } from 'lucide-react';
-import Link from 'next/link';
+import { BookOpenCheck, ScrollText } from 'lucide-react';
+import { AccountEmptyState } from '@/components/account/account-empty-state';
 import type { CustomerPatternLibraryItem } from '@/fulfillment/account-queries';
 import type { Locale } from '@/i18n/routing';
 import { PatternLibraryCard } from './pattern-library-card';
@@ -17,14 +17,29 @@ const copy = {
   en: {
     emptyTitle: 'No PDF patterns yet',
     emptyBody: 'Paid PDF patterns appear here after payment is confirmed.',
-    cta: 'Browse PDF patterns'
+    cta: 'Browse PDF patterns',
+    eyebrow: 'Private PDF access',
+    latest: 'Latest purchase'
   },
   vi: {
     emptyTitle: 'Ban chua mua pattern nao',
     emptyBody: 'Pattern PDF da thanh toan se hien tai day sau khi don duoc xac nhan.',
-    cta: 'Xem pattern PDF'
+    cta: 'Xem pattern PDF',
+    eyebrow: 'Quyen truy cap PDF rieng',
+    latest: 'Lan mua moi nhat'
   }
 } as const;
+
+function formatCustomerDate(value: string | null, locale: Locale) {
+  if (!value) {
+    return locale === 'vi' ? 'Chua cap nhat' : 'Not updated yet';
+  }
+  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(new Date(value));
+}
 
 export function PatternLibrary({
   patterns,
@@ -36,37 +51,40 @@ export function PatternLibrary({
   locale: Locale;
 }) {
   const t = copy[locale];
+  const latestPattern = patterns[0] ?? null;
 
   return (
-    <section className="grid gap-6">
-      <header className="border-b border-[var(--border)] pb-5">
-        <h1 className="text-[32px] font-semibold leading-tight">{labels.title}</h1>
-        <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-          {patterns.length}{' '}
-          {locale === 'vi' ? 'pattern' : patterns.length === 1 ? 'pattern' : 'patterns'}
-        </p>
+    <section className="grid gap-5">
+      <header className="grid gap-4 border-b border-[var(--border)] pb-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <div className="grid gap-2">
+          <p className="text-xs font-semibold text-[var(--accent)]">{t.eyebrow}</p>
+          <h1 className="text-[30px] font-semibold leading-tight sm:text-[34px]">{labels.title}</h1>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--muted-foreground)] sm:justify-end">
+          <span className="inline-flex min-h-9 items-center rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-3 font-semibold text-[var(--foreground)]">
+            {patterns.length} {locale === 'vi' ? 'pattern' : patterns.length === 1 ? 'pattern' : 'patterns'}
+          </span>
+          {latestPattern ? (
+            <span className="inline-flex min-h-9 items-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] px-3">
+              <BookOpenCheck className="h-3.5 w-3.5" aria-hidden="true" />
+              {t.latest}: {formatCustomerDate(latestPattern.latestPurchaseAt, locale)}
+            </span>
+          ) : null}
+        </div>
       </header>
 
       {patterns.length === 0 ? (
-        <div className="grid min-h-60 place-items-center rounded-[var(--radius-card)] bg-[var(--surface-muted)] p-8 text-center">
-          <div className="mx-auto grid max-w-[380px] justify-items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-control)] bg-[var(--surface)] text-[var(--accent)]">
-              <ScrollText className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <h2 className="text-xl font-semibold">{t.emptyTitle}</h2>
-            <p className="text-sm leading-6 text-[var(--muted-foreground)]">
-              {labels.empty || t.emptyBody}
-            </p>
-            <Link
-              href={locale === 'vi' ? '/vi/cua-hang?type=pdf_pattern' : '/en/catalog?type=pdf_pattern'}
-              className="mt-1 inline-flex min-h-10 items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
-            >
-              {t.cta}
-            </Link>
-          </div>
-        </div>
+        <AccountEmptyState
+          icon={<ScrollText className="h-5 w-5" aria-hidden="true" />}
+          title={t.emptyTitle}
+          body={labels.empty || t.emptyBody}
+          cta={{
+            href: locale === 'vi' ? '/vi/cua-hang?type=pdf_pattern' : '/en/catalog?type=pdf_pattern',
+            label: t.cta
+          }}
+        />
       ) : (
-        <div className="grid">
+        <div className="grid gap-3">
           {patterns.map((pattern) => (
             <PatternLibraryCard
               key={pattern.productId}
