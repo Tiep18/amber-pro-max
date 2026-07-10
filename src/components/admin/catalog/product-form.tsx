@@ -33,7 +33,7 @@ type ProductFormProps = {
   collections: CatalogOption[];
 };
 
-type EditorTab = 'setup' | 'content' | 'pricing' | 'taxonomy' | 'publish';
+type EditorSection = 'basics' | 'content' | 'seo' | 'pricing' | 'taxonomy' | 'publish';
 
 const emptyTranslation = {
   title: '',
@@ -107,13 +107,100 @@ function seoDescriptionFrom(value: string) {
   return value.replace(/\s+/g, ' ').trim().slice(0, 155);
 }
 
-const editorTabs: Array<{ id: EditorTab; label: string; description: string }> = [
-  { id: 'setup', label: 'Setup', description: 'Type and draft identity' },
+const editorSections: Array<{ id: EditorSection; label: string; description: string }> = [
+  { id: 'basics', label: 'Basics', description: 'Type and draft state' },
   { id: 'content', label: 'Content', description: 'Vietnamese and English copy' },
+  { id: 'seo', label: 'SEO', description: 'Slugs and search snippets' },
   { id: 'pricing', label: 'Pricing', description: 'Market offers and prices' },
   { id: 'taxonomy', label: 'Taxonomy', description: 'Categories, tags, collections' },
   { id: 'publish', label: 'Publish', description: 'Readiness and next workflows' }
 ];
+
+function OptionChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-semibold">
+      {label}
+      <button
+        type="button"
+        className="text-[var(--muted-foreground)] hover:text-[var(--destructive)]"
+        onClick={onRemove}
+        aria-label={`Remove ${label}`}
+      >
+        x
+      </button>
+    </span>
+  );
+}
+
+function OptionMultiSelect({
+  label,
+  options,
+  selectedIds,
+  onChange
+}: {
+  label: string;
+  options: CatalogOption[];
+  selectedIds: string[];
+  onChange: (nextIds: string[]) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const selected = options.filter((option) => selectedIds.includes(option.id));
+  const available = options
+    .filter((option) => !selectedIds.includes(option.id))
+    .filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()))
+    .slice(0, 8);
+
+  return (
+    <div className="grid gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-semibold">{label}</span>
+        <span className="text-xs font-semibold text-[var(--muted-foreground)]">
+          {selected.length} selected
+        </span>
+      </div>
+      <div className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-3">
+        <div className="mb-3 flex min-h-8 flex-wrap gap-2">
+          {selected.length ? (
+            selected.map((option) => (
+              <OptionChip
+                key={option.id}
+                label={option.label}
+                onRemove={() => onChange(selectedIds.filter((id) => id !== option.id))}
+              />
+            ))
+          ) : (
+            <span className="text-sm text-[var(--muted-foreground)]">
+              No {label.toLowerCase()} selected
+            </span>
+          )}
+        </div>
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          className="min-h-10 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 text-sm"
+          placeholder={`Search ${label.toLowerCase()}`}
+        />
+        {available.length ? (
+          <div className="mt-2 grid gap-1">
+            {available.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className="rounded-[var(--radius-control)] px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--surface-muted)]"
+                onClick={() => {
+                  onChange([...selectedIds, option.id]);
+                  setQuery('');
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export function ProductForm({
   initialProduct,
@@ -131,7 +218,14 @@ export function ProductForm({
       : null
   );
   const [isPending, startTransition] = useTransition();
-  const [activeTab, setActiveTab] = useState<EditorTab>('setup');
+  const [openSections, setOpenSections] = useState<Record<EditorSection, boolean>>({
+    basics: true,
+    content: true,
+    seo: false,
+    pricing: true,
+    taxonomy: false,
+    publish: false
+  });
   const productId = draft.productId;
   const blockedIssues = result?.status === 'blocked' ? result.issues : [];
   const viReady = Boolean(
@@ -174,23 +268,15 @@ export function ProductForm({
     }));
   }
 
-  function updateIdList(
-    field: 'categoryIds' | 'techniqueIds' | 'tagIds',
-    id: string,
-    checked: boolean
-  ) {
+  function updateCollectionIds(nextIds: string[]) {
     setDraft((current) => ({
       ...current,
-      [field]: checked ? [...current[field], id] : current[field].filter((value) => value !== id)
-    }));
-  }
-
-  function updateCollection(id: string, checked: boolean) {
-    setDraft((current) => ({
-      ...current,
-      collections: checked
-        ? [...current.collections, { collectionId: id, displayOrder: 0 }]
-        : current.collections.filter((collection) => collection.collectionId !== id)
+      collections: nextIds.map((collectionId) => ({
+        collectionId,
+        displayOrder:
+          current.collections.find((collection) => collection.collectionId === collectionId)
+            ?.displayOrder ?? 0
+      }))
     }));
   }
 
@@ -234,6 +320,13 @@ export function ProductForm({
       'seoDescription',
       seoDescriptionFrom(draft.translations[locale].description)
     );
+  }
+
+  function toggleSection(section: EditorSection) {
+    setOpenSections((current) => ({
+      ...current,
+      [section]: !current[section]
+    }));
   }
 
   function saveDraft() {
@@ -297,30 +390,31 @@ export function ProductForm({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="space-y-5">
-          <div className="grid gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-2 sm:grid-cols-5">
-            {editorTabs.map((tab) => (
+          <div className="grid gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-2 sm:grid-cols-3 xl:grid-cols-6">
+            {editorSections.map((section) => (
               <button
-                key={tab.id}
+                key={section.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => toggleSection(section.id)}
                 className={`rounded-[var(--radius-control)] px-3 py-2 text-left transition-colors ${
-                  activeTab === tab.id
+                  openSections[section.id]
                     ? 'bg-[var(--accent)] text-white'
                     : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]'
                 }`}
+                aria-expanded={openSections[section.id]}
               >
-                <span className="block text-sm font-semibold">{tab.label}</span>
-                <span className="mt-0.5 block text-xs opacity-80">{tab.description}</span>
+                <span className="block text-sm font-semibold">{section.label}</span>
+                <span className="mt-0.5 block text-xs opacity-80">{section.description}</span>
               </button>
             ))}
           </div>
 
-          {activeTab === 'setup' ? (
+          {openSections.basics ? (
             <Card id="basics">
               <CardHeader>
                 <CardTitle>Product basics</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
                 <label className="block space-y-2">
                   <span className="font-semibold">Product type</span>
                   <select
@@ -337,49 +431,29 @@ export function ProductForm({
                     <option value="physical_finished">Physical finished good</option>
                   </select>
                 </label>
+                <div className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-3 text-sm">
+                  <p className="font-semibold">{productId ? 'Saved draft' : 'New draft'}</p>
+                  <p className="mt-1 text-[var(--muted-foreground)]">
+                    {initialProduct?.status
+                      ? `Current status: ${initialProduct.status}`
+                      : 'Save once to unlock media and inventory workflows.'}
+                  </p>
+                </div>
               </CardContent>
             </Card>
           ) : null}
 
-          {activeTab === 'content'
+          {openSections.content
             ? (['vi', 'en'] as const).map((locale) => {
                 const label = locale === 'vi' ? 'Vietnamese' : 'English';
                 const translation = draft.translations[locale];
                 return (
                   <Card key={locale} id={`${locale}-content`}>
                     <CardHeader>
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                          <CardTitle>{label} content</CardTitle>
-                          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-                            Fill the core copy first, then use quick actions for repetitive SEO
-                            fields.
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                            onClick={() => generateSlug(locale)}
-                          >
-                            Generate slug
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                            onClick={() => copyTitleToSeo(locale)}
-                          >
-                            Title to SEO
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                            onClick={() => summarizeDescriptionToSeo(locale)}
-                          >
-                            Summary to SEO
-                          </button>
-                        </div>
-                      </div>
+                      <CardTitle>{label} content</CardTitle>
+                      <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                        Product-facing copy and specification notes for this locale.
+                      </p>
                     </CardHeader>
                     <CardContent className="grid gap-4">
                       <label className="space-y-2">
@@ -412,6 +486,53 @@ export function ProductForm({
                           }
                         />
                       </label>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            : null}
+
+          {openSections.seo
+            ? (['vi', 'en'] as const).map((locale) => {
+                const label = locale === 'vi' ? 'Vietnamese' : 'English';
+                const translation = draft.translations[locale];
+                return (
+                  <Card key={`${locale}-seo`} id={`${locale}-seo`}>
+                    <CardHeader>
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <CardTitle>{label} SEO</CardTitle>
+                          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                            Keep storefront URLs and search snippets ready without repeating copy by
+                            hand.
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                            onClick={() => generateSlug(locale)}
+                          >
+                            Generate slug
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                            onClick={() => copyTitleToSeo(locale)}
+                          >
+                            Title to SEO
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                            onClick={() => summarizeDescriptionToSeo(locale)}
+                          >
+                            Summary to SEO
+                          </button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="grid gap-4">
                       <label className="space-y-2">
                         <span className="font-semibold">{label} slug</span>
                         <input
@@ -448,149 +569,138 @@ export function ProductForm({
               })
             : null}
 
-          {activeTab === 'taxonomy' ? (
+          {openSections.taxonomy ? (
             <Card id="taxonomy">
               <CardHeader>
                 <CardTitle>Taxonomy and collections</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-5">
-                <fieldset className="space-y-2">
-                  <legend className="font-semibold">Categories</legend>
-                  {categories.map((option) => (
-                    <label key={option.id} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={draft.categoryIds.includes(option.id)}
-                        onChange={(event) =>
-                          updateIdList('categoryIds', option.id, event.target.checked)
-                        }
-                      />
-                      {option.label}
-                    </label>
-                  ))}
-                </fieldset>
-                <fieldset className="space-y-2">
-                  <legend className="font-semibold">Techniques</legend>
-                  {techniques.map((option) => (
-                    <label key={option.id} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={draft.techniqueIds.includes(option.id)}
-                        onChange={(event) =>
-                          updateIdList('techniqueIds', option.id, event.target.checked)
-                        }
-                      />
-                      {option.label}
-                    </label>
-                  ))}
-                </fieldset>
-                <fieldset className="space-y-2">
-                  <legend className="font-semibold">Tags</legend>
-                  {tags.map((option) => (
-                    <label key={option.id} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={draft.tagIds.includes(option.id)}
-                        onChange={(event) =>
-                          updateIdList('tagIds', option.id, event.target.checked)
-                        }
-                      />
-                      {option.label}
-                    </label>
-                  ))}
-                </fieldset>
-                <fieldset className="space-y-2">
-                  <legend className="font-semibold">Collections</legend>
-                  {collections.map((option) => (
-                    <div
-                      key={option.id}
-                      className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3 sm:grid-cols-[1fr_160px]"
-                    >
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedCollections.has(option.id)}
-                          onChange={(event) => updateCollection(option.id, event.target.checked)}
-                        />
-                        {option.label}
-                      </label>
-                      <label className="space-y-1">
-                        <span className="text-sm font-semibold">{option.label} display order</span>
-                        <input
-                          type="number"
-                          min="0"
-                          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                          value={selectedCollections.get(option.id) ?? 0}
-                          onChange={(event) =>
-                            updateCollectionOrder(option.id, Number(event.target.value))
-                          }
-                          disabled={!selectedCollections.has(option.id)}
-                        />
-                      </label>
-                    </div>
-                  ))}
-                </fieldset>
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <OptionMultiSelect
+                    label="Categories"
+                    options={categories}
+                    selectedIds={draft.categoryIds}
+                    onChange={(nextIds) =>
+                      setDraft((current) => ({ ...current, categoryIds: nextIds }))
+                    }
+                  />
+                  <OptionMultiSelect
+                    label="Techniques"
+                    options={techniques}
+                    selectedIds={draft.techniqueIds}
+                    onChange={(nextIds) =>
+                      setDraft((current) => ({ ...current, techniqueIds: nextIds }))
+                    }
+                  />
+                  <OptionMultiSelect
+                    label="Tags"
+                    options={tags}
+                    selectedIds={draft.tagIds}
+                    onChange={(nextIds) => setDraft((current) => ({ ...current, tagIds: nextIds }))}
+                  />
+                </div>
+                <OptionMultiSelect
+                  label="Collections"
+                  options={collections}
+                  selectedIds={draft.collections.map((collection) => collection.collectionId)}
+                  onChange={updateCollectionIds}
+                />
+                {draft.collections.length ? (
+                  <div className="grid gap-2">
+                    <p className="text-sm font-semibold">Collection display order</p>
+                    {draft.collections.map((collection) => {
+                      const option = collections.find(
+                        (item) => item.id === collection.collectionId
+                      );
+                      return (
+                        <label
+                          key={collection.collectionId}
+                          className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3 sm:grid-cols-[1fr_160px] sm:items-center"
+                        >
+                          <span className="font-semibold">{option?.label ?? 'Collection'}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            className="min-h-10 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                            value={selectedCollections.get(collection.collectionId) ?? 0}
+                            onChange={(event) =>
+                              updateCollectionOrder(
+                                collection.collectionId,
+                                Number(event.target.value)
+                              )
+                            }
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           ) : null}
 
-          {activeTab === 'pricing' ? (
+          {openSections.pricing ? (
             <Card id="offers">
               <CardHeader>
                 <CardTitle>Market offers</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
-                <fieldset className="space-y-3 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
-                  <legend className="px-1 font-semibold">Vietnam</legend>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={draft.offers.vn.enabled}
-                      onChange={(event) => updateOffer('vn', 'enabled', event.target.checked)}
-                    />
-                    Vietnam market enabled
-                  </label>
-                  <label className="space-y-2">
-                    <span className="font-semibold">Vietnam price in VND</span>
-                    <input
-                      type="number"
-                      min="0"
-                      className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                      value={draft.offers.vn.priceMinor ?? ''}
-                      onChange={(event) =>
-                        updateOffer('vn', 'priceMinor', numberOrNull(event.target.value))
-                      }
-                    />
-                  </label>
-                </fieldset>
-                <fieldset className="space-y-3 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
-                  <legend className="px-1 font-semibold">International</legend>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={draft.offers.intl.enabled}
-                      onChange={(event) => updateOffer('intl', 'enabled', event.target.checked)}
-                    />
-                    International market enabled
-                  </label>
-                  <label className="space-y-2">
-                    <span className="font-semibold">International price in USD cents</span>
-                    <input
-                      type="number"
-                      min="0"
-                      className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                      value={draft.offers.intl.priceMinor ?? ''}
-                      onChange={(event) =>
-                        updateOffer('intl', 'priceMinor', numberOrNull(event.target.value))
-                      }
-                    />
-                  </label>
-                </fieldset>
+              <CardContent className="grid gap-3">
+                {[
+                  {
+                    key: 'vn' as const,
+                    label: 'Vietnam',
+                    currency: 'VND',
+                    ready: vnOfferReady
+                  },
+                  {
+                    key: 'intl' as const,
+                    label: 'International',
+                    currency: 'USD cents',
+                    ready: intlOfferReady
+                  }
+                ].map((market) => (
+                  <div
+                    key={market.key}
+                    className="grid gap-3 rounded-[var(--radius-control)] border border-[var(--border)] p-3 lg:grid-cols-[1fr_160px_220px_150px] lg:items-center"
+                  >
+                    <div>
+                      <p className="font-semibold">{market.label}</p>
+                      <p className="text-sm text-[var(--muted-foreground)]">{market.currency}</p>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={draft.offers[market.key].enabled}
+                        onChange={(event) =>
+                          updateOffer(market.key, 'enabled', event.target.checked)
+                        }
+                      />
+                      Enabled
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-sm font-semibold">Price</span>
+                      <input
+                        type="number"
+                        min="0"
+                        className="min-h-10 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                        value={draft.offers[market.key].priceMinor ?? ''}
+                        onChange={(event) =>
+                          updateOffer(market.key, 'priceMinor', numberOrNull(event.target.value))
+                        }
+                      />
+                    </label>
+                    <span
+                      className={`rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold ${readinessTone(market.ready)}`}
+                    >
+                      {market.ready ? 'Ready' : 'Needs price'}
+                    </span>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           ) : null}
 
-          {activeTab === 'publish' ? (
+          {openSections.publish ? (
             <Card>
               <CardHeader>
                 <CardTitle>Publish checklist</CardTitle>
@@ -754,18 +864,19 @@ export function ProductForm({
               <CardTitle>Sections</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2 text-sm font-semibold">
-              {editorTabs.map((tab) => (
+              {editorSections.map((section) => (
                 <button
-                  key={tab.id}
+                  key={section.id}
                   type="button"
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => toggleSection(section.id)}
                   className={`rounded-[var(--radius-control)] px-3 py-2 text-left transition-colors ${
-                    activeTab === tab.id
+                    openSections[section.id]
                       ? 'bg-[var(--surface-muted)] text-[var(--accent)]'
                       : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]'
                   }`}
+                  aria-expanded={openSections[section.id]}
                 >
-                  {tab.label}
+                  {section.label}
                 </button>
               ))}
             </CardContent>
