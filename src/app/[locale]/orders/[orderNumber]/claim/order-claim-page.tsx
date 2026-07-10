@@ -16,7 +16,7 @@ export async function renderOrderClaimPage({
   const t = await getTranslations({locale, namespace: 'guestAccess'});
 
   return (
-    <main className="mx-auto w-full max-w-[760px] px-4 py-10 sm:px-6">
+    <main className="mx-auto w-full max-w-[980px] px-4 py-10 sm:px-6">
       <OrderClaimPanel
         locale={locale}
         orderNumber={decodeURIComponent(orderNumber)}
