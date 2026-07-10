@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-07-10 - Completed quick task 260710-nhw: Make admin product editor smart sections easier to navigate while scrolling
+last_activity: 2026-07-10 - Completed quick task 260710-nk4: Use shadcn components for product editor section controls
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 07 (content-seo-and-launch-readiness)
 Plan: 07-05 completed
 Status: Ready for Wave 6 final launch verification
-Last activity: 2026-07-10 - Completed quick task 260710-nhw: Make admin product editor smart sections easier to navigate while scrolling
+Last activity: 2026-07-10 - Completed quick task 260710-nk4: Use shadcn components for product editor section controls
 
 Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and Wave 6 can begin.
 
@@ -236,6 +236,7 @@ None yet.
 | 260710-my6 | Convert admin product editor to task tabs and add slug SEO autofill | 2026-07-10 | bdcce854 | [260710-my6-convert-admin-product-editor-to-task-tab](./quick/260710-my6-convert-admin-product-editor-to-task-tab/) |
 | 260710-n9n | Replace admin product editor tabs with smart sections and taxonomy multi-select | 2026-07-10 | a68b1443 | [260710-n9n-replace-admin-product-editor-tabs-with-s](./quick/260710-n9n-replace-admin-product-editor-tabs-with-s/) |
 | 260710-nhw | Make admin product editor smart sections easier to navigate while scrolling | 2026-07-10 | 767498ed | [260710-nhw-make-admin-product-editor-smart-sections](./quick/260710-nhw-make-admin-product-editor-smart-sections/) |
+| 260710-nk4 | Use shadcn components for product editor section controls | 2026-07-10 | 082a3346 | [260710-nk4-use-shadcn-product-editor-sections](./quick/260710-nk4-use-shadcn-product-editor-sections/) |
 
 ### Debug Sessions Resolved
 
