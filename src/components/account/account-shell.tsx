@@ -169,11 +169,8 @@ function SidebarContent({ email, locale }: { email: string; locale: Locale }) {
         <Home className="h-4 w-4" aria-hidden="true" />
         Ambertinybear
       </Link>
-      <div className="mt-auto">
-        <Separator />
-        <div className="pt-3">
-          <SignOutButton locale={locale} />
-        </div>
+      <div className="pt-1">
+        <SignOutButton locale={locale} />
       </div>
     </div>
   );
