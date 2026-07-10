@@ -2,15 +2,16 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { AlertCircle, Check, ListTree, Save, Send } from 'lucide-react';
 import {
   publishProductAction,
   saveProductDraftAction,
   type PublishProductResult,
   type SaveProductDraftResult
 } from '@/catalog/actions';
-import type { ProductDraftInput } from '@/catalog/schemas';
+import { productDraftSchema, type ProductDraftInput } from '@/catalog/schemas';
 import type { CatalogLocale, ProductType } from '@/catalog/types';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,9 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Sheet } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
+import { Toggle } from '@/components/ui/toggle';
 
 export type CatalogOption = {
   id: string;
@@ -46,6 +49,7 @@ type ProductFormProps = {
 };
 
 type EditorSection = 'basics' | 'content' | 'seo' | 'pricing' | 'taxonomy' | 'publish';
+type FieldErrors = Record<string, string>;
 
 const emptyTranslation = {
   title: '',
@@ -120,13 +124,77 @@ function seoDescriptionFrom(value: string) {
 }
 
 const editorSections: Array<{ id: EditorSection; label: string; description: string }> = [
-  { id: 'basics', label: 'Basics', description: 'Type and draft state' },
-  { id: 'content', label: 'Content', description: 'Bilingual product copy' },
-  { id: 'seo', label: 'SEO', description: 'Slugs and snippets' },
-  { id: 'pricing', label: 'Offers', description: 'Market availability' },
-  { id: 'taxonomy', label: 'Taxonomy', description: 'Catalog grouping' },
-  { id: 'publish', label: 'Publish', description: 'Final checks' }
+  { id: 'basics', label: 'Product details', description: 'Type and draft identity' },
+  { id: 'content', label: 'Content', description: 'Vietnamese and English copy' },
+  { id: 'pricing', label: 'Market offers', description: 'Availability and pricing' },
+  { id: 'taxonomy', label: 'Organization', description: 'Categories and collections' },
+  { id: 'seo', label: 'Search and SEO', description: 'Localized URLs and snippets' },
+  { id: 'publish', label: 'Readiness', description: 'Final checks and workflows' }
 ];
+
+function fieldDomId(path: string) {
+  return `product-field-${path.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+}
+
+function sectionForPath(path: string): EditorSection {
+  if (path.startsWith('translations.')) {
+    return path.endsWith('.slug') || path.includes('.seoTitle') || path.includes('.seoDescription')
+      ? 'seo'
+      : 'content';
+  }
+  if (path.startsWith('offers.')) return 'pricing';
+  if (
+    path.startsWith('categoryIds') ||
+    path.startsWith('techniqueIds') ||
+    path.startsWith('tagIds') ||
+    path.startsWith('collections')
+  ) {
+    return 'taxonomy';
+  }
+  if (path === 'productId') return 'publish';
+  return 'basics';
+}
+
+function validationMessage(code: string, path: string) {
+  const messages: Record<string, string> = {
+    'Too small: expected string to have >=1 characters': 'Enter a title before saving.',
+    specifications_must_be_object: 'Specifications must be a JSON object.',
+    specifications_must_be_json: 'Enter valid JSON, for example {"skillLevel":"easy"}.',
+    enabled_market_requires_price: 'Enter a price for this enabled market.',
+    save_before_publish: 'Save the draft before publishing.',
+    missing_translation: 'Add the localized product title before publishing.',
+    missing_slug: 'Add a localized slug before publishing.',
+    missing_seo_title: 'Add a localized SEO title before publishing.',
+    missing_seo_description: 'Add a localized SEO description before publishing.',
+    missing_market_offer: 'Enable at least one market and enter its price.',
+    invalid_market_offer: 'Check the enabled market price.',
+    missing_social_image: 'Add a social image in the media workflow.',
+    missing_primary_image: 'Add a primary image in the media workflow.',
+    missing_private_pdf: 'Upload the protected PDF in the media workflow.',
+    invalid_inventory: 'Check variants and inventory before publishing.',
+    publish_requirement: 'Complete this publishing requirement.'
+  };
+  if (messages[code]) return messages[code];
+  if (path.endsWith('.title')) return 'Enter a product title before saving.';
+  if (path.endsWith('.slug')) return 'Use lowercase letters, numbers, and hyphens only.';
+  return 'Check this value and try again.';
+}
+
+function pathForPublishIssue(issue: {
+  group: string;
+  field: string;
+  locale?: CatalogLocale;
+  marketCode?: 'vn' | 'intl';
+}) {
+  if (issue.group === 'translation') {
+    const field = issue.field === 'translation' ? 'title' : issue.field;
+    return `translations.${issue.locale ?? 'vi'}.${field}`;
+  }
+  if (issue.group === 'offers') {
+    return `offers.${issue.marketCode ?? 'vn'}.priceMinor`;
+  }
+  return 'productId';
+}
 
 function OptionChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
@@ -214,50 +282,115 @@ function OptionMultiSelect({
   );
 }
 
-function SmartSection({
+function LocaleTabs({
+  value,
+  onChange,
+  errorCounts,
+  panel
+}: {
+  value: CatalogLocale;
+  onChange: (locale: CatalogLocale) => void;
+  errorCounts: Record<CatalogLocale, number>;
+  panel: 'content' | 'seo';
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Content language"
+      className="inline-flex rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-1"
+    >
+      {(['vi', 'en'] as const).map((locale) => {
+        const selected = value === locale;
+        const label = locale === 'vi' ? 'Vietnamese' : 'English';
+        return (
+          <button
+            key={locale}
+            type="button"
+            role="tab"
+            id={`${locale}-${panel}-tab`}
+            aria-controls={`${locale}-${panel}-panel`}
+            aria-selected={selected}
+            onClick={() => onChange(locale)}
+            className={`inline-flex min-h-10 items-center gap-2 rounded-[calc(var(--radius-control)-2px)] px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 ${
+              selected
+                ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-[0_1px_4px_rgba(92,48,26,0.10)]'
+                : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+            }`}
+          >
+            {label}
+            {errorCounts[locale] ? (
+              <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--destructive)] px-1.5 text-xs text-white">
+                {errorCounts[locale]}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function FieldError({ path, errors }: { path: string; errors: FieldErrors }) {
+  const message = errors[path];
+  return message ? (
+    <p id={`${fieldDomId(path)}-error`} role="alert" className="text-sm text-[var(--destructive)]">
+      {message}
+    </p>
+  ) : null;
+}
+
+function EditorFormSection({
   id,
   index,
   title,
   description,
   isComplete,
-  isOpen,
-  onToggle,
+  isActive,
+  errorCount,
   children
 }: {
-  id: string;
+  id: EditorSection;
   index: number;
   title: string;
   description: string;
   isComplete?: boolean;
-  isOpen: boolean;
-  onToggle: () => void;
+  isActive: boolean;
+  errorCount: number;
   children: ReactNode;
 }) {
-  const contentId = `${id}-content`;
-
   return (
-    <Card
-      id={id}
-      className={`scroll-mt-28 overflow-hidden p-0 transition-colors ${
-        isOpen ? 'bg-[var(--surface)]' : 'bg-[var(--surface-muted)]/70'
-      }`}
-    >
-      <CardHeader className="mb-0 p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-[var(--background)] text-sm font-semibold tabular-nums text-[var(--muted-foreground)]">
+    <section id={id} aria-labelledby={`${id}-heading`} className="scroll-mt-28">
+      <Card
+        className={`overflow-hidden p-0 transition-[border-color,box-shadow,background-color] duration-200 ${
+          isActive
+            ? 'border-[var(--accent)] bg-[var(--surface)] shadow-[0_14px_36px_rgba(92,48,26,0.09)]'
+            : 'border-[var(--border)]/75 bg-[var(--surface)]/92 shadow-none'
+        }`}
+      >
+        <CardHeader className="mb-0 border-b border-[var(--border)]/65 p-4 sm:p-5">
+          <div className="flex min-w-0 items-start gap-3">
+            <span
+              className={`flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-control)] text-sm font-semibold tabular-nums transition-colors ${
+                isActive
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'bg-[var(--surface-muted)] text-[var(--muted-foreground)]'
+              }`}
+            >
               {String(index).padStart(2, '0')}
             </span>
-            <div className="min-w-0 space-y-1">
+            <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <CardTitle className="text-base">{title}</CardTitle>
-                {isComplete !== undefined ? (
+                <CardTitle id={`${id}-heading`} tabIndex={-1} className="text-base outline-none">
+                  {title}
+                </CardTitle>
+                {errorCount ? (
+                  <span className="inline-flex items-center gap-1 rounded-[var(--radius-control)] bg-[var(--destructive-surface)] px-2 py-1 text-xs font-semibold text-[var(--destructive)]">
+                    <AlertCircle aria-hidden="true" className="size-3.5" />
+                    {errorCount} {errorCount === 1 ? 'error' : 'errors'}
+                  </span>
+                ) : isComplete !== undefined ? (
                   <span
-                    className={`rounded-[var(--radius-control)] px-2 py-1 text-xs font-semibold ${
-                      isComplete
-                        ? 'bg-[var(--success-surface)] text-[var(--success)]'
-                        : 'bg-[var(--warning-surface)] text-[var(--warning)]'
-                    }`}
+                    className={`rounded-[var(--radius-control)] px-2 py-1 text-xs font-semibold ${readinessTone(isComplete)}`}
                   >
                     {isComplete ? 'Ready' : 'Needs review'}
                   </span>
@@ -266,27 +399,72 @@ function SmartSection({
               <p className="text-sm leading-6 text-[var(--muted-foreground)]">{description}</p>
             </div>
           </div>
-          <Button
+        </CardHeader>
+        <CardContent className="grid gap-5 p-4 sm:p-5">{children}</CardContent>
+      </Card>
+    </section>
+  );
+}
+
+function SectionNavigation({
+  activeSection,
+  errorCounts,
+  readiness,
+  onNavigate
+}: {
+  activeSection: EditorSection;
+  errorCounts: Record<EditorSection, number>;
+  readiness: Partial<Record<EditorSection, boolean>>;
+  onNavigate: (section: EditorSection) => void;
+}) {
+  return (
+    <nav aria-label="Product form sections" className="grid gap-1">
+      {editorSections.map((section, index) => {
+        const isActive = section.id === activeSection;
+        const errorCount = errorCounts[section.id];
+        return (
+          <button
+            key={section.id}
             type="button"
-            variant={isOpen ? 'secondary' : 'ghost'}
-            className="min-h-9 shrink-0 px-3 text-sm"
-            onClick={onToggle}
-            aria-expanded={isOpen}
-            aria-controls={contentId}
+            aria-current={isActive ? 'step' : undefined}
+            onClick={() => onNavigate(section.id)}
+            className={`group grid min-h-11 grid-cols-[24px_minmax(0,1fr)_24px] items-center gap-2 rounded-[var(--radius-control)] px-2.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 ${
+              isActive
+                ? 'bg-[var(--accent)] text-white'
+                : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]'
+            }`}
           >
-            {isOpen ? 'Collapse' : 'Open'}
-          </Button>
-        </div>
-      </CardHeader>
-      {isOpen ? (
-        <>
-          <Separator />
-          <CardContent id={contentId} className="grid gap-5 p-5">
-            {children}
-          </CardContent>
-        </>
-      ) : null}
-    </Card>
+            <span className={`text-xs tabular-nums ${isActive ? 'text-white/75' : ''}`}>
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <span className="truncate font-semibold">{section.label}</span>
+            <span className="flex justify-end">
+              {errorCount ? (
+                <span
+                  className={`inline-flex min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold ${
+                    isActive
+                      ? 'bg-white text-[var(--destructive)]'
+                      : 'bg-[var(--destructive-surface)] text-[var(--destructive)]'
+                  }`}
+                >
+                  {errorCount}
+                </span>
+              ) : readiness[section.id] ? (
+                <Check
+                  aria-label="Ready"
+                  className={`size-4 ${isActive ? 'text-white' : 'text-[var(--success)]'}`}
+                />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className={`size-1.5 rounded-full ${isActive ? 'bg-white/65' : 'bg-[var(--border)]'}`}
+                />
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -306,14 +484,15 @@ export function ProductForm({
       : null
   );
   const [isPending, startTransition] = useTransition();
-  const [openSections, setOpenSections] = useState<Record<EditorSection, boolean>>({
-    basics: true,
-    content: true,
-    seo: false,
-    pricing: true,
-    taxonomy: false,
-    publish: false
-  });
+  const [activeSection, setActiveSection] = useState<EditorSection>('basics');
+  const [contentLocale, setContentLocale] = useState<CatalogLocale>('vi');
+  const [seoLocale, setSeoLocale] = useState<CatalogLocale>('vi');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [mobileOutlineOpen, setMobileOutlineOpen] = useState(false);
+  const [savedSignature, setSavedSignature] = useState(() =>
+    JSON.stringify(initialProduct ?? draft)
+  );
+  const manualNavigationUntil = useRef(0);
   const productId = draft.productId;
   const blockedIssues = result?.status === 'blocked' ? result.issues : [];
   const viReady = Boolean(
@@ -330,7 +509,6 @@ export function ProductForm({
   );
   const vnOfferReady = draft.offers.vn.enabled && draft.offers.vn.priceMinor !== null;
   const intlOfferReady = draft.offers.intl.enabled && draft.offers.intl.priceMinor !== null;
-  const openSectionCount = editorSections.filter((section) => openSections[section.id]).length;
   const readinessItems = [
     { label: 'Vietnamese copy', ready: viReady },
     { label: 'English copy', ready: enReady },
@@ -338,6 +516,56 @@ export function ProductForm({
     { label: 'International offer', ready: intlOfferReady }
   ];
   const readyItemCount = readinessItems.filter((item) => item.ready).length;
+  const hasUnsavedChanges = JSON.stringify(draft) !== savedSignature;
+  const activeSectionIndex = editorSections.findIndex((section) => section.id === activeSection);
+  const sectionErrorCounts = useMemo(
+    () =>
+      Object.keys(fieldErrors).reduce<Record<EditorSection, number>>(
+        (counts, path) => {
+          counts[sectionForPath(path)] += 1;
+          return counts;
+        },
+        { basics: 0, content: 0, seo: 0, pricing: 0, taxonomy: 0, publish: 0 }
+      ),
+    [fieldErrors]
+  );
+  const contentLocaleErrorCounts = useMemo(
+    () => ({
+      vi: Object.keys(fieldErrors).filter(
+        (path) =>
+          path.startsWith('translations.vi.') &&
+          !path.endsWith('.slug') &&
+          !path.includes('.seoTitle') &&
+          !path.includes('.seoDescription')
+      ).length,
+      en: Object.keys(fieldErrors).filter(
+        (path) =>
+          path.startsWith('translations.en.') &&
+          !path.endsWith('.slug') &&
+          !path.includes('.seoTitle') &&
+          !path.includes('.seoDescription')
+      ).length
+    }),
+    [fieldErrors]
+  );
+  const seoLocaleErrorCounts = useMemo(
+    () => ({
+      vi: Object.keys(fieldErrors).filter(
+        (path) => path.startsWith('translations.vi.') && sectionForPath(path) === 'seo'
+      ).length,
+      en: Object.keys(fieldErrors).filter(
+        (path) => path.startsWith('translations.en.') && sectionForPath(path) === 'seo'
+      ).length
+    }),
+    [fieldErrors]
+  );
+  const sectionReadiness: Partial<Record<EditorSection, boolean>> = {
+    basics: Boolean(draft.productType),
+    content: Boolean(draft.translations.vi.title && draft.translations.en.title),
+    pricing: vnOfferReady || intlOfferReady,
+    seo: viReady && enReady,
+    publish: viReady && enReady && (vnOfferReady || intlOfferReady)
+  };
 
   const selectedCollections = useMemo(
     () =>
@@ -362,6 +590,24 @@ export function ProductForm({
         }
       }
     }));
+    clearFieldError(`translations.${locale}.${field}`);
+  }
+
+  function clearFieldError(path: string) {
+    setFieldErrors((current) => {
+      if (!current[path]) return current;
+      const next = { ...current };
+      delete next[path];
+      return next;
+    });
+  }
+
+  function invalidFieldClass(path: string, base = '') {
+    return `${base} ${
+      fieldErrors[path]
+        ? 'border-[var(--destructive)] ring-2 ring-[var(--destructive)]/15 focus-visible:ring-[var(--destructive)]'
+        : ''
+    }`.trim();
   }
 
   function updateCollectionIds(nextIds: string[]) {
@@ -400,6 +646,7 @@ export function ProductForm({
         }
       }
     }));
+    clearFieldError(`offers.${market}.${field}`);
   }
 
   function generateSlug(locale: CatalogLocale) {
@@ -418,18 +665,106 @@ export function ProductForm({
     );
   }
 
-  function toggleSection(section: EditorSection) {
-    setOpenSections((current) => ({
-      ...current,
-      [section]: !current[section]
-    }));
+  useEffect(() => {
+    const elements = editorSections
+      .map((section) => document.getElementById(section.id))
+      .filter((element): element is HTMLElement => Boolean(element));
+    if (!elements.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (Date.now() < manualNavigationUntil.current) return;
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top));
+        const nextId = visible[0]?.target.id as EditorSection | undefined;
+        if (nextId) setActiveSection(nextId);
+      },
+      { rootMargin: '-112px 0px -68% 0px', threshold: [0, 0.15, 0.4] }
+    );
+
+    elements.forEach((element) => observer.observe(element));
+    const handleBottom = () => {
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 8) {
+        setActiveSection('publish');
+      }
+    };
+    window.addEventListener('scroll', handleBottom, { passive: true });
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', handleBottom);
+    };
+  }, []);
+
+  function navigateToSection(section: EditorSection) {
+    manualNavigationUntil.current = Date.now() + 700;
+    setActiveSection(section);
+    setMobileOutlineOpen(false);
+    document.getElementById(section)?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start'
+    });
+  }
+
+  function navigateToField(path: string) {
+    const section = sectionForPath(path);
+    if (path.startsWith('translations.vi.')) {
+      if (section === 'seo') setSeoLocale('vi');
+      else setContentLocale('vi');
+    }
+    if (path.startsWith('translations.en.')) {
+      if (section === 'seo') setSeoLocale('en');
+      else setContentLocale('en');
+    }
+    manualNavigationUntil.current = Date.now() + 900;
+    setActiveSection(section);
+    setMobileOutlineOpen(false);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const field =
+          document.getElementById(fieldDomId(path)) ??
+          document.getElementById(`${section}-heading`);
+        field?.scrollIntoView({
+          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            ? 'auto'
+            : 'smooth',
+          block: 'center'
+        });
+        window.setTimeout(() => field?.focus({ preventScroll: true }), 250);
+      });
+    });
+  }
+
+  function showValidationIssues(issues: Array<{ path: string; code: string }>) {
+    const nextErrors = issues.reduce<FieldErrors>((errors, issue) => {
+      errors[issue.path] = validationMessage(issue.code, issue.path);
+      return errors;
+    }, {});
+    setFieldErrors(nextErrors);
+    if (issues[0]) navigateToField(issues[0].path);
   }
 
   function saveDraft() {
+    const parsed = productDraftSchema.safeParse(draft);
+    if (!parsed.success) {
+      const issues = parsed.error.issues.map((issue) => ({
+        path: issue.path.join('.'),
+        code: issue.message
+      }));
+      setResult({ status: 'invalid', issues });
+      showValidationIssues(issues);
+      return;
+    }
+
     startTransition(async () => {
       const actionResult = await saveProductDraftAction(draft);
       setResult(actionResult);
+      if (actionResult.status === 'invalid') {
+        showValidationIssues(actionResult.issues);
+      }
       if (actionResult.status === 'saved') {
+        setFieldErrors({});
+        setSavedSignature(JSON.stringify(draft));
         if (!draft.productId) {
           setDraft((current) => ({ ...current, productId: actionResult.productId }));
           window.location.assign(`/admin/catalog/${actionResult.productId}?saved=1`);
@@ -446,18 +781,27 @@ export function ProductForm({
         status: 'invalid',
         issues: [{ path: 'productId', code: 'save_before_publish' }]
       });
+      showValidationIssues([{ path: 'productId', code: 'save_before_publish' }]);
       return;
     }
     startTransition(async () => {
       const actionResult = await publishProductAction(productId);
       setResult(actionResult);
+      if (actionResult.status === 'blocked') {
+        showValidationIssues(
+          actionResult.issues.map((issue) => ({
+            path: pathForPublishIssue(issue),
+            code: issue.code
+          }))
+        );
+      }
       router.refresh();
     });
   }
 
   return (
     <form
-      className="space-y-6"
+      className="space-y-5 pb-24 lg:space-y-6 lg:pb-0"
       onSubmit={(event) => {
         event.preventDefault();
         saveDraft();
@@ -484,53 +828,63 @@ export function ProductForm({
         </Alert>
       ) : null}
 
-      <Card className="sticky top-4 z-20 border-[var(--accent)]/20 bg-[var(--surface)]/95 p-3 shadow-[0_18px_50px_rgba(92,48,26,0.10)] backdrop-blur">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--muted-foreground)]">
-              <span>{productId ? 'Saved draft' : 'New draft'}</span>
-              <span aria-hidden="true">/</span>
-              <span>{draft.productType === 'pdf_pattern' ? 'PDF pattern' : 'Handmade item'}</span>
-              <span aria-hidden="true">/</span>
-              <span>
-                {readyItemCount} of {readinessItems.length} checks ready
-              </span>
-            </div>
-            <p className="mt-1 text-sm font-semibold text-[var(--foreground)]">
-              Product editor workspace
+      <div className="sticky top-20 z-20 lg:hidden">
+        <div className="flex items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--border)]/80 bg-[var(--surface)]/95 p-2.5 shadow-[0_12px_30px_rgba(92,48,26,0.10)] backdrop-blur">
+          <div className="min-w-0 px-1">
+            <p className="truncate text-sm font-semibold">
+              {editorSections[activeSectionIndex]?.label}
+            </p>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Section {activeSectionIndex + 1} of {editorSections.length}
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Button type="submit" disabled={isPending} className="sm:min-w-32">
-              Save draft
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={isPending || !productId}
-              onClick={publishProduct}
-              className="sm:min-w-36"
-            >
-              Publish product
-            </Button>
-          </div>
+          <Sheet
+            open={mobileOutlineOpen}
+            onOpenChange={setMobileOutlineOpen}
+            triggerLabel="Open section navigator"
+            title="Product editor"
+            showTriggerLabel
+            triggerIcon={<ListTree aria-hidden="true" className="size-4" />}
+            triggerClassName="min-h-10 shrink-0 px-3 text-sm"
+            bodyClassName="grid content-start gap-5"
+          >
+            <div className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-3 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-semibold">{productId ? 'Saved draft' : 'New draft'}</span>
+                <span
+                  className={hasUnsavedChanges ? 'text-[var(--warning)]' : 'text-[var(--success)]'}
+                >
+                  {hasUnsavedChanges ? 'Unsaved' : 'Saved'}
+                </span>
+              </div>
+              <p className="mt-1 text-[var(--muted-foreground)]">
+                {readyItemCount}/{readinessItems.length} readiness checks complete
+              </p>
+            </div>
+            <SectionNavigation
+              activeSection={activeSection}
+              errorCounts={sectionErrorCounts}
+              readiness={sectionReadiness}
+              onNavigate={navigateToSection}
+            />
+          </Sheet>
         </div>
-      </Card>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="space-y-5">
-          <SmartSection
+          <EditorFormSection
             id="basics"
             index={1}
             title="Product basics"
             description="Type and draft state"
             isComplete={Boolean(draft.productType)}
-            isOpen={openSections.basics}
-            onToggle={() => toggleSection('basics')}
+            isActive={activeSection === 'basics'}
+            errorCount={sectionErrorCounts.basics}
           >
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
               <div className="block space-y-2">
-                <Label>Product type</Label>
+                <Label htmlFor="product-type">Product type</Label>
                 <Select
                   value={draft.productType}
                   onValueChange={(value) =>
@@ -540,7 +894,7 @@ export function ProductForm({
                     }))
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="product-type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -558,161 +912,185 @@ export function ProductForm({
                 </p>
               </div>
             </div>
-          </SmartSection>
+          </EditorFormSection>
 
-          <SmartSection
+          <EditorFormSection
             id="content"
             index={2}
             title="Content"
             description="Vietnamese and English copy"
-            isComplete={viReady && enReady}
-            isOpen={openSections.content}
-            onToggle={() => toggleSection('content')}
+            isComplete={sectionReadiness.content}
+            isActive={activeSection === 'content'}
+            errorCount={sectionErrorCounts.content}
           >
-            {(['vi', 'en'] as const).map((locale) => {
+            <LocaleTabs
+              value={contentLocale}
+              onChange={setContentLocale}
+              errorCounts={contentLocaleErrorCounts}
+              panel="content"
+            />
+            {(() => {
+              const locale = contentLocale;
               const label = locale === 'vi' ? 'Vietnamese' : 'English';
               const translation = draft.translations[locale];
+              const titlePath = `translations.${locale}.title`;
+              const descriptionPath = `translations.${locale}.description`;
+              const specificationsPath = `translations.${locale}.specifications`;
               return (
                 <div
-                  key={locale}
-                  id={`${locale}-content`}
-                  className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-4"
+                  role="tabpanel"
+                  id={`${locale}-content-panel`}
+                  aria-labelledby={`${locale}-content-tab`}
+                  className="grid gap-4 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/70 p-4"
                 >
-                  <div className="mb-4">
+                  <div>
                     <h3 className="text-base font-semibold">{label} content</h3>
                     <p className="mt-1 text-sm text-[var(--muted-foreground)]">
                       Product-facing copy and specification notes for this locale.
                     </p>
                   </div>
-                  <div className="grid gap-4">
-                    <label className="space-y-2">
-                      <span className="font-semibold">{label} title</span>
-                      <Input
-                        value={translation.title}
-                        onChange={(event) => updateTranslation(locale, 'title', event.target.value)}
-                      />
-                    </label>
-                    <label className="space-y-2">
-                      <span className="font-semibold">{label} description</span>
-                      <Textarea
-                        className="min-h-28"
-                        value={translation.description}
-                        onChange={(event) =>
-                          updateTranslation(locale, 'description', event.target.value)
-                        }
-                      />
-                    </label>
-                    <label className="space-y-2">
-                      <span className="font-semibold">{label} specifications JSON</span>
-                      <Textarea
-                        className="min-h-20 font-mono text-sm"
-                        value={String(translation.specifications)}
-                        onChange={(event) =>
-                          updateTranslation(locale, 'specifications', event.target.value)
-                        }
-                      />
-                    </label>
-                  </div>
+                  <label className="grid gap-2">
+                    <span className="font-semibold">{label} title</span>
+                    <Input
+                      id={fieldDomId(titlePath)}
+                      aria-invalid={Boolean(fieldErrors[titlePath])}
+                      aria-describedby={
+                        fieldErrors[titlePath] ? `${fieldDomId(titlePath)}-error` : undefined
+                      }
+                      className={invalidFieldClass(titlePath)}
+                      value={translation.title}
+                      onChange={(event) => updateTranslation(locale, 'title', event.target.value)}
+                    />
+                    <FieldError path={titlePath} errors={fieldErrors} />
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="font-semibold">{label} description</span>
+                    <Textarea
+                      id={fieldDomId(descriptionPath)}
+                      aria-invalid={Boolean(fieldErrors[descriptionPath])}
+                      aria-describedby={
+                        fieldErrors[descriptionPath]
+                          ? `${fieldDomId(descriptionPath)}-error`
+                          : undefined
+                      }
+                      className={invalidFieldClass(descriptionPath, 'min-h-32')}
+                      value={translation.description}
+                      onChange={(event) =>
+                        updateTranslation(locale, 'description', event.target.value)
+                      }
+                    />
+                    <FieldError path={descriptionPath} errors={fieldErrors} />
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="font-semibold">{label} specifications JSON</span>
+                    <Textarea
+                      id={fieldDomId(specificationsPath)}
+                      aria-invalid={Boolean(fieldErrors[specificationsPath])}
+                      aria-describedby={
+                        fieldErrors[specificationsPath]
+                          ? `${fieldDomId(specificationsPath)}-error`
+                          : undefined
+                      }
+                      className={invalidFieldClass(
+                        specificationsPath,
+                        'min-h-24 font-mono text-sm'
+                      )}
+                      value={String(translation.specifications)}
+                      onChange={(event) =>
+                        updateTranslation(locale, 'specifications', event.target.value)
+                      }
+                    />
+                    <FieldError path={specificationsPath} errors={fieldErrors} />
+                  </label>
                 </div>
               );
-            })}
-          </SmartSection>
+            })()}
+          </EditorFormSection>
 
-          <SmartSection
-            id="seo"
+          <EditorFormSection
+            id="pricing"
             index={3}
-            title="SEO"
-            description="Slugs and search snippets"
-            isComplete={viReady && enReady}
-            isOpen={openSections.seo}
-            onToggle={() => toggleSection('seo')}
+            title="Market offers"
+            description="Availability and pricing by market"
+            isComplete={sectionReadiness.pricing}
+            isActive={activeSection === 'pricing'}
+            errorCount={sectionErrorCounts.pricing}
           >
-            {(['vi', 'en'] as const).map((locale) => {
-              const label = locale === 'vi' ? 'Vietnamese' : 'English';
-              const translation = draft.translations[locale];
-              return (
+            <div className="grid gap-3">
+              {[
+                {
+                  key: 'vn' as const,
+                  label: 'Vietnam',
+                  currency: 'VND',
+                  ready: vnOfferReady
+                },
+                {
+                  key: 'intl' as const,
+                  label: 'International',
+                  currency: 'USD cents',
+                  ready: intlOfferReady
+                }
+              ].map((market) => (
                 <div
-                  key={`${locale}-seo`}
-                  id={`${locale}-seo`}
-                  className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-4"
+                  key={market.key}
+                  className="grid gap-3 rounded-[var(--radius-control)] border border-[var(--border)] p-3 lg:grid-cols-[1fr_160px_220px_150px] lg:items-center"
                 >
-                  <div className="mb-4">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
-                        <h3 className="text-base font-semibold">{label} SEO</h3>
-                        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-                          Keep storefront URLs and search snippets ready without repeating copy by
-                          hand.
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="min-h-9 px-3 text-xs"
-                          onClick={() => generateSlug(locale)}
-                        >
-                          Generate slug
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="min-h-9 px-3 text-xs"
-                          onClick={() => copyTitleToSeo(locale)}
-                        >
-                          Title to SEO
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="min-h-9 px-3 text-xs"
-                          onClick={() => summarizeDescriptionToSeo(locale)}
-                        >
-                          Summary to SEO
-                        </Button>
-                      </div>
-                    </div>
+                  <div>
+                    <p className="font-semibold">{market.label}</p>
+                    <p className="text-sm text-[var(--muted-foreground)]">{market.currency}</p>
                   </div>
-                  <div className="grid gap-4">
-                    <label className="space-y-2">
-                      <span className="font-semibold">{label} slug</span>
-                      <Input
-                        value={translation.slug}
-                        onChange={(event) => updateTranslation(locale, 'slug', event.target.value)}
-                      />
-                    </label>
-                    <label className="space-y-2">
-                      <span className="font-semibold">{label} SEO title</span>
-                      <Input
-                        value={translation.seoTitle}
-                        onChange={(event) =>
-                          updateTranslation(locale, 'seoTitle', event.target.value)
-                        }
-                      />
-                    </label>
-                    <label className="space-y-2">
-                      <span className="font-semibold">{label} SEO description</span>
-                      <Textarea
-                        className="min-h-20"
-                        value={translation.seoDescription}
-                        onChange={(event) =>
-                          updateTranslation(locale, 'seoDescription', event.target.value)
-                        }
-                      />
-                    </label>
-                  </div>
+                  <Toggle
+                    pressed={draft.offers[market.key].enabled}
+                    onPressedChange={(pressed) => updateOffer(market.key, 'enabled', pressed)}
+                    aria-label={`${market.label} market enabled`}
+                    className="min-h-10 justify-self-start border border-[var(--border)] px-3 text-sm data-[state=on]:border-[var(--accent)] data-[state=on]:bg-[var(--accent)] data-[state=on]:text-white"
+                  >
+                    <Check
+                      aria-hidden="true"
+                      className={`mr-2 size-4 ${
+                        draft.offers[market.key].enabled ? 'opacity-100' : 'opacity-0'
+                      }`}
+                    />
+                    {draft.offers[market.key].enabled ? 'Enabled' : 'Enable'}
+                  </Toggle>
+                  <label className="space-y-1">
+                    <span className="text-sm font-semibold">Price</span>
+                    <Input
+                      id={fieldDomId(`offers.${market.key}.priceMinor`)}
+                      aria-label={`${market.label} price in ${market.currency}`}
+                      type="number"
+                      min="0"
+                      aria-invalid={Boolean(fieldErrors[`offers.${market.key}.priceMinor`])}
+                      aria-describedby={
+                        fieldErrors[`offers.${market.key}.priceMinor`]
+                          ? `${fieldDomId(`offers.${market.key}.priceMinor`)}-error`
+                          : undefined
+                      }
+                      className={invalidFieldClass(`offers.${market.key}.priceMinor`, 'min-h-10')}
+                      value={draft.offers[market.key].priceMinor ?? ''}
+                      onChange={(event) =>
+                        updateOffer(market.key, 'priceMinor', numberOrNull(event.target.value))
+                      }
+                    />
+                    <FieldError path={`offers.${market.key}.priceMinor`} errors={fieldErrors} />
+                  </label>
+                  <span
+                    className={`rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold ${readinessTone(market.ready)}`}
+                  >
+                    {market.ready ? 'Ready' : 'Needs price'}
+                  </span>
                 </div>
-              );
-            })}
-          </SmartSection>
+              ))}
+            </div>
+          </EditorFormSection>
 
-          <SmartSection
+          <EditorFormSection
             id="taxonomy"
             index={4}
             title="Taxonomy and collections"
             description="Search, select, and order catalog grouping"
-            isOpen={openSections.taxonomy}
-            onToggle={() => toggleSection('taxonomy')}
+            isActive={activeSection === 'taxonomy'}
+            errorCount={sectionErrorCounts.taxonomy}
           >
             <div className="grid gap-4 lg:grid-cols-3">
               <OptionMultiSelect
@@ -756,6 +1134,7 @@ export function ProductForm({
                     >
                       <span className="font-semibold">{option?.label ?? 'Collection'}</span>
                       <Input
+                        aria-label={`${option?.label ?? 'Collection'} display order`}
                         type="number"
                         min="0"
                         className="min-h-10"
@@ -769,80 +1148,143 @@ export function ProductForm({
                 })}
               </div>
             ) : null}
-          </SmartSection>
+          </EditorFormSection>
 
-          <SmartSection
-            id="offers"
+          <EditorFormSection
+            id="seo"
             index={5}
-            title="Market offers"
-            description="Availability and pricing by market"
-            isComplete={vnOfferReady || intlOfferReady}
-            isOpen={openSections.pricing}
-            onToggle={() => toggleSection('pricing')}
+            title="SEO"
+            description="Slugs and search snippets"
+            isComplete={sectionReadiness.seo}
+            isActive={activeSection === 'seo'}
+            errorCount={sectionErrorCounts.seo}
           >
-            <div className="grid gap-3">
-              {[
-                {
-                  key: 'vn' as const,
-                  label: 'Vietnam',
-                  currency: 'VND',
-                  ready: vnOfferReady
-                },
-                {
-                  key: 'intl' as const,
-                  label: 'International',
-                  currency: 'USD cents',
-                  ready: intlOfferReady
-                }
-              ].map((market) => (
+            <LocaleTabs
+              value={seoLocale}
+              onChange={setSeoLocale}
+              errorCounts={seoLocaleErrorCounts}
+              panel="seo"
+            />
+            {(() => {
+              const locale = seoLocale;
+              const label = locale === 'vi' ? 'Vietnamese' : 'English';
+              const translation = draft.translations[locale];
+              const slugPath = `translations.${locale}.slug`;
+              const titlePath = `translations.${locale}.seoTitle`;
+              const descriptionPath = `translations.${locale}.seoDescription`;
+              return (
                 <div
-                  key={market.key}
-                  className="grid gap-3 rounded-[var(--radius-control)] border border-[var(--border)] p-3 lg:grid-cols-[1fr_160px_220px_150px] lg:items-center"
+                  role="tabpanel"
+                  id={`${locale}-seo-panel`}
+                  aria-labelledby={`${locale}-seo-tab`}
+                  className="grid gap-4 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/70 p-4"
                 >
-                  <div>
-                    <p className="font-semibold">{market.label}</p>
-                    <p className="text-sm text-[var(--muted-foreground)]">{market.currency}</p>
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                    <div>
+                      <h3 className="text-base font-semibold">{label} search preview</h3>
+                      <p className="mt-1 max-w-xl text-sm text-[var(--muted-foreground)]">
+                        Prepare the localized URL and search result without retyping product copy.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="min-h-9 px-3 text-xs"
+                        onClick={() => generateSlug(locale)}
+                      >
+                        Generate slug
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="min-h-9 px-3 text-xs"
+                        onClick={() => copyTitleToSeo(locale)}
+                      >
+                        Use product title
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="min-h-9 px-3 text-xs"
+                        onClick={() => summarizeDescriptionToSeo(locale)}
+                      >
+                        Use summary
+                      </Button>
+                    </div>
                   </div>
-                  <label className="flex items-center gap-2 text-sm font-semibold">
-                    <input
-                      type="checkbox"
-                      checked={draft.offers[market.key].enabled}
-                      onChange={(event) => updateOffer(market.key, 'enabled', event.target.checked)}
-                    />
-                    Enabled
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-sm font-semibold">Price</span>
+                  <label className="grid gap-2">
+                    <span className="font-semibold">{label} slug</span>
                     <Input
-                      type="number"
-                      min="0"
-                      className="min-h-10"
-                      value={draft.offers[market.key].priceMinor ?? ''}
+                      id={fieldDomId(slugPath)}
+                      aria-invalid={Boolean(fieldErrors[slugPath])}
+                      aria-describedby={
+                        fieldErrors[slugPath] ? `${fieldDomId(slugPath)}-error` : undefined
+                      }
+                      className={invalidFieldClass(slugPath)}
+                      value={translation.slug}
+                      onChange={(event) => updateTranslation(locale, 'slug', event.target.value)}
+                    />
+                    <FieldError path={slugPath} errors={fieldErrors} />
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="font-semibold">{label} SEO title</span>
+                    <Input
+                      id={fieldDomId(titlePath)}
+                      aria-invalid={Boolean(fieldErrors[titlePath])}
+                      aria-describedby={
+                        fieldErrors[titlePath] ? `${fieldDomId(titlePath)}-error` : undefined
+                      }
+                      className={invalidFieldClass(titlePath)}
+                      value={translation.seoTitle}
                       onChange={(event) =>
-                        updateOffer(market.key, 'priceMinor', numberOrNull(event.target.value))
+                        updateTranslation(locale, 'seoTitle', event.target.value)
                       }
                     />
+                    <FieldError path={titlePath} errors={fieldErrors} />
                   </label>
-                  <span
-                    className={`rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold ${readinessTone(market.ready)}`}
-                  >
-                    {market.ready ? 'Ready' : 'Needs price'}
-                  </span>
+                  <label className="grid gap-2">
+                    <span className="font-semibold">{label} SEO description</span>
+                    <Textarea
+                      id={fieldDomId(descriptionPath)}
+                      aria-invalid={Boolean(fieldErrors[descriptionPath])}
+                      aria-describedby={
+                        fieldErrors[descriptionPath]
+                          ? `${fieldDomId(descriptionPath)}-error`
+                          : undefined
+                      }
+                      className={invalidFieldClass(descriptionPath, 'min-h-24')}
+                      value={translation.seoDescription}
+                      onChange={(event) =>
+                        updateTranslation(locale, 'seoDescription', event.target.value)
+                      }
+                    />
+                    <FieldError path={descriptionPath} errors={fieldErrors} />
+                  </label>
                 </div>
-              ))}
-            </div>
-          </SmartSection>
+              );
+            })()}
+          </EditorFormSection>
 
-          <SmartSection
+          <EditorFormSection
             id="publish"
             index={6}
             title="Publish checklist"
             description="Readiness and next workflows"
-            isComplete={viReady && enReady && (vnOfferReady || intlOfferReady)}
-            isOpen={openSections.publish}
-            onToggle={() => toggleSection('publish')}
+            isComplete={sectionReadiness.publish}
+            isActive={activeSection === 'publish'}
+            errorCount={sectionErrorCounts.publish}
           >
             <div className="grid gap-3 text-sm">
+              {fieldErrors.productId ? (
+                <p
+                  id={`${fieldDomId('productId')}-error`}
+                  role="alert"
+                  className="rounded-[var(--radius-control)] bg-[var(--destructive-surface)] p-3 font-semibold text-[var(--destructive)]"
+                >
+                  {fieldErrors.productId}
+                </p>
+              ) : null}
               <p className="text-[var(--muted-foreground)]">
                 Use this checkpoint before publishing. Media, private PDF, and inventory stay in
                 their dedicated workflows so the main editor remains fast.
@@ -869,116 +1311,142 @@ export function ProductForm({
                   International offer {intlOfferReady ? 'ready' : 'off or missing price'}
                 </span>
               </div>
-            </div>
-          </SmartSection>
-        </div>
-
-        <aside className="lg:sticky lg:top-24">
-          <Card className="overflow-hidden p-0">
-            <div className="bg-[var(--surface-muted)] px-5 py-4">
-              <p className="text-xs font-semibold text-[var(--muted-foreground)]">Control panel</p>
-              <CardTitle className="mt-1 text-lg">
-                {productId ? 'Draft in progress' : 'New catalog item'}
-              </CardTitle>
-            </div>
-            <CardContent className="grid gap-5 p-5">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="rounded-[var(--radius-control)] bg-[var(--background)] p-3">
-                  <p className="text-xs font-semibold text-[var(--muted-foreground)]">Checks</p>
-                  <p className="mt-1 text-lg font-semibold tabular-nums">
-                    {readyItemCount}/{readinessItems.length}
-                  </p>
-                </div>
-                <div className="rounded-[var(--radius-control)] bg-[var(--background)] p-3">
-                  <p className="text-xs font-semibold text-[var(--muted-foreground)]">Open</p>
-                  <p className="mt-1 text-lg font-semibold tabular-nums">
-                    {openSectionCount}/{editorSections.length}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-2 text-sm">
-                <p className="font-semibold">Readiness</p>
-                {readinessItems.map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-center justify-between gap-3 rounded-[var(--radius-control)] bg-[var(--background)] px-3 py-2"
+              {productId ? (
+                <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--border)]/65 pt-3">
+                  <Link
+                    className="font-semibold text-[var(--accent)]"
+                    href={`/admin/catalog/${productId}/media`}
                   >
-                    <span className="text-[var(--muted-foreground)]">{item.label}</span>
-                    <span
-                      className={`size-2.5 rounded-full ${
-                        item.ready ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'
-                      }`}
-                      aria-label={item.ready ? 'Ready' : 'Needs review'}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {blockedIssues.length ? (
-                <div className="rounded-[var(--radius-control)] bg-[var(--warning-surface)] p-3">
-                  <p className="font-semibold text-[var(--warning)]">Publish blockers</p>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[var(--muted-foreground)]">
-                    {blockedIssues.slice(0, 6).map((issue, index) => (
-                      <li key={`${issue.code}-${issue.locale ?? 'all'}-${index}`}>
-                        {blockerLabel(issue.code, issue.locale)}
-                      </li>
-                    ))}
-                  </ul>
+                    Manage media and PDF
+                  </Link>
+                  <Link
+                    className="font-semibold text-[var(--accent)]"
+                    href={`/admin/catalog/${productId}/variants`}
+                  >
+                    Manage variants and inventory
+                  </Link>
                 </div>
               ) : null}
+            </div>
+          </EditorFormSection>
+        </div>
+
+        <aside className="hidden lg:sticky lg:top-20 lg:block lg:h-[calc(100dvh-6rem)]">
+          <Card className="flex h-full max-h-full flex-col overflow-hidden p-0">
+            <div className="border-b border-[var(--border)]/65 bg-[var(--surface-muted)]/75 px-4 py-3.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-[var(--muted-foreground)]">
+                    {productId ? 'Draft in progress' : 'New catalog item'}
+                  </p>
+                  <CardTitle className="mt-1 truncate text-base">
+                    {draft.translations.vi.title ||
+                      draft.translations.en.title ||
+                      'Untitled product'}
+                  </CardTitle>
+                </div>
+                <span
+                  className={`shrink-0 rounded-[var(--radius-control)] px-2 py-1 text-xs font-semibold ${
+                    hasUnsavedChanges
+                      ? 'bg-[var(--warning-surface)] text-[var(--warning)]'
+                      : 'bg-[var(--success-surface)] text-[var(--success)]'
+                  }`}
+                >
+                  {hasUnsavedChanges ? 'Unsaved' : 'Saved'}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
+                <span>{draft.productType === 'pdf_pattern' ? 'PDF pattern' : 'Handmade item'}</span>
+                <span aria-hidden="true">/</span>
+                <span className="tabular-nums">
+                  {readyItemCount}/{readinessItems.length} checks
+                </span>
+                {blockedIssues.length ? (
+                  <>
+                    <span aria-hidden="true">/</span>
+                    <button
+                      type="button"
+                      className="font-semibold text-[var(--warning)]"
+                      onClick={() => navigateToSection('publish')}
+                    >
+                      {blockedIssues.length} blockers
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
+
+            <CardContent className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3.5">
+              <SectionNavigation
+                activeSection={activeSection}
+                errorCounts={sectionErrorCounts}
+                readiness={sectionReadiness}
+                onNavigate={navigateToSection}
+              />
 
               <Separator />
 
-              <div className="grid gap-2">
-                <p className="text-sm font-semibold">Workflows</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-2 px-1 text-sm">
                 {productId ? (
                   <>
                     <Link
-                      className="inline-flex min-h-10 items-center justify-between rounded-[var(--radius-control)] border border-[var(--border)] px-3 text-sm font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                      className="font-semibold text-[var(--muted-foreground)] transition-colors hover:text-[var(--accent)]"
                       href={`/admin/catalog/${productId}/media`}
                     >
-                      Media and private PDF
-                      <span aria-hidden="true">-&gt;</span>
+                      Media and PDF
                     </Link>
                     <Link
-                      className="inline-flex min-h-10 items-center justify-between rounded-[var(--radius-control)] border border-[var(--border)] px-3 text-sm font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                      className="font-semibold text-[var(--muted-foreground)] transition-colors hover:text-[var(--accent)]"
                       href={`/admin/catalog/${productId}/variants`}
                     >
                       Variants and inventory
-                      <span aria-hidden="true">-&gt;</span>
                     </Link>
                   </>
                 ) : (
-                  <p className="text-sm text-[var(--muted-foreground)]">
+                  <p className="text-xs leading-5 text-[var(--muted-foreground)]">
                     Save once to unlock media, PDF, variants, and inventory.
                   </p>
                 )}
               </div>
 
-              <Separator />
-
-              <div className="grid gap-2">
-                <p className="text-sm font-semibold">Sections</p>
-                {editorSections.map((section, index) => (
-                  <Button
-                    key={section.id}
-                    type="button"
-                    variant={openSections[section.id] ? 'secondary' : 'ghost'}
-                    onClick={() => toggleSection(section.id)}
-                    className="min-h-10 justify-start gap-3 px-3 text-left text-sm"
-                    aria-expanded={openSections[section.id]}
-                  >
-                    <span className="text-xs tabular-nums text-[var(--muted-foreground)]">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <span>{section.label}</span>
-                  </Button>
-                ))}
+              <div className="mt-auto grid gap-2 border-t border-[var(--border)]/65 pt-3">
+                <Button type="submit" disabled={isPending} className="gap-2 text-sm">
+                  <Save aria-hidden="true" className="size-4" />
+                  {isPending ? 'Saving...' : 'Save draft'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={isPending || !productId}
+                  onClick={publishProduct}
+                  className="gap-2 text-sm"
+                >
+                  <Send aria-hidden="true" className="size-4" />
+                  Publish product
+                </Button>
               </div>
             </CardContent>
           </Card>
         </aside>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)]/75 bg-[var(--surface)]/96 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 shadow-[0_-12px_30px_rgba(92,48,26,0.10)] backdrop-blur lg:hidden">
+        <div className="mx-auto grid max-w-xl grid-cols-2 gap-2">
+          <Button type="submit" disabled={isPending} className="gap-2 text-sm">
+            <Save aria-hidden="true" className="size-4" />
+            {isPending ? 'Saving...' : 'Save draft'}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={isPending || !productId}
+            onClick={publishProduct}
+            className="gap-2 text-sm"
+          >
+            <Send aria-hidden="true" className="size-4" />
+            Publish
+          </Button>
+        </div>
       </div>
     </form>
   );
