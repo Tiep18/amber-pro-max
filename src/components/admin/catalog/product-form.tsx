@@ -15,7 +15,17 @@ import type { CatalogLocale, ProductType } from '@/catalog/types';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 
 export type CatalogOption = {
   id: string;
@@ -111,11 +121,11 @@ function seoDescriptionFrom(value: string) {
 
 const editorSections: Array<{ id: EditorSection; label: string; description: string }> = [
   { id: 'basics', label: 'Basics', description: 'Type and draft state' },
-  { id: 'content', label: 'Content', description: 'Vietnamese and English copy' },
-  { id: 'seo', label: 'SEO', description: 'Slugs and search snippets' },
-  { id: 'pricing', label: 'Pricing', description: 'Market offers and prices' },
-  { id: 'taxonomy', label: 'Taxonomy', description: 'Categories, tags, collections' },
-  { id: 'publish', label: 'Publish', description: 'Readiness and next workflows' }
+  { id: 'content', label: 'Content', description: 'Bilingual product copy' },
+  { id: 'seo', label: 'SEO', description: 'Slugs and snippets' },
+  { id: 'pricing', label: 'Offers', description: 'Market availability' },
+  { id: 'taxonomy', label: 'Taxonomy', description: 'Catalog grouping' },
+  { id: 'publish', label: 'Publish', description: 'Final checks' }
 ];
 
 function OptionChip({ label, onRemove }: { label: string; onRemove: () => void }) {
@@ -176,10 +186,10 @@ function OptionMultiSelect({
             </span>
           )}
         </div>
-        <input
+        <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          className="min-h-10 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 text-sm"
+          className="min-h-10 text-sm"
           placeholder={`Search ${label.toLowerCase()}`}
         />
         {available.length ? (
@@ -206,15 +216,19 @@ function OptionMultiSelect({
 
 function SmartSection({
   id,
+  index,
   title,
   description,
+  isComplete,
   isOpen,
   onToggle,
   children
 }: {
   id: string;
+  index: number;
   title: string;
   description: string;
+  isComplete?: boolean;
   isOpen: boolean;
   onToggle: () => void;
   children: ReactNode;
@@ -222,22 +236,47 @@ function SmartSection({
   const contentId = `${id}-content`;
 
   return (
-    <Card id={id} className="scroll-mt-24 p-0">
-      <CardHeader className="mb-0 flex flex-row items-start justify-between gap-4 p-5">
-        <div className="min-w-0 space-y-1">
-          <CardTitle className="text-base">{title}</CardTitle>
-          <p className="text-sm leading-6 text-[var(--muted-foreground)]">{description}</p>
+    <Card
+      id={id}
+      className={`scroll-mt-28 overflow-hidden p-0 transition-colors ${
+        isOpen ? 'bg-[var(--surface)]' : 'bg-[var(--surface-muted)]/70'
+      }`}
+    >
+      <CardHeader className="mb-0 p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-[var(--background)] text-sm font-semibold tabular-nums text-[var(--muted-foreground)]">
+              {String(index).padStart(2, '0')}
+            </span>
+            <div className="min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <CardTitle className="text-base">{title}</CardTitle>
+                {isComplete !== undefined ? (
+                  <span
+                    className={`rounded-[var(--radius-control)] px-2 py-1 text-xs font-semibold ${
+                      isComplete
+                        ? 'bg-[var(--success-surface)] text-[var(--success)]'
+                        : 'bg-[var(--warning-surface)] text-[var(--warning)]'
+                    }`}
+                  >
+                    {isComplete ? 'Ready' : 'Needs review'}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-sm leading-6 text-[var(--muted-foreground)]">{description}</p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant={isOpen ? 'secondary' : 'ghost'}
+            className="min-h-9 shrink-0 px-3 text-sm"
+            onClick={onToggle}
+            aria-expanded={isOpen}
+            aria-controls={contentId}
+          >
+            {isOpen ? 'Collapse' : 'Open'}
+          </Button>
         </div>
-        <Button
-          type="button"
-          variant={isOpen ? 'secondary' : 'ghost'}
-          className="min-h-9 shrink-0 px-3 text-sm"
-          onClick={onToggle}
-          aria-expanded={isOpen}
-          aria-controls={contentId}
-        >
-          {isOpen ? 'Hide' : 'Show'}
-        </Button>
       </CardHeader>
       {isOpen ? (
         <>
@@ -291,6 +330,14 @@ export function ProductForm({
   );
   const vnOfferReady = draft.offers.vn.enabled && draft.offers.vn.priceMinor !== null;
   const intlOfferReady = draft.offers.intl.enabled && draft.offers.intl.priceMinor !== null;
+  const openSectionCount = editorSections.filter((section) => openSections[section.id]).length;
+  const readinessItems = [
+    { label: 'Vietnamese copy', ready: viReady },
+    { label: 'English copy', ready: enReady },
+    { label: 'Vietnam offer', ready: vnOfferReady },
+    { label: 'International offer', ready: intlOfferReady }
+  ];
+  const readyItemCount = readinessItems.filter((item) => item.ready).length;
 
   const selectedCollections = useMemo(
     () =>
@@ -437,32 +484,71 @@ export function ProductForm({
         </Alert>
       ) : null}
 
+      <Card className="sticky top-4 z-20 border-[var(--accent)]/20 bg-[var(--surface)]/95 p-3 shadow-[0_18px_50px_rgba(92,48,26,0.10)] backdrop-blur">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--muted-foreground)]">
+              <span>{productId ? 'Saved draft' : 'New draft'}</span>
+              <span aria-hidden="true">/</span>
+              <span>{draft.productType === 'pdf_pattern' ? 'PDF pattern' : 'Handmade item'}</span>
+              <span aria-hidden="true">/</span>
+              <span>
+                {readyItemCount} of {readinessItems.length} checks ready
+              </span>
+            </div>
+            <p className="mt-1 text-sm font-semibold text-[var(--foreground)]">
+              Product editor workspace
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button type="submit" disabled={isPending} className="sm:min-w-32">
+              Save draft
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isPending || !productId}
+              onClick={publishProduct}
+              className="sm:min-w-36"
+            >
+              Publish product
+            </Button>
+          </div>
+        </div>
+      </Card>
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="space-y-5">
           <SmartSection
             id="basics"
+            index={1}
             title="Product basics"
             description="Type and draft state"
+            isComplete={Boolean(draft.productType)}
             isOpen={openSections.basics}
             onToggle={() => toggleSection('basics')}
           >
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-              <label className="block space-y-2">
-                <span className="font-semibold">Product type</span>
-                <select
-                  className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-white px-3"
+              <div className="block space-y-2">
+                <Label>Product type</Label>
+                <Select
                   value={draft.productType}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     setDraft((current) => ({
                       ...current,
-                      productType: event.target.value as ProductType
+                      productType: value as ProductType
                     }))
                   }
                 >
-                  <option value="pdf_pattern">PDF pattern</option>
-                  <option value="physical_finished">Physical finished good</option>
-                </select>
-              </label>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pdf_pattern">PDF pattern</SelectItem>
+                    <SelectItem value="physical_finished">Physical finished good</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-3 text-sm">
                 <p className="font-semibold">{productId ? 'Saved draft' : 'New draft'}</p>
                 <p className="mt-1 text-[var(--muted-foreground)]">
@@ -476,8 +562,10 @@ export function ProductForm({
 
           <SmartSection
             id="content"
+            index={2}
             title="Content"
             description="Vietnamese and English copy"
+            isComplete={viReady && enReady}
             isOpen={openSections.content}
             onToggle={() => toggleSection('content')}
           >
@@ -485,26 +573,29 @@ export function ProductForm({
               const label = locale === 'vi' ? 'Vietnamese' : 'English';
               const translation = draft.translations[locale];
               return (
-                <Card key={locale} id={`${locale}-content`}>
-                  <CardHeader>
-                    <CardTitle>{label} content</CardTitle>
+                <div
+                  key={locale}
+                  id={`${locale}-content`}
+                  className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-4"
+                >
+                  <div className="mb-4">
+                    <h3 className="text-base font-semibold">{label} content</h3>
                     <p className="mt-1 text-sm text-[var(--muted-foreground)]">
                       Product-facing copy and specification notes for this locale.
                     </p>
-                  </CardHeader>
-                  <CardContent className="grid gap-4">
+                  </div>
+                  <div className="grid gap-4">
                     <label className="space-y-2">
                       <span className="font-semibold">{label} title</span>
-                      <input
-                        className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                      <Input
                         value={translation.title}
                         onChange={(event) => updateTranslation(locale, 'title', event.target.value)}
                       />
                     </label>
                     <label className="space-y-2">
                       <span className="font-semibold">{label} description</span>
-                      <textarea
-                        className="min-h-28 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2"
+                      <Textarea
+                        className="min-h-28"
                         value={translation.description}
                         onChange={(event) =>
                           updateTranslation(locale, 'description', event.target.value)
@@ -513,24 +604,26 @@ export function ProductForm({
                     </label>
                     <label className="space-y-2">
                       <span className="font-semibold">{label} specifications JSON</span>
-                      <textarea
-                        className="min-h-20 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 font-mono text-sm"
+                      <Textarea
+                        className="min-h-20 font-mono text-sm"
                         value={String(translation.specifications)}
                         onChange={(event) =>
                           updateTranslation(locale, 'specifications', event.target.value)
                         }
                       />
                     </label>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               );
             })}
           </SmartSection>
 
           <SmartSection
             id="seo"
+            index={3}
             title="SEO"
             description="Slugs and search snippets"
+            isComplete={viReady && enReady}
             isOpen={openSections.seo}
             onToggle={() => toggleSection('seo')}
           >
@@ -538,54 +631,59 @@ export function ProductForm({
               const label = locale === 'vi' ? 'Vietnamese' : 'English';
               const translation = draft.translations[locale];
               return (
-                <Card key={`${locale}-seo`} id={`${locale}-seo`}>
-                  <CardHeader>
+                <div
+                  key={`${locale}-seo`}
+                  id={`${locale}-seo`}
+                  className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-4"
+                >
+                  <div className="mb-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div>
-                        <CardTitle>{label} SEO</CardTitle>
+                        <h3 className="text-base font-semibold">{label} SEO</h3>
                         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
                           Keep storefront URLs and search snippets ready without repeating copy by
                           hand.
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <button
+                        <Button
                           type="button"
-                          className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                          variant="secondary"
+                          className="min-h-9 px-3 text-xs"
                           onClick={() => generateSlug(locale)}
                         >
                           Generate slug
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
-                          className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                          variant="secondary"
+                          className="min-h-9 px-3 text-xs"
                           onClick={() => copyTitleToSeo(locale)}
                         >
                           Title to SEO
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
-                          className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                          variant="secondary"
+                          className="min-h-9 px-3 text-xs"
                           onClick={() => summarizeDescriptionToSeo(locale)}
                         >
                           Summary to SEO
-                        </button>
+                        </Button>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="grid gap-4">
+                  </div>
+                  <div className="grid gap-4">
                     <label className="space-y-2">
                       <span className="font-semibold">{label} slug</span>
-                      <input
-                        className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                      <Input
                         value={translation.slug}
                         onChange={(event) => updateTranslation(locale, 'slug', event.target.value)}
                       />
                     </label>
                     <label className="space-y-2">
                       <span className="font-semibold">{label} SEO title</span>
-                      <input
-                        className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                      <Input
                         value={translation.seoTitle}
                         onChange={(event) =>
                           updateTranslation(locale, 'seoTitle', event.target.value)
@@ -594,22 +692,23 @@ export function ProductForm({
                     </label>
                     <label className="space-y-2">
                       <span className="font-semibold">{label} SEO description</span>
-                      <textarea
-                        className="min-h-20 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2"
+                      <Textarea
+                        className="min-h-20"
                         value={translation.seoDescription}
                         onChange={(event) =>
                           updateTranslation(locale, 'seoDescription', event.target.value)
                         }
                       />
                     </label>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               );
             })}
           </SmartSection>
 
           <SmartSection
             id="taxonomy"
+            index={4}
             title="Taxonomy and collections"
             description="Search, select, and order catalog grouping"
             isOpen={openSections.taxonomy}
@@ -656,10 +755,10 @@ export function ProductForm({
                       className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3 sm:grid-cols-[1fr_160px] sm:items-center"
                     >
                       <span className="font-semibold">{option?.label ?? 'Collection'}</span>
-                      <input
+                      <Input
                         type="number"
                         min="0"
-                        className="min-h-10 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                        className="min-h-10"
                         value={selectedCollections.get(collection.collectionId) ?? 0}
                         onChange={(event) =>
                           updateCollectionOrder(collection.collectionId, Number(event.target.value))
@@ -674,8 +773,10 @@ export function ProductForm({
 
           <SmartSection
             id="offers"
+            index={5}
             title="Market offers"
             description="Availability and pricing by market"
+            isComplete={vnOfferReady || intlOfferReady}
             isOpen={openSections.pricing}
             onToggle={() => toggleSection('pricing')}
           >
@@ -712,10 +813,10 @@ export function ProductForm({
                   </label>
                   <label className="space-y-1">
                     <span className="text-sm font-semibold">Price</span>
-                    <input
+                    <Input
                       type="number"
                       min="0"
-                      className="min-h-10 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                      className="min-h-10"
                       value={draft.offers[market.key].priceMinor ?? ''}
                       onChange={(event) =>
                         updateOffer(market.key, 'priceMinor', numberOrNull(event.target.value))
@@ -734,8 +835,10 @@ export function ProductForm({
 
           <SmartSection
             id="publish"
+            index={6}
             title="Publish checklist"
             description="Readiness and next workflows"
+            isComplete={viReady && enReady && (vnOfferReady || intlOfferReady)}
             isOpen={openSections.publish}
             onToggle={() => toggleSection('publish')}
           >
@@ -770,145 +873,109 @@ export function ProductForm({
           </SmartSection>
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-20">
-          <Card>
-            <CardHeader>
-              <CardTitle>Editor state</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[var(--muted-foreground)]">Product</span>
-                <span className="font-semibold">{productId ? 'Saved draft' : 'New draft'}</span>
+        <aside className="lg:sticky lg:top-24">
+          <Card className="overflow-hidden p-0">
+            <div className="bg-[var(--surface-muted)] px-5 py-4">
+              <p className="text-xs font-semibold text-[var(--muted-foreground)]">Control panel</p>
+              <CardTitle className="mt-1 text-lg">
+                {productId ? 'Draft in progress' : 'New catalog item'}
+              </CardTitle>
+            </div>
+            <CardContent className="grid gap-5 p-5">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="rounded-[var(--radius-control)] bg-[var(--background)] p-3">
+                  <p className="text-xs font-semibold text-[var(--muted-foreground)]">Checks</p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums">
+                    {readyItemCount}/{readinessItems.length}
+                  </p>
+                </div>
+                <div className="rounded-[var(--radius-control)] bg-[var(--background)] p-3">
+                  <p className="text-xs font-semibold text-[var(--muted-foreground)]">Open</p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums">
+                    {openSectionCount}/{editorSections.length}
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[var(--muted-foreground)]">Type</span>
-                <span className="font-semibold">
-                  {draft.productType === 'pdf_pattern' ? 'PDF pattern' : 'Handmade'}
-                </span>
+
+              <div className="grid gap-2 text-sm">
+                <p className="font-semibold">Readiness</p>
+                {readinessItems.map((item) => (
+                  <div
+                    key={item.label}
+                    className="flex items-center justify-between gap-3 rounded-[var(--radius-control)] bg-[var(--background)] px-3 py-2"
+                  >
+                    <span className="text-[var(--muted-foreground)]">{item.label}</span>
+                    <span
+                      className={`size-2.5 rounded-full ${
+                        item.ready ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'
+                      }`}
+                      aria-label={item.ready ? 'Ready' : 'Needs review'}
+                    />
+                  </div>
+                ))}
               </div>
-              {initialProduct?.status ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[var(--muted-foreground)]">Status</span>
-                  <span className="font-semibold">{initialProduct.status}</span>
+
+              {blockedIssues.length ? (
+                <div className="rounded-[var(--radius-control)] bg-[var(--warning-surface)] p-3">
+                  <p className="font-semibold text-[var(--warning)]">Publish blockers</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[var(--muted-foreground)]">
+                    {blockedIssues.slice(0, 6).map((issue, index) => (
+                      <li key={`${issue.code}-${issue.locale ?? 'all'}-${index}`}>
+                        {blockerLabel(issue.code, issue.locale)}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ) : null}
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              <Button type="submit" disabled={isPending}>
-                Save draft
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={isPending || !productId}
-                onClick={publishProduct}
-              >
-                Publish product
-              </Button>
-              {!productId ? (
-                <p className="text-sm text-[var(--muted-foreground)]">
-                  Save once to unlock media, PDF, variants, and inventory.
-                </p>
-              ) : null}
-            </CardContent>
-          </Card>
+              <Separator />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Readiness</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-2 text-sm">
-              <span
-                className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(viReady)}`}
-              >
-                Vietnamese content {viReady ? 'ready' : 'needs review'}
-              </span>
-              <span
-                className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(enReady)}`}
-              >
-                English content {enReady ? 'ready' : 'needs review'}
-              </span>
-              <span
-                className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(vnOfferReady)}`}
-              >
-                Vietnam offer {vnOfferReady ? 'ready' : 'off or missing price'}
-              </span>
-              <span
-                className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(intlOfferReady)}`}
-              >
-                International offer {intlOfferReady ? 'ready' : 'off or missing price'}
-              </span>
-            </CardContent>
-          </Card>
+              <div className="grid gap-2">
+                <p className="text-sm font-semibold">Workflows</p>
+                {productId ? (
+                  <>
+                    <Link
+                      className="inline-flex min-h-10 items-center justify-between rounded-[var(--radius-control)] border border-[var(--border)] px-3 text-sm font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                      href={`/admin/catalog/${productId}/media`}
+                    >
+                      Media and private PDF
+                      <span aria-hidden="true">-&gt;</span>
+                    </Link>
+                    <Link
+                      className="inline-flex min-h-10 items-center justify-between rounded-[var(--radius-control)] border border-[var(--border)] px-3 text-sm font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                      href={`/admin/catalog/${productId}/variants`}
+                    >
+                      Variants and inventory
+                      <span aria-hidden="true">-&gt;</span>
+                    </Link>
+                  </>
+                ) : (
+                  <p className="text-sm text-[var(--muted-foreground)]">
+                    Save once to unlock media, PDF, variants, and inventory.
+                  </p>
+                )}
+              </div>
 
-          {blockedIssues.length ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Publish blockers</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--muted-foreground)]">
-                  {blockedIssues.slice(0, 6).map((issue, index) => (
-                    <li key={`${issue.code}-${issue.locale ?? 'all'}-${index}`}>
-                      {blockerLabel(issue.code, issue.locale)}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          ) : null}
+              <Separator />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Workflows</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-2">
-              {productId ? (
-                <>
-                  <Link
-                    className="inline-flex min-h-10 items-center rounded-[var(--radius-control)] border border-[var(--border)] px-3 text-sm font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                    href={`/admin/catalog/${productId}/media`}
+              <div className="grid gap-2">
+                <p className="text-sm font-semibold">Sections</p>
+                {editorSections.map((section, index) => (
+                  <Button
+                    key={section.id}
+                    type="button"
+                    variant={openSections[section.id] ? 'secondary' : 'ghost'}
+                    onClick={() => toggleSection(section.id)}
+                    className="min-h-10 justify-start gap-3 px-3 text-left text-sm"
+                    aria-expanded={openSections[section.id]}
                   >
-                    Media and private PDF
-                  </Link>
-                  <Link
-                    className="inline-flex min-h-10 items-center rounded-[var(--radius-control)] border border-[var(--border)] px-3 text-sm font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                    href={`/admin/catalog/${productId}/variants`}
-                  >
-                    Variants and inventory
-                  </Link>
-                </>
-              ) : (
-                <p className="text-sm text-[var(--muted-foreground)]">
-                  Specialized workflows appear after the draft exists.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Sections</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-2 text-sm font-semibold">
-              {editorSections.map((section) => (
-                <Button
-                  key={section.id}
-                  type="button"
-                  variant={openSections[section.id] ? 'secondary' : 'ghost'}
-                  onClick={() => toggleSection(section.id)}
-                  className="min-h-9 justify-start px-3 text-left text-sm"
-                  aria-expanded={openSections[section.id]}
-                >
-                  {section.label}
-                </Button>
-              ))}
+                    <span className="text-xs tabular-nums text-[var(--muted-foreground)]">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span>{section.label}</span>
+                  </Button>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </aside>
