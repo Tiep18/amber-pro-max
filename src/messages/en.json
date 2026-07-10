@@ -422,6 +422,9 @@
       "postalCode": "Postal code",
       "isDefault": "Use as default shipping address"
     },
+    "descriptions": {
+      "countryCode": "Use the 2-letter code, for example US or VN."
+    },
     "actions": {
       "save": "Save address",
       "saving": "Saving",

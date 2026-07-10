@@ -56,6 +56,9 @@ export async function renderAddressBookPage({ params }: { params: Promise<{ loca
           addressLine2: t('fields.addressLine2'),
           postalCode: t('fields.postalCode'),
           isDefault: t('fields.isDefault')
+        },
+        descriptions: {
+          countryCode: t('descriptions.countryCode')
         }
       }}
     />

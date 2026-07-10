@@ -1,20 +1,17 @@
 'use client';
 
-import { useActionState, useState } from 'react';
-import { MapPin } from 'lucide-react';
+import {useActionState, useState} from 'react';
+import {MapPin, Plus} from 'lucide-react';
 import {
   deleteCustomerShippingAddressAction,
   setDefaultCustomerShippingAddressAction,
   type AddressActionState
 } from '@/account/address-actions';
-import type { CustomerShippingAddress } from '@/account/addresses';
-import { formatShippingAddressLines } from '@/checkout/shipping-address';
-import { AddressForm, type AddressFormLabels } from '@/components/account/address-form';
-import { AccountEmptyState } from '@/components/account/account-empty-state';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import type { Locale } from '@/i18n/routing';
+import type {CustomerShippingAddress} from '@/account/addresses';
+import {AddressForm, type AddressFormLabels} from '@/components/account/address-form';
+import {AccountEmptyState} from '@/components/account/account-empty-state';
+import {Button} from '@/components/ui/button';
+import type {Locale} from '@/i18n/routing';
 
 type AddressBookLabels = AddressFormLabels & {
   title: string;
@@ -45,6 +42,20 @@ const emptyCopy = {
   }
 } as const;
 
+function addressCountLabel(addresses: CustomerShippingAddress[], locale: Locale) {
+  if (locale === 'vi') return `${addresses.length} dia chi`;
+  return `${addresses.length} ${addresses.length === 1 ? 'address' : 'addresses'}`;
+}
+
+function locationLines(address: CustomerShippingAddress) {
+  return [
+    address.addressLine1,
+    address.addressLine2,
+    [address.locality, address.region, address.postalCode].filter(Boolean).join(', '),
+    address.countryCode
+  ].filter((line): line is string => Boolean(line));
+}
+
 export function AddressBook({
   addresses,
   locale,
@@ -55,6 +66,8 @@ export function AddressBook({
   labels: AddressBookLabels;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showNewForm, setShowNewForm] = useState(addresses.length === 0);
+  const [savedNotice, setSavedNotice] = useState(false);
   const [deleteState, deleteAction, deleting] = useActionState(
     deleteCustomerShippingAddressAction,
     initialState
@@ -64,20 +77,52 @@ export function AddressBook({
     initialState
   );
   const empty = emptyCopy[locale];
+  const hasAddresses = addresses.length > 0;
+
+  function openNewForm() {
+    setEditingId(null);
+    setSavedNotice(false);
+    setShowNewForm(true);
+  }
+
+  function openEditForm(addressId: string) {
+    setSavedNotice(false);
+    setShowNewForm(false);
+    setEditingId((current) => (current === addressId ? null : addressId));
+  }
+
+  function handleSaved() {
+    setSavedNotice(true);
+    setEditingId(null);
+    setShowNewForm(false);
+  }
 
   return (
-    <Card className="shadow-sm">
-      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <CardTitle className="text-2xl">{labels.title}</CardTitle>
-          <p className="text-base text-[var(--muted-foreground)]">{labels.intro}</p>
+    <section className="space-y-5">
+      <header className="flex flex-col gap-3 border-b border-[var(--border)] pb-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="max-w-2xl space-y-1.5">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+            {addressCountLabel(addresses, locale)}
+          </p>
+          <h1 className="text-2xl font-semibold leading-tight text-[var(--foreground)]">
+            {labels.title}
+          </h1>
+          <p className="text-sm leading-6 text-[var(--muted-foreground)]">{labels.intro}</p>
         </div>
-        <span className="text-sm font-semibold text-[var(--muted-foreground)]">
-          {addresses.length}{' '}
-          {locale === 'vi' ? 'dia chi' : addresses.length === 1 ? 'address' : 'addresses'}
-        </span>
-      </CardHeader>
-      <CardContent className="space-y-6">
+        {hasAddresses ? (
+          <Button onClick={openNewForm} className="w-full gap-2 sm:w-auto">
+            <Plus className="size-4" aria-hidden="true" />
+            {labels.newAddress}
+          </Button>
+        ) : null}
+      </header>
+
+      <div className="space-y-4">
+        {savedNotice ? (
+          <p role="status" className="text-sm font-semibold text-[var(--success)]">
+            {labels.saved}
+          </p>
+        ) : null}
         {deleteState.status === 'deleted' ? (
           <p role="status" className="text-sm font-semibold text-[var(--success)]">
             {labels.deleted}
@@ -99,41 +144,71 @@ export function AddressBook({
           </p>
         ) : null}
 
-        {addresses.length === 0 ? (
-          <AccountEmptyState
-            icon={<MapPin className="h-6 w-6" aria-hidden="true" />}
-            title={empty.title}
-            body={labels.empty || empty.body}
-          />
-        ) : (
-          <div className="grid gap-3">
+        {showNewForm ? (
+          <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold">{labels.newAddress}</h2>
+              {hasAddresses ? (
+                <Button variant="ghost" onClick={() => setShowNewForm(false)} className="min-h-9 px-3 text-sm">
+                  {labels.cancel}
+                </Button>
+              ) : null}
+            </div>
+            <AddressForm locale={locale} labels={labels} onSaved={handleSaved} />
+          </div>
+        ) : null}
+
+        {!hasAddresses ? (
+          <div className="space-y-4">
+            <AccountEmptyState
+              icon={<MapPin className="h-6 w-6" aria-hidden="true" />}
+              title={empty.title}
+              body={labels.empty || empty.body}
+            />
+            {!showNewForm ? (
+              <Button onClick={openNewForm} className="w-full gap-2 sm:w-auto">
+                <Plus className="size-4" aria-hidden="true" />
+                {labels.newAddress}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {hasAddresses ? (
+          <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)]">
             {addresses.map((address) => (
               <article
                 key={address.id}
-                className="min-h-[88px] rounded-[var(--radius-control)] border border-[var(--border)] p-4 shadow-sm sm:min-h-[72px]"
+                className="border-b border-[var(--border)] p-4 last:border-b-0 sm:p-5"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-semibold">{address.label}</h3>
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <h2 className="text-base font-semibold leading-tight">{address.label}</h2>
                       {address.isDefault ? (
-                        <span className="rounded-full border border-[var(--success)] bg-[var(--success-surface)] px-2 py-1 text-xs font-semibold text-[var(--success)]">
+                        <span className="rounded-full border border-[var(--success)] bg-[var(--success-surface)] px-2 py-0.5 text-xs font-semibold text-[var(--success)]">
                           {labels.defaultBadge}
                         </span>
                       ) : null}
                     </div>
-                    <address className="mt-2 not-italic text-sm leading-6 text-[var(--muted-foreground)]">
-                      {formatShippingAddressLines(address).map((line) => (
+                    <p className="text-sm font-medium text-[var(--foreground)]">
+                      {address.recipientName}
+                      <span className="mx-2 text-[var(--muted-foreground)]">/</span>
+                      {address.phoneNumber}
+                    </p>
+                    <address className="not-italic text-sm leading-6 text-[var(--muted-foreground)]">
+                      {locationLines(address).map((line) => (
                         <span key={line} className="block">
                           {line}
                         </span>
                       ))}
                     </address>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 lg:justify-end">
                     <Button
                       variant="secondary"
-                      onClick={() => setEditingId(editingId === address.id ? null : address.id)}
+                      onClick={() => openEditForm(address.id)}
+                      className="min-h-10 px-3 text-sm"
                     >
                       {labels.edit}
                     </Button>
@@ -141,7 +216,7 @@ export function AddressBook({
                       <form action={defaultAction}>
                         <input type="hidden" name="locale" value={locale} />
                         <input type="hidden" name="addressId" value={address.id} />
-                        <Button type="submit" variant="secondary" disabled={settingDefault}>
+                        <Button type="submit" variant="ghost" disabled={settingDefault} className="min-h-10 px-3 text-sm">
                           {settingDefault ? labels.settingDefault : labels.setDefault}
                         </Button>
                       </form>
@@ -154,33 +229,33 @@ export function AddressBook({
                     >
                       <input type="hidden" name="locale" value={locale} />
                       <input type="hidden" name="addressId" value={address.id} />
-                      <Button type="submit" variant="destructive" disabled={deleting}>
+                      <Button
+                        type="submit"
+                        variant="ghost"
+                        disabled={deleting}
+                        className="min-h-10 px-3 text-sm text-[var(--destructive)] hover:bg-[var(--surface-muted)]"
+                      >
                         {deleting ? labels.deleting : labels.delete}
                       </Button>
                     </form>
                   </div>
                 </div>
                 {editingId === address.id ? (
-                  <div className="mt-4 border-t border-[var(--border)] pt-4">
+                  <div className="mt-4 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--background)] p-4">
                     <AddressForm
                       locale={locale}
                       labels={labels}
                       address={address}
                       onCancel={() => setEditingId(null)}
+                      onSaved={handleSaved}
                     />
                   </div>
                 ) : null}
               </article>
             ))}
           </div>
-        )}
-
-        <Separator />
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold leading-[1.3]">{labels.newAddress}</h3>
-          <AddressForm locale={locale} labels={labels} />
-        </div>
-      </CardContent>
-    </Card>
+        ) : null}
+      </div>
+    </section>
   );
 }

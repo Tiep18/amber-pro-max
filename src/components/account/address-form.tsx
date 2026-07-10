@@ -1,6 +1,7 @@
 'use client';
 
-import {startTransition, useActionState} from 'react';
+import {startTransition, useActionState, useEffect} from 'react';
+import {useRouter} from 'next/navigation';
 import {useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {
@@ -10,11 +11,20 @@ import {
 } from '@/account/address-actions';
 import {
   customerShippingAddressInputSchema,
-  type CustomerShippingAddress
+  type CustomerShippingAddress,
+  type CustomerShippingAddressInput
 } from '@/account/addresses';
 import {Button} from '@/components/ui/button';
 import type {Locale} from '@/i18n/routing';
-import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form';
 import {Input} from '@/components/ui/input';
 
 export type AddressFormLabels = {
@@ -35,6 +45,9 @@ export type AddressFormLabels = {
   cancel: string;
   saved: string;
   error: string;
+  descriptions?: {
+    countryCode?: string;
+  };
 };
 
 const initialState: AddressActionState = {status: 'idle'};
@@ -45,39 +58,54 @@ function statusMessage(state: AddressActionState, labels: AddressFormLabels) {
   return null;
 }
 
+function defaultValues(address?: CustomerShippingAddress): CustomerShippingAddressInput {
+  return {
+    label: address?.label ?? '',
+    recipientName: address?.recipientName ?? '',
+    phoneNumber: address?.phoneNumber ?? '',
+    countryCode: address?.countryCode ?? '',
+    region: address?.region ?? '',
+    locality: address?.locality ?? '',
+    addressLine1: address?.addressLine1 ?? '',
+    addressLine2: address?.addressLine2 ?? '',
+    postalCode: address?.postalCode ?? '',
+    isDefault: address?.isDefault ?? false
+  };
+}
+
 export function AddressForm({
   locale,
   labels,
   address,
-  onCancel
+  onCancel,
+  onSaved
 }: {
   locale: Locale;
   labels: AddressFormLabels;
   address?: CustomerShippingAddress;
   onCancel?: () => void;
+  onSaved?: () => void;
 }) {
+  const router = useRouter();
   const action = address ? updateCustomerShippingAddressAction : createCustomerShippingAddressAction;
   const [state, formAction, pending] = useActionState(action, initialState);
   const message = statusMessage(state, labels);
 
-  const form = useForm({
+  const form = useForm<CustomerShippingAddressInput>({
     resolver: zodResolver(customerShippingAddressInputSchema),
-    defaultValues: {
-      label: address?.label ?? '',
-      recipientName: address?.recipientName ?? '',
-      phoneNumber: address?.phoneNumber ?? '',
-      countryCode: address?.countryCode ?? '',
-      region: address?.region ?? '',
-      locality: address?.locality ?? '',
-      addressLine1: address?.addressLine1 ?? '',
-      addressLine2: address?.addressLine2 ?? '',
-      postalCode: address?.postalCode ?? '',
-      isDefault: address?.isDefault ?? false
-    }
+    defaultValues: defaultValues(address)
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const onSubmit = (values: any) => {
+  useEffect(() => {
+    if (state.status !== 'saved') return;
+    if (!address) {
+      form.reset(defaultValues());
+    }
+    router.refresh();
+    onSaved?.();
+  }, [address, form, onSaved, router, state.status]);
+
+  const onSubmit = (values: CustomerShippingAddressInput) => {
     const formData = new FormData();
     formData.append('locale', locale);
     if (address) {
@@ -86,7 +114,7 @@ export function AddressForm({
     formData.append('label', values.label);
     formData.append('recipientName', values.recipientName);
     formData.append('phoneNumber', values.phoneNumber);
-    formData.append('countryCode', values.countryCode);
+    formData.append('countryCode', values.countryCode.toUpperCase());
     if (values.region) formData.append('region', values.region);
     if (values.locality) formData.append('locality', values.locality);
     formData.append('addressLine1', values.addressLine1);
@@ -163,6 +191,9 @@ export function AddressForm({
                 <FormControl>
                   <Input {...field} minLength={2} maxLength={2} autoComplete="country" className="uppercase" />
                 </FormControl>
+                {labels.descriptions?.countryCode ? (
+                  <FormDescription>{labels.descriptions.countryCode}</FormDescription>
+                ) : null}
                 <FormMessage />
               </FormItem>
             )}
@@ -245,13 +276,13 @@ export function AddressForm({
           control={form.control}
           name="isDefault"
           render={({field}) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-[var(--surface)]">
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-4">
               <FormControl>
                 <input
                   type="checkbox"
-                  checked={field.value}
-                  onChange={field.onChange}
-                  className="size-5 cursor-pointer mt-0.5"
+                  checked={Boolean(field.value)}
+                  onChange={(event) => field.onChange(event.target.checked)}
+                  className="mt-0.5 size-5 cursor-pointer"
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
@@ -263,12 +294,12 @@ export function AddressForm({
           )}
         />
 
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={pending} className="cursor-pointer">
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Button type="submit" disabled={pending} className="min-h-10 cursor-pointer px-4 text-sm">
             {pending ? labels.saving : labels.save}
           </Button>
           {onCancel ? (
-            <Button type="button" variant="secondary" onClick={onCancel} className="cursor-pointer">
+            <Button type="button" variant="secondary" onClick={onCancel} className="min-h-10 cursor-pointer px-4 text-sm">
               {labels.cancel}
             </Button>
           ) : null}

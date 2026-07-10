@@ -36,16 +36,22 @@ test.describe('saved address retention (ACC-03, D-01, D-02, D-04)', () => {
 
   test('customer can create and edit an address', async ({page}) => {
     await page.goto('/en/account/addresses');
-    await page.getByLabel('Address label').last().fill('Home');
-    await page.getByLabel('Recipient name').last().fill('Taylor Customer');
-    await page.getByLabel('Phone number').last().fill('+15551234567');
-    await page.getByLabel('Country code').last().fill('US');
-    await page.getByLabel('Address line 1').last().fill('123 Market Street');
-    await page.getByRole('button', {name: 'Save address'}).last().click();
+    await page.getByRole('button', {name: 'Add an address'}).click();
+    await page.getByLabel('Address label').fill('Home');
+    await page.getByLabel('Recipient name').fill('Taylor Customer');
+    await page.getByLabel('Phone number').fill('+15551234567');
+    await page.getByLabel('Country code').fill('US');
+    await page.getByLabel('Address line 1').fill('123 Market Street');
+    await page.getByRole('button', {name: 'Save address'}).click();
     await expect(page.getByRole('status').filter({hasText: 'Address saved.'})).toBeVisible();
-    await page.getByRole('button', {name: 'Edit'}).last().click();
-    await page.getByLabel('Address label').first().fill('Studio');
-    await page.getByRole('button', {name: 'Save address'}).first().click();
+    await expect(page.getByRole('heading', {name: 'Home'})).toBeVisible();
+
+    const homeAddress = page.locator('article').filter({
+      has: page.getByRole('heading', {name: 'Home'})
+    });
+    await homeAddress.getByRole('button', {name: 'Edit'}).click();
+    await homeAddress.getByLabel('Address label').fill('Studio');
+    await homeAddress.getByRole('button', {name: 'Save address'}).click();
     await expect(page.getByRole('status').filter({hasText: 'Address saved.'})).toBeVisible();
   });
 
