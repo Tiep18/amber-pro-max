@@ -33,6 +33,8 @@ type ProductFormProps = {
   collections: CatalogOption[];
 };
 
+type EditorTab = 'setup' | 'content' | 'pricing' | 'taxonomy' | 'publish';
+
 const emptyTranslation = {
   title: '',
   description: '',
@@ -91,6 +93,28 @@ function readinessTone(ready: boolean) {
     : 'bg-[var(--warning-surface)] text-[var(--warning)]';
 }
 
+function slugify(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-');
+}
+
+function seoDescriptionFrom(value: string) {
+  return value.replace(/\s+/g, ' ').trim().slice(0, 155);
+}
+
+const editorTabs: Array<{ id: EditorTab; label: string; description: string }> = [
+  { id: 'setup', label: 'Setup', description: 'Type and draft identity' },
+  { id: 'content', label: 'Content', description: 'Vietnamese and English copy' },
+  { id: 'pricing', label: 'Pricing', description: 'Market offers and prices' },
+  { id: 'taxonomy', label: 'Taxonomy', description: 'Categories, tags, collections' },
+  { id: 'publish', label: 'Publish', description: 'Readiness and next workflows' }
+];
+
 export function ProductForm({
   initialProduct,
   initialNotice,
@@ -107,6 +131,7 @@ export function ProductForm({
       : null
   );
   const [isPending, startTransition] = useTransition();
+  const [activeTab, setActiveTab] = useState<EditorTab>('setup');
   const productId = draft.productId;
   const blockedIssues = result?.status === 'blocked' ? result.issues : [];
   const viReady = Boolean(
@@ -195,6 +220,22 @@ export function ProductForm({
     }));
   }
 
+  function generateSlug(locale: CatalogLocale) {
+    updateTranslation(locale, 'slug', slugify(draft.translations[locale].title));
+  }
+
+  function copyTitleToSeo(locale: CatalogLocale) {
+    updateTranslation(locale, 'seoTitle', draft.translations[locale].title);
+  }
+
+  function summarizeDescriptionToSeo(locale: CatalogLocale) {
+    updateTranslation(
+      locale,
+      'seoDescription',
+      seoDescriptionFrom(draft.translations[locale].description)
+    );
+  }
+
   function saveDraft() {
     startTransition(async () => {
       const actionResult = await saveProductDraftAction(draft);
@@ -256,235 +297,334 @@ export function ProductForm({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="space-y-5">
-          <Card id="basics">
-            <CardHeader>
-              <CardTitle>Product basics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <label className="block space-y-2">
-                <span className="font-semibold">Product type</span>
-                <select
-                  className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-white px-3"
-                  value={draft.productType}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      productType: event.target.value as ProductType
-                    }))
-                  }
-                >
-                  <option value="pdf_pattern">PDF pattern</option>
-                  <option value="physical_finished">Physical finished good</option>
-                </select>
-              </label>
-            </CardContent>
-          </Card>
+          <div className="grid gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-2 sm:grid-cols-5">
+            {editorTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`rounded-[var(--radius-control)] px-3 py-2 text-left transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-[var(--accent)] text-white'
+                    : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]'
+                }`}
+              >
+                <span className="block text-sm font-semibold">{tab.label}</span>
+                <span className="mt-0.5 block text-xs opacity-80">{tab.description}</span>
+              </button>
+            ))}
+          </div>
 
-          {(['vi', 'en'] as const).map((locale) => {
-            const label = locale === 'vi' ? 'Vietnamese' : 'English';
-            const translation = draft.translations[locale];
-            return (
-              <Card key={locale} id={`${locale}-content`}>
-                <CardHeader>
-                  <CardTitle>{label} content</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4">
-                  <label className="space-y-2">
-                    <span className="font-semibold">{label} title</span>
-                    <input
-                      className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                      value={translation.title}
-                      onChange={(event) => updateTranslation(locale, 'title', event.target.value)}
-                    />
-                  </label>
-                  <label className="space-y-2">
-                    <span className="font-semibold">{label} description</span>
-                    <textarea
-                      className="min-h-28 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2"
-                      value={translation.description}
-                      onChange={(event) =>
-                        updateTranslation(locale, 'description', event.target.value)
-                      }
-                    />
-                  </label>
-                  <label className="space-y-2">
-                    <span className="font-semibold">{label} specifications JSON</span>
-                    <textarea
-                      className="min-h-20 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 font-mono text-sm"
-                      value={String(translation.specifications)}
-                      onChange={(event) =>
-                        updateTranslation(locale, 'specifications', event.target.value)
-                      }
-                    />
-                  </label>
-                  <label className="space-y-2">
-                    <span className="font-semibold">{label} slug</span>
-                    <input
-                      className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                      value={translation.slug}
-                      onChange={(event) => updateTranslation(locale, 'slug', event.target.value)}
-                    />
-                  </label>
-                  <label className="space-y-2">
-                    <span className="font-semibold">{label} SEO title</span>
-                    <input
-                      className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                      value={translation.seoTitle}
-                      onChange={(event) =>
-                        updateTranslation(locale, 'seoTitle', event.target.value)
-                      }
-                    />
-                  </label>
-                  <label className="space-y-2">
-                    <span className="font-semibold">{label} SEO description</span>
-                    <textarea
-                      className="min-h-20 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2"
-                      value={translation.seoDescription}
-                      onChange={(event) =>
-                        updateTranslation(locale, 'seoDescription', event.target.value)
-                      }
-                    />
-                  </label>
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          <Card id="taxonomy">
-            <CardHeader>
-              <CardTitle>Taxonomy and collections</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-5">
-              <fieldset className="space-y-2">
-                <legend className="font-semibold">Categories</legend>
-                {categories.map((option) => (
-                  <label key={option.id} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={draft.categoryIds.includes(option.id)}
-                      onChange={(event) =>
-                        updateIdList('categoryIds', option.id, event.target.checked)
-                      }
-                    />
-                    {option.label}
-                  </label>
-                ))}
-              </fieldset>
-              <fieldset className="space-y-2">
-                <legend className="font-semibold">Techniques</legend>
-                {techniques.map((option) => (
-                  <label key={option.id} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={draft.techniqueIds.includes(option.id)}
-                      onChange={(event) =>
-                        updateIdList('techniqueIds', option.id, event.target.checked)
-                      }
-                    />
-                    {option.label}
-                  </label>
-                ))}
-              </fieldset>
-              <fieldset className="space-y-2">
-                <legend className="font-semibold">Tags</legend>
-                {tags.map((option) => (
-                  <label key={option.id} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={draft.tagIds.includes(option.id)}
-                      onChange={(event) => updateIdList('tagIds', option.id, event.target.checked)}
-                    />
-                    {option.label}
-                  </label>
-                ))}
-              </fieldset>
-              <fieldset className="space-y-2">
-                <legend className="font-semibold">Collections</legend>
-                {collections.map((option) => (
-                  <div
-                    key={option.id}
-                    className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3 sm:grid-cols-[1fr_160px]"
+          {activeTab === 'setup' ? (
+            <Card id="basics">
+              <CardHeader>
+                <CardTitle>Product basics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <label className="block space-y-2">
+                  <span className="font-semibold">Product type</span>
+                  <select
+                    className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-white px-3"
+                    value={draft.productType}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        productType: event.target.value as ProductType
+                      }))
+                    }
                   >
-                    <label className="flex items-center gap-2">
+                    <option value="pdf_pattern">PDF pattern</option>
+                    <option value="physical_finished">Physical finished good</option>
+                  </select>
+                </label>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {activeTab === 'content'
+            ? (['vi', 'en'] as const).map((locale) => {
+                const label = locale === 'vi' ? 'Vietnamese' : 'English';
+                const translation = draft.translations[locale];
+                return (
+                  <Card key={locale} id={`${locale}-content`}>
+                    <CardHeader>
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <CardTitle>{label} content</CardTitle>
+                          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                            Fill the core copy first, then use quick actions for repetitive SEO
+                            fields.
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                            onClick={() => generateSlug(locale)}
+                          >
+                            Generate slug
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                            onClick={() => copyTitleToSeo(locale)}
+                          >
+                            Title to SEO
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                            onClick={() => summarizeDescriptionToSeo(locale)}
+                          >
+                            Summary to SEO
+                          </button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="grid gap-4">
+                      <label className="space-y-2">
+                        <span className="font-semibold">{label} title</span>
+                        <input
+                          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                          value={translation.title}
+                          onChange={(event) =>
+                            updateTranslation(locale, 'title', event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="space-y-2">
+                        <span className="font-semibold">{label} description</span>
+                        <textarea
+                          className="min-h-28 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2"
+                          value={translation.description}
+                          onChange={(event) =>
+                            updateTranslation(locale, 'description', event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="space-y-2">
+                        <span className="font-semibold">{label} specifications JSON</span>
+                        <textarea
+                          className="min-h-20 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 font-mono text-sm"
+                          value={String(translation.specifications)}
+                          onChange={(event) =>
+                            updateTranslation(locale, 'specifications', event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="space-y-2">
+                        <span className="font-semibold">{label} slug</span>
+                        <input
+                          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                          value={translation.slug}
+                          onChange={(event) =>
+                            updateTranslation(locale, 'slug', event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="space-y-2">
+                        <span className="font-semibold">{label} SEO title</span>
+                        <input
+                          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                          value={translation.seoTitle}
+                          onChange={(event) =>
+                            updateTranslation(locale, 'seoTitle', event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="space-y-2">
+                        <span className="font-semibold">{label} SEO description</span>
+                        <textarea
+                          className="min-h-20 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2"
+                          value={translation.seoDescription}
+                          onChange={(event) =>
+                            updateTranslation(locale, 'seoDescription', event.target.value)
+                          }
+                        />
+                      </label>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            : null}
+
+          {activeTab === 'taxonomy' ? (
+            <Card id="taxonomy">
+              <CardHeader>
+                <CardTitle>Taxonomy and collections</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-5">
+                <fieldset className="space-y-2">
+                  <legend className="font-semibold">Categories</legend>
+                  {categories.map((option) => (
+                    <label key={option.id} className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={selectedCollections.has(option.id)}
-                        onChange={(event) => updateCollection(option.id, event.target.checked)}
+                        checked={draft.categoryIds.includes(option.id)}
+                        onChange={(event) =>
+                          updateIdList('categoryIds', option.id, event.target.checked)
+                        }
                       />
                       {option.label}
                     </label>
-                    <label className="space-y-1">
-                      <span className="text-sm font-semibold">{option.label} display order</span>
+                  ))}
+                </fieldset>
+                <fieldset className="space-y-2">
+                  <legend className="font-semibold">Techniques</legend>
+                  {techniques.map((option) => (
+                    <label key={option.id} className="flex items-center gap-2">
                       <input
-                        type="number"
-                        min="0"
-                        className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                        value={selectedCollections.get(option.id) ?? 0}
+                        type="checkbox"
+                        checked={draft.techniqueIds.includes(option.id)}
                         onChange={(event) =>
-                          updateCollectionOrder(option.id, Number(event.target.value))
+                          updateIdList('techniqueIds', option.id, event.target.checked)
                         }
-                        disabled={!selectedCollections.has(option.id)}
                       />
+                      {option.label}
                     </label>
-                  </div>
-                ))}
-              </fieldset>
-            </CardContent>
-          </Card>
+                  ))}
+                </fieldset>
+                <fieldset className="space-y-2">
+                  <legend className="font-semibold">Tags</legend>
+                  {tags.map((option) => (
+                    <label key={option.id} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={draft.tagIds.includes(option.id)}
+                        onChange={(event) =>
+                          updateIdList('tagIds', option.id, event.target.checked)
+                        }
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </fieldset>
+                <fieldset className="space-y-2">
+                  <legend className="font-semibold">Collections</legend>
+                  {collections.map((option) => (
+                    <div
+                      key={option.id}
+                      className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3 sm:grid-cols-[1fr_160px]"
+                    >
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedCollections.has(option.id)}
+                          onChange={(event) => updateCollection(option.id, event.target.checked)}
+                        />
+                        {option.label}
+                      </label>
+                      <label className="space-y-1">
+                        <span className="text-sm font-semibold">{option.label} display order</span>
+                        <input
+                          type="number"
+                          min="0"
+                          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                          value={selectedCollections.get(option.id) ?? 0}
+                          onChange={(event) =>
+                            updateCollectionOrder(option.id, Number(event.target.value))
+                          }
+                          disabled={!selectedCollections.has(option.id)}
+                        />
+                      </label>
+                    </div>
+                  ))}
+                </fieldset>
+              </CardContent>
+            </Card>
+          ) : null}
 
-          <Card id="offers">
-            <CardHeader>
-              <CardTitle>Market offers</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
-              <fieldset className="space-y-3 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
-                <legend className="px-1 font-semibold">Vietnam</legend>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={draft.offers.vn.enabled}
-                    onChange={(event) => updateOffer('vn', 'enabled', event.target.checked)}
-                  />
-                  Vietnam market enabled
-                </label>
-                <label className="space-y-2">
-                  <span className="font-semibold">Vietnam price in VND</span>
-                  <input
-                    type="number"
-                    min="0"
-                    className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                    value={draft.offers.vn.priceMinor ?? ''}
-                    onChange={(event) =>
-                      updateOffer('vn', 'priceMinor', numberOrNull(event.target.value))
-                    }
-                  />
-                </label>
-              </fieldset>
-              <fieldset className="space-y-3 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
-                <legend className="px-1 font-semibold">International</legend>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={draft.offers.intl.enabled}
-                    onChange={(event) => updateOffer('intl', 'enabled', event.target.checked)}
-                  />
-                  International market enabled
-                </label>
-                <label className="space-y-2">
-                  <span className="font-semibold">International price in USD cents</span>
-                  <input
-                    type="number"
-                    min="0"
-                    className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
-                    value={draft.offers.intl.priceMinor ?? ''}
-                    onChange={(event) =>
-                      updateOffer('intl', 'priceMinor', numberOrNull(event.target.value))
-                    }
-                  />
-                </label>
-              </fieldset>
-            </CardContent>
-          </Card>
+          {activeTab === 'pricing' ? (
+            <Card id="offers">
+              <CardHeader>
+                <CardTitle>Market offers</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                <fieldset className="space-y-3 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
+                  <legend className="px-1 font-semibold">Vietnam</legend>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={draft.offers.vn.enabled}
+                      onChange={(event) => updateOffer('vn', 'enabled', event.target.checked)}
+                    />
+                    Vietnam market enabled
+                  </label>
+                  <label className="space-y-2">
+                    <span className="font-semibold">Vietnam price in VND</span>
+                    <input
+                      type="number"
+                      min="0"
+                      className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                      value={draft.offers.vn.priceMinor ?? ''}
+                      onChange={(event) =>
+                        updateOffer('vn', 'priceMinor', numberOrNull(event.target.value))
+                      }
+                    />
+                  </label>
+                </fieldset>
+                <fieldset className="space-y-3 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
+                  <legend className="px-1 font-semibold">International</legend>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={draft.offers.intl.enabled}
+                      onChange={(event) => updateOffer('intl', 'enabled', event.target.checked)}
+                    />
+                    International market enabled
+                  </label>
+                  <label className="space-y-2">
+                    <span className="font-semibold">International price in USD cents</span>
+                    <input
+                      type="number"
+                      min="0"
+                      className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+                      value={draft.offers.intl.priceMinor ?? ''}
+                      onChange={(event) =>
+                        updateOffer('intl', 'priceMinor', numberOrNull(event.target.value))
+                      }
+                    />
+                  </label>
+                </fieldset>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {activeTab === 'publish' ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Publish checklist</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3 text-sm">
+                <p className="text-[var(--muted-foreground)]">
+                  Use this checkpoint before publishing. Media, private PDF, and inventory stay in
+                  their dedicated workflows so the main editor remains fast.
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <span
+                    className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(viReady)}`}
+                  >
+                    Vietnamese content {viReady ? 'ready' : 'needs review'}
+                  </span>
+                  <span
+                    className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(enReady)}`}
+                  >
+                    English content {enReady ? 'ready' : 'needs review'}
+                  </span>
+                  <span
+                    className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(vnOfferReady)}`}
+                  >
+                    Vietnam offer {vnOfferReady ? 'ready' : 'off or missing price'}
+                  </span>
+                  <span
+                    className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(intlOfferReady)}`}
+                  >
+                    International offer {intlOfferReady ? 'ready' : 'off or missing price'}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-20">
@@ -614,21 +754,20 @@ export function ProductForm({
               <CardTitle>Sections</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2 text-sm font-semibold">
-              <a className="text-[var(--accent)]" href="#basics">
-                Basics
-              </a>
-              <a className="text-[var(--accent)]" href="#vi-content">
-                Vietnamese content
-              </a>
-              <a className="text-[var(--accent)]" href="#en-content">
-                English content
-              </a>
-              <a className="text-[var(--accent)]" href="#taxonomy">
-                Taxonomy
-              </a>
-              <a className="text-[var(--accent)]" href="#offers">
-                Market offers
-              </a>
+              {editorTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`rounded-[var(--radius-control)] px-3 py-2 text-left transition-colors ${
+                    activeTab === tab.id
+                      ? 'bg-[var(--surface-muted)] text-[var(--accent)]'
+                      : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </CardContent>
           </Card>
         </aside>
