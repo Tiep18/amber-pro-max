@@ -23,6 +23,11 @@ type CatalogListControlsProps = {
   totalPages: number;
   total: number;
   pageSize: number;
+  stats: {
+    total: number;
+    published: number;
+    draftOrHidden: number;
+  };
 };
 
 const statusOptions = [
@@ -84,7 +89,8 @@ export function CatalogListControls({
   page,
   totalPages,
   total,
-  pageSize
+  pageSize,
+  stats
 }: CatalogListControlsProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -97,7 +103,24 @@ export function CatalogListControls({
   }
 
   return (
-    <div className="grid gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-4 sm:px-6">
+    <div className="grid gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 sm:px-5">
+      <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold text-[var(--foreground)]">Catalog</span>
+          <span className="rounded-[var(--radius-control)] bg-[#f3eee7] px-2.5 py-1 text-xs font-semibold text-[#6b4a35]">
+            {stats.total} total
+          </span>
+          <span className="rounded-[var(--radius-control)] bg-[var(--success-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--success)]">
+            {stats.published} published
+          </span>
+          <span className="rounded-[var(--radius-control)] bg-[var(--warning-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--warning)]">
+            {stats.draftOrHidden} draft or hidden
+          </span>
+        </div>
+        <p className="text-xs font-semibold text-[var(--muted-foreground)]">
+          {firstItem}-{lastItem} of {total}
+        </p>
+      </div>
       <form
         className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_180px_180px_auto]"
         onSubmit={(event) => {
@@ -157,14 +180,7 @@ export function CatalogListControls({
         </div>
       </form>
 
-      <div className="flex flex-col gap-3 text-sm text-[var(--muted-foreground)] sm:flex-row sm:items-center sm:justify-between">
-        <p>
-          Showing <span className="font-semibold text-[var(--foreground)] tabular-nums">{firstItem}</span>
-          {' - '}
-          <span className="font-semibold text-[var(--foreground)] tabular-nums">{lastItem}</span>
-          {' of '}
-          <span className="font-semibold text-[var(--foreground)] tabular-nums">{total}</span>
-        </p>
+      <div className="flex justify-end text-sm text-[var(--muted-foreground)]">
         <div className="flex items-center gap-2">
           <PageLink
             href={paramHref(pathname, searchParams, {page: page - 1})}

@@ -1,22 +1,18 @@
 import Link from 'next/link';
+import type {ReactNode} from 'react';
 import {
   ArrowRight,
   Boxes,
   ImageIcon,
-  Package,
-  Plus,
-  Tag
+  Plus
 } from 'lucide-react';
 import {requireAdmin} from '@/auth/guards';
 import {
   AdminEmptyState,
-  AdminMetricCard,
-  AdminPageHeader,
-  AdminPageShell,
-  AdminStatusPill
+  AdminPageShell
 } from '@/components/admin/admin-page';
 import {CatalogListControls} from '@/components/admin/catalog/catalog-list-controls';
-import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
+import {Card, CardContent, CardHeader} from '@/components/ui/card';
 import {getAdminProducts} from './catalog-data';
 
 export const dynamic = 'force-dynamic';
@@ -44,12 +40,12 @@ function productTypeLabel(type: string) {
 
 function statusTone(status: string) {
   if (status === 'published') {
-    return 'success' as const;
+    return 'published' as const;
   }
   if (status === 'archived') {
-    return 'danger' as const;
+    return 'archived' as const;
   }
-  return 'warning' as const;
+  return 'draft' as const;
 }
 
 function formatDate(value: string) {
@@ -62,6 +58,43 @@ function formatDate(value: string) {
     day: 'numeric',
     year: 'numeric'
   }).format(date);
+}
+
+function productTypeTone(type: string) {
+  return type === 'pdf_pattern' ? 'pdf' : 'handmade';
+}
+
+function CatalogBadge({
+  children,
+  tone
+}: {
+  children: ReactNode;
+  tone:
+    | 'pdf'
+    | 'handmade'
+    | 'published'
+    | 'draft'
+    | 'archived'
+    | 'marketOn'
+    | 'marketOff';
+}) {
+  const tones = {
+    pdf: 'border-[#d8c4e2] bg-[#f5eef8] text-[#6a4777]',
+    handmade: 'border-[#e6c8b8] bg-[#fbf0ea] text-[#8a5137]',
+    published: 'border-[#bedecd] bg-[var(--success-surface)] text-[var(--success)]',
+    draft: 'border-[#ead6aa] bg-[var(--warning-surface)] text-[var(--warning)]',
+    archived: 'border-[#ecc0ba] bg-[var(--destructive-surface)] text-[var(--destructive)]',
+    marketOn: 'border-[#bedecd] bg-[#edf8f1] text-[#28724b]',
+    marketOff: 'border-[#dfd8cf] bg-[#f7f3ee] text-[#8a7a68]'
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-[var(--radius-control)] border px-2.5 py-1 text-xs font-semibold ${tones[tone]}`}
+    >
+      {children}
+    </span>
+  );
 }
 
 export default async function AdminCatalogPage({
@@ -81,12 +114,12 @@ export default async function AdminCatalogPage({
   const hasFilters = Boolean(filters.search || filters.status !== 'all' || filters.type !== 'all');
 
   return (
-    <AdminPageShell>
-      <AdminPageHeader
-        eyebrow="Admin catalog"
-        title="Products"
-        description="Find, review, and edit product readiness across content, media, market offers, and inventory."
-        action={
+    <AdminPageShell className="gap-4 py-4 sm:py-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase text-[var(--accent)]">Admin catalog</p>
+          <h1 className="text-2xl font-semibold leading-tight">Products</h1>
+        </div>
           <Link
             href="/admin/catalog/new"
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
@@ -94,44 +127,18 @@ export default async function AdminCatalogPage({
             <Plus className="size-4" aria-hidden="true" />
             New product
           </Link>
-        }
-      />
-
-      <section className="grid gap-3 sm:grid-cols-3">
-        <AdminMetricCard
-          label="Total products"
-          value={catalog.stats.total}
-          description="All catalog records"
-          icon={Boxes}
-        />
-        <AdminMetricCard
-          label="Published"
-          value={catalog.stats.published}
-          description="Visible when market-ready"
-          icon={Package}
-        />
-        <AdminMetricCard
-          label="Draft or hidden"
-          value={catalog.stats.draftOrHidden}
-          description="Needs review or archived"
-          icon={Tag}
-        />
-      </section>
+      </div>
 
       <Card className="overflow-hidden p-0">
-        <CardHeader className="m-0 border-b border-[var(--border)] p-4 sm:p-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <CardHeader className="m-0 border-b border-[var(--border)] px-4 py-3 sm:px-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <Boxes className="size-5 text-[var(--accent)]" aria-hidden="true" />
-                <CardTitle>Catalog workspace</CardTitle>
+                <Boxes className="size-4 text-[var(--accent)]" aria-hidden="true" />
+                <h2 className="text-base font-semibold">Catalog workspace</h2>
               </div>
-              <p className="mt-2 max-w-2xl text-sm text-[var(--muted-foreground)]">
-                Scan product identity, publication state, market availability, and recent updates
-                before opening the full editor.
-              </p>
             </div>
-            <div className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-3 py-2 text-sm font-semibold tabular-nums">
+            <div className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-semibold tabular-nums">
               {catalog.total} result{catalog.total === 1 ? '' : 's'}
             </div>
           </div>
@@ -144,6 +151,7 @@ export default async function AdminCatalogPage({
           totalPages={catalog.totalPages}
           total={catalog.total}
           pageSize={catalog.pageSize}
+          stats={catalog.stats}
         />
         <CardContent className="p-0">
           {catalog.products.length === 0 ? (
@@ -199,21 +207,23 @@ export default async function AdminCatalogPage({
                         </div>
                       </td>
                       <td className="px-4 py-4 align-middle">
-                        <AdminStatusPill>{productTypeLabel(product.productType)}</AdminStatusPill>
+                        <CatalogBadge tone={productTypeTone(product.productType)}>
+                          {productTypeLabel(product.productType)}
+                        </CatalogBadge>
                       </td>
                       <td className="px-4 py-4 align-middle">
-                        <AdminStatusPill tone={statusTone(product.status)}>
+                        <CatalogBadge tone={statusTone(product.status)}>
                           {product.status}
-                        </AdminStatusPill>
+                        </CatalogBadge>
                       </td>
                       <td className="px-4 py-4 align-middle">
                         <div className="flex flex-wrap gap-2">
-                          <AdminStatusPill tone={product.markets.vn ? 'success' : 'default'}>
+                          <CatalogBadge tone={product.markets.vn ? 'marketOn' : 'marketOff'}>
                             VN
-                          </AdminStatusPill>
-                          <AdminStatusPill tone={product.markets.intl ? 'success' : 'default'}>
+                          </CatalogBadge>
+                          <CatalogBadge tone={product.markets.intl ? 'marketOn' : 'marketOff'}>
                             INTL
-                          </AdminStatusPill>
+                          </CatalogBadge>
                         </div>
                       </td>
                       <td className="px-4 py-4 align-middle text-sm text-[var(--muted-foreground)]">
