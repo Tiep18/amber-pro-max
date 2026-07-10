@@ -63,16 +63,19 @@ export function QuoteDiffDialog({
   const t = copy[locale];
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 px-4">
-      <Card role="dialog" aria-modal="true" aria-labelledby="quote-diff-title" className="w-full max-w-[560px]">
-        <CardHeader>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(40,28,18,0.32)] px-4 backdrop-blur-[2px]">
+      <Card role="dialog" aria-modal="true" aria-labelledby="quote-diff-title" className="w-full max-w-[560px] shadow-none">
+        <CardHeader className="border-b border-[var(--border)] pb-4">
           <CardTitle id="quote-diff-title">{t.title}</CardTitle>
-          <p className="text-sm text-[var(--muted-foreground)]">{t.body}</p>
+          <p className="text-sm leading-6 text-[var(--muted-foreground)]">{t.body}</p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-1">
           <ul className="grid gap-2">
             {changes.map((change, index) => (
-              <li key={`${change.type}-${index}`} className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-3 py-2">
+              <li
+                key={`${change.type}-${index}`}
+                className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm font-medium"
+              >
                 {changeLabel(change, proposal)}
               </li>
             ))}

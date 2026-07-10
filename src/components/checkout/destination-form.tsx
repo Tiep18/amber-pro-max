@@ -9,6 +9,7 @@ import type {CartQuote} from '@/checkout/types';
 import type {Locale} from '@/i18n/routing';
 import {Alert} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
 import {QuoteDiffDialog} from './quote-diff-dialog';
 
 const copy = {
@@ -21,6 +22,7 @@ const copy = {
     locality: 'City',
     region: 'State / province',
     postalCode: 'Postal code',
+    optional: 'Optional',
     searchCountry: 'Search countries',
     clearCountry: 'Clear country',
     countryPlaceholder: 'Select a country',
@@ -39,6 +41,7 @@ const copy = {
     locality: 'Thanh pho',
     region: 'Tinh / bang',
     postalCode: 'Ma buu chinh',
+    optional: 'Khong bat buoc',
     searchCountry: 'Tim quoc gia',
     clearCountry: 'Xoa quoc gia',
     countryPlaceholder: 'Chon quoc gia',
@@ -141,7 +144,7 @@ export function DestinationForm({
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-4">
       {error ? <Alert variant="destructive">{error}</Alert> : null}
       <div className="grid gap-2">
         <div className="flex items-center justify-between gap-3">
@@ -161,7 +164,7 @@ export function DestinationForm({
             </Button>
           ) : null}
         </div>
-        <input
+        <Input
           id="shipping-country-search"
           value={countrySearch}
           placeholder={selectedCountry ? `${selectedCountry.label} (${selectedCountry.code})` : t.searchCountry}
@@ -169,7 +172,7 @@ export function DestinationForm({
           onBlur={() => setShowValidation(true)}
           aria-describedby={fieldError('countryCode') ? 'shipping-country-error' : undefined}
           aria-invalid={Boolean(fieldError('countryCode'))}
-          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
+          className="min-h-10 rounded-b-none text-sm"
         />
         <select
           value={shippingAddress.countryCode}
@@ -181,7 +184,7 @@ export function DestinationForm({
           aria-label={t.country}
           aria-describedby={fieldError('countryCode') ? 'shipping-country-error' : undefined}
           aria-invalid={Boolean(fieldError('countryCode'))}
-          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3"
+          className="min-h-11 w-full rounded-b-[var(--radius-control)] border border-t-0 border-[var(--border)] bg-[var(--surface)] px-3 text-base outline-none transition-colors focus:border-[var(--accent)]"
         >
           <option value="">{t.countryPlaceholder}</option>
           {visibleCountries.map((country) => (
@@ -206,14 +209,13 @@ export function DestinationForm({
           <span className="font-semibold">
             {t.recipient} <span className="text-[var(--destructive)]">*</span>
           </span>
-          <input
+        <Input
             id="shipping-recipient-name"
             value={shippingAddress.recipientName}
             onChange={(event) => updateAddress({recipientName: event.target.value})}
             onBlur={() => setShowValidation(true)}
             aria-describedby={fieldError('recipientName') ? 'shipping-recipient-name-error' : undefined}
             aria-invalid={Boolean(fieldError('recipientName'))}
-            className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
           />
           {fieldError('recipientName') ? (
             <p id="shipping-recipient-name-error" className="text-sm font-medium text-[var(--destructive)]">
@@ -225,7 +227,7 @@ export function DestinationForm({
           <span className="font-semibold">
             {t.phone} <span className="text-[var(--destructive)]">*</span>
           </span>
-          <input
+          <Input
             id="shipping-phone-number"
             type="tel"
             autoComplete="tel"
@@ -234,7 +236,6 @@ export function DestinationForm({
             onBlur={() => setShowValidation(true)}
             aria-describedby={fieldError('phoneNumber') ? 'shipping-phone-number-error' : undefined}
             aria-invalid={Boolean(fieldError('phoneNumber'))}
-            className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
           />
           {fieldError('phoneNumber') ? (
             <p id="shipping-phone-number-error" className="text-sm font-medium text-[var(--destructive)]">
@@ -247,7 +248,7 @@ export function DestinationForm({
         <span className="font-semibold">
           {t.addressLine1} <span className="text-[var(--destructive)]">*</span>
         </span>
-        <input
+        <Input
           id="shipping-address-line-1"
           autoComplete="address-line1"
           value={shippingAddress.addressLine1}
@@ -255,7 +256,6 @@ export function DestinationForm({
           onBlur={() => setShowValidation(true)}
           aria-describedby={fieldError('addressLine1') ? 'shipping-address-line-1-error' : undefined}
           aria-invalid={Boolean(fieldError('addressLine1'))}
-          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
         />
         {fieldError('addressLine1') ? (
           <p id="shipping-address-line-1-error" className="text-sm font-medium text-[var(--destructive)]">
@@ -264,48 +264,56 @@ export function DestinationForm({
         ) : null}
       </label>
       <label className="space-y-2" htmlFor="shipping-address-line-2">
-        <span className="font-semibold">{t.addressLine2}</span>
-        <input
+        <span className="flex items-center justify-between gap-3">
+          <span className="font-semibold">{t.addressLine2}</span>
+          <span className="text-xs font-medium text-[var(--muted-foreground)]">{t.optional}</span>
+        </span>
+        <Input
           id="shipping-address-line-2"
           autoComplete="address-line2"
           value={shippingAddress.addressLine2 ?? ''}
           onChange={(event) => updateAddress({addressLine2: event.target.value})}
-          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
         />
       </label>
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="space-y-2" htmlFor="shipping-locality">
-          <span className="font-semibold">{t.locality}</span>
-          <input
+          <span className="flex items-center justify-between gap-3">
+            <span className="font-semibold">{t.locality}</span>
+            <span className="text-xs font-medium text-[var(--muted-foreground)]">{t.optional}</span>
+          </span>
+          <Input
             id="shipping-locality"
             autoComplete="address-level2"
             value={shippingAddress.locality ?? ''}
             onChange={(event) => updateAddress({locality: event.target.value})}
-            className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
           />
         </label>
         <label className="space-y-2" htmlFor="shipping-region">
-          <span className="font-semibold">{t.region}</span>
-          <input
+          <span className="flex items-center justify-between gap-3">
+            <span className="font-semibold">{t.region}</span>
+            <span className="text-xs font-medium text-[var(--muted-foreground)]">{t.optional}</span>
+          </span>
+          <Input
             id="shipping-region"
             autoComplete="address-level1"
             value={shippingAddress.region ?? ''}
             onChange={(event) => updateAddress({region: event.target.value})}
-            className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
           />
         </label>
         <label className="space-y-2" htmlFor="shipping-postal-code">
-          <span className="font-semibold">{t.postalCode}</span>
-          <input
+          <span className="flex items-center justify-between gap-3">
+            <span className="font-semibold">{t.postalCode}</span>
+            <span className="text-xs font-medium text-[var(--muted-foreground)]">{t.optional}</span>
+          </span>
+          <Input
             id="shipping-postal-code"
             autoComplete="postal-code"
             value={shippingAddress.postalCode ?? ''}
             onChange={(event) => updateAddress({postalCode: event.target.value})}
-            className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3"
           />
         </label>
       </div>
-      <Button disabled={pending} onClick={submit} aria-disabled={!addressReady || pending}>
+      <Button disabled={pending} onClick={submit} aria-disabled={!addressReady || pending} className="w-full sm:w-auto">
         {pending ? t.pending : t.submit}
       </Button>
       {proposal ? (

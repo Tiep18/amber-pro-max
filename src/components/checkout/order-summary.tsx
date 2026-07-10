@@ -56,11 +56,11 @@ export function OrderSummary({quote, locale}: {quote: CartQuote | null; locale: 
   const total = quote && currencyCode ? formatMoney({amountMinor: quote.totalMinor, currencyCode}) : '-';
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t.title}</CardTitle>
+    <Card className="shadow-none">
+      <CardHeader className="border-b border-[var(--border)] pb-4">
+        <CardTitle className="text-lg">{t.title}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-1">
         {quote?.status === 'blocked' ? <Alert variant="destructive">{quote.shipping.status === 'unsupported_destination' ? t.unsupported : t.blocked}</Alert> : null}
         <div className="flex justify-between gap-3 tabular-nums">
           <span>{t.subtotal}</span>
@@ -73,12 +73,12 @@ export function OrderSummary({quote, locale}: {quote: CartQuote | null; locale: 
           </div>
         ) : null}
         {quote?.discount.status === 'not_eligible' ? <Alert variant="warning">{t.discountRejected}</Alert> : null}
-        <div className="flex justify-between gap-3 text-sm text-[var(--muted-foreground)]">
+        <div className="flex justify-between gap-3 text-sm leading-6 text-[var(--muted-foreground)]">
           <span>{t.shipping}</span>
           <span className="max-w-[220px] text-right">{quote ? shippingText(quote, locale) : t.notCalculated}</span>
         </div>
         <Separator />
-        <div className="flex justify-between gap-3 text-lg font-semibold tabular-nums">
+        <div className="flex justify-between gap-3 text-xl font-semibold tabular-nums">
           <span>{t.total}</span>
           <span>{total}</span>
         </div>

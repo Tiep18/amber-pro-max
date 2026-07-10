@@ -35,6 +35,16 @@ const copy = {
   }
 } as const;
 
+function addressPreview(address: CustomerShippingAddress) {
+  return [
+    address.recipientName,
+    address.phoneNumber,
+    address.addressLine1,
+    [address.locality, address.region, address.postalCode].filter(Boolean).join(', '),
+    address.countryCode
+  ].filter((line): line is string => Boolean(line));
+}
+
 export function SavedAddressSelector({
   locale,
   addresses,
@@ -88,31 +98,41 @@ export function SavedAddressSelector({
   }
 
   return (
-    <section className="grid gap-3 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
-      <div>
+    <section className="grid gap-3 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-muted)] p-4">
+      <div className="grid gap-1">
         <h3 className="text-base font-semibold">{t.title}</h3>
         <p className="text-sm text-[var(--muted-foreground)]">{t.intro}</p>
       </div>
       {error ? <Alert variant="destructive">{error}</Alert> : null}
-      <label className="grid gap-2" htmlFor="saved-address-selector">
-        <span className="text-sm font-semibold">{t.choose}</span>
-        <select
-          id="saved-address-selector"
-          value={selectedId}
-          onChange={(event) => setSelectedId(event.target.value)}
-          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3"
-        >
-          <option value="">{t.placeholder}</option>
-          {addresses.map((address) => (
-            <option key={address.id} value={address.id}>
-              {address.label} - {address.addressLine1}, {address.countryCode}
-            </option>
-          ))}
-        </select>
-      </label>
-      <Button type="button" variant="secondary" disabled={pending} onClick={applySelectedAddress}>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <label className="grid gap-2" htmlFor="saved-address-selector">
+          <span className="text-sm font-semibold">{t.choose}</span>
+          <select
+            id="saved-address-selector"
+            value={selectedId}
+            onChange={(event) => setSelectedId(event.target.value)}
+            className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3"
+          >
+            <option value="">{t.placeholder}</option>
+            {addresses.map((address) => (
+              <option key={address.id} value={address.id}>
+                {address.label} - {address.addressLine1}, {address.countryCode}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button type="button" variant="secondary" disabled={pending} onClick={applySelectedAddress}>
         {pending ? t.pending : t.apply}
-      </Button>
+        </Button>
+      </div>
+      {selectedAddress ? (
+        <address className="grid gap-0.5 border-l-2 border-[var(--border)] pl-3 text-sm not-italic leading-6 text-[var(--muted-foreground)]">
+          <strong className="font-semibold text-[var(--foreground)]">{selectedAddress.label}</strong>
+          {addressPreview(selectedAddress).map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+        </address>
+      ) : null}
       {proposal ? (
         <QuoteDiffDialog
           locale={locale}

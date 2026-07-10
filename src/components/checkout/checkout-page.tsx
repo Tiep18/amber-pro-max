@@ -20,13 +20,23 @@ import {SavedAddressSelector} from './saved-address-selector';
 const copy = {
   en: {
     title: 'Checkout',
+    intro: 'Complete the details below, then create a pending order and continue to payment.',
     contact: 'Contact',
+    contactIntro: 'Where we send your order updates and payment instructions.',
     discount: 'Discount',
+    discountIntro: 'Optional. Codes are checked against the latest server quote.',
     destination: 'Destination',
+    destinationIntro: 'Required for handmade pieces. Digital-only carts skip shipping.',
+    review: 'Review',
     handoff: 'Confirm total and continue',
     submitting: 'Creating order',
     pendingBoundary: 'Payment confirmation happens after this step. Digital files remain locked until the full order is confirmed paid.',
     empty: 'Your cart is empty.',
+    completeThese: 'Complete these before continuing:',
+    missingContact: 'Enter a valid contact email.',
+    missingQuote: 'Refresh the cart quote.',
+    missingShipping: 'Update the delivery destination.',
+    unsupportedShipping: 'Choose a supported shipping destination.',
     invalid: 'Check your contact details and cart before continuing.',
     stale: 'The quote changed. Review the updated total and try again.',
     conflict: 'Checkout could not reserve the current items. Review your cart and try again.',
@@ -36,13 +46,23 @@ const copy = {
   },
   vi: {
     title: 'Thanh toan',
+    intro: 'Hoan tat thong tin ben duoi, tao don hang cho thanh toan roi tiep tuc thanh toan.',
     contact: 'Lien he',
+    contactIntro: 'Noi nhan cap nhat don hang va huong dan thanh toan.',
     discount: 'Giam gia',
+    discountIntro: 'Khong bat buoc. Ma se duoc kiem tra theo bao gia moi nhat tu server.',
     destination: 'Dia diem',
+    destinationIntro: 'Can cho san pham handmade. Gio hang chi co file so se bo qua van chuyen.',
+    review: 'Xem lai',
     handoff: 'Xac nhan tong tien va tiep tuc',
     submitting: 'Dang tao don hang',
     pendingBoundary: 'Xac nhan thanh toan dien ra sau buoc nay. File so van bi khoa cho den khi don hang duoc xac nhan da thanh toan day du.',
     empty: 'Gio hang dang trong.',
+    completeThese: 'Hoan tat cac muc nay truoc khi tiep tuc:',
+    missingContact: 'Nhap email lien he hop le.',
+    missingQuote: 'Cap nhat lai bao gia gio hang.',
+    missingShipping: 'Cap nhat dia diem giao hang.',
+    unsupportedShipping: 'Chon dia diem giao hang duoc ho tro.',
     invalid: 'Kiem tra thong tin lien he va gio hang truoc khi tiep tuc.',
     stale: 'Bao gia da thay doi. Hay xem lai tong tien va thu lai.',
     conflict: 'Checkout khong the giu cac san pham hien tai. Hay xem lai gio hang va thu lai.',
@@ -83,10 +103,12 @@ export function CheckoutPage({
   const {quote, cart} = useCart();
   const [acceptedQuote, setAcceptedQuote] = useState<CartQuote | null>(quote);
   const [email, setEmail] = useState('');
+  const [contactReady, setContactReady] = useState(false);
   const [paymentIntent, setPaymentIntent] = useState<CheckoutPaymentIntent>('paypal_intent');
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>(emptyShippingAddress);
   const [submitResult, setSubmitResult] = useState<SubmitCheckoutActionState | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   useEffect(() => {
     if (quote) {
@@ -111,10 +133,25 @@ export function CheckoutPage({
     acceptedQuote.shipping.status !== 'not_calculated' &&
     (physicalCount === 0 || acceptedQuote.shipping.status === 'ready') &&
     shippingAddressReady &&
-    email.trim().length > 0 &&
+    contactReady &&
     !submitting;
+  const submitIssues = Array.from(
+    new Set(
+      [
+        !acceptedQuote || acceptedQuote.lines.length === 0 ? t.missingQuote : null,
+        !contactReady ? t.missingContact : null,
+        physicalCount > 0 && !shippingAddressReady ? t.missingShipping : null,
+        physicalCount > 0 && acceptedQuote?.shipping.status === 'not_calculated' ? t.missingShipping : null,
+        physicalCount > 0 && acceptedQuote?.shipping.status === 'unsupported_destination' ? t.unsupportedShipping : null
+      ].filter(Boolean) as string[]
+    )
+  );
 
   async function submit() {
+    setSubmitAttempted(true);
+    if (!readyToSubmit) {
+      return;
+    }
     if (!acceptedQuote || !cart) {
       return;
     }
@@ -144,41 +181,41 @@ export function CheckoutPage({
   }
 
   return (
-    <main className="container grid gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_380px]">
+    <main className="container grid gap-8 py-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
       <section className="grid content-start gap-5">
-        <div>
-          <h1 className="text-[28px] font-semibold leading-tight">{t.title}</h1>
-          <p className="text-[var(--muted-foreground)]">{t.pendingBoundary}</p>
+        <div className="max-w-3xl space-y-2 border-b border-[var(--border)] pb-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+            {t.review}
+          </p>
+          <h1 className="text-[28px] font-semibold leading-tight text-[var(--foreground)]">{t.title}</h1>
+          <p className="max-w-2xl text-sm leading-6 text-[var(--muted-foreground)]">{t.intro}</p>
+          <p className="max-w-2xl text-sm leading-6 text-[var(--muted-foreground)]">{t.pendingBoundary}</p>
         </div>
         {!acceptedQuote || acceptedQuote.lines.length === 0 ? <Alert variant="warning">{t.empty}</Alert> : null}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t.contact}</CardTitle>
+        <Card className="shadow-none">
+          <CardHeader className="border-b border-[var(--border)] pb-4">
+            <CardTitle className="text-lg">{t.contact}</CardTitle>
+            <p className="text-sm leading-6 text-[var(--muted-foreground)]">{t.contactIntro}</p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-1">
             <ContactForm
               locale={locale}
               email={email}
               paymentIntent={paymentIntent}
               onEmailChange={setEmail}
               onPaymentIntentChange={setPaymentIntent}
+              onValidityChange={setContactReady}
+              showValidation={submitAttempted}
             />
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t.discount}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DiscountCodeForm locale={locale} acceptedQuote={acceptedQuote} onAcceptedQuote={setAcceptedQuote} />
-          </CardContent>
-        </Card>
         {physicalCount > 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t.destination}</CardTitle>
+          <Card className="shadow-none">
+            <CardHeader className="border-b border-[var(--border)] pb-4">
+              <CardTitle className="text-lg">{t.destination}</CardTitle>
+              <p className="text-sm leading-6 text-[var(--muted-foreground)]">{t.destinationIntro}</p>
             </CardHeader>
-          <CardContent>
+            <CardContent className="pt-1">
               {savedAddresses.length > 0 ? (
                 <div className="mb-5">
                   <SavedAddressSelector
@@ -200,6 +237,15 @@ export function CheckoutPage({
             </CardContent>
           </Card>
         ) : null}
+        <Card className="shadow-none">
+          <CardHeader className="border-b border-[var(--border)] pb-4">
+            <CardTitle className="text-lg">{t.discount}</CardTitle>
+            <p className="text-sm leading-6 text-[var(--muted-foreground)]">{t.discountIntro}</p>
+          </CardHeader>
+          <CardContent className="pt-1">
+            <DiscountCodeForm locale={locale} acceptedQuote={acceptedQuote} onAcceptedQuote={setAcceptedQuote} />
+          </CardContent>
+        </Card>
         {submitResult?.status === 'success' ? (
           <Alert variant="success">
             {t.success} {t.deadline}: {new Date(submitResult.reservationExpiresAt).toLocaleString(locale)}.
@@ -210,23 +256,42 @@ export function CheckoutPage({
             {submitResult.status === 'invalid' ? t.invalid : submitResult.status === 'stale' ? t.stale : t.conflict}
           </Alert>
         ) : null}
-        <Button disabled={!readyToSubmit} onClick={submit}>
-          {submitting ? t.submitting : t.handoff}
-        </Button>
-        {policyLinks.length > 0 ? (
-          <div className="grid gap-2 text-sm text-[var(--muted-foreground)]">
-            <p className="font-semibold text-[var(--foreground)]">{t.policies}</p>
-            <div className="flex flex-wrap gap-3">
-              {policyLinks.map((policy) => (
-                <a key={policy.policyKind} href={policy.href} className="font-semibold text-[var(--accent)]">
-                  {policy.title}
-                </a>
-              ))}
-            </div>
-          </div>
-        ) : null}
       </section>
-      <OrderSummary quote={acceptedQuote} locale={locale} />
+      <aside className="lg:sticky lg:top-24">
+        <div className="grid gap-4">
+          <OrderSummary quote={acceptedQuote} locale={locale} />
+          {submitAttempted && submitIssues.length > 0 ? (
+            <Alert variant="warning" className="text-sm">
+              <p className="font-semibold text-[var(--foreground)]">{t.completeThese}</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {submitIssues.map((issue) => (
+                  <li key={issue}>{issue}</li>
+                ))}
+              </ul>
+            </Alert>
+          ) : null}
+          <Button
+            disabled={submitting || !acceptedQuote || acceptedQuote.lines.length === 0}
+            onClick={submit}
+            aria-disabled={!readyToSubmit || submitting}
+            className="w-full"
+          >
+            {submitting ? t.submitting : t.handoff}
+          </Button>
+          {policyLinks.length > 0 ? (
+            <div className="grid gap-2 text-sm text-[var(--muted-foreground)]">
+              <p className="font-semibold text-[var(--foreground)]">{t.policies}</p>
+              <div className="flex flex-wrap gap-3">
+                {policyLinks.map((policy) => (
+                  <a key={policy.policyKind} href={policy.href} className="font-semibold text-[var(--accent)]">
+                    {policy.title}
+                  </a>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </aside>
     </main>
   );
 }
