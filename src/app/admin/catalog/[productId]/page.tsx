@@ -22,7 +22,7 @@ export default async function EditProductPage({
   ]);
 
   return (
-    <AdminPageShell className="mx-auto max-w-[1040px]">
+    <AdminPageShell className="mx-auto max-w-[1280px]">
       <Link
         href="/admin/catalog"
         className="mb-4 inline-flex text-sm font-semibold text-[var(--accent)]"
