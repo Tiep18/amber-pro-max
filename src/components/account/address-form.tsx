@@ -4,6 +4,7 @@ import {startTransition, useActionState, useEffect} from 'react';
 import {useRouter} from 'next/navigation';
 import {useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
+import {AlertCircle, CheckCircle2} from 'lucide-react';
 import {
   createCustomerShippingAddressAction,
   updateCustomerShippingAddressAction,
@@ -56,6 +57,10 @@ function statusMessage(state: AddressActionState, labels: AddressFormLabels) {
   if (state.status === 'saved') return labels.saved;
   if (state.status === 'invalid' || state.status === 'not_found' || state.status === 'error') return labels.error;
   return null;
+}
+
+function isSuccessState(state: AddressActionState) {
+  return state.status === 'saved';
 }
 
 function defaultValues(address?: CustomerShippingAddress): CustomerShippingAddressInput {
@@ -130,127 +135,113 @@ export function AddressForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-5">
         {message ? (
-          <p role={state.status === 'saved' ? 'status' : 'alert'} className={state.status === 'saved' ? 'text-sm font-semibold text-[var(--success)]' : 'text-sm font-semibold text-[var(--destructive)]'}>
+          <p
+            role={isSuccessState(state) ? 'status' : 'alert'}
+            className={
+              isSuccessState(state)
+                ? 'inline-flex items-start gap-2 rounded-[var(--radius-control)] bg-[var(--success-surface)] px-3 py-2 text-sm font-semibold text-[var(--success)]'
+                : 'inline-flex items-start gap-2 rounded-[var(--radius-control)] bg-[var(--destructive-surface)] px-3 py-2 text-sm font-semibold text-[var(--destructive)]'
+            }
+          >
+            {isSuccessState(state) ? (
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            ) : (
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            )}
             {message}
           </p>
         ) : null}
 
-        <FormField
-          control={form.control}
-          name="label"
-          render={({field}) => (
-            <FormItem>
-              <FormLabel>{labels.fields.label}</FormLabel>
-              <FormControl>
-                <Input {...field} maxLength={80} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-4">
           <FormField
             control={form.control}
-            name="recipientName"
+            name="label"
             render={({field}) => (
               <FormItem>
-                <FormLabel>{labels.fields.recipientName}</FormLabel>
+                <FormLabel>{labels.fields.label}</FormLabel>
                 <FormControl>
-                  <Input {...field} maxLength={120} autoComplete="name" />
+                  <Input {...field} maxLength={80} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="phoneNumber"
-            render={({field}) => (
-              <FormItem>
-                <FormLabel>{labels.fields.phoneNumber}</FormLabel>
-                <FormControl>
-                  <Input {...field} minLength={5} maxLength={40} autoComplete="tel" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="recipientName"
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>{labels.fields.recipientName}</FormLabel>
+                  <FormControl>
+                    <Input {...field} maxLength={120} autoComplete="name" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="phoneNumber"
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>{labels.fields.phoneNumber}</FormLabel>
+                  <FormControl>
+                    <Input {...field} minLength={5} maxLength={40} autoComplete="tel" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="countryCode"
-            render={({field}) => (
-              <FormItem>
-                <FormLabel>{labels.fields.countryCode}</FormLabel>
-                <FormControl>
-                  <Input {...field} minLength={2} maxLength={2} autoComplete="country" className="uppercase" />
-                </FormControl>
-                {labels.descriptions?.countryCode ? (
-                  <FormDescription>{labels.descriptions.countryCode}</FormDescription>
-                ) : null}
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className="grid gap-4 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="countryCode"
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>{labels.fields.countryCode}</FormLabel>
+                  <FormControl>
+                    <Input {...field} minLength={2} maxLength={2} autoComplete="country" className="uppercase" />
+                  </FormControl>
+                  {labels.descriptions?.countryCode ? (
+                    <FormDescription>{labels.descriptions.countryCode}</FormDescription>
+                  ) : null}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="postalCode"
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>{labels.fields.postalCode}</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ''} maxLength={200} autoComplete="postal-code" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}
-            name="postalCode"
+            name="addressLine1"
             render={({field}) => (
               <FormItem>
-                <FormLabel>{labels.fields.postalCode}</FormLabel>
+                <FormLabel>{labels.fields.addressLine1}</FormLabel>
                 <FormControl>
-                  <Input {...field} value={field.value || ''} maxLength={200} autoComplete="postal-code" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="addressLine1"
-          render={({field}) => (
-            <FormItem>
-              <FormLabel>{labels.fields.addressLine1}</FormLabel>
-              <FormControl>
-                <Input {...field} maxLength={200} autoComplete="address-line1" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="addressLine2"
-          render={({field}) => (
-            <FormItem>
-              <FormLabel>{labels.fields.addressLine2}</FormLabel>
-              <FormControl>
-                <Input {...field} value={field.value || ''} maxLength={200} autoComplete="address-line2" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="locality"
-            render={({field}) => (
-              <FormItem>
-                <FormLabel>{labels.fields.locality}</FormLabel>
-                <FormControl>
-                  <Input {...field} value={field.value || ''} maxLength={200} autoComplete="address-level2" />
+                  <Input {...field} maxLength={200} autoComplete="address-line1" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -259,17 +250,47 @@ export function AddressForm({
 
           <FormField
             control={form.control}
-            name="region"
+            name="addressLine2"
             render={({field}) => (
               <FormItem>
-                <FormLabel>{labels.fields.region}</FormLabel>
+                <FormLabel>{labels.fields.addressLine2}</FormLabel>
                 <FormControl>
-                  <Input {...field} value={field.value || ''} maxLength={200} autoComplete="address-level1" />
+                  <Input {...field} value={field.value || ''} maxLength={200} autoComplete="address-line2" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="locality"
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>{labels.fields.locality}</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ''} maxLength={200} autoComplete="address-level2" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="region"
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>{labels.fields.region}</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ''} maxLength={200} autoComplete="address-level1" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
         <FormField
