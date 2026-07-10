@@ -60,9 +60,9 @@ function FormShell({
 }) {
   if (state.status === 'success') {
     return (
-      <Alert variant="success">
+      <Alert variant="success" className="space-y-2">
         <h2 className="text-base font-semibold">{messages.successTitle}</h2>
-        <p className="mt-2">{messages.successBody}</p>
+        <p className="text-sm leading-6">{messages.successBody}</p>
       </Alert>
     );
   }
@@ -70,7 +70,7 @@ function FormShell({
   return (
     <>
       {state.status === 'error' ? (
-        <Alert variant="destructive" id="auth-form-error">
+        <Alert variant="destructive" id="auth-form-error" className="text-sm leading-6">
           {messages.genericError}
         </Alert>
       ) : null}
@@ -123,7 +123,7 @@ export function SignInForm({
   return (
     <FormShell state={state} messages={messages}>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
           <input type="hidden" {...form.register('locale')} />
           <input type="hidden" {...form.register('next')} />
           <FormField
@@ -164,7 +164,7 @@ export function SignInForm({
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full min-h-11 cursor-pointer" disabled={pending}>
+          <Button type="submit" className="min-h-11 w-full cursor-pointer" disabled={pending}>
             {pending ? messages.pending : messages.submit}
           </Button>
         </form>
@@ -211,7 +211,7 @@ export function RegisterForm({
   return (
     <FormShell state={state} messages={messages}>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
           <input type="hidden" {...form.register('locale')} />
           <input type="hidden" {...form.register('next')} />
           <FormField
@@ -271,7 +271,7 @@ export function RegisterForm({
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full min-h-11 cursor-pointer" disabled={pending}>
+          <Button type="submit" className="min-h-11 w-full cursor-pointer" disabled={pending}>
             {pending ? messages.pending : messages.submit}
           </Button>
         </form>
@@ -310,7 +310,7 @@ export function ForgotPasswordForm({
   return (
     <FormShell state={state} messages={messages}>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
           <input type="hidden" {...form.register('locale')} />
           <FormField
             control={form.control}
@@ -331,7 +331,7 @@ export function ForgotPasswordForm({
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full min-h-11 cursor-pointer" disabled={pending}>
+          <Button type="submit" className="min-h-11 w-full cursor-pointer" disabled={pending}>
             {pending ? messages.pending : messages.submit}
           </Button>
         </form>
@@ -376,7 +376,7 @@ export function ResetPasswordForm({
   return (
     <FormShell state={state} messages={messages}>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
           <input type="hidden" {...form.register('locale')} />
           <input type="hidden" {...form.register('next')} />
           <FormField
@@ -417,7 +417,7 @@ export function ResetPasswordForm({
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full min-h-11 cursor-pointer" disabled={pending}>
+          <Button type="submit" className="min-h-11 w-full cursor-pointer" disabled={pending}>
             {pending ? messages.pending : messages.submit}
           </Button>
         </form>
