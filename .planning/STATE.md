@@ -249,6 +249,7 @@ None yet.
 | 260711-ovk                                            | Add real operations pagination and move launch settings into a sheet                                                              | 2026-07-11 | be36f42     | [260711-ovk-add-real-operations-pagination-and-move-](./quick/260711-ovk-add-real-operations-pagination-and-move-/)                                      |
 | 260711-x7e                                            | Correct Operations totals and redesign operational error rows                                                                     | 2026-07-11 | c5141df     | [260711-x7e-correct-operations-totals-and-redesign-o](./quick/260711-x7e-correct-operations-totals-and-redesign-o/)                                      |
 | 260712-0ix                                            | Compact Operations desktop rows and move sanitized details into a Sheet                                                           | 2026-07-12 | 1379a89     | [260712-0ix-compact-operations-desktop-rows-and-move](./quick/260712-0ix-compact-operations-desktop-rows-and-move/)                                      |
+| 260712-0si                                            | Redesign admin Reviews moderation workspace                                                                                       | 2026-07-12 | 9cdfb76     | [260712-0si-redesign-admin-reviews-moderation-worksp](./quick/260712-0si-redesign-admin-reviews-moderation-worksp/)                                      |
 
 ### Debug Sessions Resolved
 
