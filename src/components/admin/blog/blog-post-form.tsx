@@ -24,7 +24,7 @@ import {
 } from '@/content/blog/actions';
 import type { BlogPublishBlocker } from '@/content/blog/publish-checks';
 import type { BlogLocale, BlogPostDraftInput } from '@/content/blog/schemas';
-import { mapBlogValidationIssues } from './blog-form-validation';
+import { isBlogLocaleDraftReady, mapBlogValidationIssues } from './blog-form-validation';
 
 export type BlogSelectOption = {
   id: string;
@@ -117,6 +117,7 @@ function TranslationField({
   multiline,
   rows,
   className,
+  required,
   onChange
 }: {
   label: string;
@@ -126,6 +127,7 @@ function TranslationField({
   multiline?: boolean;
   rows?: number;
   className?: string;
+  required?: boolean;
   onChange: (value: string) => void;
 }) {
   const shared = {
@@ -142,7 +144,12 @@ function TranslationField({
   };
   return (
     <label className="grid gap-2 text-sm font-semibold" htmlFor={path}>
-      {label}
+      <span className="flex items-center justify-between gap-3">
+        {label}
+        {required ? (
+          <span className="text-xs font-normal text-[var(--muted-foreground)]">Required</span>
+        ) : null}
+      </span>
       {multiline ? <Textarea {...shared} rows={rows} /> : <Input {...shared} />}
       <FieldError id={`${path}-error`} message={error} />
     </label>
@@ -192,12 +199,7 @@ export function BlogPostForm({
     () => new Map(relatedProducts.map((product) => [product.productId, product])),
     [relatedProducts]
   );
-  const localeReady = (item: BlogLocale) =>
-    Boolean(
-      translations[item].title.trim() &&
-      translations[item].slug.trim() &&
-      translations[item].description.trim()
-    );
+  const localeReady = (item: BlogLocale) => isBlogLocaleDraftReady(translations[item]);
 
   function fieldPath(item: BlogLocale, key: keyof TranslationFormState) {
     return `translations.${item}.${key}`;
@@ -291,7 +293,12 @@ export function BlogPostForm({
         const mapped = mapBlogValidationIssues(result.issues);
         setFieldErrors(mapped.fields);
         if (mapped.firstLocale) setLocale(mapped.firstLocale);
-        setError('Review the highlighted fields before saving the draft.');
+        const firstMessage = mapped.firstPath ? mapped.fields[mapped.firstPath] : null;
+        setError(
+          firstMessage
+            ? `Review the highlighted fields. First issue: ${firstMessage}`
+            : 'Review the highlighted fields before saving the draft.'
+        );
         if (mapped.firstPath) {
           requestAnimationFrame(() => document.getElementById(mapped.firstPath)?.focus());
         }
@@ -438,6 +445,7 @@ export function BlogPostForm({
                     path={path}
                     value={translations[locale][key]}
                     error={fieldErrors[path]}
+                    required
                     onChange={(value) => {
                       updateTranslation(locale, key, value);
                       clearFieldError(path);
@@ -456,6 +464,7 @@ export function BlogPostForm({
                   value={translations[locale][key]}
                   error={fieldErrors[path]}
                   multiline
+                  required
                   rows={key === 'description' ? 3 : undefined}
                   className={key === 'body' ? 'min-h-[320px] leading-7' : undefined}
                   onChange={(value) => {

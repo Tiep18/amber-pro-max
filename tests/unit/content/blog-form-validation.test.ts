@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { mapBlogValidationIssues } from '@/components/admin/blog/blog-form-validation';
+import {
+  isBlogLocaleDraftReady,
+  mapBlogValidationIssues
+} from '@/components/admin/blog/blog-form-validation';
 
 describe('blog form validation feedback', () => {
   it('maps server paths to useful field messages and selects the first invalid locale', () => {
@@ -35,5 +38,16 @@ describe('blog form validation feedback', () => {
       firstLocale: null,
       firstPath: 'tagIds.0'
     });
+  });
+
+  it('does not mark a locale ready when its required body is empty', () => {
+    const complete = {
+      slug: 'complete-post',
+      title: 'Complete post',
+      description: 'A complete description',
+      body: 'Full article body'
+    };
+    expect(isBlogLocaleDraftReady(complete)).toBe(true);
+    expect(isBlogLocaleDraftReady({ ...complete, body: '' })).toBe(false);
   });
 });

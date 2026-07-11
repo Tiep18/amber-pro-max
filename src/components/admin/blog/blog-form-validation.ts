@@ -2,6 +2,20 @@ import type { BlogLocale } from '@/content/blog/schemas';
 
 export type BlogValidationIssue = { path: string; code: string };
 
+export function isBlogLocaleDraftReady(translation: {
+  slug: string;
+  title: string;
+  description: string;
+  body: string;
+}) {
+  return Boolean(
+    translation.slug.trim() &&
+    translation.title.trim() &&
+    translation.description.trim() &&
+    translation.body.trim()
+  );
+}
+
 const fieldLabels: Record<string, string> = {
   slug: 'Slug',
   title: 'Title',

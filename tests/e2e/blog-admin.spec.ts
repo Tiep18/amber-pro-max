@@ -137,7 +137,7 @@ test('admin creates a bilingual blog draft and sees publish blockers', async ({ 
 
   await page.getByRole('button', { name: 'Save draft' }).click();
   await expect(
-    page.getByText('Review the highlighted fields before saving the draft.')
+    page.getByText('Review the highlighted fields. First issue: Slug is required.')
   ).toBeVisible();
   await expect(page.getByLabel('Vietnamese slug')).toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByText('Slug is required.')).toBeVisible();
