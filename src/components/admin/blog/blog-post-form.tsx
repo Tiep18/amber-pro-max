@@ -6,6 +6,7 @@ import { Check, Clock3, Languages, Search, Send, Save, Settings2 } from 'lucide-
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -555,10 +556,11 @@ export function BlogPostForm({
             </div>
             <label className="grid gap-2 text-sm font-semibold">
               Publish date and time
-              <Input
-                type="datetime-local"
+              <DateTimePicker
                 value={publishedAt}
-                onChange={(event) => setPublishedAt(event.target.value)}
+                onChange={setPublishedAt}
+                aria-label="Publish date and time"
+                placeholder="Choose publish date and time"
               />
             </label>
           </div>
