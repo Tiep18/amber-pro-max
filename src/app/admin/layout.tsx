@@ -26,7 +26,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </aside>
       <div className="min-w-0">
         <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur">
-          <div className="flex min-h-14 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+          <div className="flex min-h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <p className="shrink-0 text-xs font-semibold uppercase text-[var(--muted-foreground)]">
                 Admin console
