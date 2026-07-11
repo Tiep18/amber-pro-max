@@ -47,63 +47,78 @@ function factEntries(error: AdminOperationalError) {
 function ErrorRow({ error }: { error: AdminOperationalError }) {
   const facts = factEntries(error);
   return (
-    <article className="grid gap-4 px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-start justify-between gap-3 lg:justify-start">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase text-[var(--accent)]">
-              {error.area} · {error.severity}
-            </p>
-            <h3 className="mt-1 text-lg font-semibold leading-6">{error.summary}</h3>
+    <article className="grid gap-3 px-4 py-4 sm:px-5">
+      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(260px,1.4fr)_minmax(190px,1fr)_minmax(220px,0.9fr)_auto] lg:items-center">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h3
+              className="min-w-0 truncate text-base font-semibold leading-6"
+              title={error.summary}
+            >
+              {error.summary}
+            </h3>
+            <AdminStatusPill tone={error.status === 'unresolved' ? 'warning' : 'success'}>
+              {error.status}
+            </AdminStatusPill>
           </div>
-          <AdminStatusPill tone={error.status === 'unresolved' ? 'warning' : 'success'}>
-            {error.status}
-          </AdminStatusPill>
+          <p className="mt-1 text-xs font-semibold uppercase text-[var(--accent)]">
+            {error.area} · {error.severity}
+          </p>
         </div>
-        <dl className="mt-3 grid grid-cols-2 gap-3 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 p-3 text-sm sm:grid-cols-4">
-          <div>
+
+        <dl className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 px-3 py-2.5 text-sm lg:bg-transparent lg:p-0">
+          <div className="min-w-0">
             <dt className="text-xs text-[var(--muted-foreground)]">Error code</dt>
-            <dd className="mt-1 truncate font-semibold">{error.errorCode}</dd>
+            <dd className="mt-0.5 truncate font-semibold" title={error.errorCode}>
+              {error.errorCode}
+            </dd>
           </div>
           <div>
             <dt className="text-xs text-[var(--muted-foreground)]">Occurrences</dt>
-            <dd className="mt-1 font-semibold tabular-nums">{error.occurrenceCount}</dd>
+            <dd className="mt-0.5 font-semibold tabular-nums">{error.occurrenceCount}</dd>
           </div>
+        </dl>
+
+        <dl className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <dt className="text-xs text-[var(--muted-foreground)]">First seen</dt>
-            <dd className="mt-1 text-xs font-medium">{formatAdminDate(error.firstSeenAt)}</dd>
+            <dd className="mt-0.5 whitespace-nowrap text-xs font-medium">
+              {formatAdminDate(error.firstSeenAt)}
+            </dd>
           </div>
           <div>
             <dt className="text-xs text-[var(--muted-foreground)]">Last seen</dt>
-            <dd className="mt-1 text-xs font-medium">{formatAdminDate(error.lastSeenAt)}</dd>
+            <dd className="mt-0.5 whitespace-nowrap text-xs font-medium">
+              {formatAdminDate(error.lastSeenAt)}
+            </dd>
           </div>
         </dl>
-        <details className="mt-3 rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2.5">
-          <summary className="cursor-pointer text-sm font-semibold">
-            Sanitized facts{' '}
-            <span className="font-normal text-[var(--muted-foreground)]">({facts.length})</span>
-          </summary>
-          {facts.length ? (
-            <dl className="mt-3 grid gap-2 border-t border-[var(--border)] pt-3 text-sm sm:grid-cols-2">
-              {facts.map(([key, value]) => (
-                <div key={key} className="min-w-0">
-                  <dt className="font-semibold">{key}</dt>
-                  <dd className="mt-0.5 break-words text-[var(--muted-foreground)]">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          ) : (
-            <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-              No safe context was stored.
-            </p>
-          )}
-        </details>
+
+        {error.status === 'unresolved' ? (
+          <div className="flex justify-end lg:pl-2">
+            <MarkErrorResolvedButton errorId={error.id} />
+          </div>
+        ) : null}
       </div>
-      {error.status === 'unresolved' ? (
-        <div className="flex justify-end">
-          <MarkErrorResolvedButton errorId={error.id} />
-        </div>
-      ) : null}
+
+      <details className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2.5">
+        <summary className="cursor-pointer text-sm font-semibold">
+          Sanitized facts{' '}
+          <span className="font-normal text-[var(--muted-foreground)]">({facts.length})</span>
+        </summary>
+        {facts.length ? (
+          <dl className="mt-3 grid gap-2 border-t border-[var(--border)] pt-3 text-sm sm:grid-cols-2">
+            {facts.map(([key, value]) => (
+              <div key={key} className="min-w-0">
+                <dt className="font-semibold">{key}</dt>
+                <dd className="mt-0.5 break-words text-[var(--muted-foreground)]">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="mt-2 text-sm text-[var(--muted-foreground)]">No safe context was stored.</p>
+        )}
+      </details>
     </article>
   );
 }
@@ -143,16 +158,21 @@ export function ErrorQueue({
   const totalOccurrences = filtered.reduce((total, error) => total + error.occurrenceCount, 0);
   const metrics = [
     {
-      label: 'Visible errors',
-      value: filtered.length,
-      description: `of ${errors.length} matching filters`,
+      label: 'Matching errors',
+      value: pagination.totalCount,
+      description: 'across all pages',
       icon: Bug
     },
-    { label: 'Unresolved', value: unresolvedCount, description: 'needs review', icon: ShieldAlert },
     {
-      label: 'Occurrences',
+      label: 'This page',
+      value: filtered.length,
+      description: query ? `of ${errors.length} on page` : `page ${pagination.page}`,
+      icon: ShieldAlert
+    },
+    {
+      label: 'Page occurrences',
       value: totalOccurrences,
-      description: 'combined count',
+      description: unresolvedCount ? `${unresolvedCount} unresolved rows` : 'combined on this page',
       icon: AlertTriangle
     }
   ];
@@ -196,7 +216,7 @@ export function ErrorQueue({
               <AlertTriangle className="size-4 text-[var(--accent)]" aria-hidden="true" />
               <h2 className="font-semibold">Operational error queue</h2>
               <span className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-2 py-0.5 text-xs font-semibold tabular-nums">
-                {filtered.length}/{errors.length}
+                {query ? `${filtered.length} on page` : `${pagination.totalCount} total`}
               </span>
             </div>
             <p className="mt-1 truncate text-sm text-[var(--muted-foreground)]">
