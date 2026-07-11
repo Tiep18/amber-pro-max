@@ -24,7 +24,8 @@ async function parseFilters(
   const params = await searchParams;
   return {
     status: single(params?.status) as AdminOperationalErrorFilters['status'],
-    area: single(params?.area) as AdminOperationalErrorFilters['area']
+    area: single(params?.area) as AdminOperationalErrorFilters['area'],
+    page: Number(single(params?.page) ?? '1')
   };
 }
 
@@ -45,7 +46,11 @@ export default async function AdminOperationsPage({ searchParams }: PageProps) {
         description="Review sanitized system errors and resolve operational incidents."
       />
       {result.status === 'success' ? (
-        <ErrorQueue errors={result.errors} filters={result.filters} />
+        <ErrorQueue
+          errors={result.errors}
+          filters={result.filters}
+          pagination={result.pagination}
+        />
       ) : (
         <Alert variant="destructive">
           <AlertTitle>Operational errors could not be loaded.</AlertTitle>

@@ -18,32 +18,35 @@ type OperationalErrorTestRow = {
   resolved_at: string | null;
 };
 
-function queryBuilder(rows: OperationalErrorTestRow[]) {
+function queryBuilder(rows: OperationalErrorTestRow[], count = rows.length) {
   const builder = {
     eq: vi.fn(() => builder),
     order: vi.fn(() => builder),
-    limit: vi.fn(async () => ({ data: rows, error: null }))
+    range: vi.fn(async () => ({ data: rows, error: null, count }))
   };
   return builder;
 }
 
 describe('admin operational error queries', () => {
   it('keeps storefront area filter and rows distinct from generic application errors', async () => {
-    const query = queryBuilder([
-      {
-        id: 'error-1',
-        area: 'storefront',
-        severity: 'warning',
-        status: 'unresolved',
-        error_code: 'storefront.home.featured_products_failed',
-        summary: 'Home featured products failed',
-        sanitized_facts: { action: 'home_featured_products', locale: 'en' },
-        occurrence_count: 1,
-        first_seen_at: '2026-07-09T00:00:00.000Z',
-        last_seen_at: '2026-07-09T00:00:00.000Z',
-        resolved_at: null
-      }
-    ]);
+    const query = queryBuilder(
+      [
+        {
+          id: 'error-1',
+          area: 'storefront',
+          severity: 'warning',
+          status: 'unresolved',
+          error_code: 'storefront.home.featured_products_failed',
+          summary: 'Home featured products failed',
+          sanitized_facts: { action: 'home_featured_products', locale: 'en' },
+          occurrence_count: 1,
+          first_seen_at: '2026-07-09T00:00:00.000Z',
+          last_seen_at: '2026-07-09T00:00:00.000Z',
+          resolved_at: null
+        }
+      ],
+      21
+    );
     const client = {
       from: vi.fn(() => ({
         select: vi.fn(() => query)
@@ -54,11 +57,12 @@ describe('admin operational error queries', () => {
       getAdminOperationalErrors({
         client,
         requireAdmin: vi.fn(async () => ({ id: 'admin' })),
-        filters: { status: 'unresolved', area: 'storefront' }
+        filters: { status: 'unresolved', area: 'storefront', page: 2 }
       })
     ).resolves.toMatchObject({
       status: 'success',
-      filters: { status: 'unresolved', area: 'storefront' },
+      filters: { status: 'unresolved', area: 'storefront', page: 2 },
+      pagination: { page: 2, pageSize: 20, totalCount: 21, totalPages: 2 },
       errors: [
         {
           area: 'storefront',
@@ -69,5 +73,6 @@ describe('admin operational error queries', () => {
     });
 
     expect(query.eq).toHaveBeenCalledWith('area', 'storefront');
+    expect(query.range).toHaveBeenCalledWith(20, 39);
   });
 });

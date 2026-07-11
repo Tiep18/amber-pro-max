@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { AlertTriangle, Bug, Search, ShieldAlert } from 'lucide-react';
 import { AdminEmptyState, AdminStatusPill } from '@/components/admin/admin-page';
 import { formatAdminDate } from '@/components/admin/orders/format';
@@ -107,12 +108,25 @@ function ErrorRow({ error }: { error: AdminOperationalError }) {
   );
 }
 
+type Pagination = { page: number; pageSize: number; totalCount: number; totalPages: number };
+
+function pageHref(filters: Required<AdminOperationalErrorFilters>, page: number) {
+  const params = new URLSearchParams({
+    status: filters.status,
+    area: filters.area,
+    page: String(page)
+  });
+  return `/admin/operations?${params.toString()}`;
+}
+
 export function ErrorQueue({
   errors,
-  filters
+  filters,
+  pagination
 }: {
   errors: AdminOperationalError[];
   filters: Required<AdminOperationalErrorFilters>;
+  pagination: Pagination;
 }) {
   const [query, setQuery] = useState('');
   const filtered = useMemo(() => {
@@ -199,7 +213,7 @@ export function ErrorQueue({
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search summary or code"
+                placeholder="Search this page"
                 className="min-h-10 pl-9 text-sm"
               />
             </label>
@@ -260,6 +274,47 @@ export function ErrorQueue({
             }
           />
         )}
+        {pagination.totalPages > 1 ? (
+          <footer className="flex flex-col gap-3 border-t border-[var(--border)] bg-[var(--surface-muted)]/35 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-[var(--muted-foreground)]">
+              Showing {(pagination.page - 1) * pagination.pageSize + 1}–
+              {Math.min(pagination.page * pagination.pageSize, pagination.totalCount)} of{' '}
+              {pagination.totalCount}
+            </p>
+            <nav
+              aria-label="Operational errors pagination"
+              className="flex items-center justify-end gap-2"
+            >
+              {pagination.page > 1 ? (
+                <Link
+                  href={pageHref(filters, pagination.page - 1)}
+                  className="inline-flex min-h-9 items-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold"
+                >
+                  Previous
+                </Link>
+              ) : (
+                <span className="inline-flex min-h-9 items-center rounded-[var(--radius-control)] border border-[var(--border)] px-3 text-sm font-semibold opacity-40">
+                  Previous
+                </span>
+              )}
+              <span className="px-2 text-sm font-semibold tabular-nums">
+                {pagination.page} / {pagination.totalPages}
+              </span>
+              {pagination.page < pagination.totalPages ? (
+                <Link
+                  href={pageHref(filters, pagination.page + 1)}
+                  className="inline-flex min-h-9 items-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold"
+                >
+                  Next
+                </Link>
+              ) : (
+                <span className="inline-flex min-h-9 items-center rounded-[var(--radius-control)] border border-[var(--border)] px-3 text-sm font-semibold opacity-40">
+                  Next
+                </span>
+              )}
+            </nav>
+          </footer>
+        ) : null}
       </section>
     </div>
   );

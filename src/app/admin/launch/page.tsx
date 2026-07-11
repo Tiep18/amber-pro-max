@@ -2,6 +2,7 @@ import { requireAdmin } from '@/auth/guards';
 import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { LaunchChecklist } from '@/components/admin/launch/launch-checklist';
+import { LaunchSettingsSheet } from '@/components/admin/launch/launch-settings-sheet';
 import { getAdminLaunchReadiness } from '@/launch/settings';
 
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,11 @@ export default async function AdminLaunchPage() {
         eyebrow="Admin launch"
         title="Launch settings"
         description="Track fail-closed production readiness and evidence."
+        action={
+          result.status === 'success' ? (
+            <LaunchSettingsSheet settings={result.settings} />
+          ) : undefined
+        }
       />
       {result.status === 'success' ? (
         <LaunchChecklist result={result} />

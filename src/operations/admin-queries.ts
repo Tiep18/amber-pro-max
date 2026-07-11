@@ -1,13 +1,19 @@
 import 'server-only';
 
-import {createSupabaseAdminClient} from '@/lib/supabase/admin';
-import {sanitizeOperationalErrorFacts, type OperationalErrorArea, type OperationalErrorSeverity, type SafeOperationalFact} from './redaction';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import {
+  sanitizeOperationalErrorFacts,
+  type OperationalErrorArea,
+  type OperationalErrorSeverity,
+  type SafeOperationalFact
+} from './redaction';
 
 type OperationalErrorStatus = 'unresolved' | 'resolved';
 
 export type AdminOperationalErrorFilters = {
   status?: OperationalErrorStatus | 'all';
   area?: OperationalErrorArea | 'all';
+  page?: number;
 };
 
 export type AdminOperationalError = {
@@ -25,8 +31,17 @@ export type AdminOperationalError = {
 };
 
 export type AdminOperationalErrorsResult =
-  | {status: 'success'; errors: AdminOperationalError[]; filters: Required<AdminOperationalErrorFilters>}
-  | {status: 'error'; code: 'admin_operational_errors_lookup_failed'; filters: Required<AdminOperationalErrorFilters>};
+  | {
+      status: 'success';
+      errors: AdminOperationalError[];
+      filters: Required<AdminOperationalErrorFilters>;
+      pagination: { page: number; pageSize: number; totalCount: number; totalPages: number };
+    }
+  | {
+      status: 'error';
+      code: 'admin_operational_errors_lookup_failed';
+      filters: Required<AdminOperationalErrorFilters>;
+    };
 
 type OperationalErrorRow = {
   id: string;
@@ -44,21 +59,29 @@ type OperationalErrorRow = {
 
 type ErrorQuery = {
   eq: (column: string, value: string) => ErrorQuery;
-  order: (column: string, options: {ascending: boolean}) => ErrorQuery;
-  limit: (count: number) => Promise<{data: OperationalErrorRow[] | null; error: unknown}>;
+  order: (column: string, options: { ascending: boolean }) => ErrorQuery;
+  range: (
+    from: number,
+    to: number
+  ) => Promise<{ data: OperationalErrorRow[] | null; error: unknown; count: number | null }>;
 };
 
 type QueryClient = {
   from: (table: string) => {
-    select: (columns: string) => ErrorQuery;
+    select: (columns: string, options?: { count: 'exact' }) => ErrorQuery;
   };
 };
 
 type RequireAdmin = () => Promise<unknown>;
 
-function normalizeFilters(filters: AdminOperationalErrorFilters | undefined): Required<AdminOperationalErrorFilters> {
+function normalizeFilters(
+  filters: AdminOperationalErrorFilters | undefined
+): Required<AdminOperationalErrorFilters> {
+  const page = filters?.page;
+
   return {
-    status: filters?.status === 'resolved' || filters?.status === 'all' ? filters.status : 'unresolved',
+    status:
+      filters?.status === 'resolved' || filters?.status === 'all' ? filters.status : 'unresolved',
     area:
       filters?.area === 'application' ||
       filters?.area === 'storefront' ||
@@ -69,7 +92,8 @@ function normalizeFilters(filters: AdminOperationalErrorFilters | undefined): Re
       filters?.area === 'admin' ||
       filters?.area === 'all'
         ? filters.area
-        : 'all'
+        : 'all',
+    page: typeof page === 'number' && Number.isInteger(page) && page > 0 ? page : 1
   };
 }
 
@@ -106,7 +130,10 @@ export async function getAdminOperationalErrors({
 
   let query = client
     .from('operational_errors')
-    .select('id,area,severity,status,error_code,summary,sanitized_facts,occurrence_count,first_seen_at,last_seen_at,resolved_at') as ErrorQuery;
+    .select(
+      'id,area,severity,status,error_code,summary,sanitized_facts,occurrence_count,first_seen_at,last_seen_at,resolved_at',
+      { count: 'exact' }
+    ) as ErrorQuery;
 
   if (normalized.status !== 'all') {
     query = query.eq('status', normalized.status);
@@ -115,14 +142,24 @@ export async function getAdminOperationalErrors({
     query = query.eq('area', normalized.area);
   }
 
-  const result = await query.order('last_seen_at', {ascending: false}).limit(100);
+  const pageSize = 20;
+  const from = (normalized.page - 1) * pageSize;
+  const result = await query
+    .order('last_seen_at', { ascending: false })
+    .range(from, from + pageSize - 1);
   if (result.error) {
-    return {status: 'error', code: 'admin_operational_errors_lookup_failed', filters: normalized};
+    return { status: 'error', code: 'admin_operational_errors_lookup_failed', filters: normalized };
   }
 
   return {
     status: 'success',
     filters: normalized,
+    pagination: {
+      page: normalized.page,
+      pageSize,
+      totalCount: result.count ?? 0,
+      totalPages: Math.max(1, Math.ceil((result.count ?? 0) / pageSize))
+    },
     errors: (result.data ?? []).map((row) => ({
       id: row.id,
       area: asArea(row.area),

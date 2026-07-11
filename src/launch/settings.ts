@@ -1,10 +1,9 @@
 import 'server-only';
 
-import {revalidatePath} from 'next/cache';
-import {requireAdmin as requireAdminGuard} from '@/auth/guards';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
-import type {Locale} from '@/i18n/routing';
-import {runMonitoredAction} from '@/operations/monitoring';
+import { requireAdmin as requireAdminGuard } from '@/auth/guards';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import type { Locale } from '@/i18n/routing';
+import { runMonitoredAction } from '@/operations/monitoring';
 import {
   evaluateLaunchReadiness,
   requiredPolicyKinds,
@@ -40,9 +39,11 @@ export type AdminLaunchReadinessResult =
       policies: RequiredPolicyStatus;
       readiness: ReturnType<typeof evaluateLaunchReadiness>;
     }
-  | {status: 'error'; code: 'admin_launch_load_failed'};
+  | { status: 'error'; code: 'admin_launch_load_failed' };
 
-const emptyPolicyStatus = Object.fromEntries(requiredPolicyKinds.map((kind) => [kind, false])) as RequiredPolicyStatus;
+const emptyPolicyStatus = Object.fromEntries(
+  requiredPolicyKinds.map((kind) => [kind, false])
+) as RequiredPolicyStatus;
 
 function normalizeSettings(row: LaunchSettingsRow | null): LaunchSettingsSnapshot {
   return {
@@ -63,38 +64,23 @@ function policyHref(locale: Locale, slug: string) {
 }
 
 function asPolicyKind(value: string): RequiredPolicyKind | null {
-  return requiredPolicyKinds.includes(value as RequiredPolicyKind) ? (value as RequiredPolicyKind) : null;
-}
-
-function countryCodesFromForm(value: FormDataEntryValue | null) {
-  if (typeof value !== 'string') {
-    return [];
-  }
-  return Array.from(
-    new Set(
-      value
-        .split(',')
-        .map((item) => item.trim().toUpperCase())
-        .filter((item) => /^[A-Z]{2}$/.test(item))
-    )
-  );
-}
-
-function textFromForm(formData: FormData, key: string) {
-  const value = formData.get(key);
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+  return requiredPolicyKinds.includes(value as RequiredPolicyKind)
+    ? (value as RequiredPolicyKind)
+    : null;
 }
 
 export async function getPublishedRequiredPolicyLinks(locale: Locale): Promise<PublicPolicyLink[]> {
   const supabase = await createSupabaseServerClient();
-  const {data, error} = await supabase.rpc('list_published_required_policy_links', {target_locale: locale});
+  const { data, error } = await supabase.rpc('list_published_required_policy_links', {
+    target_locale: locale
+  });
   if (error) {
     return [];
   }
 
   return (data ?? []).flatMap((row) => {
     const policyKind = asPolicyKind(row.policy_kind);
-    return policyKind ? [{policyKind, title: row.title, href: policyHref(locale, row.slug)}] : [];
+    return policyKind ? [{ policyKind, title: row.title, href: policyHref(locale, row.slug) }] : [];
   });
 }
 
@@ -122,13 +108,13 @@ export async function getAdminLaunchReadiness({
       action: 'admin_launch_readiness_load',
       errorCode: 'admin_launch_load_failed',
       summary: 'Admin launch readiness load failed',
-      errorResult: {status: 'error', code: 'admin_launch_load_failed'},
+      errorResult: { status: 'error', code: 'admin_launch_load_failed' },
       shouldRecordResult: () => true,
-      operation: async () => ({status: 'error', code: 'admin_launch_load_failed'})
+      operation: async () => ({ status: 'error', code: 'admin_launch_load_failed' })
     });
   }
 
-  const policies = {...emptyPolicyStatus};
+  const policies = { ...emptyPolicyStatus };
   for (const policy of policiesResult.data ?? []) {
     const policyKind = asPolicyKind(policy.policy_kind);
     if (policyKind && policy.status === 'published') {
@@ -141,31 +127,6 @@ export async function getAdminLaunchReadiness({
     status: 'success',
     settings,
     policies,
-    readiness: evaluateLaunchReadiness({settings, policies})
+    readiness: evaluateLaunchReadiness({ settings, policies })
   };
-}
-
-export async function saveLaunchSettingsAction(formData: FormData) {
-  'use server';
-
-  await requireAdminGuard();
-  const supabase = await createSupabaseServerClient();
-  const {error} = await supabase.from('launch_settings').upsert({
-    singleton_id: true,
-    brand_name: textFromForm(formData, 'brandName'),
-    enabled_country_codes: countryCodesFromForm(formData.get('enabledCountryCodes')),
-    tax_stance: textFromForm(formData, 'taxStance'),
-    seller_policy_approval: textFromForm(formData, 'sellerPolicyApproval'),
-    paypal_sandbox_evidence: textFromForm(formData, 'paypalSandboxEvidence'),
-    vietqr_bank_evidence: textFromForm(formData, 'vietqrBankEvidence'),
-    e2e_evidence: textFromForm(formData, 'e2eEvidence'),
-    monitoring_ready: formData.get('monitoringReady') === 'on',
-    redaction_ready: formData.get('redactionReady') === 'on'
-  });
-
-  if (!error) {
-    revalidatePath('/admin/launch');
-    revalidatePath('/en/checkout');
-    revalidatePath('/vi/thanh-toan');
-  }
 }
