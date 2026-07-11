@@ -15,7 +15,7 @@ export default async function AdminLaunchPage() {
       <AdminPageHeader
         eyebrow="Admin launch"
         title="Launch settings"
-        description="Track the fail-closed readiness gates that must be satisfied before production launch."
+        description="Track fail-closed production readiness and evidence."
       />
       {result.status === 'success' ? (
         <LaunchChecklist result={result} />

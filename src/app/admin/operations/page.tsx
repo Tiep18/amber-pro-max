@@ -42,7 +42,7 @@ export default async function AdminOperationsPage({ searchParams }: PageProps) {
       <AdminPageHeader
         eyebrow="Admin operations"
         title="Operational errors"
-        description="Review sanitized application, payment, email, fulfillment, checkout, and admin errors without exposing secrets or unnecessary PII."
+        description="Review sanitized system errors and resolve operational incidents."
       />
       {result.status === 'success' ? (
         <ErrorQueue errors={result.errors} filters={result.filters} />
