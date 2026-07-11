@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:55431';
 const serviceRoleKey =
@@ -29,46 +29,54 @@ async function createAdmin() {
   const response = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
     method: 'POST',
     headers: serviceHeaders,
-    body: JSON.stringify({email, password, email_confirm: true})
+    body: JSON.stringify({ email, password, email_confirm: true })
   });
   if (!response.ok) {
     throw new Error(`User creation failed: ${response.status} ${await response.text()}`);
   }
-  const user = (await response.json()) as {id: string};
+  const user = (await response.json()) as { id: string };
   createdUserIds.push(user.id);
 
   const roleResponse = await fetch(`${supabaseUrl}/rest/v1/user_roles`, {
     method: 'POST',
-    headers: {...serviceHeaders, Prefer: 'resolution=merge-duplicates'},
-    body: JSON.stringify({user_id: user.id, role: 'admin', note: 'E2E shipping admin'})
+    headers: { ...serviceHeaders, Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify({ user_id: user.id, role: 'admin', note: 'E2E shipping admin' })
   });
   if (!roleResponse.ok) {
     throw new Error(`Role assignment failed: ${roleResponse.status} ${await roleResponse.text()}`);
   }
 
-  return {email, password};
+  return { email, password };
 }
 
-test('admin creates a reusable shipping profile with country fees', async ({page}) => {
+test('admin creates a reusable shipping profile with country fees', async ({ page }) => {
   const admin = await createAdmin();
   const profileName = `US small parcel ${Date.now()}`;
 
   await page.goto('/en/sign-in?next=/admin/shipping');
   await page.getByLabel('Email').fill(admin.email);
   await page.getByLabel('Password').fill(admin.password);
-  await page.getByRole('button', {name: 'Sign in'}).click();
+  await page.getByRole('button', { name: 'Sign in' }).click();
 
   await expect(page).toHaveURL(/\/admin\/shipping$/);
-  await expect(page.getByRole('heading', {name: 'Shipping profiles'})).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Shipping profiles' })).toBeVisible();
+  await page.getByRole('button', { name: 'New profile' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByLabel('Profile name').fill(profileName);
   await page.getByLabel('Country code').fill('US');
-  await page.getByLabel('Currency').selectOption('USD');
+  await page.getByLabel('Currency').click();
+  await page.getByRole('option', { name: 'USD' }).click();
   await page.getByLabel('First item fee').fill('7.50');
   await page.getByLabel('Additional item fee').fill('2.25');
-  await page.getByRole('button', {name: 'Create shipping profile'}).click();
+  await page.getByRole('button', { name: 'Create shipping profile' }).click();
 
-  await expect(page.getByRole('heading', {name: profileName})).toBeVisible();
-  await expect(page.getByText('US / USD / first $7.50 / additional $2.25').last()).toBeVisible();
-  await expect(page.getByRole('button', {name: 'Deactivate'}).first()).toBeVisible();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.getByRole('heading', { name: profileName })).toBeVisible();
+  await expect(page.getByText('US · USD').last()).toBeVisible();
+  await expect(page.getByText('$7.50 first / $2.25 additional').last()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Deactivate' }).first()).toBeVisible();
+  await expect(
+    page.locator('body').evaluate((body) => body.scrollWidth <= window.innerWidth)
+  ).resolves.toBe(true);
   await expect(page.getByText(/service_role|access_token|refresh_token/i)).toHaveCount(0);
 });

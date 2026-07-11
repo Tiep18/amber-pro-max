@@ -1,9 +1,12 @@
 'use client';
 
-import {useState, useTransition} from 'react';
-import {useRouter} from 'next/navigation';
-import {deactivateShippingProfileAction, type DeactivateShippingProfileResult} from '@/checkout/admin-shipping-actions';
-import {Button} from '@/components/ui/button';
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  deactivateShippingProfileAction,
+  type DeactivateShippingProfileResult
+} from '@/checkout/admin-shipping-actions';
+import { Button } from '@/components/ui/button';
 
 type DeactivateShippingProfileButtonProps = {
   profileId: string;
@@ -11,16 +14,21 @@ type DeactivateShippingProfileButtonProps = {
   disabled?: boolean;
 };
 
-export function DeactivateShippingProfileButton({profileId, profileName, disabled}: DeactivateShippingProfileButtonProps) {
+export function DeactivateShippingProfileButton({
+  profileId,
+  profileName,
+  disabled
+}: DeactivateShippingProfileButtonProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<DeactivateShippingProfileResult | null>(null);
 
   return (
-    <div className="grid justify-items-start gap-2">
+    <div className="grid justify-items-end gap-2">
       <Button
         type="button"
         variant="destructive"
+        className="min-h-9 px-3 text-sm"
         disabled={disabled || pending}
         onClick={() => {
           const confirmed = window.confirm(
@@ -41,7 +49,9 @@ export function DeactivateShippingProfileButton({profileId, profileName, disable
         Deactivate
       </Button>
       {result?.status === 'error' ? (
-        <p className="text-sm text-[var(--destructive)]">Shipping profile could not be deactivated.</p>
+        <p className="text-sm text-[var(--destructive)]">
+          Shipping profile could not be deactivated.
+        </p>
       ) : null}
     </div>
   );

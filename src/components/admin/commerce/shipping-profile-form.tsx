@@ -1,12 +1,23 @@
 'use client';
 
-import {useState, useTransition} from 'react';
-import {useRouter} from 'next/navigation';
-import {createShippingProfileAction, type CreateShippingProfileResult} from '@/checkout/admin-shipping-actions';
-import {Alert} from '@/components/ui/alert';
-import {Button} from '@/components/ui/button';
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  createShippingProfileAction,
+  type CreateShippingProfileResult
+} from '@/checkout/admin-shipping-actions';
+import { Alert } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 
-export function ShippingProfileForm() {
+export function ShippingProfileForm({ onCreated }: { onCreated?: (profileId: string) => void }) {
   const router = useRouter();
   const [result, setResult] = useState<CreateShippingProfileResult | null>(null);
   const [pending, startTransition] = useTransition();
@@ -24,45 +35,62 @@ export function ShippingProfileForm() {
           if (actionResult.status === 'created') {
             form.reset();
             router.refresh();
+            onCreated?.(actionResult.profileId);
           }
         });
       }}
     >
-      {result?.status === 'created' ? <Alert variant="success">Shipping profile created.</Alert> : null}
-      {result?.status === 'invalid' ? <Alert variant="destructive">Check the shipping profile fields.</Alert> : null}
-      {result?.status === 'error' ? <Alert variant="destructive">Shipping profile could not be created.</Alert> : null}
-      <label className="space-y-2">
-        <span className="font-semibold">Profile name</span>
-        <input name="name" className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3" />
+      {result?.status === 'created' ? (
+        <Alert variant="success">Shipping profile created.</Alert>
+      ) : null}
+      {result?.status === 'invalid' ? (
+        <Alert variant="destructive">Check the shipping profile fields.</Alert>
+      ) : null}
+      {result?.status === 'error' ? (
+        <Alert variant="destructive">Shipping profile could not be created.</Alert>
+      ) : null}
+      <label className="grid gap-2">
+        <span className="text-sm font-semibold">Profile name</span>
+        <Input name="name" autoComplete="off" required />
       </label>
-      <label className="space-y-2">
-        <span className="font-semibold">Description</span>
-        <textarea name="description" className="min-h-20 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2" />
+      <label className="grid gap-2">
+        <span className="text-sm font-semibold">Description</span>
+        <textarea
+          name="description"
+          className="min-h-20 w-full resize-y rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base focus-visible:outline-none"
+        />
       </label>
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="space-y-2">
-          <span className="font-semibold">Country code</span>
-          <input name="countryCode" maxLength={2} className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3 uppercase" />
+        <label className="grid gap-2">
+          <span className="text-sm font-semibold">Country code</span>
+          <Input name="countryCode" maxLength={2} placeholder="US" className="uppercase" required />
         </label>
-        <label className="space-y-2">
-          <span className="font-semibold">Currency</span>
-          <select name="currencyCode" className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-white px-3">
-            <option value="USD">USD</option>
-            <option value="VND">VND</option>
-          </select>
-        </label>
+        <div className="grid gap-2">
+          <span className="text-sm font-semibold">Currency</span>
+          <Select name="currencyCode" defaultValue="USD">
+            <SelectTrigger aria-label="Currency">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="USD">USD</SelectItem>
+              <SelectItem value="VND">VND</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="space-y-2">
-          <span className="font-semibold">First item fee</span>
-          <input name="firstItemFee" inputMode="decimal" className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3" />
+        <label className="grid gap-2">
+          <span className="text-sm font-semibold">First item fee</span>
+          <Input name="firstItemFee" inputMode="decimal" placeholder="0.00" required />
         </label>
-        <label className="space-y-2">
-          <span className="font-semibold">Additional item fee</span>
-          <input name="additionalItemFee" inputMode="decimal" className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3" />
+        <label className="grid gap-2">
+          <span className="text-sm font-semibold">Additional item fee</span>
+          <Input name="additionalItemFee" inputMode="decimal" placeholder="0.00" required />
         </label>
       </div>
-      <Button type="submit" disabled={pending}>Create shipping profile</Button>
+      <Button type="submit" className="mt-1 w-full" disabled={pending}>
+        {pending ? 'Creating profile...' : 'Create shipping profile'}
+      </Button>
     </form>
   );
 }

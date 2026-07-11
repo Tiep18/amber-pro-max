@@ -1,149 +1,89 @@
-import { formatMoney, type CurrencyCode } from '@/catalog/money';
+import { CircleCheck, MapPin, Truck } from 'lucide-react';
 import { requireAdmin } from '@/auth/guards';
+import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
+import { ShippingCreateSheet } from '@/components/admin/commerce/shipping-create-sheet';
 import {
-  AdminEmptyState,
-  AdminMetricCard,
-  AdminPageHeader,
-  AdminPageShell,
-  AdminStatusPill
-} from '@/components/admin/admin-page';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+  ShippingProfileList,
+  type AdminShippingProfile
+} from '@/components/admin/commerce/shipping-profile-list';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { DeactivateShippingProfileButton } from '@/components/admin/commerce/deactivate-shipping-profile-button';
-import { ShippingProfileForm } from '@/components/admin/commerce/shipping-profile-form';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
-
-type ShippingRuleRow = {
-  id: string;
-  country_code: string;
-  currency_code: CurrencyCode;
-  first_item_fee_minor: number;
-  additional_item_fee_minor: number;
-  active: boolean;
-};
 
 export default async function AdminShippingPage() {
   await requireAdmin();
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('shipping_profiles')
     .select(
       'id,name,description,active,shipping_rules(id,country_code,currency_code,first_item_fee_minor,additional_item_fee_minor,active)'
     )
     .order('updated_at', { ascending: false });
-  const profiles = data ?? [];
+  const profiles = (data ?? []) as AdminShippingProfile[];
   const activeProfiles = profiles.filter((profile) => profile.active).length;
   const ruleCount = profiles.reduce(
     (total, profile) => total + (profile.shipping_rules?.length ?? 0),
     0
   );
+  const metrics = [
+    { label: 'Profiles', value: profiles.length, description: 'configured groups', icon: Truck },
+    {
+      label: 'Active',
+      value: activeProfiles,
+      description: 'available at checkout',
+      icon: CircleCheck
+    },
+    { label: 'Destination rules', value: ruleCount, description: 'country fee rows', icon: MapPin }
+  ];
 
   return (
     <AdminPageShell>
       <AdminPageHeader
         eyebrow="Admin shipping"
         title="Shipping profiles"
-        description="Configure manual shipping fee profiles for physical products by country and currency."
+        description="Configure manual country and currency fees."
+        action={<ShippingCreateSheet />}
       />
 
-      <section className="grid gap-4 sm:grid-cols-3">
-        <AdminMetricCard label="Profiles" value={profiles.length} description="configured groups" />
-        <AdminMetricCard
-          label="Active profiles"
-          value={activeProfiles}
-          description="available to checkout"
-        />
-        <AdminMetricCard label="Rules" value={ruleCount} description="country fee rows" />
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
-        <Card className="overflow-hidden p-0">
-          <CardHeader className="m-0 border-b border-[var(--border)] p-6">
-            <CardTitle>Shipping profile queue</CardTitle>
-            <p className="text-sm text-[var(--muted-foreground)]">
-              Scan active profiles and the fee rules currently attached to them.
-            </p>
-          </CardHeader>
-          <CardContent className="p-0">
-            {profiles.length === 0 ? (
-              <AdminEmptyState
-                title="No shipping profiles yet."
-                description="Create a profile before enabling physical checkout destinations."
-              />
-            ) : (
-              <div className="divide-y divide-[var(--border)]">
-                {profiles.map((profile) => (
-                  <section
-                    key={profile.id}
-                    className="grid gap-4 p-6 lg:grid-cols-[minmax(0,1fr)_auto]"
-                  >
-                    <div className="grid gap-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-lg font-semibold">{profile.name}</h2>
-                        <AdminStatusPill tone={profile.active ? 'success' : 'default'}>
-                          {profile.active ? 'Active' : 'Inactive'}
-                        </AdminStatusPill>
-                      </div>
-                      {profile.description ? (
-                        <p className="text-sm text-[var(--muted-foreground)]">
-                          {profile.description}
-                        </p>
-                      ) : null}
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {((profile.shipping_rules ?? []) as ShippingRuleRow[]).map((rule) => (
-                          <div
-                            key={rule.id}
-                            className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
-                          >
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-semibold">{rule.country_code}</span>
-                              <AdminStatusPill tone={rule.active ? 'success' : 'default'}>
-                                {rule.active ? 'Active' : 'Inactive'}
-                              </AdminStatusPill>
-                            </div>
-                            <p className="mt-1 text-[var(--muted-foreground)]">
-                              {rule.currency_code} / first{' '}
-                              {formatMoney({
-                                amountMinor: rule.first_item_fee_minor,
-                                currencyCode: rule.currency_code
-                              })}{' '}
-                              / additional{' '}
-                              {formatMoney({
-                                amountMinor: rule.additional_item_fee_minor,
-                                currencyCode: rule.currency_code
-                              })}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex items-start">
-                      <DeactivateShippingProfileButton
-                        profileId={profile.id}
-                        profileName={profile.name}
-                        disabled={!profile.active}
-                      />
-                    </div>
-                  </section>
-                ))}
+      <section className="grid overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_24px_rgba(92,48,26,0.05)] sm:grid-cols-3">
+        {metrics.map((metric, index) => {
+          const Icon = metric.icon;
+          return (
+            <div
+              key={metric.label}
+              className={cn(
+                'grid min-h-[104px] grid-cols-[1fr_auto] items-start gap-4 px-5 py-4',
+                index > 0 && 'border-t border-[var(--border)] sm:border-l sm:border-t-0'
+              )}
+            >
+              <div className="grid h-full content-between gap-2">
+                <p className="text-sm font-semibold text-[var(--muted-foreground)]">
+                  {metric.label}
+                </p>
+                <div>
+                  <p className="text-3xl font-semibold leading-none tabular-nums">{metric.value}</p>
+                  <p className="mt-1.5 text-xs text-[var(--muted-foreground)]">
+                    {metric.description}
+                  </p>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Create profile</CardTitle>
-            <p className="text-sm text-[var(--muted-foreground)]">
-              Add a manual shipping fee profile for physical fulfillment.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <ShippingProfileForm />
-          </CardContent>
-        </Card>
+              <span className="grid size-9 place-items-center rounded-[var(--radius-control)] bg-[var(--accent-soft)] text-[var(--accent)]">
+                <Icon className="size-4" aria-hidden="true" />
+              </span>
+            </div>
+          );
+        })}
       </section>
+
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Shipping profiles could not be loaded.</AlertTitle>
+          <p className="mt-1 text-sm">Refresh the page or review sanitized operational errors.</p>
+        </Alert>
+      ) : null}
+      <ShippingProfileList profiles={profiles} />
     </AdminPageShell>
   );
 }
