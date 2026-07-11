@@ -22,6 +22,7 @@ export type TaxonomyTerm = {
   id: string;
   updatedAt: string | null;
   usageCount: number;
+  usageBySource: Record<string, number>;
   translations: Record<Locale, TaxonomyTranslation>;
 };
 
@@ -59,22 +60,36 @@ function rowTranslation(row: TranslationRow, fields: TaxonomyTextField[]): Taxon
   return translation;
 }
 
-async function usageCountForTerm(
+async function usageCountsForTerms(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   config: TaxonomySectionConfig,
-  termId: string
+  termIds: string[]
 ) {
   const checks = taxonomyReferenceChecks[config.key] ?? [];
   const results = await Promise.all(
     checks.map(({ table, column }) =>
       supabase
         .from(table as never)
-        .select(column, { count: 'exact', head: true })
-        .eq(column, termId)
+        .select(column)
+        .in(column, termIds)
     )
   );
 
-  return results.reduce((total, { count, error }) => total + (error ? 0 : (count ?? 0)), 0);
+  const counts = new Map<string, Record<string, number>>(termIds.map((termId) => [termId, {}]));
+
+  results.forEach(({ data, error }, index) => {
+    if (error) return;
+    const check = checks[index];
+    for (const row of (data ?? []) as Array<Record<string, string | null>>) {
+      const termId = row[check.column];
+      if (!termId) continue;
+      const bySource = counts.get(termId) ?? {};
+      bySource[check.table] = (bySource[check.table] ?? 0) + 1;
+      counts.set(termId, bySource);
+    }
+  });
+
+  return counts;
 }
 
 export async function getTaxonomyTerms(config: TaxonomySectionConfig): Promise<TaxonomyTerm[]> {
@@ -122,20 +137,18 @@ export async function getTaxonomyTerms(config: TaxonomySectionConfig): Promise<T
   }
 
   const parentRows = parents as Array<{ id: string; updated_at: string | null }>;
-  const usageCounts = new Map<string, number>(
-    await Promise.all(
-      parentRows.map(
-        async (parent) => [parent.id, await usageCountForTerm(supabase, config, parent.id)] as const
-      )
-    )
-  );
+  const usageCounts = await usageCountsForTerms(supabase, config, parentIds);
 
   return parentRows.map((parent) => {
     const byLocale = translationsByParent.get(parent.id);
     return {
       id: parent.id,
       updatedAt: parent.updated_at,
-      usageCount: usageCounts.get(parent.id) ?? 0,
+      usageCount: Object.values(usageCounts.get(parent.id) ?? {}).reduce(
+        (total, count) => total + count,
+        0
+      ),
+      usageBySource: usageCounts.get(parent.id) ?? {},
       translations: {
         vi: byLocale?.get('vi') ?? emptyTranslation,
         en: byLocale?.get('en') ?? emptyTranslation
