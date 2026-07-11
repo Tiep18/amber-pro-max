@@ -44,7 +44,7 @@ export default async function AdminNewsletterPage({ searchParams }: PageProps) {
       <AdminPageHeader
         eyebrow="Admin newsletter"
         title="Newsletter subscribers"
-        description="Filter consented subscribers by status, locale, market, and email search without exposing unnecessary evidence."
+        description="Inspect consented audiences and minimized evidence."
       />
       {result.status === 'success' ? (
         <SubscriberList subscribers={result.subscribers} filters={result.filters} />

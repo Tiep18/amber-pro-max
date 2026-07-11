@@ -1,15 +1,13 @@
+import { CircleCheck, Clock3, ShieldCheck } from 'lucide-react';
 import { requireAdmin } from '@/auth/guards';
 import { maskEmail } from '@/checkout/exceptions';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
 import {
-  AdminEmptyState,
-  AdminMetricCard,
-  AdminPageHeader,
-  AdminPageShell,
-  AdminStatusPill
-} from '@/components/admin/admin-page';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ExceptionReview } from '@/components/admin/commerce/exception-review';
+  ExceptionRequestList,
+  type AdminExceptionRequest
+} from '@/components/admin/commerce/exception-request-list';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,9 +28,7 @@ type QueryBuilder = {
   order: (column: string, options: { ascending: boolean }) => Promise<{ data: unknown[] | null }>;
 };
 
-type UntypedSupabaseClient = {
-  from: (table: string) => QueryBuilder;
-};
+type UntypedSupabaseClient = { from: (table: string) => QueryBuilder };
 
 export default async function AdminExceptionsPage() {
   await requireAdmin();
@@ -43,81 +39,76 @@ export default async function AdminExceptionsPage() {
       'id,status,contact_email,product_id,variant_id,market,destination_country_code,customer_note,created_at'
     )
     .order('created_at', { ascending: false });
-  const requests = (data ?? []) as unknown as ExceptionRequestRow[];
-  const pendingCount = requests.filter((request) => request.status === 'pending').length;
-  const approvedCount = requests.filter((request) => request.status === 'approved').length;
+  const rows = (data ?? []) as unknown as ExceptionRequestRow[];
+  const requests: AdminExceptionRequest[] = rows.map((request) => ({
+    id: request.id,
+    status: request.status,
+    maskedEmail: maskEmail(request.contact_email),
+    productId: request.product_id,
+    variantId: request.variant_id,
+    market: request.market,
+    destinationCountryCode: request.destination_country_code,
+    customerNote: request.customer_note,
+    createdAt: request.created_at
+  }));
+  const metrics = [
+    {
+      label: 'Requests',
+      value: requests.length,
+      description: 'total submitted',
+      icon: ShieldCheck
+    },
+    {
+      label: 'Pending',
+      value: requests.filter((request) => request.status === 'pending').length,
+      description: 'needs decision',
+      icon: Clock3
+    },
+    {
+      label: 'Approved',
+      value: requests.filter((request) => request.status === 'approved').length,
+      description: 'grants issued',
+      icon: CircleCheck
+    }
+  ];
 
   return (
     <AdminPageShell>
       <AdminPageHeader
         eyebrow="Admin exceptions"
         title="Market exception requests"
-        description="Review customer requests for products that are unavailable in their current market or destination."
+        description="Review unavailable-market access requests."
       />
-
-      <section className="grid gap-4 sm:grid-cols-3">
-        <AdminMetricCard label="Requests" value={requests.length} description="total submitted" />
-        <AdminMetricCard label="Pending" value={pendingCount} description="needs decision" />
-        <AdminMetricCard label="Approved" value={approvedCount} description="grants issued" />
-      </section>
-
-      <Card className="overflow-hidden p-0">
-        <CardHeader className="m-0 border-b border-[var(--border)] p-6">
-          <CardTitle>Exception review queue</CardTitle>
-          <p className="text-sm text-[var(--muted-foreground)]">
-            Customer email is masked; product and market facts stay visible for review.
-          </p>
-        </CardHeader>
-        <CardContent className="p-0">
-          {requests.length === 0 ? (
-            <AdminEmptyState
-              title="No exception requests yet."
-              description="Requests will appear here when customers ask for unavailable market access."
-            />
-          ) : (
-            <div className="divide-y divide-[var(--border)]">
-              {requests.map((request) => (
-                <section
-                  key={request.id}
-                  className="grid gap-4 p-6 lg:grid-cols-[minmax(0,1fr)_auto]"
-                >
-                  <div className="grid gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-lg font-semibold">{maskEmail(request.contact_email)}</h2>
-                      <AdminStatusPill
-                        tone={
-                          request.status === 'pending'
-                            ? 'warning'
-                            : request.status === 'approved'
-                              ? 'success'
-                              : 'default'
-                        }
-                      >
-                        {request.status}
-                      </AdminStatusPill>
-                    </div>
-                    <p className="text-sm text-[var(--muted-foreground)]">
-                      {request.market.toUpperCase()} / {request.destination_country_code} /{' '}
-                      {request.product_id}
-                      {request.variant_id ? ` / ${request.variant_id}` : ''}
-                    </p>
-                    {request.customer_note ? (
-                      <p className="text-sm leading-6 text-[var(--muted-foreground)]">
-                        {request.customer_note}
-                      </p>
-                    ) : null}
-                  </div>
-                  {request.status === 'pending' ? (
-                    <div className="flex items-start">
-                      <ExceptionReview requestId={request.id} />
-                    </div>
-                  ) : null}
-                </section>
-              ))}
+      <section className="grid overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_24px_rgba(92,48,26,0.05)] sm:grid-cols-3">
+        {metrics.map((metric, index) => {
+          const Icon = metric.icon;
+          return (
+            <div
+              key={metric.label}
+              className={cn(
+                'grid min-h-[104px] grid-cols-[1fr_auto] items-start gap-4 px-5 py-4',
+                index > 0 && 'border-t border-[var(--border)] sm:border-l sm:border-t-0'
+              )}
+            >
+              <div className="grid h-full content-between gap-2">
+                <p className="text-sm font-semibold text-[var(--muted-foreground)]">
+                  {metric.label}
+                </p>
+                <div>
+                  <p className="text-3xl font-semibold leading-none tabular-nums">{metric.value}</p>
+                  <p className="mt-1.5 text-xs text-[var(--muted-foreground)]">
+                    {metric.description}
+                  </p>
+                </div>
+              </div>
+              <span className="grid size-9 place-items-center rounded-[var(--radius-control)] bg-[var(--accent-soft)] text-[var(--accent)]">
+                <Icon className="size-4" aria-hidden="true" />
+              </span>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          );
+        })}
+      </section>
+      <ExceptionRequestList requests={requests} />
     </AdminPageShell>
   );
 }
