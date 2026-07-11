@@ -1,19 +1,11 @@
 import Link from 'next/link';
-import type {ReactNode} from 'react';
-import {
-  ArrowRight,
-  Boxes,
-  ImageIcon,
-  Plus
-} from 'lucide-react';
-import {requireAdmin} from '@/auth/guards';
-import {
-  AdminEmptyState,
-  AdminPageShell
-} from '@/components/admin/admin-page';
-import {CatalogListControls} from '@/components/admin/catalog/catalog-list-controls';
-import {Card, CardContent, CardHeader} from '@/components/ui/card';
-import {getAdminProducts} from './catalog-data';
+import type { ReactNode } from 'react';
+import { ArrowRight, Boxes, ImageIcon, Plus } from 'lucide-react';
+import { requireAdmin } from '@/auth/guards';
+import { AdminEmptyState, AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
+import { CatalogListControls } from '@/components/admin/catalog/catalog-list-controls';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { getAdminProducts } from './catalog-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,14 +61,7 @@ function CatalogBadge({
   tone
 }: {
   children: ReactNode;
-  tone:
-    | 'pdf'
-    | 'handmade'
-    | 'published'
-    | 'draft'
-    | 'archived'
-    | 'marketOn'
-    | 'marketOff';
+  tone: 'pdf' | 'handmade' | 'published' | 'draft' | 'archived' | 'marketOn' | 'marketOff';
 }) {
   const tones = {
     pdf: 'border-[#d8c4e2] bg-[#f5eef8] text-[#6a4777]',
@@ -115,19 +100,20 @@ export default async function AdminCatalogPage({
 
   return (
     <AdminPageShell className="gap-4 py-4 sm:py-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase text-[var(--accent)]">Admin catalog</p>
-          <h1 className="text-2xl font-semibold leading-tight">Products</h1>
-        </div>
+      <AdminPageHeader
+        eyebrow="Admin catalog"
+        title="Products"
+        description="Manage product content, media, availability, pricing, and publishing state."
+        action={
           <Link
             href="/admin/catalog/new"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
           >
             <Plus className="size-4" aria-hidden="true" />
             New product
           </Link>
-      </div>
+        }
+      />
 
       <Card className="overflow-hidden p-0">
         <CardHeader className="m-0 border-b border-[var(--border)] px-4 py-3 sm:px-5">
@@ -197,9 +183,7 @@ export default async function AdminCatalogPage({
                             </div>
                           )}
                           <div className="min-w-0">
-                            <p className="max-w-[360px] truncate font-semibold">
-                              {product.title}
-                            </p>
+                            <p className="max-w-[360px] truncate font-semibold">{product.title}</p>
                             <p className="mt-1 text-xs text-[var(--muted-foreground)]">
                               Details, media, pricing, variants
                             </p>

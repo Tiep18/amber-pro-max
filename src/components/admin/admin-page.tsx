@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 
 export function AdminPageShell({ className, ...props }: HTMLAttributes<HTMLElement>) {
   return (
-    <main className={cn('grid w-full gap-6 px-4 py-6 sm:px-6 lg:px-8', className)} {...props} />
+    <main className={cn('grid w-full gap-4 px-4 py-4 sm:px-6 lg:px-8', className)} {...props} />
   );
 }
 
@@ -21,14 +21,22 @@ export function AdminPageHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div className="max-w-3xl">
-        <p className="text-sm font-semibold uppercase text-[var(--accent)]">{eyebrow}</p>
-        <h1 className="text-[28px] font-semibold leading-tight sm:text-4xl">{title}</h1>
-        {description ? <p className="mt-2 text-[var(--muted-foreground)]">{description}</p> : null}
+    <header className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] pb-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <p className="hidden shrink-0 text-xs font-semibold uppercase text-[var(--accent)] xl:block">
+          {eyebrow}
+        </p>
+        <h1 className="shrink-0 truncate text-xl font-semibold leading-none sm:text-2xl">
+          {title}
+        </h1>
+        {description ? (
+          <p className="hidden min-w-0 truncate border-l border-[var(--border)] pl-3 text-sm text-[var(--muted-foreground)] md:block">
+            {description}
+          </p>
+        ) : null}
       </div>
-      {action}
-    </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </header>
   );
 }
 

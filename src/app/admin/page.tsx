@@ -13,6 +13,7 @@ import { requireAdmin } from '@/auth/guards';
 import { getAdminDashboard } from '@/admin/dashboard-queries';
 import type { AdminDashboardItem } from '@/admin/dashboard-model';
 import { Alert, AlertTitle } from '@/components/ui/alert';
+import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export const dynamic = 'force-dynamic';
@@ -42,26 +43,21 @@ export default async function AdminPage() {
   const result = await getAdminDashboard({ requireAdmin: async () => true });
 
   return (
-    <main className="grid w-full gap-6 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-3xl">
-          <p className="text-sm font-semibold uppercase text-[var(--accent)]">Today</p>
-          <h1 className="text-[28px] font-semibold leading-tight sm:text-4xl">
-            Operational dashboard
-          </h1>
-          <p className="mt-2 text-[var(--muted-foreground)]">
-            Triage payments, reviews, content, launch gates, and operational exceptions from one
-            admin surface.
-          </p>
-        </div>
-        <Link
-          href="/admin/orders"
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
-        >
-          Open orders
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
-      </div>
+    <AdminPageShell>
+      <AdminPageHeader
+        eyebrow="Today"
+        title="Operational dashboard"
+        description="Triage payments, reviews, content, launch gates, and operational exceptions."
+        action={
+          <Link
+            href="/admin/orders"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+          >
+            Open orders
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+        }
+      />
       {result.status === 'success' ? (
         <>
           <section className="grid gap-4 md:grid-cols-3">
@@ -164,6 +160,6 @@ export default async function AdminPage() {
           </p>
         </Alert>
       )}
-    </main>
+    </AdminPageShell>
   );
 }
