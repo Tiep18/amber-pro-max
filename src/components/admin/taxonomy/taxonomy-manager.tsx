@@ -6,7 +6,10 @@ import {
   AlertCircle,
   Check,
   ChevronRight,
+  FolderTree,
   Languages,
+  Link2,
+  ListChecks,
   ListTree,
   Loader2,
   Pencil,
@@ -20,9 +23,9 @@ import type {
   TaxonomyTerm,
   TaxonomyTextField
 } from '@/admin/taxonomy-admin';
-import { AdminMetricCard, AdminStatusPill } from '@/components/admin/admin-page';
+import { AdminStatusPill } from '@/components/admin/admin-page';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
@@ -212,8 +215,8 @@ function TermEditor({
   };
 
   return (
-    <Card className="overflow-hidden p-0">
-      <div className="border-b border-[var(--border)] bg-[var(--surface-muted)]/60 px-4 py-4 sm:px-6">
+    <Card className="overflow-hidden p-0 shadow-[0_10px_30px_rgba(92,48,26,0.06)]">
+      <div className="border-b border-[var(--border)] bg-[var(--surface-muted)]/45 p-5 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase text-[var(--accent)]">
@@ -222,14 +225,16 @@ function TermEditor({
             <h2 className="mt-1 truncate text-xl font-semibold">
               {term ? termLabel(term) : 'Create taxonomy item'}
             </h2>
-            <p className="mt-1 text-sm text-[var(--muted-foreground)]">{config.description}</p>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--muted-foreground)]">
+              {config.description}
+            </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            <AdminStatusPill>
+            <AdminStatusPill tone="default">
               {mode === 'create' ? 'New' : `${term?.usageCount ?? 0} uses`}
             </AdminStatusPill>
             {term ? (
-              <AdminStatusPill>
+              <AdminStatusPill tone={isTermReady(config, term) ? 'success' : 'warning'}>
                 {isTermReady(config, term) ? 'Ready' : 'Needs content'}
               </AdminStatusPill>
             ) : null}
@@ -240,9 +245,9 @@ function TermEditor({
       <form action={saveTaxonomyTermAction} noValidate onSubmit={validate}>
         <input type="hidden" name="section" value={config.key} />
         {term ? <input type="hidden" name="termId" value={term.id} /> : null}
-        <CardContent className="grid gap-6 p-4 pb-24 sm:p-6 sm:pb-24 lg:pb-6">
+        <div className="grid gap-5 p-5 pb-24 sm:p-6 sm:pb-24 lg:pb-6">
           <div
-            className="grid grid-cols-2 gap-1 rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-1"
+            className="grid max-w-lg grid-cols-2 gap-1 rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-1"
             role="tablist"
             aria-label="Translation language"
           >
@@ -283,9 +288,9 @@ function TermEditor({
               key={panelLocale}
               role="tabpanel"
               hidden={locale !== panelLocale}
-              className={cn('grid gap-5', locale !== panelLocale && 'hidden')}
+              className={cn('grid gap-4', locale !== panelLocale && 'hidden')}
             >
-              <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+              <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
                 <div>
                   <h3 className="font-semibold">
                     {panelLocale === 'vi' ? 'Vietnamese content' : 'English content'}
@@ -318,7 +323,7 @@ function TermEditor({
 
           {term ? (
             <section
-              className="grid gap-3 border-t border-[var(--border)] pt-5"
+              className="grid gap-3 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 p-4"
               aria-labelledby="usage-heading"
             >
               <div>
@@ -334,25 +339,25 @@ function TermEditor({
               <UsageSummary term={term} />
             </section>
           ) : null}
+        </div>
 
-          <div className="hidden items-center justify-between gap-3 border-t border-[var(--border)] pt-5 lg:flex">
-            {term ? (
-              <Button
-                type="submit"
-                form={`delete-${term.id}`}
-                variant="destructive"
-                disabled={inUse}
-                className="gap-2"
-              >
-                <Trash2 className="size-4" aria-hidden="true" />
-                Delete item
-              </Button>
-            ) : (
-              <span />
-            )}
-            <SubmitButton mode={mode} />
-          </div>
-        </CardContent>
+        <div className="hidden min-h-[76px] items-center justify-between gap-3 border-t border-[var(--border)] bg-[var(--surface-muted)]/25 px-6 py-4 lg:flex">
+          {term ? (
+            <Button
+              type="submit"
+              form={`delete-${term.id}`}
+              variant="destructive"
+              disabled={inUse}
+              className="gap-2"
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+              Delete item
+            </Button>
+          ) : (
+            <span />
+          )}
+          <SubmitButton mode={mode} />
+        </div>
 
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--surface)]/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur lg:hidden">
           <div className="mx-auto flex max-w-xl justify-end gap-2">
@@ -429,7 +434,7 @@ function TaxonomyBrowser({
 
   return (
     <div className="flex min-h-0 flex-col">
-      <div className="grid grid-cols-2 gap-1 border-b border-[var(--border)] p-2">
+      <div className="grid grid-cols-2 gap-2 border-b border-[var(--border)] p-3">
         {sections.map(({ config, terms }) => (
           <button
             key={config.key}
@@ -439,7 +444,7 @@ function TaxonomyBrowser({
               setQuery('');
             }}
             className={cn(
-              'flex min-h-10 items-center justify-between gap-2 rounded-[var(--radius-control)] px-3 text-left text-sm font-semibold',
+              'flex min-h-10 items-center justify-between gap-2 rounded-[var(--radius-control)] px-3 text-left text-sm font-semibold transition-colors',
               config.key === activeSection.config.key
                 ? 'bg-[var(--accent)] text-white'
                 : 'hover:bg-[var(--surface-muted)]'
@@ -451,7 +456,7 @@ function TaxonomyBrowser({
         ))}
       </div>
 
-      <div className="grid gap-3 border-b border-[var(--border)] p-3">
+      <div className="grid gap-3 border-b border-[var(--border)] p-4">
         <div className="relative">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]"
@@ -471,14 +476,14 @@ function TaxonomyBrowser({
         </Button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {creating ? (
-          <div className="mb-2 rounded-[var(--radius-control)] bg-[var(--accent-soft)] p-3 text-sm font-semibold text-[var(--accent)]">
+          <div className="mb-3 rounded-[var(--radius-control)] bg-[var(--accent-soft)] px-3 py-2.5 text-sm font-semibold text-[var(--accent)]">
             Creating a new item
           </div>
         ) : null}
         {filteredTerms.length ? (
-          <div className="grid gap-1">
+          <div className="grid gap-1.5">
             {filteredTerms.map((term) => {
               const selected = !creating && activeTermId === term.id;
               const ready = isTermReady(activeSection.config, term);
@@ -488,9 +493,9 @@ function TaxonomyBrowser({
                   type="button"
                   onClick={() => onSelectTerm(term.id)}
                   className={cn(
-                    'grid min-h-16 grid-cols-[1fr_auto] items-center gap-3 rounded-[var(--radius-control)] px-3 py-2 text-left transition-colors',
+                    'grid min-h-[68px] grid-cols-[1fr_auto] items-center gap-3 rounded-[var(--radius-control)] border border-transparent px-3 py-2.5 text-left transition-colors',
                     selected
-                      ? 'bg-[var(--surface-muted)] ring-1 ring-[var(--border)]'
+                      ? 'border-[var(--border)] bg-[var(--surface-muted)] shadow-[inset_3px_0_0_var(--accent)]'
                       : 'hover:bg-[var(--surface-muted)]/70'
                   )}
                 >
@@ -601,26 +606,61 @@ export function TaxonomyManager({
   };
 
   return (
-    <div className="grid gap-5 pb-20 lg:pb-0">
-      <section className="grid gap-3 sm:grid-cols-3">
-        <AdminMetricCard
-          label="Items"
-          value={totalTerms}
-          description={`${readyTerms} content-ready`}
-        />
-        <AdminMetricCard label="Groups" value={sections.length} description="taxonomy sections" />
-        <AdminMetricCard
-          label="Usage links"
-          value={totalUsage}
-          description="products, posts, discounts"
-        />
+    <div className="grid gap-4 pb-20 lg:pb-0">
+      <section className="grid overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_24px_rgba(92,48,26,0.05)] sm:grid-cols-3">
+        {[
+          {
+            label: 'Items',
+            value: totalTerms,
+            description: `${readyTerms} content-ready`,
+            icon: ListChecks
+          },
+          {
+            label: 'Groups',
+            value: sections.length,
+            description: 'taxonomy sections',
+            icon: FolderTree
+          },
+          {
+            label: 'Usage links',
+            value: totalUsage,
+            description: 'products, posts, discounts',
+            icon: Link2
+          }
+        ].map((metric, index) => {
+          const Icon = metric.icon;
+          return (
+            <div
+              key={metric.label}
+              className={cn(
+                'grid min-h-[116px] grid-cols-[1fr_auto] items-start gap-4 px-5 py-4 sm:px-6',
+                index > 0 && 'border-t border-[var(--border)] sm:border-l sm:border-t-0'
+              )}
+            >
+              <div className="grid h-full content-between gap-2">
+                <p className="text-sm font-semibold text-[var(--muted-foreground)]">
+                  {metric.label}
+                </p>
+                <div>
+                  <p className="text-3xl font-semibold leading-none tabular-nums">{metric.value}</p>
+                  <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">
+                    {metric.description}
+                  </p>
+                </div>
+              </div>
+              <span className="grid size-9 place-items-center rounded-[var(--radius-control)] bg-[var(--accent-soft)] text-[var(--accent)]">
+                <Icon className="size-4" aria-hidden="true" />
+              </span>
+            </div>
+          );
+        })}
       </section>
 
       {notice ? (
         <div
           role="status"
           className={cn(
-            'flex items-center gap-3 rounded-[var(--radius-control)] border p-3 text-sm font-semibold',
+            'flex min-h-12 items-center gap-3 rounded-[var(--radius-control)] border px-4 py-3 text-sm font-semibold',
             notice.tone === 'success' &&
               'border-[var(--success)] bg-[var(--success-surface)] text-[var(--success)]',
             notice.tone === 'warning' &&
@@ -638,7 +678,7 @@ export function TaxonomyManager({
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between gap-3 lg:hidden">
+      <div className="flex min-h-16 items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3 lg:hidden">
         <div className="min-w-0">
           <p className="text-xs font-semibold text-[var(--muted-foreground)]">Current group</p>
           <p className="truncate font-semibold">{activeSection.config.title}</p>
@@ -664,8 +704,8 @@ export function TaxonomyManager({
         </Sheet>
       </div>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="sticky top-20 hidden h-[calc(100dvh-6rem)] overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] lg:block">
+      <div className="grid items-start gap-4 lg:grid-cols-[304px_minmax(0,1fr)]">
+        <aside className="sticky top-20 hidden h-[calc(100dvh-6rem)] overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_30px_rgba(92,48,26,0.06)] lg:block">
           <TaxonomyBrowser {...browserProps} />
         </aside>
         <main className="min-w-0">
