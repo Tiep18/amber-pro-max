@@ -246,6 +246,7 @@ None yet.
 | 260711-kl8                                            | Redesign admin discounts into a compact promotion workspace with clearer creation and monitoring                                  | 2026-07-11 | dd4a609     | [260711-kl8-redesign-admin-discounts-into-a-compact-](./quick/260711-kl8-redesign-admin-discounts-into-a-compact-/)                                       |
 | 260711-l7s                                            | Replace discount selects with shadcn and make promotion list responsive without horizontal scrolling                              | 2026-07-11 | 3ed5557     | [260711-l7s-replace-discount-selects-with-shadcn-and](./quick/260711-l7s-replace-discount-selects-with-shadcn-and/)                                       |
 | 260711-lig                                            | Move discount creation into a responsive sheet while preserving the two-column form layout                                        | 2026-07-11 | 9813993     | [260711-lig-move-discount-creation-into-a-responsive](./quick/260711-lig-move-discount-creation-into-a-responsive/)                                       |
+| 260711-ovk                                            | Add real operations pagination and move launch settings into a sheet                                                              | 2026-07-11 | be36f42     | [260711-ovk-add-real-operations-pagination-and-move-](./quick/260711-ovk-add-real-operations-pagination-and-move-/)                                      |
 
 ### Debug Sessions Resolved
 
