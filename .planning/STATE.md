@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-07-11 - Completed quick task 260711-jwl: Align taxonomy metadata, locale tabs, and tools column
+last_activity: 2026-07-11 - Completed quick task 260711-k74: Compact admin headers and activate sidebar navigation
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 07 (content-seo-and-launch-readiness)
 Plan: 07-05 completed
 Status: Ready for Wave 6 final launch verification
-Last activity: 2026-07-11 - Completed quick task 260711-jwl: Align taxonomy metadata, locale tabs, and tools column
+Last activity: 2026-07-11 - Completed quick task 260711-k74: Compact admin headers and activate sidebar navigation
 
 Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and Wave 6 can begin.
 
@@ -242,6 +242,7 @@ None yet.
 | 260711-j2o                                            | Redesign admin catalog taxonomy workspace with progressive bilingual editing and bounded usage queries                           | 2026-07-11 | 2effbd4     | [260711-j2o-redesign-admin-catalog-taxonomy-workspac](./quick/260711-j2o-redesign-admin-catalog-taxonomy-workspac/)                                       |
 | 260711-ji3                                            | Polish admin taxonomy visual alignment, spacing rhythm, and surface hierarchy                                                     | 2026-07-11 | afe09f9     | [260711-ji3-polish-admin-taxonomy-visual-alignment-s](./quick/260711-ji3-polish-admin-taxonomy-visual-alignment-s/)                                       |
 | 260711-jwl                                            | Align taxonomy metadata and locale tabs, then move browser actions to the right column                                             | 2026-07-11 | b88c361     | [260711-jwl-align-taxonomy-metadata-and-locale-tabs-](./quick/260711-jwl-align-taxonomy-metadata-and-locale-tabs-/)                                       |
+| 260711-k74                                            | Compact all admin page headers to one row and add active sidebar navigation                                                        | 2026-07-11 | 044eb8f     | [260711-k74-compact-all-admin-page-headers-to-one-ro](./quick/260711-k74-compact-all-admin-page-headers-to-one-ro/)                                       |
 
 ### Debug Sessions Resolved
 
