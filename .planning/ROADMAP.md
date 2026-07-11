@@ -370,3 +370,26 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 5. Fulfillment and Purchase Access | 11/11 | Complete   | 2026-06-20 |
 | 6. Customer Retention and Trust | 10/10 | Complete    | 2026-06-23 |
 | 7. Content, SEO, and Launch Readiness | 9/10 | In Progress|  |
+
+### Phase 8: Shipping profile fallbacks, destination zones, and US region surcharges
+
+**Goal:** Make physical shipping configuration resilient and predictable by resolving explicit and fallback destination fees, supporting a safe store-default profile, and applying transparent US region adjustments during checkout.
+**Mode:** mvp
+**UI hint:** yes
+**Requirements**: SHIP-07, SHIP-08, SHIP-09, SHIP-10, SHIP-11, SHIP-12, SHIP-13
+**Depends on:** Phase 7
+**Plans:** 0 plans
+
+**Success Criteria**:
+
+1. Existing exact-country shipping behavior remains compatible while admin can manage one active store-default profile and one fallback destination rule per profile/currency.
+2. Every physical line resolves shipping through a deterministic variant, product, then store-default precedence and fails closed when no supported rule exists.
+3. US state or territory selection can add a surcharge or replace the base US fee, and checkout displays and confirms material changes before accepting them.
+4. Admin can manage profile defaults, multiple destination rules, region adjustments, and product/variant assignments without direct database work.
+5. Physical order submission snapshots the selected profile, destination rule, region adjustment, and final fee with database, unit, integration, and browser coverage.
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 8 to break down)
+
+**Out of scope:** dual-market PayPal/VietQR FX, carrier rate APIs, ZIP-code remote-area tables, label purchasing, customs automation, and multi-package fulfillment.

@@ -94,6 +94,10 @@ Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and
 
 ## Accumulated Context
 
+### Roadmap Evolution
+
+- Phase 8 added: Shipping profile fallbacks, destination zones, and US region surcharges.
+
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
