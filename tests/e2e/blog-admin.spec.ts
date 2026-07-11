@@ -135,6 +135,13 @@ test('admin creates a bilingual blog draft and sees publish blockers', async ({ 
   await page.goto('/admin/blog/new');
   await expect(page.getByRole('heading', { name: 'New blog post' })).toBeVisible();
 
+  await page.getByRole('button', { name: 'Save draft' }).click();
+  await expect(
+    page.getByText('Review the highlighted fields before saving the draft.')
+  ).toBeVisible();
+  await expect(page.getByLabel('Vietnamese slug')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByText('Slug is required.')).toBeVisible();
+
   await page.getByLabel('Category').click();
   await page.getByRole('option', { name: category.label }).click();
   await page.getByLabel('Vietnamese title').fill('Ghi chu cham soc len');

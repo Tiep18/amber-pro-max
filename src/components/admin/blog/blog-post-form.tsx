@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { type ChangeEvent, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, Clock3, Languages, Search, Send, Save, Settings2 } from 'lucide-react';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -23,6 +24,7 @@ import {
 } from '@/content/blog/actions';
 import type { BlogPublishBlocker } from '@/content/blog/publish-checks';
 import type { BlogLocale, BlogPostDraftInput } from '@/content/blog/schemas';
+import { mapBlogValidationIssues } from './blog-form-validation';
 
 export type BlogSelectOption = {
   id: string;
@@ -99,6 +101,54 @@ function blockerLabel(issue: BlogPublishBlocker) {
   return labels[issue.code];
 }
 
+function FieldError({ id, message }: { id: string; message?: string }) {
+  return message ? (
+    <span id={id} role="alert" className="text-xs font-semibold text-[var(--destructive)]">
+      {message}
+    </span>
+  ) : null;
+}
+
+function TranslationField({
+  label,
+  path,
+  value,
+  error,
+  multiline,
+  rows,
+  className,
+  onChange
+}: {
+  label: string;
+  path: string;
+  value: string;
+  error?: string;
+  multiline?: boolean;
+  rows?: number;
+  className?: string;
+  onChange: (value: string) => void;
+}) {
+  const shared = {
+    id: path,
+    value,
+    'aria-invalid': Boolean(error),
+    'aria-describedby': error ? `${path}-error` : undefined,
+    className: cn(
+      error && 'border-[var(--destructive)] ring-1 ring-[var(--destructive)]',
+      className
+    ),
+    onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      onChange(event.target.value)
+  };
+  return (
+    <label className="grid gap-2 text-sm font-semibold" htmlFor={path}>
+      {label}
+      {multiline ? <Textarea {...shared} rows={rows} /> : <Input {...shared} />}
+      <FieldError id={`${path}-error`} message={error} />
+    </label>
+  );
+}
+
 export function BlogPostForm({
   categories,
   tags,
@@ -124,6 +174,7 @@ export function BlogPostForm({
   const [locale, setLocale] = useState<BlogLocale>('vi');
   const [tagQuery, setTagQuery] = useState('');
   const [productQuery, setProductQuery] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const filteredTags = useMemo(
     () => tags.filter((tag) => tag.label.toLowerCase().includes(tagQuery.trim().toLowerCase())),
@@ -136,12 +187,30 @@ export function BlogPostForm({
       ),
     [productQuery, products]
   );
+  const selectedTagIds = useMemo(() => new Set(tagIds), [tagIds]);
+  const relatedProductById = useMemo(
+    () => new Map(relatedProducts.map((product) => [product.productId, product])),
+    [relatedProducts]
+  );
   const localeReady = (item: BlogLocale) =>
     Boolean(
       translations[item].title.trim() &&
       translations[item].slug.trim() &&
       translations[item].description.trim()
     );
+
+  function fieldPath(item: BlogLocale, key: keyof TranslationFormState) {
+    return `translations.${item}.${key}`;
+  }
+
+  function clearFieldError(path: string) {
+    setFieldErrors((current) => {
+      if (!current[path]) return current;
+      const next = { ...current };
+      delete next[path];
+      return next;
+    });
+  }
 
   function updateTranslation(locale: BlogLocale, key: keyof TranslationFormState, value: string) {
     setTranslations((current) => ({
@@ -208,6 +277,7 @@ export function BlogPostForm({
     startTransition(async () => {
       const result = await saveBlogPostDraftAction(draftPayload());
       if (result.status === 'saved') {
+        setFieldErrors({});
         setPostId(result.postId);
         setNotice('Draft saved');
         if (!postId) {
@@ -217,11 +287,17 @@ export function BlogPostForm({
         }
         return;
       }
-      setError(
-        result.status === 'invalid'
-          ? 'Review the required blog fields.'
-          : 'Draft could not be saved.'
-      );
+      if (result.status === 'invalid') {
+        const mapped = mapBlogValidationIssues(result.issues);
+        setFieldErrors(mapped.fields);
+        if (mapped.firstLocale) setLocale(mapped.firstLocale);
+        setError('Review the highlighted fields before saving the draft.');
+        if (mapped.firstPath) {
+          requestAnimationFrame(() => document.getElementById(mapped.firstPath)?.focus());
+        }
+        return;
+      }
+      setError('Draft could not be saved.');
     });
   }
 
@@ -353,37 +429,42 @@ export function BlogPostForm({
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-2 text-sm font-semibold">
-                {locale === 'vi' ? 'Vietnamese title' : 'English title'}
-                <Input
-                  value={translations[locale].title}
-                  onChange={(event) => updateTranslation(locale, 'title', event.target.value)}
-                />
-              </label>
-              <label className="grid gap-2 text-sm font-semibold">
-                {locale === 'vi' ? 'Vietnamese slug' : 'English slug'}
-                <Input
-                  value={translations[locale].slug}
-                  onChange={(event) => updateTranslation(locale, 'slug', event.target.value)}
-                />
-              </label>
+              {(['title', 'slug'] as const).map((key) => {
+                const path = fieldPath(locale, key);
+                return (
+                  <TranslationField
+                    key={key}
+                    label={`${locale === 'vi' ? 'Vietnamese' : 'English'} ${key}`}
+                    path={path}
+                    value={translations[locale][key]}
+                    error={fieldErrors[path]}
+                    onChange={(value) => {
+                      updateTranslation(locale, key, value);
+                      clearFieldError(path);
+                    }}
+                  />
+                );
+              })}
             </div>
-            <label className="grid gap-2 text-sm font-semibold">
-              {locale === 'vi' ? 'Vietnamese description' : 'English description'}
-              <Textarea
-                value={translations[locale].description}
-                onChange={(event) => updateTranslation(locale, 'description', event.target.value)}
-                rows={3}
-              />
-            </label>
-            <label className="grid gap-2 text-sm font-semibold">
-              {locale === 'vi' ? 'Vietnamese body' : 'English body'}
-              <Textarea
-                value={translations[locale].body}
-                onChange={(event) => updateTranslation(locale, 'body', event.target.value)}
-                className="min-h-[320px] leading-7"
-              />
-            </label>
+            {(['description', 'body'] as const).map((key) => {
+              const path = fieldPath(locale, key);
+              return (
+                <TranslationField
+                  key={key}
+                  label={`${locale === 'vi' ? 'Vietnamese' : 'English'} ${key}`}
+                  path={path}
+                  value={translations[locale][key]}
+                  error={fieldErrors[path]}
+                  multiline
+                  rows={key === 'description' ? 3 : undefined}
+                  className={key === 'body' ? 'min-h-[320px] leading-7' : undefined}
+                  onChange={(value) => {
+                    updateTranslation(locale, key, value);
+                    clearFieldError(path);
+                  }}
+                />
+              );
+            })}
             <section className="grid gap-4 border-t border-[var(--border)] pt-5">
               <div>
                 <h3 className="font-semibold">Search and sharing</h3>
@@ -391,48 +472,45 @@ export function BlogPostForm({
                   Optional metadata for search results and social previews.
                 </p>
               </div>
-              <label className="grid gap-2 text-sm font-semibold">
-                {locale === 'vi' ? 'Vietnamese SEO title' : 'English SEO title'}
-                <Input
-                  value={translations[locale].seoTitle}
-                  onChange={(event) => updateTranslation(locale, 'seoTitle', event.target.value)}
-                />
-              </label>
-              <label className="grid gap-2 text-sm font-semibold">
-                {locale === 'vi' ? 'Vietnamese SEO description' : 'English SEO description'}
-                <Textarea
-                  value={translations[locale].seoDescription}
-                  onChange={(event) =>
-                    updateTranslation(locale, 'seoDescription', event.target.value)
-                  }
-                  rows={3}
-                />
-              </label>
+              {(['seoTitle', 'seoDescription'] as const).map((key) => {
+                const path = fieldPath(locale, key);
+                return (
+                  <TranslationField
+                    key={key}
+                    label={`${locale === 'vi' ? 'Vietnamese' : 'English'} ${key === 'seoTitle' ? 'SEO title' : 'SEO description'}`}
+                    path={path}
+                    value={translations[locale][key]}
+                    error={fieldErrors[path]}
+                    multiline={key === 'seoDescription'}
+                    rows={3}
+                    onChange={(value) => {
+                      updateTranslation(locale, key, value);
+                      clearFieldError(path);
+                    }}
+                  />
+                );
+              })}
               <details className="rounded-[var(--radius-control)] border border-[var(--border)] p-4">
                 <summary className="cursor-pointer text-sm font-semibold">
                   Advanced social image storage
                 </summary>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <label className="grid gap-2 text-sm font-semibold">
-                    {locale === 'vi'
-                      ? 'Vietnamese social image bucket'
-                      : 'English social image bucket'}
-                    <Input
-                      value={translations[locale].socialImageBucket}
-                      onChange={(event) =>
-                        updateTranslation(locale, 'socialImageBucket', event.target.value)
-                      }
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    {locale === 'vi' ? 'Vietnamese social image path' : 'English social image path'}
-                    <Input
-                      value={translations[locale].socialImagePath}
-                      onChange={(event) =>
-                        updateTranslation(locale, 'socialImagePath', event.target.value)
-                      }
-                    />
-                  </label>
+                  {(['socialImageBucket', 'socialImagePath'] as const).map((key) => {
+                    const path = fieldPath(locale, key);
+                    return (
+                      <TranslationField
+                        key={key}
+                        label={`${locale === 'vi' ? 'Vietnamese' : 'English'} social image ${key === 'socialImageBucket' ? 'bucket' : 'path'}`}
+                        path={path}
+                        value={translations[locale][key]}
+                        error={fieldErrors[path]}
+                        onChange={(value) => {
+                          updateTranslation(locale, key, value);
+                          clearFieldError(path);
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               </details>
             </section>
@@ -499,13 +577,13 @@ export function BlogPostForm({
             {filteredTags.map((tag) => (
               <label
                 key={tag.id}
+                htmlFor={`blog-tag-${tag.id}`}
                 className="flex min-h-9 items-center gap-2 rounded-[var(--radius-control)] px-2 text-sm font-medium hover:bg-[var(--surface-muted)]"
               >
-                <input
-                  type="checkbox"
-                  className="size-4 accent-[var(--accent)]"
-                  checked={tagIds.includes(tag.id)}
-                  onChange={(event) => toggleTag(tag.id, event.target.checked)}
+                <Checkbox
+                  id={`blog-tag-${tag.id}`}
+                  checked={selectedTagIds.has(tag.id)}
+                  onCheckedChange={(checked) => toggleTag(tag.id, checked === true)}
                 />
                 {tag.label}
               </label>
@@ -533,15 +611,19 @@ export function BlogPostForm({
           </div>
           <div className="mt-3 grid max-h-64 gap-2 overflow-y-auto">
             {filteredProducts.map((product) => {
-              const relatedProduct = relatedProducts.find((item) => item.productId === product.id);
+              const relatedProduct = relatedProductById.get(product.id);
               return (
                 <div key={product.id} className="grid grid-cols-[1fr_60px] items-center gap-2">
-                  <label className="flex min-h-9 min-w-0 items-center gap-2 rounded-[var(--radius-control)] px-2 text-sm font-medium hover:bg-[var(--surface-muted)]">
-                    <input
-                      type="checkbox"
-                      className="size-4 shrink-0 accent-[var(--accent)]"
+                  <label
+                    htmlFor={`related-product-${product.id}`}
+                    className="flex min-h-9 min-w-0 items-center gap-2 rounded-[var(--radius-control)] px-2 text-sm font-medium hover:bg-[var(--surface-muted)]"
+                  >
+                    <Checkbox
+                      id={`related-product-${product.id}`}
                       checked={Boolean(relatedProduct)}
-                      onChange={(event) => toggleRelatedProduct(product.id, event.target.checked)}
+                      onCheckedChange={(checked) =>
+                        toggleRelatedProduct(product.id, checked === true)
+                      }
                     />
                     <span className="truncate">{product.label}</span>
                   </label>
