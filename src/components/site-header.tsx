@@ -57,7 +57,8 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
             }
             closeLabel={closeMenuLabel}
             side="left"
-            triggerClassName="h-11 min-h-11 w-11 rounded-[12px] border-[var(--border)]/75 bg-transparent !px-0 shadow-none hover:border-[var(--accent)]/35 hover:bg-[var(--surface)]/55"
+            triggerVariant="ghost"
+            triggerClassName="h-11 min-h-11 w-11 rounded-[12px] bg-transparent !px-0 shadow-none hover:bg-[var(--surface-muted)]/70 text-[var(--foreground)]"
             contentClassName="w-[min(390px,88vw)]"
             headerClassName="px-5"
             bodyClassName="p-0"

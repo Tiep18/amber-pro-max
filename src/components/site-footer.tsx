@@ -135,7 +135,7 @@ export async function SiteFooter({locale}: {locale: Locale}) {
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
                   {copy.follow}
                 </p>
-                <div className="mt-3 flex items-center gap-3">
+                <div className="mt-3 flex items-center gap-4">
                   {siteSocialLinks.map((social) => (
                     <a
                       key={social.id}
@@ -143,14 +143,14 @@ export async function SiteFooter({locale}: {locale: Locale}) {
                       target="_blank"
                       rel="noreferrer"
                       aria-label={social.label}
-                      className="group relative inline-block size-10 overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+                      className="group relative inline-block size-8 transition-transform duration-300 hover:-translate-y-0.5"
                     >
                       <Image
                         src={social.icon}
                         alt=""
                         fill
-                        sizes="40px"
-                        className="object-contain p-1.5 transition-transform duration-300 group-hover:scale-110"
+                        sizes="32px"
+                        className="object-contain transition-transform duration-300 group-hover:scale-110"
                       />
                     </a>
                   ))}

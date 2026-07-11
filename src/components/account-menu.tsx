@@ -198,9 +198,9 @@ export function AccountMenu({
         <button
           type="button"
           aria-label={t.account}
-          className="inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] border border-transparent bg-transparent py-1 pl-1 pr-2 transition duration-200 hover:-translate-y-px hover:border-[var(--border)] hover:bg-[var(--surface)]/70 active:translate-y-0"
+          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-transparent bg-transparent py-1 pl-1 pr-2 transition duration-200 hover:-translate-y-px hover:border-[var(--border)] hover:bg-[var(--surface)]/70 active:translate-y-0"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-control)] bg-[var(--foreground)] text-sm font-semibold text-white">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--foreground)] text-sm font-semibold text-white">
             {initialFor(user.email)}
           </span>
           <ChevronDown

@@ -20,7 +20,7 @@ export default async function EditBlogPostPage({
   const [options, initialPost] = await Promise.all([getBlogOptions(), getBlogPostForForm(postId)]);
 
   return (
-    <AdminPageShell className="mx-auto max-w-[1180px]">
+    <AdminPageShell className="mx-auto">
       <Link
         href="/admin/blog"
         className="inline-flex min-h-9 items-center gap-2 text-sm font-semibold text-[var(--accent)]"
