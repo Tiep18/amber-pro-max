@@ -1,13 +1,13 @@
 import 'server-only';
 
-import type {SupabaseClient} from '@supabase/supabase-js';
-import {notFound} from 'next/navigation';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {runMonitoredThrowingQuery} from '@/operations/monitoring';
-import type {Json} from '@/types/supabase';
-import type {Database} from '@/types/supabase';
-import type {BlogPostFormInitial, BlogSelectOption} from '@/components/admin/blog/blog-post-form';
-import type {BlogLocale} from './schemas';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { notFound } from 'next/navigation';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { runMonitoredThrowingQuery } from '@/operations/monitoring';
+import type { Json } from '@/types/supabase';
+import type { Database } from '@/types/supabase';
+import type { BlogPostFormInitial, BlogSelectOption } from '@/components/admin/blog/blog-post-form';
+import type { BlogLocale } from './schemas';
 
 type BlogTranslationRow = {
   locale: string;
@@ -35,9 +35,9 @@ export type PublicBlogPostListItem = {
 
 export type PublicBlogPostDetail = PublicBlogPostListItem & {
   body: string;
-  localizedSlugs: {vi?: string; en?: string};
-  tags: Array<{slug: string; name: string}>;
-  relatedProducts: Array<{productId: string; title: string; slug: string; displayOrder: number}>;
+  localizedSlugs: { vi?: string; en?: string };
+  tags: Array<{ slug: string; name: string }>;
+  relatedProducts: Array<{ productId: string; title: string; slug: string; displayOrder: number }>;
 };
 
 function normalizeStatus(status: string): BlogPostFormInitial['status'] {
@@ -49,7 +49,7 @@ function cleanSlug(value: string) {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) ? slug : null;
 }
 
-function localizedSlugs(value: Json): {vi?: string; en?: string} {
+function localizedSlugs(value: Json): { vi?: string; en?: string } {
   if (!value || Array.isArray(value) || typeof value !== 'object') {
     return {};
   }
@@ -70,7 +70,7 @@ function publicTags(value: Json): PublicBlogPostDetail['tags'] {
     }
     const row = item as Record<string, Json | undefined>;
     return typeof row.slug === 'string' && typeof row.name === 'string'
-      ? [{slug: row.slug, name: row.name}]
+      ? [{ slug: row.slug, name: row.name }]
       : [];
   });
 }
@@ -88,7 +88,14 @@ function publicRelatedProducts(value: Json): PublicBlogPostDetail['relatedProduc
       typeof row.title === 'string' &&
       typeof row.slug === 'string' &&
       typeof row.displayOrder === 'number'
-      ? [{productId: row.productId, title: row.title, slug: row.slug, displayOrder: row.displayOrder}]
+      ? [
+          {
+            productId: row.productId,
+            title: row.title,
+            slug: row.slug,
+            displayOrder: row.displayOrder
+          }
+        ]
       : [];
   });
 }
@@ -128,7 +135,7 @@ async function localizedOptions(
       : table === 'blog_tag_translations'
         ? supabase.from(table).select('tag_id, name').eq('locale', 'en').order('name')
         : supabase.from(table).select('product_id, title').eq('locale', 'en').order('title');
-  const {data, error} = await query;
+  const { data, error } = await query;
   if (error) {
     return [];
   }
@@ -145,26 +152,36 @@ export async function getBlogOptions() {
     localizedOptions('product_translations', 'product_id')
   ]);
 
-  return {categories, tags, products};
+  return { categories, tags, products };
 }
 
 export async function getAdminBlogPosts() {
   const supabase = await createSupabaseServerClient();
-  const {data, error} = await supabase
+  const { data, error } = await supabase
     .from('blog_posts')
-    .select('id, status, published_at, updated_at, blog_post_translations(locale,title)')
-    .order('updated_at', {ascending: false});
+    .select('id, status, published_at, updated_at, blog_post_translations(locale,title,slug)')
+    .order('updated_at', { ascending: false });
   if (error) {
     return [];
   }
 
   return (data ?? []).map((post) => {
-    const translations = post.blog_post_translations as Array<{locale: string; title: string}>;
+    const translations = post.blog_post_translations as Array<{
+      locale: string;
+      title: string;
+      slug: string;
+    }>;
+    const vi = translations.find((translation) => translation.locale === 'vi');
+    const en = translations.find((translation) => translation.locale === 'en');
     return {
       id: post.id,
       status: post.status,
       publishedAt: post.published_at,
-      title: translations.find((translation) => translation.locale === 'en')?.title ?? translations[0]?.title ?? 'Untitled post'
+      title: en?.title ?? vi?.title ?? 'Untitled post',
+      localized: {
+        vi: Boolean(vi?.title?.trim() && vi?.slug?.trim()),
+        en: Boolean(en?.title?.trim() && en?.slug?.trim())
+      }
     };
   });
 }
@@ -172,7 +189,11 @@ export async function getAdminBlogPosts() {
 export async function getBlogPostForForm(postId: string): Promise<BlogPostFormInitial> {
   const supabase = await createSupabaseServerClient();
   const [postResult, translationsResult, tagsResult, relatedProductsResult] = await Promise.all([
-    supabase.from('blog_posts').select('id, status, category_id, published_at').eq('id', postId).maybeSingle(),
+    supabase
+      .from('blog_posts')
+      .select('id, status, category_id, published_at')
+      .eq('id', postId)
+      .maybeSingle(),
     supabase.from('blog_post_translations').select('*').eq('post_id', postId),
     supabase.from('blog_post_tags').select('tag_id').eq('post_id', postId),
     supabase
@@ -187,7 +208,10 @@ export async function getBlogPostForForm(postId: string): Promise<BlogPostFormIn
   }
 
   const translations = new Map(
-    ((translationsResult.data ?? []) as BlogTranslationRow[]).map((translation) => [translation.locale, translation])
+    ((translationsResult.data ?? []) as BlogTranslationRow[]).map((translation) => [
+      translation.locale,
+      translation
+    ])
   );
 
   return {
@@ -229,7 +253,7 @@ export async function listPublishedBlogPosts(
   locale: BlogLocale,
   client?: SupabaseClient<Database>
 ): Promise<PublicBlogPostListItem[]> {
-  const supabase = client ?? await createSupabaseServerClient();
+  const supabase = client ?? (await createSupabaseServerClient());
   return runMonitoredThrowingQuery({
     ...publicBlogQueryFailureInput({
       action: 'blog_list',
@@ -237,7 +261,9 @@ export async function listPublishedBlogPosts(
       summary: 'Storefront blog list query failed'
     }),
     query: async () => {
-      const {data, error} = await supabase.rpc('list_published_blog_posts', {target_locale: locale});
+      const { data, error } = await supabase.rpc('list_published_blog_posts', {
+        target_locale: locale
+      });
       if (error) throw error;
       return (data ?? []).map((post) => ({
         postId: post.post_id,
@@ -254,19 +280,22 @@ export async function listPublishedBlogPosts(
   });
 }
 
-export async function getPublishedBlogPostBySlug({
-  locale,
-  slug
-}: {
-  locale: BlogLocale;
-  slug: string;
-}, client?: SupabaseClient<Database>): Promise<PublicBlogPostDetail | null> {
+export async function getPublishedBlogPostBySlug(
+  {
+    locale,
+    slug
+  }: {
+    locale: BlogLocale;
+    slug: string;
+  },
+  client?: SupabaseClient<Database>
+): Promise<PublicBlogPostDetail | null> {
   const cleanedSlug = cleanSlug(slug);
   if (!cleanedSlug) {
     return null;
   }
 
-  const supabase = client ?? await createSupabaseServerClient();
+  const supabase = client ?? (await createSupabaseServerClient());
   const post = await runMonitoredThrowingQuery({
     ...publicBlogQueryFailureInput({
       action: 'blog_detail',
@@ -275,7 +304,7 @@ export async function getPublishedBlogPostBySlug({
       referenceId: cleanedSlug
     }),
     query: async () => {
-      const {data, error} = await supabase.rpc('get_published_blog_post_by_slug', {
+      const { data, error } = await supabase.rpc('get_published_blog_post_by_slug', {
         target_locale: locale,
         target_slug: cleanedSlug
       });

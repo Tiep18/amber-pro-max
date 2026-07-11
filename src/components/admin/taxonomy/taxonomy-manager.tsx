@@ -562,6 +562,7 @@ export function TaxonomyManager({
       total + section.terms.filter((term) => isTermReady(section.config, term)).length,
     0
   );
+  const blogOnly = sections.every(({ config }) => config.key.startsWith('blog-'));
 
   const selectSection = (key: string) => {
     const section = sections.find(({ config }) => config.key === key);
@@ -623,7 +624,7 @@ export function TaxonomyManager({
           {
             label: 'Usage links',
             value: totalUsage,
-            description: 'products, posts, discounts',
+            description: blogOnly ? 'category and tag assignments' : 'products, posts, discounts',
             icon: Link2
           }
         ].map((metric, index) => {
@@ -632,7 +633,7 @@ export function TaxonomyManager({
             <div
               key={metric.label}
               className={cn(
-                'grid min-h-[116px] grid-cols-[1fr_auto] items-start gap-4 px-5 py-4 sm:px-6',
+                'grid min-h-[104px] grid-cols-[1fr_auto] items-start gap-4 px-5 py-4 sm:px-6',
                 index > 0 && 'border-t border-[var(--border)] sm:border-l sm:border-t-0'
               )}
             >
@@ -642,7 +643,7 @@ export function TaxonomyManager({
                 </p>
                 <div>
                   <p className="text-3xl font-semibold leading-none tabular-nums">{metric.value}</p>
-                  <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">
+                  <p className="mt-1.5 text-xs text-[var(--muted-foreground)]">
                     {metric.description}
                   </p>
                 </div>

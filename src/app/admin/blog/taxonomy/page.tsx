@@ -32,7 +32,16 @@ export default async function AdminBlogTaxonomyPage({
       <AdminPageHeader
         eyebrow="Admin content"
         title="Blog taxonomy"
-        description="Manage blog categories and tags used by localized editorial content."
+        description="Manage localized categories and tags."
+        action={
+          <Link
+            href="/admin/blog"
+            className="inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold hover:bg-[var(--surface-muted)]"
+          >
+            <FileText className="size-4" aria-hidden="true" />
+            View posts
+          </Link>
+        }
       />
       <TaxonomyManager
         sections={sections}
@@ -45,3 +54,5 @@ export default async function AdminBlogTaxonomyPage({
     </AdminPageShell>
   );
 }
+import Link from 'next/link';
+import { FileText } from 'lucide-react';

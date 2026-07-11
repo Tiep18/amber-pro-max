@@ -1,18 +1,28 @@
 'use client';
 
-import {useState, useTransition} from 'react';
-import {useRouter} from 'next/navigation';
-import {Alert, AlertTitle} from '@/components/ui/alert';
-import {Button} from '@/components/ui/button';
-import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
+import { useMemo, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { Check, Clock3, Languages, Search, Send, Save, Settings2 } from 'lucide-react';
+import { Alert, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import {
   publishBlogPostAction,
   saveBlogPostDraftAction,
   scheduleBlogPostAction,
   unpublishBlogPostAction
 } from '@/content/blog/actions';
-import type {BlogPublishBlocker} from '@/content/blog/publish-checks';
-import type {BlogLocale, BlogPostDraftInput} from '@/content/blog/schemas';
+import type { BlogPublishBlocker } from '@/content/blog/publish-checks';
+import type { BlogLocale, BlogPostDraftInput } from '@/content/blog/schemas';
 
 export type BlogSelectOption = {
   id: string;
@@ -37,7 +47,7 @@ export type BlogPostFormInitial = {
   publishedAt: string | null;
   translations: Record<BlogLocale, TranslationFormState>;
   tagIds: string[];
-  relatedProducts: Array<{productId: string; displayOrder: number}>;
+  relatedProducts: Array<{ productId: string; displayOrder: number }>;
 };
 
 type BlogPostFormProps = {
@@ -58,9 +68,6 @@ const emptyTranslation: TranslationFormState = {
   socialImageBucket: '',
   socialImagePath: ''
 };
-
-const inputClass =
-  'min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base';
 
 function toDateTimeInput(value: string | null | undefined) {
   if (!value) {
@@ -92,20 +99,49 @@ function blockerLabel(issue: BlogPublishBlocker) {
   return labels[issue.code];
 }
 
-export function BlogPostForm({categories, tags, products, initialPost, initialNotice}: BlogPostFormProps) {
+export function BlogPostForm({
+  categories,
+  tags,
+  products,
+  initialPost,
+  initialNotice
+}: BlogPostFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [postId, setPostId] = useState(initialPost?.postId);
-  const [notice, setNotice] = useState<string | null>(initialNotice === 'saved' ? 'Draft saved' : null);
+  const [notice, setNotice] = useState<string | null>(
+    initialNotice === 'saved' ? 'Draft saved' : null
+  );
   const [error, setError] = useState<string | null>(null);
   const [blockers, setBlockers] = useState<BlogPublishBlocker[]>([]);
   const [categoryId, setCategoryId] = useState(initialPost?.categoryId ?? '');
   const [publishedAt, setPublishedAt] = useState(toDateTimeInput(initialPost?.publishedAt));
   const [translations, setTranslations] = useState<Record<BlogLocale, TranslationFormState>>(
-    initialPost?.translations ?? {vi: {...emptyTranslation}, en: {...emptyTranslation}}
+    initialPost?.translations ?? { vi: { ...emptyTranslation }, en: { ...emptyTranslation } }
   );
   const [tagIds, setTagIds] = useState(initialPost?.tagIds ?? []);
   const [relatedProducts, setRelatedProducts] = useState(initialPost?.relatedProducts ?? []);
+  const [locale, setLocale] = useState<BlogLocale>('vi');
+  const [tagQuery, setTagQuery] = useState('');
+  const [productQuery, setProductQuery] = useState('');
+
+  const filteredTags = useMemo(
+    () => tags.filter((tag) => tag.label.toLowerCase().includes(tagQuery.trim().toLowerCase())),
+    [tagQuery, tags]
+  );
+  const filteredProducts = useMemo(
+    () =>
+      products.filter((product) =>
+        product.label.toLowerCase().includes(productQuery.trim().toLowerCase())
+      ),
+    [productQuery, products]
+  );
+  const localeReady = (item: BlogLocale) =>
+    Boolean(
+      translations[item].title.trim() &&
+      translations[item].slug.trim() &&
+      translations[item].description.trim()
+    );
 
   function updateTranslation(locale: BlogLocale, key: keyof TranslationFormState, value: string) {
     setTranslations((current) => ({
@@ -118,13 +154,15 @@ export function BlogPostForm({categories, tags, products, initialPost, initialNo
   }
 
   function toggleTag(tagId: string, checked: boolean) {
-    setTagIds((current) => (checked ? [...new Set([...current, tagId])] : current.filter((id) => id !== tagId)));
+    setTagIds((current) =>
+      checked ? [...new Set([...current, tagId])] : current.filter((id) => id !== tagId)
+    );
   }
 
   function toggleRelatedProduct(productId: string, checked: boolean) {
     setRelatedProducts((current) =>
       checked
-        ? [...current, {productId, displayOrder: current.length}]
+        ? [...current, { productId, displayOrder: current.length }]
         : current.filter((product) => product.productId !== productId)
     );
   }
@@ -134,7 +172,7 @@ export function BlogPostForm({categories, tags, products, initialPost, initialNo
     setRelatedProducts((current) =>
       current.map((product) =>
         product.productId === productId
-          ? {...product, displayOrder: Number.isNaN(parsed) || parsed < 0 ? 0 : parsed}
+          ? { ...product, displayOrder: Number.isNaN(parsed) || parsed < 0 ? 0 : parsed }
           : product
       )
     );
@@ -142,7 +180,7 @@ export function BlogPostForm({categories, tags, products, initialPost, initialNo
 
   function draftPayload(): BlogPostDraftInput {
     return {
-      ...(postId ? {postId} : {}),
+      ...(postId ? { postId } : {}),
       status: 'draft',
       categoryId: categoryId || null,
       publishedAt: null,
@@ -179,7 +217,11 @@ export function BlogPostForm({categories, tags, products, initialPost, initialNo
         }
         return;
       }
-      setError(result.status === 'invalid' ? 'Review the required blog fields.' : 'Draft could not be saved.');
+      setError(
+        result.status === 'invalid'
+          ? 'Review the required blog fields.'
+          : 'Draft could not be saved.'
+      );
     });
   }
 
@@ -254,185 +296,304 @@ export function BlogPostForm({categories, tags, products, initialPost, initialNo
   }
 
   return (
-    <div className="space-y-6">
-      {notice ? <Alert variant="success">{notice}</Alert> : null}
-      {error ? <Alert variant="destructive">{error}</Alert> : null}
-      {blockers.length ? (
-        <Alert variant="warning">
-          <AlertTitle>Publishing blocked</AlertTitle>
-          <ul className="mt-2 list-disc pl-5">
-            {blockers.map((issue, index) => (
-              <li key={`${issue.code}-${issue.locale ?? 'shared'}-${index}`}>{blockerLabel(issue)}</li>
-            ))}
-          </ul>
-        </Alert>
-      ) : null}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Shared post settings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <label className="grid gap-2 font-semibold">
-            Category
-            <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className={inputClass}>
-              <option value="">Choose category</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.label}
-                </option>
+    <div className="grid gap-4 pb-24 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+      <div className="grid min-w-0 gap-4">
+        {notice ? <Alert variant="success">{notice}</Alert> : null}
+        {error ? <Alert variant="destructive">{error}</Alert> : null}
+        {blockers.length ? (
+          <Alert variant="warning">
+            <AlertTitle>Publishing blocked</AlertTitle>
+            <ul className="mt-2 list-disc pl-5">
+              {blockers.map((issue, index) => (
+                <li key={`${issue.code}-${issue.locale ?? 'shared'}-${index}`}>
+                  {blockerLabel(issue)}
+                </li>
               ))}
-            </select>
-          </label>
-          <label className="grid gap-2 font-semibold">
-            Publish date and time
-            <input
-              type="datetime-local"
-              value={publishedAt}
-              onChange={(event) => setPublishedAt(event.target.value)}
-              className={inputClass}
-            />
-          </label>
-        </CardContent>
-      </Card>
+            </ul>
+          </Alert>
+        ) : null}
 
-      {(['vi', 'en'] as const).map((locale) => (
-        <Card key={locale}>
-          <CardHeader>
-            <CardTitle>{locale === 'vi' ? 'Vietnamese content' : 'English content'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <label className="grid gap-2 font-semibold">
-              {locale === 'vi' ? 'Vietnamese title' : 'English title'}
-              <input
-                value={translations[locale].title}
-                onChange={(event) => updateTranslation(locale, 'title', event.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="grid gap-2 font-semibold">
-              {locale === 'vi' ? 'Vietnamese slug' : 'English slug'}
-              <input
-                value={translations[locale].slug}
-                onChange={(event) => updateTranslation(locale, 'slug', event.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="grid gap-2 font-semibold">
-              {locale === 'vi' ? 'Vietnamese description' : 'English description'}
-              <textarea
-                value={translations[locale].description}
-                onChange={(event) => updateTranslation(locale, 'description', event.target.value)}
-                className={inputClass}
-                rows={3}
-              />
-            </label>
-            <label className="grid gap-2 font-semibold">
-              {locale === 'vi' ? 'Vietnamese body' : 'English body'}
-              <textarea
-                value={translations[locale].body}
-                onChange={(event) => updateTranslation(locale, 'body', event.target.value)}
-                className={inputClass}
-                rows={8}
-              />
-            </label>
-            <label className="grid gap-2 font-semibold">
-              {locale === 'vi' ? 'Vietnamese SEO title' : 'English SEO title'}
-              <input
-                value={translations[locale].seoTitle}
-                onChange={(event) => updateTranslation(locale, 'seoTitle', event.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="grid gap-2 font-semibold">
-              {locale === 'vi' ? 'Vietnamese SEO description' : 'English SEO description'}
-              <textarea
-                value={translations[locale].seoDescription}
-                onChange={(event) => updateTranslation(locale, 'seoDescription', event.target.value)}
-                className={inputClass}
-                rows={2}
-              />
-            </label>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="grid gap-2 font-semibold">
-                {locale === 'vi' ? 'Vietnamese social image bucket' : 'English social image bucket'}
-                <input
-                  value={translations[locale].socialImageBucket}
-                  onChange={(event) => updateTranslation(locale, 'socialImageBucket', event.target.value)}
-                  className={inputClass}
+        <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_30px_rgba(92,48,26,0.06)]">
+          <div
+            className="grid grid-cols-2 gap-1 border-b border-[var(--border)] bg-[var(--surface-muted)]/45 p-1.5"
+            role="tablist"
+            aria-label="Post language"
+          >
+            {(['vi', 'en'] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                role="tab"
+                aria-selected={locale === item}
+                onClick={() => setLocale(item)}
+                className={cn(
+                  'flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] text-sm font-semibold',
+                  locale === item
+                    ? 'bg-[var(--surface)] shadow-sm'
+                    : 'text-[var(--muted-foreground)]'
+                )}
+              >
+                <Languages className="size-4" aria-hidden="true" />
+                {item === 'vi' ? 'Vietnamese' : 'English'}
+                <span
+                  className={localeReady(item) ? 'text-[var(--success)]' : 'text-[var(--warning)]'}
+                >
+                  {localeReady(item) ? <Check className="size-3.5" aria-hidden="true" /> : '•'}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-5 p-5 sm:p-6">
+            <div>
+              <h2 className="font-semibold">
+                {locale === 'vi' ? 'Vietnamese content' : 'English content'}
+              </h2>
+              <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                Write the localized article and its storefront search metadata.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-2 text-sm font-semibold">
+                {locale === 'vi' ? 'Vietnamese title' : 'English title'}
+                <Input
+                  value={translations[locale].title}
+                  onChange={(event) => updateTranslation(locale, 'title', event.target.value)}
                 />
               </label>
-              <label className="grid gap-2 font-semibold">
-                {locale === 'vi' ? 'Vietnamese social image path' : 'English social image path'}
-                <input
-                  value={translations[locale].socialImagePath}
-                  onChange={(event) => updateTranslation(locale, 'socialImagePath', event.target.value)}
-                  className={inputClass}
+              <label className="grid gap-2 text-sm font-semibold">
+                {locale === 'vi' ? 'Vietnamese slug' : 'English slug'}
+                <Input
+                  value={translations[locale].slug}
+                  onChange={(event) => updateTranslation(locale, 'slug', event.target.value)}
                 />
               </label>
             </div>
-          </CardContent>
-        </Card>
-      ))}
+            <label className="grid gap-2 text-sm font-semibold">
+              {locale === 'vi' ? 'Vietnamese description' : 'English description'}
+              <Textarea
+                value={translations[locale].description}
+                onChange={(event) => updateTranslation(locale, 'description', event.target.value)}
+                rows={3}
+              />
+            </label>
+            <label className="grid gap-2 text-sm font-semibold">
+              {locale === 'vi' ? 'Vietnamese body' : 'English body'}
+              <Textarea
+                value={translations[locale].body}
+                onChange={(event) => updateTranslation(locale, 'body', event.target.value)}
+                className="min-h-[320px] leading-7"
+              />
+            </label>
+            <section className="grid gap-4 border-t border-[var(--border)] pt-5">
+              <div>
+                <h3 className="font-semibold">Search and sharing</h3>
+                <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                  Optional metadata for search results and social previews.
+                </p>
+              </div>
+              <label className="grid gap-2 text-sm font-semibold">
+                {locale === 'vi' ? 'Vietnamese SEO title' : 'English SEO title'}
+                <Input
+                  value={translations[locale].seoTitle}
+                  onChange={(event) => updateTranslation(locale, 'seoTitle', event.target.value)}
+                />
+              </label>
+              <label className="grid gap-2 text-sm font-semibold">
+                {locale === 'vi' ? 'Vietnamese SEO description' : 'English SEO description'}
+                <Textarea
+                  value={translations[locale].seoDescription}
+                  onChange={(event) =>
+                    updateTranslation(locale, 'seoDescription', event.target.value)
+                  }
+                  rows={3}
+                />
+              </label>
+              <details className="rounded-[var(--radius-control)] border border-[var(--border)] p-4">
+                <summary className="cursor-pointer text-sm font-semibold">
+                  Advanced social image storage
+                </summary>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-semibold">
+                    {locale === 'vi'
+                      ? 'Vietnamese social image bucket'
+                      : 'English social image bucket'}
+                    <Input
+                      value={translations[locale].socialImageBucket}
+                      onChange={(event) =>
+                        updateTranslation(locale, 'socialImageBucket', event.target.value)
+                      }
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm font-semibold">
+                    {locale === 'vi' ? 'Vietnamese social image path' : 'English social image path'}
+                    <Input
+                      value={translations[locale].socialImagePath}
+                      onChange={(event) =>
+                        updateTranslation(locale, 'socialImagePath', event.target.value)
+                      }
+                    />
+                  </label>
+                </div>
+              </details>
+            </section>
+          </div>
+        </section>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Tags and related products</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {tags.map((tag) => (
-              <label key={tag.id} className="flex items-center gap-2 font-semibold">
-                <input type="checkbox" checked={tagIds.includes(tag.id)} onChange={(event) => toggleTag(tag.id, event.target.checked)} />
+      <aside className="grid gap-4 lg:sticky lg:top-20">
+        <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_10px_30px_rgba(92,48,26,0.05)]">
+          <div className="mb-4 flex items-center gap-2">
+            <Settings2 className="size-4 text-[var(--accent)]" aria-hidden="true" />
+            <h2 className="font-semibold">Post settings</h2>
+          </div>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <span className="text-sm font-semibold">Category</span>
+              <Select
+                value={categoryId || 'none'}
+                onValueChange={(value) => setCategoryId(value === 'none' ? '' : value)}
+              >
+                <SelectTrigger aria-label="Category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Choose category</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="grid gap-2 text-sm font-semibold">
+              Publish date and time
+              <Input
+                type="datetime-local"
+                value={publishedAt}
+                onChange={(event) => setPublishedAt(event.target.value)}
+              />
+            </label>
+          </div>
+        </section>
+        <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="font-semibold">
+            Tags{' '}
+            <span className="text-xs font-normal text-[var(--muted-foreground)]">
+              ({tagIds.length})
+            </span>
+          </h2>
+          <div className="relative mt-3">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]"
+              aria-hidden="true"
+            />
+            <Input
+              value={tagQuery}
+              onChange={(event) => setTagQuery(event.target.value)}
+              placeholder="Search tags"
+              className="pl-9 text-sm"
+            />
+          </div>
+          <div className="mt-3 grid max-h-48 gap-1 overflow-y-auto">
+            {filteredTags.map((tag) => (
+              <label
+                key={tag.id}
+                className="flex min-h-9 items-center gap-2 rounded-[var(--radius-control)] px-2 text-sm font-medium hover:bg-[var(--surface-muted)]"
+              >
+                <input
+                  type="checkbox"
+                  className="size-4 accent-[var(--accent)]"
+                  checked={tagIds.includes(tag.id)}
+                  onChange={(event) => toggleTag(tag.id, event.target.checked)}
+                />
                 {tag.label}
               </label>
             ))}
           </div>
-          <div className="space-y-3">
-            {products.map((product) => {
+        </section>
+        <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="font-semibold">
+            Related products{' '}
+            <span className="text-xs font-normal text-[var(--muted-foreground)]">
+              ({relatedProducts.length})
+            </span>
+          </h2>
+          <div className="relative mt-3">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]"
+              aria-hidden="true"
+            />
+            <Input
+              value={productQuery}
+              onChange={(event) => setProductQuery(event.target.value)}
+              placeholder="Search products"
+              className="pl-9 text-sm"
+            />
+          </div>
+          <div className="mt-3 grid max-h-64 gap-2 overflow-y-auto">
+            {filteredProducts.map((product) => {
               const relatedProduct = relatedProducts.find((item) => item.productId === product.id);
               return (
-                <div key={product.id} className="grid gap-2 sm:grid-cols-[1fr_8rem]">
-                  <label className="flex items-center gap-2 font-semibold">
+                <div key={product.id} className="grid grid-cols-[1fr_60px] items-center gap-2">
+                  <label className="flex min-h-9 min-w-0 items-center gap-2 rounded-[var(--radius-control)] px-2 text-sm font-medium hover:bg-[var(--surface-muted)]">
                     <input
                       type="checkbox"
+                      className="size-4 shrink-0 accent-[var(--accent)]"
                       checked={Boolean(relatedProduct)}
                       onChange={(event) => toggleRelatedProduct(product.id, event.target.checked)}
                     />
-                    {product.label}
+                    <span className="truncate">{product.label}</span>
                   </label>
-                  <label className="grid gap-1 text-sm font-semibold">
-                    Display order
-                    <input
-                      aria-label={`${product.label} display order`}
-                      type="number"
-                      min="0"
-                      value={relatedProduct?.displayOrder ?? 0}
-                      onChange={(event) => updateRelatedProductOrder(product.id, event.target.value)}
-                      className={inputClass}
-                      disabled={!relatedProduct}
-                    />
-                  </label>
+                  <Input
+                    aria-label={`${product.label} display order`}
+                    type="number"
+                    min="0"
+                    value={relatedProduct?.displayOrder ?? 0}
+                    onChange={(event) => updateRelatedProductOrder(product.id, event.target.value)}
+                    disabled={!relatedProduct}
+                    className="min-h-9 px-2 text-sm"
+                  />
                 </div>
               );
             })}
           </div>
-        </CardContent>
-      </Card>
+        </section>
+      </aside>
 
-      <div className="flex flex-wrap gap-3">
-        <Button onClick={saveDraft} disabled={isPending}>
-          Save draft
-        </Button>
-        <Button onClick={publishNow} variant="secondary" disabled={isPending}>
-          Publish post
-        </Button>
-        <Button onClick={schedule} variant="secondary" disabled={isPending}>
-          Schedule post
-        </Button>
-        <Button onClick={unpublish} variant="ghost" disabled={isPending}>
-          Unpublish
-        </Button>
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--surface)]/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur lg:left-[280px]">
+        <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-end gap-2">
+          <Button
+            onClick={unpublish}
+            variant="ghost"
+            disabled={isPending || !postId}
+            className="min-h-10 px-3 text-sm"
+          >
+            Unpublish
+          </Button>
+          <Button
+            onClick={schedule}
+            variant="secondary"
+            disabled={isPending || !postId}
+            className="min-h-10 gap-2 px-3 text-sm"
+          >
+            <Clock3 className="size-4" aria-hidden="true" />
+            Schedule post
+          </Button>
+          <Button
+            onClick={publishNow}
+            variant="secondary"
+            disabled={isPending || !postId}
+            className="min-h-10 gap-2 px-3 text-sm"
+          >
+            <Send className="size-4" aria-hidden="true" />
+            Publish post
+          </Button>
+          <Button onClick={saveDraft} disabled={isPending} className="min-h-10 gap-2 px-3 text-sm">
+            <Save className="size-4" aria-hidden="true" />
+            {isPending ? 'Saving...' : 'Save draft'}
+          </Button>
+        </div>
       </div>
     </div>
   );

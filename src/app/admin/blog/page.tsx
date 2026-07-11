@@ -1,111 +1,87 @@
 import Link from 'next/link';
-import { ArrowRight, FileText, Plus } from 'lucide-react';
+import { CircleCheck, FileText, FolderTree, PencilLine, Plus } from 'lucide-react';
 import { requireAdmin } from '@/auth/guards';
-import {
-  AdminEmptyState,
-  AdminMetricCard,
-  AdminPageHeader,
-  AdminPageShell,
-  AdminStatusPill
-} from '@/components/admin/admin-page';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
+import { BlogPostList, type AdminBlogPost } from '@/components/admin/blog/blog-post-list';
 import { getAdminBlogPosts } from '@/content/blog/queries';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminBlogPage() {
   await requireAdmin();
-  const posts = await getAdminBlogPosts();
-  const draftCount = posts.filter((post) => post.status === 'draft').length;
-  const publishedCount = posts.filter((post) => post.status === 'published').length;
+  const posts = (await getAdminBlogPosts()) as AdminBlogPost[];
+  const metrics = [
+    { label: 'Posts', value: posts.length, description: 'total content items', icon: FileText },
+    {
+      label: 'Drafts',
+      value: posts.filter((post) => post.status === 'draft').length,
+      description: 'needs editing',
+      icon: PencilLine
+    },
+    {
+      label: 'Published',
+      value: posts.filter((post) => post.status === 'published').length,
+      description: 'live or scheduled',
+      icon: CircleCheck
+    }
+  ];
 
   return (
     <AdminPageShell>
       <AdminPageHeader
         eyebrow="Admin content"
         title="Blog posts"
-        description="Manage localized content that supports storefront SEO and launch readiness."
+        description="Manage localized editorial content."
         action={
-          <Link
-            href="/admin/blog/new"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
-          >
-            <Plus className="size-4" aria-hidden="true" />
-            New post
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/blog/taxonomy"
+              className="inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold hover:bg-[var(--surface-muted)]"
+            >
+              <FolderTree className="size-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Taxonomy</span>
+            </Link>
+            <Link
+              href="/admin/blog/new"
+              className="inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-control)] bg-[var(--accent)] px-3 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              New post
+            </Link>
+          </div>
         }
       />
-
-      <section className="grid gap-4 sm:grid-cols-3">
-        <AdminMetricCard label="Posts" value={posts.length} description="total content items" />
-        <AdminMetricCard label="Drafts" value={draftCount} description="needs editing" />
-        <AdminMetricCard label="Published" value={publishedCount} description="live or scheduled" />
-      </section>
-
-      <Card className="overflow-hidden p-0">
-        <CardHeader className="m-0 border-b border-[var(--border)] p-6">
-          <div className="flex items-center gap-2">
-            <FileText className="size-5 text-[var(--accent)]" aria-hidden="true" />
-            <CardTitle>Content queue</CardTitle>
-          </div>
-          <p className="text-sm text-[var(--muted-foreground)]">
-            Drafts, scheduled posts, and published posts ordered by recent activity.
-          </p>
-        </CardHeader>
-        <CardContent className="p-0">
-          {posts.length === 0 ? (
-            <AdminEmptyState
-              icon={FileText}
-              title="No blog posts yet."
-              description="Create the first post when you are ready to build localized SEO content."
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="border-b border-[var(--border)] bg-[var(--surface-muted)] text-xs font-semibold uppercase text-[var(--muted-foreground)]">
-                  <tr>
-                    <th className="px-6 py-3">Post</th>
-                    <th className="px-4 py-3">Publish time</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-6 py-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border)]">
-                  {posts.map((post) => (
-                    <tr key={post.id} className="transition-colors hover:bg-[var(--surface-muted)]">
-                      <td className="px-6 py-4 align-top">
-                        <p className="font-semibold">{post.title}</p>
-                        <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                          Edit localized blog content and metadata
-                        </p>
-                      </td>
-                      <td className="px-4 py-4 align-top text-[var(--muted-foreground)]">
-                        {post.publishedAt
-                          ? new Date(post.publishedAt).toLocaleString('en-US')
-                          : 'Unscheduled'}
-                      </td>
-                      <td className="px-4 py-4 align-top">
-                        <AdminStatusPill tone={post.status === 'published' ? 'success' : 'default'}>
-                          {post.status}
-                        </AdminStatusPill>
-                      </td>
-                      <td className="px-6 py-4 text-right align-top">
-                        <Link
-                          href={`/admin/blog/${post.id}`}
-                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                        >
-                          Edit
-                          <ArrowRight className="size-4" aria-hidden="true" />
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <section className="grid overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_24px_rgba(92,48,26,0.05)] sm:grid-cols-3">
+        {metrics.map((metric, index) => {
+          const Icon = metric.icon;
+          return (
+            <div
+              key={metric.label}
+              className={cn(
+                'grid min-h-[104px] grid-cols-[1fr_auto] items-start gap-4 px-5 py-4',
+                index > 0 && 'border-t border-[var(--border)] sm:border-l sm:border-t-0'
+              )}
+            >
+              <div className="grid h-full content-between gap-2">
+                <p className="text-sm font-semibold text-[var(--muted-foreground)]">
+                  {metric.label}
+                </p>
+                <div>
+                  <p className="text-3xl font-semibold leading-none tabular-nums">{metric.value}</p>
+                  <p className="mt-1.5 text-xs text-[var(--muted-foreground)]">
+                    {metric.description}
+                  </p>
+                </div>
+              </div>
+              <span className="grid size-9 place-items-center rounded-[var(--radius-control)] bg-[var(--accent-soft)] text-[var(--accent)]">
+                <Icon className="size-4" aria-hidden="true" />
+              </span>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          );
+        })}
+      </section>
+      <BlogPostList posts={posts} />
     </AdminPageShell>
   );
 }

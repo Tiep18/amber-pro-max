@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { requireAdmin } from '@/auth/guards';
 import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
 import { BlogPostForm } from '@/components/admin/blog/blog-post-form';
@@ -19,17 +20,18 @@ export default async function EditBlogPostPage({
   const [options, initialPost] = await Promise.all([getBlogOptions(), getBlogPostForForm(postId)]);
 
   return (
-    <AdminPageShell className="mx-auto max-w-[1040px]">
+    <AdminPageShell className="mx-auto max-w-[1180px]">
       <Link
         href="/admin/blog"
-        className="mb-4 inline-flex text-sm font-semibold text-[var(--accent)]"
+        className="inline-flex min-h-9 items-center gap-2 text-sm font-semibold text-[var(--accent)]"
       >
+        <ArrowLeft className="size-4" aria-hidden="true" />
         Back to blog posts
       </Link>
       <AdminPageHeader
         eyebrow={initialPost.status}
         title="Edit blog post"
-        description="Update localized content, metadata, publish timing, and storefront SEO support."
+        description="Update bilingual content and publishing settings."
       />
       <BlogPostForm
         {...options}
