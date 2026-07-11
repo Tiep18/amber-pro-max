@@ -25,7 +25,6 @@ import type {
 } from '@/admin/taxonomy-admin';
 import { AdminStatusPill } from '@/components/admin/admin-page';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
@@ -215,7 +214,7 @@ function TermEditor({
   };
 
   return (
-    <Card className="overflow-hidden p-0 shadow-[0_10px_30px_rgba(92,48,26,0.06)]">
+    <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_30px_rgba(92,48,26,0.06)]">
       <div className="border-b border-[var(--border)] bg-[var(--surface-muted)]/45 p-5 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
@@ -247,7 +246,7 @@ function TermEditor({
         {term ? <input type="hidden" name="termId" value={term.id} /> : null}
         <div className="grid gap-5 p-5 pb-24 sm:p-6 sm:pb-24 lg:pb-6">
           <div
-            className="grid max-w-lg grid-cols-2 gap-1 rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-1"
+            className="grid w-full grid-cols-2 gap-1 rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-1"
             role="tablist"
             aria-label="Translation language"
           >
@@ -261,7 +260,7 @@ function TermEditor({
                   aria-selected={locale === item}
                   onClick={() => setLocale(item)}
                   className={cn(
-                    'flex min-h-10 items-center justify-center gap-2 rounded-[calc(var(--radius-control)-2px)] px-3 text-sm font-semibold transition-colors',
+                    'flex min-h-11 items-center justify-center gap-2 rounded-[calc(var(--radius-control)-3px)] px-3 text-sm font-semibold transition-colors',
                     locale === item
                       ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm'
                       : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
@@ -391,7 +390,7 @@ function TermEditor({
           <input type="hidden" name="termId" value={term.id} />
         </form>
       ) : null}
-    </Card>
+    </section>
   );
 }
 
@@ -704,10 +703,7 @@ export function TaxonomyManager({
         </Sheet>
       </div>
 
-      <div className="grid items-start gap-4 lg:grid-cols-[304px_minmax(0,1fr)]">
-        <aside className="sticky top-20 hidden h-[calc(100dvh-6rem)] overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_30px_rgba(92,48,26,0.06)] lg:block">
-          <TaxonomyBrowser {...browserProps} />
-        </aside>
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_304px]">
         <main className="min-w-0">
           <TermEditor
             key={`${activeSection.config.key}-${creating ? 'new' : activeTerm?.id}`}
@@ -716,6 +712,9 @@ export function TaxonomyManager({
             mode={creating ? 'create' : 'edit'}
           />
         </main>
+        <aside className="sticky top-20 hidden h-[calc(100dvh-6rem)] overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_30px_rgba(92,48,26,0.06)] lg:block">
+          <TaxonomyBrowser {...browserProps} />
+        </aside>
       </div>
     </div>
   );
