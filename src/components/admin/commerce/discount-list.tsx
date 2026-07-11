@@ -5,6 +5,13 @@ import { Search, TicketPercent } from 'lucide-react';
 import { formatMoney, type CurrencyCode } from '@/catalog/money';
 import { AdminEmptyState, AdminStatusPill } from '@/components/admin/admin-page';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { DisableDiscountCodeButton } from './disable-discount-code-button';
 
 export type AdminDiscount = {
@@ -96,31 +103,27 @@ export function DiscountList({ discounts }: { discounts: AdminDiscount[] }) {
               className="min-h-10 pl-9 text-sm"
             />
           </label>
-          <label>
-            <span className="sr-only">Filter by status</span>
-            <select
-              value={status}
-              onChange={(event) => setStatus(event.target.value as typeof status)}
-              className="min-h-10 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-            >
-              <option value="all">All statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </label>
-          <label>
-            <span className="sr-only">Filter by market</span>
-            <select
-              value={market}
-              onChange={(event) => setMarket(event.target.value as typeof market)}
-              className="min-h-10 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-            >
-              <option value="all">All markets</option>
-              <option value="global">Global</option>
-              <option value="vn">Vietnam</option>
-              <option value="intl">International</option>
-            </select>
-          </label>
+          <Select value={status} onValueChange={(value) => setStatus(value as typeof status)}>
+            <SelectTrigger aria-label="Filter by status" className="h-10 min-h-10 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={market} onValueChange={(value) => setMarket(value as typeof market)}>
+            <SelectTrigger aria-label="Filter by market" className="h-10 min-h-10 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All markets</SelectItem>
+              <SelectItem value="global">Global</SelectItem>
+              <SelectItem value="vn">Vietnam</SelectItem>
+              <SelectItem value="intl">International</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -135,69 +138,113 @@ export function DiscountList({ discounts }: { discounts: AdminDiscount[] }) {
           }
         />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left text-sm">
-            <thead className="border-b border-[var(--border)] bg-[var(--surface-muted)]/65 text-xs font-semibold uppercase text-[var(--muted-foreground)]">
-              <tr>
-                <th className="px-5 py-3">Code</th>
-                <th className="px-4 py-3">Offer</th>
-                <th className="px-4 py-3">Eligibility</th>
-                <th className="px-4 py-3">Usage</th>
-                <th className="px-5 py-3 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border)]">
-              {filtered.map((discount) => (
-                <tr
-                  key={discount.id}
-                  className="transition-colors hover:bg-[var(--surface-muted)]/45"
-                >
-                  <td className="px-5 py-4 align-middle">
+        <>
+          <div className="hidden md:block">
+            <table className="w-full table-fixed text-left text-sm">
+              <colgroup>
+                <col className="w-[28%]" />
+                <col className="w-[38%]" />
+                <col className="w-[17%]" />
+                <col className="w-[17%]" />
+              </colgroup>
+              <thead className="border-b border-[var(--border)] bg-[var(--surface-muted)]/65 text-xs font-semibold uppercase text-[var(--muted-foreground)]">
+                <tr>
+                  <th className="px-5 py-3">Code</th>
+                  <th className="px-4 py-3">Promotion</th>
+                  <th className="px-4 py-3">Usage</th>
+                  <th className="px-5 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                {filtered.map((discount) => (
+                  <tr
+                    key={discount.id}
+                    className="transition-colors hover:bg-[var(--surface-muted)]/45"
+                  >
+                    <td className="px-5 py-4 align-middle">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <code className="min-w-0 truncate font-semibold text-[var(--foreground)]">
+                          {discount.code}
+                        </code>
+                        <AdminStatusPill tone={discount.active ? 'success' : 'default'}>
+                          {discount.active ? 'Active' : 'Inactive'}
+                        </AdminStatusPill>
+                      </div>
+                      <p className="mt-1 max-w-[280px] truncate text-xs text-[var(--muted-foreground)]">
+                        {discount.description || 'No internal note'}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4 align-middle">
+                      <p className="font-semibold">{offerLabel(discount)}</p>
+                      <p className="mt-1 truncate text-xs text-[var(--muted-foreground)]">
+                        {marketLabel(discount)} / {minimumLabel(discount)}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4 align-middle">
+                      <p className="font-semibold tabular-nums">
+                        {discount.used_count}
+                        <span className="font-normal text-[var(--muted-foreground)]">
+                          {discount.usage_limit ? ` / ${discount.usage_limit}` : ' / unlimited'}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--muted-foreground)]">redemptions</p>
+                    </td>
+                    <td className="px-5 py-4 text-right align-middle">
+                      <DisableDiscountCodeButton
+                        discountId={discount.id}
+                        code={discount.code}
+                        disabled={!discount.active}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="divide-y divide-[var(--border)] md:hidden">
+            {filtered.map((discount) => (
+              <article key={discount.id} className="grid gap-3 px-4 py-4">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <code className="font-semibold text-[var(--foreground)]">
-                        {discount.code}
-                      </code>
+                      <code className="truncate font-semibold">{discount.code}</code>
                       <AdminStatusPill tone={discount.active ? 'success' : 'default'}>
                         {discount.active ? 'Active' : 'Inactive'}
                       </AdminStatusPill>
                     </div>
-                    <p className="mt-1 max-w-[280px] truncate text-xs text-[var(--muted-foreground)]">
+                    <p className="mt-1 truncate text-xs text-[var(--muted-foreground)]">
                       {discount.description || 'No internal note'}
                     </p>
-                  </td>
-                  <td className="px-4 py-4 align-middle">
-                    <p className="font-semibold">{offerLabel(discount)}</p>
+                  </div>
+                  <DisableDiscountCodeButton
+                    discountId={discount.id}
+                    code={discount.code}
+                    disabled={!discount.active}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 p-3 text-sm">
+                  <div>
+                    <p className="text-xs text-[var(--muted-foreground)]">Promotion</p>
+                    <p className="mt-1 font-semibold">{offerLabel(discount)}</p>
                     <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                      {discount.discount_type === 'percentage' ? 'Percentage' : 'Fixed amount'}
+                      {marketLabel(discount)} / {minimumLabel(discount)}
                     </p>
-                  </td>
-                  <td className="px-4 py-4 align-middle">
-                    <p className="font-semibold">{marketLabel(discount)}</p>
-                    <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                      {minimumLabel(discount)}
-                    </p>
-                  </td>
-                  <td className="px-4 py-4 align-middle">
-                    <p className="font-semibold tabular-nums">
+                  </div>
+                  <div>
+                    <p className="text-xs text-[var(--muted-foreground)]">Usage</p>
+                    <p className="mt-1 font-semibold tabular-nums">
                       {discount.used_count}
                       <span className="font-normal text-[var(--muted-foreground)]">
                         {discount.usage_limit ? ` / ${discount.usage_limit}` : ' / unlimited'}
                       </span>
                     </p>
-                    <p className="mt-1 text-xs text-[var(--muted-foreground)]">redemptions</p>
-                  </td>
-                  <td className="px-5 py-4 text-right align-middle">
-                    <DisableDiscountCodeButton
-                      discountId={discount.id}
-                      code={discount.code}
-                      disabled={!discount.active}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </>
       )}
     </section>
   );

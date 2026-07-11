@@ -87,5 +87,23 @@ test('admin creates a reusable discount code with market and schedule preview', 
   await expect(discountRow.getByText('International')).toBeVisible();
   await expect(discountRow.getByText('Min. $20.00')).toBeVisible();
   await expect(discountRow.getByRole('button', { name: 'Disable' })).toBeVisible();
+
+  const queue = page
+    .locator('section')
+    .filter({ has: page.getByRole('heading', { name: 'Promotion queue' }) })
+    .first();
+  await expect
+    .poll(() => queue.evaluate((element) => element.scrollWidth <= element.clientWidth))
+    .toBe(true);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileItem = page.locator('article').filter({ hasText: code });
+  await expect(mobileItem).toBeVisible();
+  await expect(mobileItem.getByText('10% off')).toBeVisible();
+  await expect(mobileItem.getByRole('button', { name: 'Disable' })).toBeVisible();
+  await expect(page.getByRole('table')).toBeHidden();
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+    .toBe(true);
   await expect(page.getByText(/service_role|access_token|refresh_token/i)).toHaveCount(0);
 });

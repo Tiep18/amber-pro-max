@@ -10,6 +10,13 @@ import {
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
@@ -247,41 +254,49 @@ export function DiscountCodeForm() {
           </label>
         )}
 
-        <label className="grid gap-1.5">
+        <div className="grid gap-1.5">
           <span className="text-sm font-semibold">Market</span>
-          <select
+          <Select
             name="market"
             value={market}
-            onChange={(event) => {
-              const next = event.target.value as Market;
+            onValueChange={(value) => {
+              const next = value as Market;
               setMarket(next);
               if (next === 'vn') setCurrencyCode('VND');
               if (next === 'intl') setCurrencyCode('USD');
               if (discountType === 'percentage' && next === 'all') setMinimumSubtotal('');
             }}
-            className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3"
           >
-            <option value="all">All markets</option>
-            <option value="vn">Vietnam</option>
-            <option value="intl">International</option>
-          </select>
-        </label>
+            <SelectTrigger aria-label="Market">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All markets</SelectItem>
+              <SelectItem value="vn">Vietnam</SelectItem>
+              <SelectItem value="intl">International</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {discountType === 'fixed' ? (
-          <label className="grid gap-1.5">
+          <div className="grid gap-1.5">
             <span className="text-sm font-semibold">Currency</span>
-            <select
+            <Select
               name="currencyCode"
               value={currencyCode}
-              onChange={(event) => setCurrencyCode(event.target.value as 'USD' | 'VND')}
-              className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3"
+              onValueChange={(value) => setCurrencyCode(value as 'USD' | 'VND')}
             >
-              <option value="USD">USD</option>
-              <option value="VND">VND</option>
-            </select>
-          </label>
+              <SelectTrigger aria-label="Currency">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="USD">USD</SelectItem>
+                <SelectItem value="VND">VND</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         ) : (
           <input type="hidden" name="currencyCode" value={currencyCode} />
         )}

@@ -88,10 +88,10 @@ export default async function AdminDiscountsPage() {
         </Alert>
       ) : null}
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
         <DiscountList discounts={discounts} />
 
-        <aside className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_30px_rgba(92,48,26,0.06)] xl:sticky xl:top-20">
+        <aside className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_30px_rgba(92,48,26,0.06)] 2xl:sticky 2xl:top-20">
           <div className="border-b border-[var(--border)] bg-[var(--surface-muted)]/45 px-5 py-4">
             <h2 className="font-semibold">Create discount</h2>
             <p className="mt-1 text-sm text-[var(--muted-foreground)]">
