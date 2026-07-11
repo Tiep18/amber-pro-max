@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 07-05-PLAN.md
 last_updated: '2026-06-24T02:44:28.000Z'
-last_activity: 2026-07-11 - Completed quick task 260711-kl8: Redesign admin discounts workspace
+last_activity: 2026-07-11 - Completed quick task 260711-l7s: Unify discount selects and responsive list
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 07 (content-seo-and-launch-readiness)
 Plan: 07-05 completed
 Status: Ready for Wave 6 final launch verification
-Last activity: 2026-07-11 - Completed quick task 260711-kl8: Redesign admin discounts workspace
+Last activity: 2026-07-11 - Completed quick task 260711-l7s: Unify discount selects and responsive list
 
 Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and Wave 6 can begin.
 
@@ -244,6 +244,7 @@ None yet.
 | 260711-jwl                                            | Align taxonomy metadata and locale tabs, then move browser actions to the right column                                             | 2026-07-11 | b88c361     | [260711-jwl-align-taxonomy-metadata-and-locale-tabs-](./quick/260711-jwl-align-taxonomy-metadata-and-locale-tabs-/)                                       |
 | 260711-k74                                            | Compact all admin page headers to one row and add active sidebar navigation                                                        | 2026-07-11 | 044eb8f     | [260711-k74-compact-all-admin-page-headers-to-one-ro](./quick/260711-k74-compact-all-admin-page-headers-to-one-ro/)                                       |
 | 260711-kl8                                            | Redesign admin discounts into a compact promotion workspace with clearer creation and monitoring                                  | 2026-07-11 | dd4a609     | [260711-kl8-redesign-admin-discounts-into-a-compact-](./quick/260711-kl8-redesign-admin-discounts-into-a-compact-/)                                       |
+| 260711-l7s                                            | Replace discount selects with shadcn and make promotion list responsive without horizontal scrolling                              | 2026-07-11 | 3ed5557     | [260711-l7s-replace-discount-selects-with-shadcn-and](./quick/260711-l7s-replace-discount-selects-with-shadcn-and/)                                       |
 
 ### Debug Sessions Resolved
 
