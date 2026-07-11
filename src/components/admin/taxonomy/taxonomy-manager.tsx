@@ -432,7 +432,7 @@ function TaxonomyBrowser({
   if (!activeSection) return null;
 
   return (
-    <div className="flex min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="grid grid-cols-2 gap-2 border-b border-[var(--border)] p-3">
         {sections.map(({ config, terms }) => (
           <button
@@ -475,7 +475,7 @@ function TaxonomyBrowser({
         </Button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+      <div className="min-h-0 flex-1 overflow-y-scroll p-3 [scrollbar-gutter:stable]">
         {creating ? (
           <div className="mb-3 rounded-[var(--radius-control)] bg-[var(--accent-soft)] px-3 py-2.5 text-sm font-semibold text-[var(--accent)]">
             Creating a new item
