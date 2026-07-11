@@ -134,7 +134,7 @@ export function DiscountList({ discounts }: { discounts: AdminDiscount[] }) {
           description={
             discounts.length
               ? 'Change the search, status, or market filter to see more codes.'
-              : 'Create the first controlled promotion from the panel beside this queue.'
+              : 'Use New discount in the page header to create the first controlled promotion.'
           }
         />
       ) : (

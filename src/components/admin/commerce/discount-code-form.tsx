@@ -32,7 +32,11 @@ function FieldError({ error }: { error?: string }) {
   ) : null;
 }
 
-export function DiscountCodeForm() {
+export function DiscountCodeForm({
+  onCreated
+}: {
+  onCreated?: (discount: { id: string; code: string }) => void;
+}) {
   const router = useRouter();
   const [result, setResult] = useState<CreateDiscountCodeResult | null>(null);
   const [pending, startTransition] = useTransition();
@@ -118,6 +122,7 @@ export function DiscountCodeForm() {
       const actionResult = await createDiscountCodeAction(formData);
       setResult(actionResult);
       if (actionResult.status === 'created') {
+        const createdCode = code;
         form.reset();
         setCode('');
         setPercentage('');
@@ -125,6 +130,10 @@ export function DiscountCodeForm() {
         setMinimumSubtotal('');
         setUsageLimit('');
         router.refresh();
+        if (onCreated) {
+          setResult(null);
+          onCreated({ id: actionResult.discountId, code: createdCode });
+        }
       }
     });
   };

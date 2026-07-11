@@ -72,6 +72,8 @@ test('admin creates a reusable discount code with market and schedule preview', 
 
   await expect(page).toHaveURL(/\/admin\/discounts$/);
   await expect(page.getByRole('heading', { name: 'Discount codes' })).toBeVisible();
+  await page.getByRole('button', { name: 'New discount' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByLabel('Code').fill(code);
   await page.getByLabel('Description').fill('Launch discount');
   await page.getByRole('button', { name: 'Percentage' }).click();
@@ -80,6 +82,8 @@ test('admin creates a reusable discount code with market and schedule preview', 
   await page.getByLabel('Minimum subtotal').fill('20.00');
   await page.getByLabel('Usage limit').fill('25');
   await page.getByRole('button', { name: 'Create discount' }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Discount created' })).toBeVisible();
 
   const discountRow = page.getByRole('row').filter({ hasText: code });
   await expect(discountRow).toBeVisible();

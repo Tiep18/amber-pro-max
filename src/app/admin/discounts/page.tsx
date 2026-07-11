@@ -1,7 +1,7 @@
 import { CircleCheck, ReceiptText, TicketPercent } from 'lucide-react';
 import { requireAdmin } from '@/auth/guards';
 import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
-import { DiscountCodeForm } from '@/components/admin/commerce/discount-code-form';
+import { DiscountCreateSheet } from '@/components/admin/commerce/discount-create-sheet';
 import { DiscountList, type AdminDiscount } from '@/components/admin/commerce/discount-list';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
@@ -49,6 +49,7 @@ export default async function AdminDiscountsPage() {
         eyebrow="Admin discounts"
         title="Discount codes"
         description="Create and monitor market-aware promotions."
+        action={<DiscountCreateSheet />}
       />
 
       <section className="grid overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_24px_rgba(92,48,26,0.05)] sm:grid-cols-3">
@@ -88,21 +89,7 @@ export default async function AdminDiscountsPage() {
         </Alert>
       ) : null}
 
-      <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
-        <DiscountList discounts={discounts} />
-
-        <aside className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_30px_rgba(92,48,26,0.06)] 2xl:sticky 2xl:top-20">
-          <div className="border-b border-[var(--border)] bg-[var(--surface-muted)]/45 px-5 py-4">
-            <h2 className="font-semibold">Create discount</h2>
-            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-              Build one controlled checkout rule at a time.
-            </p>
-          </div>
-          <div className="p-5">
-            <DiscountCodeForm />
-          </div>
-        </aside>
-      </div>
+      <DiscountList discounts={discounts} />
     </AdminPageShell>
   );
 }
