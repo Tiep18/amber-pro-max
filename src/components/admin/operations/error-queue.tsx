@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Bug, Search, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Bug, Eye, Search, ShieldAlert } from 'lucide-react';
 import { AdminEmptyState, AdminStatusPill } from '@/components/admin/admin-page';
 import { formatAdminDate } from '@/components/admin/orders/format';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Sheet } from '@/components/ui/sheet';
 import {
   Select,
   SelectContent,
@@ -40,85 +41,136 @@ const areas = [
 function factEntries(error: AdminOperationalError) {
   return Object.entries(error.sanitizedFacts).map(
     ([key, value]) =>
-      [key, typeof value === 'object' ? JSON.stringify(value) : String(value)] as const
+      [key, typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)] as const
+  );
+}
+
+function ErrorDetailsSheet({ error }: { error: AdminOperationalError }) {
+  const facts = factEntries(error);
+
+  return (
+    <Sheet
+      triggerLabel={`View details for ${error.summary}`}
+      title="Incident details"
+      closeLabel="Close incident details"
+      triggerIcon={<Eye className="size-4" aria-hidden="true" />}
+      triggerClassName="h-9 min-h-9 w-9 !px-0"
+      contentClassName="!w-[min(680px,96vw)]"
+      headerClassName="px-5 sm:px-6"
+      bodyClassName="p-5 sm:p-6"
+    >
+      <div className="grid gap-6">
+        <section className="border-b border-[var(--border)] pb-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <AdminStatusPill tone={error.status === 'unresolved' ? 'warning' : 'success'}>
+              {error.status}
+            </AdminStatusPill>
+            <span className="text-xs font-semibold uppercase text-[var(--accent)]">
+              {error.area} · {error.severity}
+            </span>
+          </div>
+          <h3 className="mt-3 text-xl font-semibold leading-7">{error.summary}</h3>
+          <p className="mt-2 break-all font-mono text-xs leading-5 text-[var(--muted-foreground)]">
+            {error.errorCode}
+          </p>
+        </section>
+
+        <dl className="grid grid-cols-2 gap-x-5 gap-y-4 rounded-[var(--radius-card)] bg-[var(--surface-muted)]/55 p-4 sm:grid-cols-3">
+          <div>
+            <dt className="text-xs text-[var(--muted-foreground)]">Occurrences</dt>
+            <dd className="mt-1 font-semibold tabular-nums">{error.occurrenceCount}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-[var(--muted-foreground)]">First seen</dt>
+            <dd className="mt-1 text-sm font-medium">{formatAdminDate(error.firstSeenAt)}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-[var(--muted-foreground)]">Last seen</dt>
+            <dd className="mt-1 text-sm font-medium">{formatAdminDate(error.lastSeenAt)}</dd>
+          </div>
+          {error.resolvedAt ? (
+            <div>
+              <dt className="text-xs text-[var(--muted-foreground)]">Resolved</dt>
+              <dd className="mt-1 text-sm font-medium">{formatAdminDate(error.resolvedAt)}</dd>
+            </div>
+          ) : null}
+        </dl>
+
+        <section>
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
+            <h3 className="font-semibold">Sanitized facts</h3>
+            <span className="text-sm tabular-nums text-[var(--muted-foreground)]">
+              {facts.length} fields
+            </span>
+          </div>
+          {facts.length ? (
+            <dl className="divide-y divide-[var(--border)]">
+              {facts.map(([key, value]) => (
+                <div
+                  key={key}
+                  className="grid gap-1 py-3 sm:grid-cols-[160px_minmax(0,1fr)] sm:gap-4"
+                >
+                  <dt className="text-sm font-semibold">{key}</dt>
+                  <dd className="min-w-0 whitespace-pre-wrap break-words font-mono text-xs leading-5 text-[var(--muted-foreground)]">
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p className="py-4 text-sm text-[var(--muted-foreground)]">
+              No safe context was stored.
+            </p>
+          )}
+        </section>
+      </div>
+    </Sheet>
   );
 }
 
 function ErrorRow({ error }: { error: AdminOperationalError }) {
-  const facts = factEntries(error);
   return (
-    <article className="grid gap-3 px-4 py-4 sm:px-5">
-      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(260px,1.4fr)_minmax(190px,1fr)_minmax(220px,0.9fr)_auto] lg:items-center">
-        <div className="min-w-0">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <h3
-              className="min-w-0 truncate text-base font-semibold leading-6"
-              title={error.summary}
-            >
-              {error.summary}
-            </h3>
-            <AdminStatusPill tone={error.status === 'unresolved' ? 'warning' : 'success'}>
-              {error.status}
-            </AdminStatusPill>
-          </div>
-          <p className="mt-1 text-xs font-semibold uppercase text-[var(--accent)]">
-            {error.area} · {error.severity}
-          </p>
+    <article className="grid min-w-0 gap-3 px-4 py-3.5 sm:px-5 lg:grid-cols-[minmax(250px,1.45fr)_minmax(220px,1fr)_minmax(150px,0.65fr)_auto] lg:items-center">
+      <div className="min-w-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h3 className="min-w-0 truncate text-base font-semibold leading-6" title={error.summary}>
+            {error.summary}
+          </h3>
+          <AdminStatusPill tone={error.status === 'unresolved' ? 'warning' : 'success'}>
+            {error.status}
+          </AdminStatusPill>
         </div>
-
-        <dl className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 px-3 py-2.5 text-sm lg:bg-transparent lg:p-0">
-          <div className="min-w-0">
-            <dt className="text-xs text-[var(--muted-foreground)]">Error code</dt>
-            <dd className="mt-0.5 truncate font-semibold" title={error.errorCode}>
-              {error.errorCode}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-[var(--muted-foreground)]">Occurrences</dt>
-            <dd className="mt-0.5 font-semibold tabular-nums">{error.occurrenceCount}</dd>
-          </div>
-        </dl>
-
-        <dl className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <dt className="text-xs text-[var(--muted-foreground)]">First seen</dt>
-            <dd className="mt-0.5 whitespace-nowrap text-xs font-medium">
-              {formatAdminDate(error.firstSeenAt)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-[var(--muted-foreground)]">Last seen</dt>
-            <dd className="mt-0.5 whitespace-nowrap text-xs font-medium">
-              {formatAdminDate(error.lastSeenAt)}
-            </dd>
-          </div>
-        </dl>
-
-        {error.status === 'unresolved' ? (
-          <div className="flex justify-end lg:pl-2">
-            <MarkErrorResolvedButton errorId={error.id} />
-          </div>
-        ) : null}
       </div>
 
-      <details className="rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2.5">
-        <summary className="cursor-pointer text-sm font-semibold">
-          Sanitized facts{' '}
-          <span className="font-normal text-[var(--muted-foreground)]">({facts.length})</span>
-        </summary>
-        {facts.length ? (
-          <dl className="mt-3 grid gap-2 border-t border-[var(--border)] pt-3 text-sm sm:grid-cols-2">
-            {facts.map(([key, value]) => (
-              <div key={key} className="min-w-0">
-                <dt className="font-semibold">{key}</dt>
-                <dd className="mt-0.5 break-words text-[var(--muted-foreground)]">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : (
-          <p className="mt-2 text-sm text-[var(--muted-foreground)]">No safe context was stored.</p>
-        )}
-      </details>
+      <div className="grid min-w-0 gap-1 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 px-3 py-2.5 text-sm lg:bg-transparent lg:p-0">
+        <div className="min-w-0">
+          <p className="text-xs text-[var(--muted-foreground)]">Error code</p>
+          <p className="mt-0.5 truncate font-semibold" title={error.errorCode}>
+            {error.errorCode}
+          </p>
+        </div>
+        <p className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--muted-foreground)]">
+          <span className="font-semibold uppercase text-[var(--accent)]">
+            {error.area} · {error.severity}
+          </span>
+          <span aria-hidden="true">·</span>
+          <span className="tabular-nums">{error.occurrenceCount} occurrences</span>
+        </p>
+      </div>
+
+      <dl className="text-sm">
+        <div>
+          <dt className="text-xs text-[var(--muted-foreground)]">Last seen</dt>
+          <dd className="mt-0.5 whitespace-nowrap text-xs font-medium">
+            {formatAdminDate(error.lastSeenAt)}
+          </dd>
+        </div>
+      </dl>
+
+      <div className="flex items-center justify-end gap-2 lg:pl-2">
+        <ErrorDetailsSheet error={error} />
+        {error.status === 'unresolved' ? <MarkErrorResolvedButton errorId={error.id} /> : null}
+      </div>
     </article>
   );
 }

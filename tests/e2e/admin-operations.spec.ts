@@ -63,7 +63,9 @@ test.describe('admin operations error queue (OPS-03, D-11, D-12)', () => {
     await expect(
       page.locator('body').evaluate((body) => body.scrollWidth <= window.innerWidth)
     ).resolves.toBe(true);
-    await page.getByText('Sanitized facts').click();
+    await page.getByRole('button', { name: /View details for/ }).click();
+    await expect(page.getByRole('dialog', { name: 'Incident details' })).toBeVisible();
+    await expect(page.getByText('Sanitized facts')).toBeVisible();
     await expect(page.getByText('ORDER-OPS-123')).toBeVisible();
     await expect(page.locator('main')).not.toContainText(
       /buyer@example\.com|secret-token|Bearer abc|https:\/\/example\.com\/download|rawPayload/i

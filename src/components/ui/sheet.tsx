@@ -47,7 +47,11 @@ export function Sheet({
     <SheetPrimitive.Root open={open} onOpenChange={onOpenChange}>
       {showTrigger ? (
         <SheetPrimitive.Trigger asChild>
-          <Button variant={triggerVariant} className={cn('min-h-11 gap-2 px-3', triggerClassName)}>
+          <Button
+            variant={triggerVariant}
+            className={cn('min-h-11 gap-2 px-3', triggerClassName)}
+            title={showTriggerLabel ? undefined : triggerLabel}
+          >
             {triggerIcon ?? <Menu aria-hidden="true" className="h-6 w-6" />}
             <span className={showTriggerLabel ? '' : 'sr-only'}>{triggerLabel}</span>
           </Button>
