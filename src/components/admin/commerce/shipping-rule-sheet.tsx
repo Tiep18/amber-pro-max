@@ -57,7 +57,7 @@ export function ShippingRuleSheet({ profiles }: { profiles: ProfileOption[] }) {
         triggerLabel="Add destination rule"
         title="Add destination rule"
         closeLabel="Close destination rule form"
-        contentClassName="!w-[min(520px,96vw)]"
+        contentClassName="!w-[min(520px,96vw)] max-sm:!w-screen"
       >
         <form
           className="grid gap-4"

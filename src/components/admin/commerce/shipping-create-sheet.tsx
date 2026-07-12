@@ -34,7 +34,7 @@ export function ShippingCreateSheet() {
         triggerLabel="New shipping profile"
         title="Create shipping profile"
         closeLabel="Close shipping profile form"
-        contentClassName="!w-[min(520px,96vw)]"
+        contentClassName="!w-[min(520px,96vw)] max-sm:!w-screen"
         headerClassName="px-5 sm:px-6"
         bodyClassName="p-5 sm:p-6"
       >

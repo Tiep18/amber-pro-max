@@ -123,7 +123,7 @@ export function ShippingRegionAdjustmentSheet({ rules }: { rules: RuleOption[] }
         triggerLabel="Add US region adjustment"
         title="Add US region adjustment"
         closeLabel="Close US adjustment form"
-        contentClassName="!w-[min(520px,96vw)]"
+        contentClassName="!w-[min(520px,96vw)] max-sm:!w-screen"
       >
         <form
           className="grid gap-4"

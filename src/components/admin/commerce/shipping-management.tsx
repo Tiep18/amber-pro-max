@@ -58,6 +58,18 @@ type RuleRow = AdminShippingRule & {
   profileActive: boolean;
 };
 
+type AdjustmentGroup = {
+  key: string;
+  profileName: string;
+  destinationLabel: string;
+  currencyCode: CurrencyCode;
+  codes: string[];
+  mode: 'surcharge' | 'replace';
+  firstItemFeeMinor: number;
+  additionalItemFeeMinor: number;
+  active: boolean;
+};
+
 function feeLabel(currencyCode: CurrencyCode, firstMinor: number, additionalMinor: number) {
   return `${formatMoney({ amountMinor: firstMinor, currencyCode })} first / ${formatMoney({
     amountMinor: additionalMinor,
@@ -67,6 +79,12 @@ function feeLabel(currencyCode: CurrencyCode, firstMinor: number, additionalMino
 
 function destinationLabel(rule: Pick<AdminShippingRule, 'match_kind' | 'country_code'>) {
   return rule.match_kind === 'fallback' ? 'Other countries' : (rule.country_code ?? 'Unknown');
+}
+
+function summarizeCodes(codes: string[]) {
+  const visible = codes.slice(0, 3).join(', ');
+  const remaining = codes.length - 3;
+  return remaining > 0 ? `${visible} +${remaining} more` : visible;
 }
 
 function SectionSurface({
@@ -162,18 +180,40 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
     [profiles]
   );
 
-  const adjustmentRows = useMemo(
-    () =>
-      rules.flatMap((rule) =>
-        (rule.shipping_region_adjustments ?? []).map((adjustment) => ({
-          ...adjustment,
+  const adjustmentGroups = useMemo(() => {
+    const groups = new Map<string, AdjustmentGroup>();
+    for (const rule of rules) {
+      for (const adjustment of rule.shipping_region_adjustments ?? []) {
+        const key = [
+          adjustment.shipping_rule_id,
+          adjustment.mode,
+          adjustment.first_item_fee_minor,
+          adjustment.additional_item_fee_minor,
+          adjustment.active
+        ].join(':');
+        const existing = groups.get(key);
+        if (existing) {
+          existing.codes.push(adjustment.region_code);
+          continue;
+        }
+        groups.set(key, {
+          key,
           profileName: rule.profileName,
           destinationLabel: destinationLabel(rule),
-          currencyCode: rule.currency_code
-        }))
-      ),
-    [rules]
-  );
+          currencyCode: rule.currency_code,
+          codes: [adjustment.region_code],
+          mode: adjustment.mode,
+          firstItemFeeMinor: adjustment.first_item_fee_minor,
+          additionalItemFeeMinor: adjustment.additional_item_fee_minor,
+          active: adjustment.active
+        });
+      }
+    }
+    return Array.from(groups.values()).map((group) => ({
+      ...group,
+      codes: group.codes.sort((a, b) => a.localeCompare(b))
+    }));
+  }, [rules]);
 
   const filteredProfiles = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -228,6 +268,7 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
     currencyCode: rule.currency_code,
     countryCode: rule.country_code
   }));
+  const assignmentTotal = profiles.reduce((total, profile) => total + profile.assignmentCount, 0);
 
   return (
     <div className="grid gap-8">
@@ -408,10 +449,10 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
       <SectionSurface
         title="US region adjustments"
         description="Regional surcharge or replacement rules layered on top of US shipping."
-        count={adjustmentRows.length}
+        count={adjustmentGroups.length}
         action={<ShippingRegionAdjustmentSheet rules={ruleOptions} />}
       >
-        {adjustmentRows.length === 0 ? (
+        {adjustmentGroups.length === 0 ? (
           <AdminEmptyState
             icon={ShieldCheck}
             title="No US region adjustments."
@@ -419,14 +460,14 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
           />
         ) : (
           <div className="divide-y divide-[var(--border)]">
-            {adjustmentRows.map((adjustment) => (
+            {adjustmentGroups.map((adjustment) => (
               <article
-                key={adjustment.id}
+                key={adjustment.key}
                 className="grid gap-3 px-4 py-4 sm:px-6 lg:grid-cols-[110px_minmax(220px,1fr)_170px_minmax(230px,1fr)_110px] lg:items-center"
               >
                 <div>
-                  <p className="font-semibold">{adjustment.region_code}</p>
-                  <p className="text-sm text-[var(--muted-foreground)]">US region</p>
+                  <p className="font-semibold">{summarizeCodes(adjustment.codes)}</p>
+                  <p className="text-sm text-[var(--muted-foreground)]">States/territories</p>
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">{adjustment.profileName}</p>
@@ -440,8 +481,8 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
                 <p className="text-sm text-[var(--muted-foreground)]">
                   {feeLabel(
                     adjustment.currencyCode,
-                    adjustment.first_item_fee_minor,
-                    adjustment.additional_item_fee_minor
+                    adjustment.firstItemFeeMinor,
+                    adjustment.additionalItemFeeMinor
                   )}
                 </p>
                 <div className="flex justify-start lg:justify-end">
@@ -453,6 +494,22 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
             ))}
           </div>
         )}
+      </SectionSurface>
+
+      <SectionSurface
+        title="Assignments"
+        description="Product and variant assignment controls stay in the catalog workflow."
+        count={assignmentTotal}
+      >
+        <AdminEmptyState
+          icon={Truck}
+          title={
+            assignmentTotal
+              ? `${assignmentTotal} explicit assignments are counted on parcel profiles.`
+              : 'No explicit assignments.'
+          }
+          description="Products and variants without an explicit assignment use the store default parcel profile."
+        />
       </SectionSurface>
     </div>
   );
