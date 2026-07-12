@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(33);
+select plan(35);
 
 -- D-09 / SHIP-12: one complete immutable allocation row per physical order line.
 select has_table('public', 'checkout_order_shipping_allocations', 'shipping allocation evidence exists');
@@ -120,6 +120,29 @@ select throws_ok(
   '23514', null,
   'partial region evidence is rejected'
 );
+
+set local role anon;
+select throws_ok(
+  $$select * from public.checkout_order_shipping_allocations$$,
+  '42501', null,
+  'anon cannot directly read shipping allocation evidence'
+);
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '08020000-0000-0000-0000-000000000099', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select is(
+  (select count(*)::integer from public.checkout_order_shipping_allocations),
+  0,
+  'non-admin authenticated callers cannot read shipping allocation evidence'
+);
+select throws_ok(
+  $$update public.checkout_order_shipping_allocations set allocated_shipping_minor = 0$$,
+  '42501', null,
+  'authenticated callers have no direct allocation update privilege'
+);
+reset role;
 
 select * from finish();
 

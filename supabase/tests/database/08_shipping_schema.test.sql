@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(51);
+select plan(53);
 
 -- D-03 / SHIP-07: defaults are explicit and the migration never nominates one.
 select has_table('public', 'shipping_store_defaults', 'shipping store defaults exist');
@@ -44,8 +44,14 @@ where id in (
 order by id;
 
 select has_column('public', 'shipping_rules', 'match_kind', 'shipping rules expose an explicit match kind');
-select has_check('public', 'shipping_rules', 'shipping_rules_match_kind_check', 'rule match kind is constrained');
-select has_check('public', 'shipping_rules', 'shipping_rules_destination_shape_check', 'exact and fallback shapes are unambiguous');
+select ok(
+  exists (select 1 from pg_constraint where conrelid = 'public.shipping_rules'::regclass and conname = 'shipping_rules_match_kind_check'),
+  'rule match kind is constrained'
+);
+select ok(
+  exists (select 1 from pg_constraint where conrelid = 'public.shipping_rules'::regclass and conname = 'shipping_rules_destination_shape_check'),
+  'exact and fallback shapes are unambiguous'
+);
 select has_index('public', 'shipping_rules', 'shipping_rules_exact_unique_idx', 'exact rules remain unique by profile/country/currency');
 select has_index('public', 'shipping_rules', 'shipping_rules_fallback_unique_idx', 'fallback rules are unique by profile/currency');
 select has_index('public', 'shipping_rules', 'shipping_rules_active_resolution_idx', 'active resolution lookup is indexed');
@@ -143,9 +149,18 @@ select throws_ok(
 -- D-05 / D-06 / SHIP-10: normalized generic region adjustments.
 select has_table('public', 'shipping_region_adjustments', 'shipping region adjustments exist');
 select col_is_fk('public', 'shipping_region_adjustments', 'shipping_rule_id', 'region adjustment references its parent rule');
-select has_check('public', 'shipping_region_adjustments', 'shipping_region_adjustments_country_code_check', 'region countries are normalized');
-select has_check('public', 'shipping_region_adjustments', 'shipping_region_adjustments_region_code_check', 'region codes are normalized');
-select has_check('public', 'shipping_region_adjustments', 'shipping_region_adjustments_mode_check', 'region mode is surcharge or replace');
+select ok(
+  exists (select 1 from pg_constraint where conrelid = 'public.shipping_region_adjustments'::regclass and conname = 'shipping_region_adjustments_country_code_check'),
+  'region countries are normalized'
+);
+select ok(
+  exists (select 1 from pg_constraint where conrelid = 'public.shipping_region_adjustments'::regclass and conname = 'shipping_region_adjustments_region_code_check'),
+  'region codes are normalized'
+);
+select ok(
+  exists (select 1 from pg_constraint where conrelid = 'public.shipping_region_adjustments'::regclass and conname = 'shipping_region_adjustments_mode_check'),
+  'region mode is surcharge or replace'
+);
 select has_index('public', 'shipping_region_adjustments', 'shipping_region_adjustments_one_active_idx', 'active region membership is unique');
 select lives_ok(
   $$insert into public.shipping_region_adjustments (
@@ -255,6 +270,38 @@ select results_eq(
   $$values ('error'::text, 'resolver_not_ready'::text)$$,
   'quote wrapper fails closed until Plan 08-02 installs the resolver'
 );
+
+set local role anon;
+select throws_ok(
+  $$select * from public.shipping_store_defaults$$,
+  '42501', null,
+  'anon cannot directly read shipping defaults'
+);
+select throws_ok(
+  $$select * from public.shipping_region_adjustments$$,
+  '42501', null,
+  'anon cannot directly read region configuration'
+);
+select lives_ok(
+  $$select public.get_checkout_shipping_quote_v2('[]'::jsonb, 'US', 'USD', null)$$,
+  'anon can invoke only the constrained fail-closed quote wrapper'
+);
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '08010000-0000-0000-0000-000000000099', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select is(
+  (select count(*)::integer from public.shipping_store_defaults),
+  0,
+  'non-admin authenticated callers cannot directly read shipping defaults'
+);
+select throws_ok(
+  $$select public.admin_set_shipping_store_default('08010000-0000-0000-0000-000000000002')$$,
+  '42501', null,
+  'non-admin authenticated callers cannot replace the store default'
+);
+reset role;
 
 select * from finish();
 
