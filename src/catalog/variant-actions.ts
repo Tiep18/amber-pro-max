@@ -1,6 +1,7 @@
 'use server';
 
 import {revalidatePath} from 'next/cache';
+import {z} from 'zod';
 import {requireAdmin} from '@/auth/guards';
 import {invalidateCatalogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
@@ -33,6 +34,16 @@ export type VariantActionResult =
   | {status: 'success'; message: string}
   | {status: 'invalid'; code: VariantActionCode}
   | {status: 'error'; code: VariantActionCode};
+
+const variantShippingProfileSchema = z.object({
+  variantId: z.uuid(),
+  shippingProfileId: z.union([z.uuid(), z.literal('store_default')])
+}).strict();
+
+export type VariantShippingProfileResult =
+  | {status: 'saved'}
+  | {status: 'invalid'; code: 'invalid_shipping_assignment' | 'inactive_shipping_profile' | 'variant_not_found'}
+  | {status: 'error'; code: 'shipping_assignment_failed'};
 
 function revalidateVariants(productId: string) {
   revalidatePath(`/admin/catalog/${productId}`);
@@ -327,4 +338,55 @@ export async function adjustInventoryAction(input: InventoryAdjustmentInput): Pr
 
   revalidateVariants(parsed.data.productId);
   return {status: 'success', message: 'Inventory saved'};
+}
+
+export async function saveVariantShippingProfileAction(input: unknown): Promise<VariantShippingProfileResult> {
+  await requireAdmin();
+  const parsed = variantShippingProfileSchema.safeParse(input);
+  if (!parsed.success) return {status: 'invalid', code: 'invalid_shipping_assignment'};
+
+  return runMonitoredAction({
+    area: 'admin',
+    action: 'catalog_variant_shipping_profile_save',
+    errorCode: 'catalog_variant_shipping_profile_failed',
+    summary: 'Catalog variant shipping profile save failed',
+    facts: {referenceId: parsed.data.variantId},
+    errorResult: {status: 'error', code: 'shipping_assignment_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    operation: async () => {
+      const supabase = await createSupabaseServerClient();
+      const {data: variant, error: variantError} = await supabase
+        .from('product_variants')
+        .select('id, product_id')
+        .eq('id', parsed.data.variantId)
+        .maybeSingle();
+      if (variantError || !variant) return {status: 'invalid', code: 'variant_not_found'} as const;
+
+      if (parsed.data.shippingProfileId === 'store_default') {
+        const {error} = await supabase
+          .from('variant_shipping_profiles')
+          .delete()
+          .eq('variant_id', parsed.data.variantId);
+        if (error) return {status: 'error', code: 'shipping_assignment_failed'} as const;
+        revalidateVariants(variant.product_id);
+        return {status: 'saved'} as const;
+      }
+
+      const {data: profile, error: profileError} = await supabase
+        .from('shipping_profiles')
+        .select('id')
+        .eq('id', parsed.data.shippingProfileId)
+        .eq('active', true)
+        .maybeSingle();
+      if (profileError || !profile) return {status: 'invalid', code: 'inactive_shipping_profile'} as const;
+
+      const {error} = await supabase.from('variant_shipping_profiles').upsert(
+        {variant_id: parsed.data.variantId, profile_id: profile.id},
+        {onConflict: 'variant_id'}
+      );
+      if (error) return {status: 'error', code: 'shipping_assignment_failed'} as const;
+      revalidateVariants(variant.product_id);
+      return {status: 'saved'} as const;
+    }
+  });
 }

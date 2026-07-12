@@ -1,5 +1,6 @@
 'use server';
 
+import {z} from 'zod';
 import {requireAdmin} from '@/auth/guards';
 import {invalidateCatalogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
@@ -33,6 +34,16 @@ export type ArchiveProductResult =
   | {status: 'archived'; productId: string}
   | {status: 'invalid'; code: 'invalid_product_id'}
   | {status: 'error'; code: 'archive_failed'};
+
+const productShippingProfileSchema = z.object({
+  productId: productIdSchema,
+  shippingProfileId: z.union([z.uuid(), z.literal('store_default')])
+}).strict();
+
+export type ProductShippingProfileResult =
+  | {status: 'saved'}
+  | {status: 'invalid'; code: 'invalid_shipping_assignment' | 'inactive_shipping_profile'}
+  | {status: 'error'; code: 'shipping_assignment_failed'};
 
 function validationIssues(error: {issues: {path: PropertyKey[]; message: string}[]}): ValidationIssue[] {
   return error.issues.map((issue) => ({
@@ -304,4 +315,49 @@ export async function archiveProductAction(productId: string): Promise<ArchivePr
 
   invalidateCatalogCache();
   return archiveResult;
+}
+
+export async function saveProductShippingProfileAction(input: unknown): Promise<ProductShippingProfileResult> {
+  await requireAdmin();
+  const parsed = productShippingProfileSchema.safeParse(input);
+  if (!parsed.success) return {status: 'invalid', code: 'invalid_shipping_assignment'};
+
+  return runMonitoredAction({
+    area: 'admin',
+    action: 'catalog_product_shipping_profile_save',
+    errorCode: 'catalog_product_shipping_profile_failed',
+    summary: 'Catalog product shipping profile save failed',
+    facts: {productId: parsed.data.productId},
+    errorResult: {status: 'error', code: 'shipping_assignment_failed'} as const,
+    shouldRecordResult: (result) => result.status === 'error',
+    operation: async () => {
+      const supabase = await createSupabaseServerClient();
+      if (parsed.data.shippingProfileId === 'store_default') {
+        const {error} = await supabase
+          .from('product_shipping_profiles')
+          .delete()
+          .eq('product_id', parsed.data.productId);
+        return error
+          ? {status: 'error', code: 'shipping_assignment_failed'} as const
+          : {status: 'saved'} as const;
+      }
+
+      const {data: profile, error: profileError} = await supabase
+        .from('shipping_profiles')
+        .select('id')
+        .eq('id', parsed.data.shippingProfileId)
+        .eq('active', true)
+        .maybeSingle();
+      if (profileError || !profile) return {status: 'invalid', code: 'inactive_shipping_profile'} as const;
+
+      const {error} = await supabase.from('product_shipping_profiles').upsert(
+        {product_id: parsed.data.productId, profile_id: profile.id},
+        {onConflict: 'product_id'}
+      );
+      return error ? {status: 'error', code: 'shipping_assignment_failed'} as const : {status: 'saved'} as const;
+    }
+  }).then((result) => {
+    if (result.status === 'saved') invalidateCatalogCache();
+    return result;
+  });
 }
