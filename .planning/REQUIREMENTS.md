@@ -37,12 +37,12 @@
 - [x] **SHIP-03**: Checkout calculates shipping only for physical order lines using the selected destination and attached profiles.
 - [x] **SHIP-04**: Customer can submit a non-binding exception request when a physical product is unavailable for the destination market.
 - [x] **SHIP-05**: Admin can approve or reject an exception request before the customer can place the exceptional order.
-- [ ] **SHIP-07**: Admin can designate exactly one active store-default shipping profile for physical products or variants without an explicit profile attachment.
-- [ ] **SHIP-08**: Each shipping profile can define exact-country rules and at most one fallback destination rule per currency, with exact-country rules taking precedence.
+- [x] **SHIP-07**: Admin can designate exactly one active store-default shipping profile for physical products or variants without an explicit profile attachment.
+- [x] **SHIP-08**: Each shipping profile can define exact-country rules and at most one fallback destination rule per currency, with exact-country rules taking precedence.
 - [ ] **SHIP-09**: Checkout resolves shipping deterministically through variant, product, and store-default profiles and fails closed only when no eligible exact or fallback rule exists.
-- [ ] **SHIP-10**: Admin can configure normalized region-level shipping adjustments that either add to or replace a country rule, with US state and territory support in v1.
+- [x] **SHIP-10**: Admin can configure normalized region-level shipping adjustments that either add to or replace a country rule, with US state and territory support in v1.
 - [ ] **SHIP-11**: Checkout recalculates server-authoritative shipping when country or applicable region changes and requires confirmation before applying any material total, market, currency, or eligibility change.
-- [ ] **SHIP-12**: Submitted physical orders preserve immutable evidence of the selected shipping profile, destination rule, region adjustment, and final shipping allocation.
+- [x] **SHIP-12**: Submitted physical orders preserve immutable evidence of the selected shipping profile, destination rule, region adjustment, and final shipping allocation.
 - [ ] **SHIP-13**: US physical checkout requires a normalized two-letter state or territory code and postal code before order submission.
 
 ### Inventory and Orders

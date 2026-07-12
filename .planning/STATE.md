@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 07-05-PLAN.md
-last_updated: "2026-07-12T02:54:22.387Z"
-last_activity: "2026-07-11 - Completed quick task 260711-lig: Move discount creation into a responsive sheet"
+status: executing
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-07-12T03:50:20.489Z"
+last_activity: 2026-07-12 -- Phase 08 execution started
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 6
-  total_plans: 63
-  completed_plans: 62
-  percent: 98
+  total_plans: 71
+  completed_plans: 63
+  percent: 75
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** Customers in Vietnam and international markets can reliably discover, purchase, pay for, and receive eligible digital and physical products through one branded storefront.
-**Current focus:** Phase 07 - content-seo-and-launch-readiness
+**Current focus:** Phase 08 — shipping-profile-fallbacks-destination-zones-and-us-region-s
 
 ## Current Position
 
-Phase: 07 (content-seo-and-launch-readiness)
-Plan: 07-05 completed
-Status: Ready for Wave 6 final launch verification
-Last activity: 2026-07-11 - Completed quick task 260711-lig: Move discount creation into a responsive sheet
+Phase: 08 (shipping-profile-fallbacks-destination-zones-and-us-region-s) — EXECUTING
+Plan: 2 of 9
+Status: Ready to execute
+Last activity: 2026-07-12 -- Phase 08 execution started
 
 Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and Wave 6 can begin.
 
@@ -91,6 +91,7 @@ Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and
 | Phase 06 P07 | 109 min | 2 tasks | 11 files |
 | Phase 06 P08 | 75 min | 2 tasks | 17 files |
 | Phase 06 P09 | 48 min | 2 tasks | 9 files |
+| Phase 08 P01 | 34 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,9 @@ Recent decisions affecting current work:
 - [Phase 04 Plan 06]: payment_events now tracks delivery_count and last_received_at because durable duplicate delivery history is required for webhook replay mitigation.
 - [Phase 04 Plan 09]: Admin order detail URLs use public order numbers while privileged order IDs are resolved only after requireAdmin.
 - [Phase 04 Plan 09]: Provider evidence panels render sanitized operational facts only; raw provider payloads, signatures, payer PII, secrets, and customer email display stay out of admin UI.
+- [Phase 08]: Store-default state remains separate from shipping profiles and starts empty; no profile or fallback is selected implicitly. — Prevents migration-time policy selection and keeps profile activation independent from store-default intent.
+- [Phase 08]: Existing shipping rules become exact_country without changing semantic values. — Preserves IDs, countries, currencies, fees, and active state while enabling explicit fallbacks.
+- [Phase 08]: Plan 08-03 exclusively owns the checked-in Supabase type refresh. — Avoids overlapping source ownership while local and linked generated interfaces have already been checked.
 
 ### Pending Todos
 
@@ -275,6 +279,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-24T02:44:28.000Z
-Stopped at: Completed 07-05-PLAN.md
+Last session: 2026-07-12T03:50:20.440Z
+Stopped at: Completed 08-01-PLAN.md
 Resume file: None
