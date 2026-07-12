@@ -24,7 +24,7 @@ describe('submitCheckoutInputSchema', () => {
     recipientName: 'Taylor Customer',
     phoneNumber: '+15551234567',
     countryCode: 'US',
-    region: 'California',
+    region: 'CA',
     locality: 'San Francisco',
     addressLine1: '123 Market Street',
     addressLine2: 'Suite 5',
@@ -108,6 +108,46 @@ describe('submitCheckoutInputSchema', () => {
 
     expect(parsed.success).toBe(true);
   });
+
+  test('requires US physical submit to include a two-letter state or territory and postal code', () => {
+    const missingRegion = submitCheckoutInputSchema.safeParse({
+      locale: 'en',
+      market: 'intl',
+      lines: [],
+      acceptedQuoteHash: 'hash',
+      acceptedQuote: physicalQuote,
+      idempotencyKey: 'idem-key',
+      contactEmail: 'customer@example.com',
+      paymentIntent: 'paypal_intent',
+      shippingAddress: {...shippingAddress, region: null}
+    });
+    const longRegion = submitCheckoutInputSchema.safeParse({
+      locale: 'en',
+      market: 'intl',
+      lines: [],
+      acceptedQuoteHash: 'hash',
+      acceptedQuote: physicalQuote,
+      idempotencyKey: 'idem-key',
+      contactEmail: 'customer@example.com',
+      paymentIntent: 'paypal_intent',
+      shippingAddress: {...shippingAddress, region: 'California'}
+    });
+    const missingPostal = submitCheckoutInputSchema.safeParse({
+      locale: 'en',
+      market: 'intl',
+      lines: [],
+      acceptedQuoteHash: 'hash',
+      acceptedQuote: physicalQuote,
+      idempotencyKey: 'idem-key',
+      contactEmail: 'customer@example.com',
+      paymentIntent: 'paypal_intent',
+      shippingAddress: {...shippingAddress, postalCode: null}
+    });
+
+    expect(missingRegion.success).toBe(false);
+    expect(longRegion.success).toBe(false);
+    expect(missingPostal.success).toBe(false);
+  });
 });
 
 describe('submitCheckout', () => {
@@ -164,7 +204,7 @@ describe('submitCheckout', () => {
       recipientName: 'Taylor Customer',
       phoneNumber: '+15551234567',
       countryCode: 'US',
-      region: 'California',
+      region: 'CA',
       locality: 'San Francisco',
       addressLine1: '123 Market Street',
       addressLine2: null,

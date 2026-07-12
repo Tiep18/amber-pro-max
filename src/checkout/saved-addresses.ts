@@ -24,6 +24,8 @@ export function buildSavedAddressQuoteRefreshInput({
         updatedAt: acceptedQuote.quotedAt
       })) ?? [],
     destinationCountryCode: shippingAddress.countryCode,
+    destinationRegionCode: shippingAddress.region,
+    shippingQuoteVersion: 2,
     acceptedQuote
   };
 }

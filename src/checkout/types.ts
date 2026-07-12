@@ -12,6 +12,8 @@ export const quoteCartInputSchema = z.object({
   market: z.enum(['vn', 'intl']),
   lines: z.array(z.unknown()).max(100),
   destinationCountryCode: z.string().trim().max(2).optional().nullable(),
+  destinationRegionCode: z.string().trim().max(3).optional().nullable(),
+  shippingQuoteVersion: z.literal(2).optional().nullable(),
   discountCode: z.string().trim().max(40).optional().nullable(),
   priorAcceptedQuoteHash: z.string().max(256).optional().nullable()
 });
@@ -23,6 +25,8 @@ export type QuoteCartInput = {
   market: MarketCode;
   lines: unknown[];
   destinationCountryCode?: string | null;
+  destinationRegionCode?: string | null;
+  shippingQuoteVersion?: 2 | null;
   discountCode?: string | null;
   priorAcceptedQuoteHash?: string | null;
   userId?: string | null;
@@ -61,6 +65,35 @@ export type CartQuoteLine = {
   change: CartQuoteLineChange | null;
 };
 
+export type ShippingAllocationSource = 'variant' | 'product' | 'store_default';
+export type ShippingRuleMatchKind = 'exact_country' | 'fallback';
+export type ShippingRegionMode = 'surcharge' | 'replace';
+
+export type CartQuoteShippingAllocation = {
+  lineId: string;
+  productId: string;
+  variantId: string | null;
+  quantity: number;
+  source: ShippingAllocationSource;
+  shippingProfileId: string;
+  profileName: string;
+  shippingRuleId: string;
+  ruleMatchKind: ShippingRuleMatchKind;
+  destinationCountryCode: string;
+  currencyCode: CurrencyCode;
+  baseFirstItemFeeMinor: number;
+  baseAdditionalItemFeeMinor: number;
+  regionAdjustmentId: string | null;
+  regionCode: string | null;
+  regionMode: ShippingRegionMode | null;
+  regionFirstItemFeeMinor: number | null;
+  regionAdditionalItemFeeMinor: number | null;
+  finalFirstItemFeeMinor: number;
+  finalAdditionalItemFeeMinor: number;
+  firstItemWinnerUnits: 0 | 1;
+  allocatedShippingMinor: number;
+};
+
 export type CartQuote = {
   status: 'empty' | 'ready' | 'blocked';
   locale: Locale;
@@ -83,16 +116,22 @@ export type CartQuote = {
     | { status: 'no_shipping_required'; amountMinor: 0; countryCode: string | null }
     | {
         status: 'ready';
+        version?: 2;
         amountMinor: number;
         countryCode: string;
+        regionCode?: string | null;
         firstItemLineId: string;
         chargeableUnitCount: number;
+        allocations?: CartQuoteShippingAllocation[];
       }
     | {
         status: 'unsupported_destination';
+        version?: 2;
         amountMinor: null;
         countryCode: string;
+        regionCode?: string | null;
         unsupportedLineIds: string[];
+        failureCode?: string;
       };
   totalMinor: number;
   changes: CartQuoteLineChange[];

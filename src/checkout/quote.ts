@@ -9,12 +9,13 @@ import {
   type DiscountQuoteLine,
   type DiscountRule
 } from './discounts';
-import { calculateShippingQuote, type ShippingRuleQuote } from './shipping';
+import type { ShippingRuleQuote } from './shipping';
 import {
   type CartQuote,
   type CartQuoteLine,
   type CartQuoteLineChange,
   type CartQuoteLineStatus,
+  type CartQuoteShippingAllocation,
   type CheckoutCatalogClient,
   type QuoteCartInput
 } from './types';
@@ -227,51 +228,7 @@ async function loadCatalogProducts(productIds: string[], input: QuoteCartInput) 
     const mapped = mapDetailProduct(detail);
     return mapped ? [mapped] : [];
   });
-  const scopedProducts = await attachDiscountScopes(products, input);
-  if (!input.destinationCountryCode || !input.client || products.length === 0) {
-    return scopedProducts;
-  }
-
-  const countryCode = input.destinationCountryCode.trim().toUpperCase();
-  const variantIds = scopedProducts.flatMap((product) =>
-    product.variants.map((variant) => variant.variantId)
-  );
-  const { data: ruleRows, error: rulesError } = await input.client.rpc(
-    'get_checkout_shipping_rules',
-    {
-      p_product_ids: scopedProducts.map((product) => product.productId),
-      p_variant_ids: variantIds,
-      p_country_code: countryCode
-    }
-  );
-
-  if (rulesError) {
-    return scopedProducts;
-  }
-
-  const productRules = new Map<string, ShippingRuleQuote>();
-  const variantRules = new Map<string, ShippingRuleQuote>();
-  for (const row of ruleRows ?? []) {
-    const rule = {
-      countryCode: row.country_code,
-      firstItemFeeMinor: row.first_item_fee_minor,
-      additionalItemFeeMinor: row.additional_item_fee_minor
-    };
-    if (row.variant_id) {
-      variantRules.set(row.variant_id, rule);
-    } else if (row.product_id) {
-      productRules.set(row.product_id, rule);
-    }
-  }
-
-  return scopedProducts.map((product) => ({
-    ...product,
-    shippingRule: productRules.get(product.productId) ?? null,
-    variants: product.variants.map((variant) => ({
-      ...variant,
-      shippingRule: variantRules.get(variant.variantId) ?? null
-    }))
-  }));
+  return attachDiscountScopes(products, input);
 }
 
 function parseIntentLines(lines: unknown[]) {
@@ -279,6 +236,155 @@ function parseIntentLines(lines: unknown[]) {
     const parsed = cartIntentLineSchema.safeParse(line);
     return parsed.success ? [parsed.data] : [];
   });
+}
+
+function normalizedCode(value: string | null | undefined, pattern: RegExp) {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && pattern.test(normalized) ? normalized : null;
+}
+
+function isCurrencyCode(value: unknown): value is CurrencyCode {
+  return value === 'USD' || value === 'VND';
+}
+
+function isShippingAllocation(value: unknown): value is Omit<CartQuoteShippingAllocation, 'allocatedShippingMinor' | 'firstItemWinnerUnits'> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.lineId === 'string' &&
+    typeof row.productId === 'string' &&
+    (typeof row.variantId === 'string' || row.variantId === null) &&
+    typeof row.quantity === 'number' && Number.isSafeInteger(row.quantity) && row.quantity > 0 &&
+    (row.source === 'variant' || row.source === 'product' || row.source === 'store_default') &&
+    typeof row.shippingProfileId === 'string' && typeof row.profileName === 'string' &&
+    typeof row.shippingRuleId === 'string' &&
+    (row.ruleMatchKind === 'exact_country' || row.ruleMatchKind === 'fallback') &&
+    typeof row.destinationCountryCode === 'string' && isCurrencyCode(row.currencyCode) &&
+    ['baseFirstItemFeeMinor', 'baseAdditionalItemFeeMinor', 'finalFirstItemFeeMinor', 'finalAdditionalItemFeeMinor']
+      .every((key) => Number.isSafeInteger(row[key]) && Number(row[key]) >= 0) &&
+    (row.regionAdjustmentId === null || typeof row.regionAdjustmentId === 'string') &&
+    (row.regionCode === null || typeof row.regionCode === 'string') &&
+    (row.regionMode === null || row.regionMode === 'surcharge' || row.regionMode === 'replace') &&
+    (row.regionFirstItemFeeMinor === null || Number.isSafeInteger(row.regionFirstItemFeeMinor)) &&
+    (row.regionAdditionalItemFeeMinor === null || Number.isSafeInteger(row.regionAdditionalItemFeeMinor))
+  );
+}
+
+function allocateShippingFees(
+  allocations: Omit<CartQuoteShippingAllocation, 'allocatedShippingMinor' | 'firstItemWinnerUnits'>[]
+): CartQuoteShippingAllocation[] {
+  const winner = allocations
+    .slice()
+    .sort((left, right) =>
+      right.finalFirstItemFeeMinor - left.finalFirstItemFeeMinor || left.lineId.localeCompare(right.lineId)
+    )[0];
+  if (!winner) return [];
+
+  return allocations.map((allocation) => {
+    const firstItemWinnerUnits: 0 | 1 = allocation.lineId === winner.lineId ? 1 : 0;
+    return {
+      ...allocation,
+      firstItemWinnerUnits,
+      allocatedShippingMinor:
+        allocation.finalAdditionalItemFeeMinor * allocation.quantity +
+        (firstItemWinnerUnits ? allocation.finalFirstItemFeeMinor - allocation.finalAdditionalItemFeeMinor : 0)
+    };
+  });
+}
+
+async function quoteShippingV2({
+  client,
+  countryCode,
+  regionCode,
+  currencyCode,
+  lines
+}: {
+  client: CheckoutCatalogClient | undefined;
+  countryCode: string;
+  regionCode: string | null;
+  currencyCode: CurrencyCode;
+  lines: CartQuoteLine[];
+}): Promise<CartQuote['shipping']> {
+  const normalizedCountryCode = normalizedCode(countryCode, /^[A-Z]{2}$/);
+  const normalizedRegionCode = regionCode === null ? null : normalizedCode(regionCode, /^[A-Z0-9]{1,3}$/);
+  const physicalLines = lines.filter((line) => line.fulfillmentType === 'physical');
+  const unsupported = (failureCode: string) => ({
+    status: 'unsupported_destination' as const,
+    version: 2 as const,
+    amountMinor: null,
+    countryCode: normalizedCountryCode ?? countryCode,
+    regionCode: normalizedRegionCode,
+    unsupportedLineIds: physicalLines.map((line) => line.lineId).sort(),
+    failureCode
+  });
+  if (!client || !normalizedCountryCode || (regionCode !== null && !normalizedRegionCode)) {
+    return unsupported(!normalizedCountryCode ? 'invalid_country' : 'invalid_region');
+  }
+
+  const rpcClient = client as unknown as {
+    rpc: (functionName: string, args: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
+  };
+  const {data, error} = await rpcClient.rpc('get_checkout_shipping_quote_v2', {
+    p_lines: physicalLines.map((line) => ({
+      lineId: line.lineId,
+      productId: line.productId,
+      variantId: line.variantId,
+      quantity: line.quantity
+    })),
+    p_country_code: normalizedCountryCode,
+    p_currency_code: currencyCode,
+    p_region_code: normalizedRegionCode
+  });
+  if (error || !data || typeof data !== 'object' || Array.isArray(data)) return unsupported('resolver_invariant');
+
+  const payload = data as Record<string, unknown>;
+  if (payload.status !== 'ready') {
+    const lineIds = Array.isArray(payload.unsupportedLineIds)
+      ? payload.unsupportedLineIds.filter((lineId): lineId is string => typeof lineId === 'string').sort()
+      : physicalLines.map((line) => line.lineId).sort();
+    return {...unsupported(typeof payload.code === 'string' ? payload.code : 'resolver_invariant'), unsupportedLineIds: lineIds};
+  }
+  if (!Array.isArray(payload.allocations) || !payload.allocations.every(isShippingAllocation)) return unsupported('resolver_invariant');
+  const allocations = allocateShippingFees(payload.allocations);
+  if (allocations.length !== physicalLines.length || new Set(allocations.map((allocation) => allocation.lineId)).size !== physicalLines.length) {
+    return unsupported('resolver_invariant');
+  }
+  const winner = allocations.find((allocation) => allocation.firstItemWinnerUnits === 1);
+  if (!winner) return unsupported('resolver_invariant');
+  return {
+    status: 'ready',
+    version: 2,
+    amountMinor: allocations.reduce((sum, allocation) => sum + allocation.allocatedShippingMinor, 0),
+    countryCode: normalizedCountryCode,
+    regionCode: normalizedRegionCode,
+    firstItemLineId: winner.lineId,
+    chargeableUnitCount: allocations.reduce((sum, allocation) => sum + allocation.quantity, 0),
+    allocations
+  };
+}
+
+function shippingHashEvidence(shipping: CartQuote['shipping']) {
+  if (shipping.status !== 'ready') {
+    return {
+      status: shipping.status,
+      amountMinor: shipping.amountMinor,
+      countryCode: 'countryCode' in shipping ? shipping.countryCode ?? null : null,
+      regionCode: 'regionCode' in shipping ? shipping.regionCode ?? null : null,
+      failureCode: 'failureCode' in shipping ? shipping.failureCode ?? null : null,
+      unsupportedLineIds:
+        'unsupportedLineIds' in shipping ? [...shipping.unsupportedLineIds].sort() : []
+    };
+  }
+  return {
+    status: shipping.status,
+    version: shipping.version ?? null,
+    amountMinor: shipping.amountMinor,
+    countryCode: shipping.countryCode,
+    regionCode: shipping.regionCode ?? null,
+    firstItemLineId: shipping.firstItemLineId,
+    chargeableUnitCount: shipping.chargeableUnitCount,
+    allocations: [...(shipping.allocations ?? [])].sort((left, right) => left.lineId.localeCompare(right.lineId))
+  };
 }
 
 function quoteHash(quote: Omit<CartQuote, 'hash'>) {
@@ -297,6 +403,7 @@ function quoteHash(quote: Omit<CartQuote, 'hash'>) {
         })),
         subtotalMinor: quote.subtotalMinor,
         discount: quote.discount,
+        shipping: shippingHashEvidence(quote.shipping),
         totalMinor: quote.totalMinor
       })
     )
@@ -521,24 +628,12 @@ export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<Ca
   const hasPhysicalLines = payableLines.some((line) => line.fulfillmentType === 'physical');
   const shipping = hasPhysicalLines
     ? input.destinationCountryCode
-      ? calculateShippingQuote({
+      ? await quoteShippingV2({
+          client: input.client,
           countryCode: input.destinationCountryCode,
+          regionCode: input.destinationRegionCode?.trim().toUpperCase() || null,
           currencyCode: payableLines[0]?.currencyCode ?? lines[0]?.currencyCode ?? 'USD',
-          lines: payableLines.map((line) => ({
-            lineId: line.lineId,
-            productId: line.productId,
-            variantId: line.variantId,
-            fulfillmentType: line.fulfillmentType,
-            quantity: line.quantity,
-            currencyCode: line.currencyCode,
-            shippingProfileId: null,
-            rule:
-              products
-                .find((product) => product.productId === line.productId)
-                ?.variants.find((variant) => variant.variantId === line.variantId)?.shippingRule ??
-              products.find((product) => product.productId === line.productId)?.shippingRule ??
-              null
-          }))
+          lines: payableLines
         })
       : { status: 'not_calculated' as const, amountMinor: 0 as const }
     : {

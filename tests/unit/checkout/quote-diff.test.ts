@@ -209,4 +209,114 @@ describe('cart quote hydration', () => {
       ])
     );
   });
+
+  it('changes quote hashes and material diffs when canonical shipping evidence changes', () => {
+    const base = {
+      status: 'ready',
+      locale: 'en',
+      market: 'intl',
+      currencyCode: 'USD',
+      lines: [
+        {
+          lineId: 'line-1',
+          productId: physical.productId,
+          variantId: physical.variants[0].variantId,
+          slug: physical.slug,
+          title: physical.title,
+          fulfillmentType: 'physical',
+          status: 'ready',
+          quantity: 1,
+          requestedQuantity: 1,
+          marketAtAdd: 'intl',
+          currencyCode: 'USD',
+          unitPriceMinor: 2400,
+          lineSubtotalMinor: 2400,
+          excludedSubtotalMinor: 0,
+          variantLabel: physical.variants[0].label,
+          imageUrl: null,
+          categoryIds: [],
+          collectionIds: [],
+          discountAllocationMinor: 0,
+          change: null
+        }
+      ],
+      subtotalMinor: 2400,
+      excludedSubtotalMinor: 0,
+      discount: {status: 'not_applied', amountMinor: 0},
+      shipping: {
+        status: 'ready',
+        version: 2,
+        amountMinor: 700,
+        countryCode: 'US',
+        regionCode: 'CA',
+        firstItemLineId: 'line-1',
+        chargeableUnitCount: 1,
+        allocations: [
+          {
+            lineId: 'line-1',
+            productId: physical.productId,
+            variantId: physical.variants[0].variantId,
+            quantity: 1,
+            source: 'product',
+            shippingProfileId: 'profile-1',
+            profileName: 'US profile',
+            shippingRuleId: 'rule-1',
+            ruleMatchKind: 'exact_country',
+            destinationCountryCode: 'US',
+            currencyCode: 'USD',
+            baseFirstItemFeeMinor: 700,
+            baseAdditionalItemFeeMinor: 100,
+            regionAdjustmentId: null,
+            regionCode: null,
+            regionMode: null,
+            regionFirstItemFeeMinor: null,
+            regionAdditionalItemFeeMinor: null,
+            finalFirstItemFeeMinor: 700,
+            finalAdditionalItemFeeMinor: 100,
+            allocatedShippingMinor: 700,
+            firstItemWinnerUnits: 1
+          }
+        ]
+      },
+      totalMinor: 3100,
+      changes: [],
+      hash: 'hash-product-us-ca',
+      quotedAt: now
+    } satisfies CartQuote;
+    const changed = {
+      ...base,
+      shipping: {
+        ...base.shipping,
+        amountMinor: 950,
+        allocations: [
+          {
+            ...base.shipping.allocations[0],
+            source: 'store_default',
+            shippingProfileId: 'profile-default',
+            shippingRuleId: 'rule-default',
+            regionAdjustmentId: 'adjustment-1',
+            regionMode: 'surcharge',
+            regionFirstItemFeeMinor: 250,
+            regionAdditionalItemFeeMinor: 50,
+            finalFirstItemFeeMinor: 950,
+            finalAdditionalItemFeeMinor: 150,
+            allocatedShippingMinor: 950
+          }
+        ]
+      },
+      totalMinor: 3350,
+      hash: 'hash-default-us-ca'
+    } satisfies CartQuote;
+
+    expect(diffMaterialQuotes(base, changed)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'shipping_changed',
+          previousAmountMinor: 700,
+          currentAmountMinor: 950
+        }),
+        expect.objectContaining({type: 'total_changed', previousTotalMinor: 3100, currentTotalMinor: 3350})
+      ])
+    );
+  });
 });

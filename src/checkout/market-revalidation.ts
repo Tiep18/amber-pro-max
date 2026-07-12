@@ -40,6 +40,28 @@ function shippingAmount(quote: CartQuote) {
   return quote.shipping.amountMinor;
 }
 
+function shippingEvidence(quote: CartQuote) {
+  const shipping = quote.shipping;
+  if (shipping.status !== 'ready') {
+    return JSON.stringify({
+      status: shipping.status,
+      countryCode: 'countryCode' in shipping ? shipping.countryCode : null,
+      regionCode: 'regionCode' in shipping ? shipping.regionCode ?? null : null,
+      unsupportedLineIds: 'unsupportedLineIds' in shipping ? [...shipping.unsupportedLineIds].sort() : []
+    });
+  }
+
+  return JSON.stringify({
+    status: shipping.status,
+    version: shipping.version ?? null,
+    countryCode: shipping.countryCode,
+    regionCode: shipping.regionCode ?? null,
+    allocations: (shipping.allocations ?? [])
+      .map((allocation) => ({...allocation}))
+      .sort((left, right) => left.lineId.localeCompare(right.lineId))
+  });
+}
+
 export function marketForDestination(countryCode: string | null | undefined): MarketCode {
   return suggestMarketFromCountry(countryCode);
 }
@@ -52,7 +74,10 @@ export function diffMaterialQuotes(previous: CartQuote, current: CartQuote): Mat
   if (previous.currencyCode !== current.currencyCode) {
     changes.push({type: 'currency_changed', previousCurrency: previous.currencyCode, currentCurrency: current.currencyCode});
   }
-  if (shippingAmount(previous) !== shippingAmount(current)) {
+  if (
+    shippingAmount(previous) !== shippingAmount(current) ||
+    shippingEvidence(previous) !== shippingEvidence(current)
+  ) {
     changes.push({
       type: 'shipping_changed',
       previousAmountMinor: shippingAmount(previous),

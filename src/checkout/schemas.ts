@@ -35,6 +35,23 @@ export const submitCheckoutInputSchema = quoteCartInputSchema.extend({
       message: 'Shipping address country must match the accepted quote.'
     });
   }
+
+  if (input.shippingAddress.countryCode === 'US') {
+    if (!/^[A-Z]{2}$/.test(input.shippingAddress.region ?? '')) {
+      context.addIssue({
+        code: 'custom',
+        path: ['shippingAddress', 'region'],
+        message: 'US physical checkout requires a two-letter state or territory code.'
+      });
+    }
+    if (!input.shippingAddress.postalCode?.trim()) {
+      context.addIssue({
+        code: 'custom',
+        path: ['shippingAddress', 'postalCode'],
+        message: 'US physical checkout requires a postal code.'
+      });
+    }
+  }
 });
 
 export type SubmitCheckoutInput = z.infer<typeof submitCheckoutInputSchema>;

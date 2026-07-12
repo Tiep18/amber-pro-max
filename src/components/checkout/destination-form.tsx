@@ -125,6 +125,8 @@ export function DestinationForm({
           updatedAt: acceptedQuote.quotedAt
         })) ?? [],
         destinationCountryCode: shippingAddress.countryCode,
+        destinationRegionCode: shippingAddress.region,
+        shippingQuoteVersion: 2,
         acceptedQuote
       });
       if (result.status === 'invalid') {

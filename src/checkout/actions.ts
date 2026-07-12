@@ -56,7 +56,8 @@ export async function refreshCheckoutQuoteAction(input: unknown): Promise<Checko
     } = await client.auth.getUser();
     const destinationCountryCode = parsed.data.destinationCountryCode?.trim().toUpperCase() || null;
     const market = destinationCountryCode ? suggestMarketFromCountry(destinationCountryCode) : parsed.data.market;
-    const quote = await quoteCartIntent({...parsed.data, market, destinationCountryCode, userId: user?.id ?? null, client});
+    const destinationRegionCode = parsed.data.destinationRegionCode?.trim().toUpperCase() || null;
+    const quote = await quoteCartIntent({...parsed.data, market, destinationCountryCode, destinationRegionCode, shippingQuoteVersion: 2, userId: user?.id ?? null, client});
     return {
       status: 'success',
       quote,
