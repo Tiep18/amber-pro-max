@@ -11,6 +11,11 @@ import {
 } from '@/catalog/variant-actions';
 import {resolveEffectiveVariantPrice, type VariantPriceRow} from '@/catalog/variant-pricing';
 import type {CurrencyCode, MarketCode} from '@/catalog/types';
+import {
+  ShippingAssignmentSheet,
+  type ShippingAssignmentProfile,
+  type ShippingProfileOption
+} from '@/components/admin/commerce/shipping-assignment-sheet';
 import {Alert, AlertTitle} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
@@ -28,6 +33,7 @@ export type VariantEditorVariant = {
   mediaId: string | null;
   quantityOnHand: number;
   overrides: VariantPriceRow[];
+  shippingProfileId: string | null;
 };
 
 type VariantEditorProps = {
@@ -38,6 +44,12 @@ type VariantEditorProps = {
   productQuantityOnHand: number | null;
   variants: VariantEditorVariant[];
   mediaOptions: MediaOption[];
+  shippingProfiles?: ShippingProfileOption[];
+  productShippingAssignment?: {
+    explicitProfileId: string | null;
+    effectiveProfile: ShippingAssignmentProfile | null;
+    effectiveSource: 'Product' | 'Store default';
+  };
 };
 
 function emptyVariant(): VariantEditorVariant {
@@ -48,7 +60,8 @@ function emptyVariant(): VariantEditorVariant {
     displayOrder: 0,
     mediaId: null,
     quantityOnHand: 0,
-    overrides: []
+    overrides: [],
+    shippingProfileId: null
   };
 }
 
@@ -95,7 +108,9 @@ export function VariantEditor({
   parentOffers,
   productQuantityOnHand,
   variants,
-  mediaOptions
+  mediaOptions,
+  shippingProfiles = [],
+  productShippingAssignment
 }: VariantEditorProps) {
   const [mode, setMode] = useState<'product' | 'variant'>(variants.length > 0 ? 'variant' : 'product');
   const [productQuantity, setProductQuantity] = useState(productQuantityOnHand ?? 0);
@@ -109,6 +124,15 @@ export function VariantEditor({
     () => draft.overrides.find((override) => override.marketCode === 'intl'),
     [draft.overrides]
   );
+  const savedDraft = variantList.some((variant) => variant.id === draft.id);
+  const draftShippingProfile =
+    draft.shippingProfileId === null
+      ? null
+      : (shippingProfiles.find((profile) => profile.id === draft.shippingProfileId) ?? null);
+  const variantEffectiveProfile = draftShippingProfile ?? productShippingAssignment?.effectiveProfile ?? null;
+  const variantEffectiveSource = draftShippingProfile
+    ? 'Variant override'
+    : productShippingAssignment?.effectiveSource ?? 'Store default';
 
   if (productType !== 'physical_finished') {
     return (
@@ -348,6 +372,34 @@ export function VariantEditor({
                 onChange={(event) => updateDraft({quantityOnHand: Number(event.target.value)})}
               />
             </label>
+
+            {savedDraft ? (
+              <ShippingAssignmentSheet
+                owner={{type: 'variant', variantId: draft.id}}
+                profiles={shippingProfiles}
+                explicitProfileId={draft.shippingProfileId}
+                effectiveProfile={variantEffectiveProfile}
+                effectiveSource={variantEffectiveSource}
+                inheritedProfile={productShippingAssignment?.effectiveProfile ?? null}
+                inheritedSource={productShippingAssignment?.effectiveSource ?? 'Store default'}
+                title="Variant parcel profile"
+                description="Variant overrides win; removing the override inherits the product assignment, then the store default."
+                onSaved={(snapshot) => {
+                  updateDraft({shippingProfileId: snapshot.explicitProfileId});
+                  setVariantList((current) =>
+                    current.map((variant) =>
+                      variant.id === draft.id
+                        ? {...variant, shippingProfileId: snapshot.explicitProfileId}
+                        : variant
+                    )
+                  );
+                }}
+              />
+            ) : (
+              <div className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-muted)] p-3 text-sm text-[var(--muted-foreground)]">
+                Save the variant once to choose a parcel profile override.
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <fieldset className="space-y-3 rounded-[var(--radius-control)] border border-[var(--border)] p-4">

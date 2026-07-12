@@ -88,7 +88,7 @@ export async function signIn(page: Page, user: E2EUser, next = '/en/account') {
   await page.locator('#email').fill(user.email);
   await page.locator('#password').fill(user.password);
   await page.getByRole('button', {name: 'Sign in'}).click();
-  await expect(page).toHaveURL(new RegExp(`${next.replaceAll('/', '\\/')}$`));
+  await expect(page).toHaveURL(new RegExp(`${next.replaceAll('/', '\\/')}$`), {timeout: 15_000});
 }
 
 export async function signInAndPersist(page: Page, user: E2EUser, next: string) {

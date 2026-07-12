@@ -9,16 +9,16 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 
 const copy = {
   en: {
-    title: 'Review destination changes',
-    body: 'Confirm these server-calculated changes before the checkout state is updated.',
-    confirm: 'Confirm changes',
-    cancel: 'Keep previous quote'
+    title: 'Shipping and total changed',
+    body: 'Review the server-calculated changes before continuing with this destination.',
+    confirm: 'Use updated shipping',
+    cancel: 'Review destination'
   },
   vi: {
-    title: 'Xem lai thay doi giao hang',
-    body: 'Xac nhan cac thay doi do may chu tinh truoc khi cap nhat trang thai thanh toan.',
-    confirm: 'Xac nhan thay doi',
-    cancel: 'Giu bao gia cu'
+    title: 'Phí giao hàng và tổng tiền đã thay đổi',
+    body: 'Hãy xem lại các thay đổi do hệ thống tính trước khi tiếp tục với địa chỉ này.',
+    confirm: 'Dùng phí giao hàng mới',
+    cancel: 'Xem lại địa chỉ'
   }
 } as const;
 

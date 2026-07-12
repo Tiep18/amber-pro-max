@@ -1,5 +1,10 @@
 import type {Locale} from '@/i18n/routing';
-import type {ShippingAddress} from './shipping-address';
+import {
+  US_SHIPPING_REGION_CODES,
+  validateShippingDestination,
+  type ShippingAddress,
+  type ShippingAddressIssueCode
+} from './shipping-address';
 
 export type CheckoutShippingAddressDraft = ShippingAddress;
 
@@ -10,6 +15,11 @@ export type ShippingCountryOption = {
   label: string;
   searchText: string;
 };
+
+export const US_SHIPPING_REGION_OPTIONS = US_SHIPPING_REGION_CODES.map((code) => ({
+  code,
+  labelKey: 'shippingRegion.' + code
+}));
 
 const fallbackRegionCodes = [
   'AD',
@@ -268,13 +278,17 @@ const validationCopy = {
     countryCode: 'Choose a shipping country.',
     recipientName: 'Enter the recipient name.',
     phoneNumber: 'Enter a phone number with at least 5 characters.',
-    addressLine1: 'Enter the street address.'
+    addressLine1: 'Enter the street address.',
+    region: 'Choose a valid US state or territory.',
+    postalCode: 'Enter a valid US postal code.'
   },
   vi: {
     countryCode: 'Chon quoc gia giao hang.',
     recipientName: 'Nhap ten nguoi nhan.',
     phoneNumber: 'Nhap so dien thoai toi thieu 5 ky tu.',
-    addressLine1: 'Nhap dia chi duong.'
+    addressLine1: 'Nhap dia chi duong.',
+    region: 'Chon bang hoac lanh tho Hoa Ky hop le.',
+    postalCode: 'Nhap ma buu chinh Hoa Ky hop le.'
   }
 } as const;
 
@@ -304,25 +318,36 @@ export function getShippingCountryOptions(locale: Locale): ShippingCountryOption
     .sort((a, b) => a.label.localeCompare(b.label, locale));
 }
 
+const issueFieldCopy: Record<ShippingAddressIssueCode, keyof typeof validationCopy.en> = {
+  country_required: 'countryCode',
+  country_invalid: 'countryCode',
+  recipient_required: 'recipientName',
+  phone_invalid: 'phoneNumber',
+  address_line1_required: 'addressLine1',
+  us_region_required: 'region',
+  us_region_invalid: 'region',
+  us_postal_required: 'postalCode',
+  us_postal_invalid: 'postalCode',
+  invalid_address: 'countryCode'
+};
+
 export function validateCheckoutShippingAddress(
   address: CheckoutShippingAddressDraft,
-  locale: Locale
+  locale: Locale,
+  options: {mode: 'preview' | 'final'; hasPhysicalLines: boolean} = {
+    mode: 'final',
+    hasPhysicalLines: true
+  }
 ): ShippingAddressValidationErrors {
-  const t = validationCopy[locale];
-  const errors: ShippingAddressValidationErrors = {};
-
-  if (!/^[A-Z]{2}$/.test(address.countryCode)) {
-    errors.countryCode = t.countryCode;
-  }
-  if (address.recipientName.trim().length === 0) {
-    errors.recipientName = t.recipientName;
-  }
-  if (address.phoneNumber.trim().length < 5) {
-    errors.phoneNumber = t.phoneNumber;
-  }
-  if (address.addressLine1.trim().length === 0) {
-    errors.addressLine1 = t.addressLine1;
+  const result = validateShippingDestination(address, options);
+  if (result.success) {
+    return {};
   }
 
-  return errors;
+  const copy = validationCopy[locale];
+  return result.issues.reduce<ShippingAddressValidationErrors>((errors, item) => {
+    const copyKey = issueFieldCopy[item.code];
+    errors[item.field] = copy[copyKey];
+    return errors;
+  }, {});
 }

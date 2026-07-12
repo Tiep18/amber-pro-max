@@ -370,7 +370,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 5. Fulfillment and Purchase Access | 11/11 | Complete   | 2026-06-20 |
 | 6. Customer Retention and Trust | 10/10 | Complete    | 2026-06-23 |
 | 7. Content, SEO, and Launch Readiness | 9/10 | In Progress|  |
-| 8. Shipping profile fallbacks, destination zones, and US region surcharges | 2/9 | In Progress|  |
+| 8. Shipping profile fallbacks, destination zones, and US region surcharges | 9/9 | Complete   | 2026-07-12 |
 
 ### Phase 8: Shipping profile fallbacks, destination zones, and US region surcharges
 
@@ -379,7 +379,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 **UI hint:** yes
 **Requirements**: SHIP-07, SHIP-08, SHIP-09, SHIP-10, SHIP-11, SHIP-12, SHIP-13
 **Depends on:** Phase 7
-**Plans:** 2/9 plans executed
+**Plans:** 9/9 plans executed
 
 **Success Criteria**:
 
@@ -401,24 +401,24 @@ Plans:
 
 **Wave 3** *(blocked on 08-02)*
 
-- [ ] 08-03-PLAN.md - Version the quote/RPC boundary, re-resolve at submit, reject stale quotes, and snapshot immutable allocations
+- [x] 08-03-PLAN.md - Version the quote/RPC boundary, re-resolve at submit, reject stale quotes, and snapshot immutable allocations
 
 **Wave 4** *(both blocked on 08-03; plans are parallel and have disjoint source ownership)*
 
-- [ ] 08-04-PLAN.md - Implement requireAdmin-first shipping/default/rule/region/product/variant server actions, RPC calls, validation, and sanitized failures
-- [ ] 08-07-PLAN.md - Define country-only preview and final address schemas, the canonical US state/territory options, and unit tests
+- [x] 08-04-PLAN.md - Implement requireAdmin-first shipping/default/rule/region/product/variant server actions, RPC calls, validation, and sanitized failures
+- [x] 08-07-PLAN.md - Define country-only preview and final address schemas, the canonical US state/territory options, and unit tests
 
 **Wave 5** *(08-05 blocked on 08-04; 08-08 blocked on 08-03 and 08-07; plans are parallel and have disjoint source ownership)*
 
-- [ ] 08-05-PLAN.md - Build responsive Admin Shipping profile/default/rule/region management UI and focused browser coverage
-- [ ] 08-08-PLAN.md - Implement the quote lifecycle, latest-request-wins state, saved-address integration, and checkout orchestration contracts
+- [x] 08-05-PLAN.md - Build responsive Admin Shipping profile/default/rule/region management UI and focused browser coverage
+- [x] 08-08-PLAN.md - Implement the quote lifecycle, latest-request-wins state, saved-address integration, and checkout orchestration contracts
 
 **Wave 6** *(blocked on 08-04 and 08-05)*
 
-- [ ] 08-06-PLAN.md - Add catalog product/variant parcel-profile assignments and complete responsive admin browser verification
+- [x] 08-06-PLAN.md - Add catalog product/variant parcel-profile assignments and complete responsive admin browser verification
 
 **Wave 7** *(blocked on 08-06 and 08-08)*
 
-- [ ] 08-09-PLAN.md - Wire localized checkout UI, material confirmation, unsupported recovery, full regression/security/Playwright, and UAT
+- [x] 08-09-PLAN.md - Wire localized checkout UI, material confirmation, unsupported recovery, full regression/security/Playwright, and UAT
 
 **Out of scope:** dual-market PayPal/VietQR FX, carrier rate APIs, ZIP-code remote-area tables, label purchasing, customs automation, and multi-package fulfillment.

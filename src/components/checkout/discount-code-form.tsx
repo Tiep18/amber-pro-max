@@ -67,8 +67,10 @@ export function DiscountCodeForm({locale, acceptedQuote, onAcceptedQuote}: Disco
           acceptedQuote.shipping.status === 'ready' || acceptedQuote.shipping.status === 'unsupported_destination'
             ? acceptedQuote.shipping.countryCode
             : null,
+        destinationRegionCode: 'regionCode' in acceptedQuote.shipping ? acceptedQuote.shipping.regionCode ?? null : null,
+        shippingQuoteVersion: 2,
         discountCode,
-        acceptedQuote
+        priorAcceptedQuoteHash: acceptedQuote.hash
       });
       if (result.status !== 'success') {
         setError(t.invalid);

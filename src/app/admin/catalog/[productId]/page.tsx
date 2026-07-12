@@ -3,6 +3,7 @@ import { requireAdmin } from '@/auth/guards';
 import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
 import { ProductForm } from '@/components/admin/catalog/product-form';
 import { getCatalogOptions, getProductForForm } from '../catalog-data';
+import { getCatalogShippingAssignmentData } from '../shipping-assignment-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,9 +17,10 @@ export default async function EditProductPage({
   await requireAdmin();
   const { productId } = await params;
   const { saved } = await searchParams;
-  const [options, initialProduct] = await Promise.all([
+  const [options, initialProduct, shippingAssignmentData] = await Promise.all([
     getCatalogOptions(),
-    getProductForForm(productId)
+    getProductForForm(productId),
+    getCatalogShippingAssignmentData(productId)
   ]);
 
   return (
@@ -38,6 +40,9 @@ export default async function EditProductPage({
         {...options}
         initialProduct={initialProduct}
         initialNotice={saved === '1' ? 'saved' : undefined}
+        shippingProfiles={shippingAssignmentData.profiles}
+        storeDefaultShippingProfile={shippingAssignmentData.storeDefaultProfile}
+        shippingAssignment={shippingAssignmentData.productAssignment}
       />
     </AdminPageShell>
   );

@@ -1,12 +1,22 @@
 'use client';
 
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {useRouter} from 'next/navigation';
 import type {CustomerShippingAddress} from '@/account/addresses';
 import type {Locale} from '@/i18n/routing';
 import type {CartQuote} from '@/checkout/types';
-import {submitCheckoutAction, type SubmitCheckoutActionState} from '@/checkout/actions';
+import {refreshCheckoutQuoteAction, submitCheckoutAction, type SubmitCheckoutActionState} from '@/checkout/actions';
 import type {ShippingAddress} from '@/checkout/shipping-address';
+import {
+  acceptQuoteProposal,
+  beginQuoteRequest,
+  canSubmitAcceptedQuote,
+  createCheckoutQuoteLifecycleState,
+  reviewDestination,
+  settleQuoteRequest,
+  type CheckoutQuoteLifecycleState,
+  type QuoteDestination
+} from '@/checkout/quote-lifecycle';
 import {Alert} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
@@ -16,6 +26,7 @@ import {DestinationForm} from './destination-form';
 import {DiscountCodeForm} from './discount-code-form';
 import {OrderSummary} from './order-summary';
 import {SavedAddressSelector} from './saved-address-selector';
+import {QuoteDiffDialog} from './quote-diff-dialog';
 
 const copy = {
   en: {
@@ -101,7 +112,9 @@ export function CheckoutPage({
   const t = copy[locale];
   const router = useRouter();
   const {quote, cart} = useCart();
-  const [acceptedQuote, setAcceptedQuote] = useState<CartQuote | null>(quote);
+  const [lifecycle, setLifecycleState] = useState(() => createCheckoutQuoteLifecycleState(quote));
+  const lifecycleRef = useRef(lifecycle);
+  const acceptedQuote = lifecycle.acceptedQuote;
   const [email, setEmail] = useState('');
   const [contactReady, setContactReady] = useState(false);
   const [paymentIntent, setPaymentIntent] = useState<CheckoutPaymentIntent>('paypal_intent');
@@ -110,9 +123,14 @@ export function CheckoutPage({
   const [submitting, setSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
+  function setLifecycle(next: CheckoutQuoteLifecycleState) {
+    lifecycleRef.current = next;
+    setLifecycleState(next);
+  }
+
   useEffect(() => {
     if (quote) {
-      setAcceptedQuote(quote);
+      setLifecycle(createCheckoutQuoteLifecycleState(quote));
       if ((quote.shipping.status === 'ready' || quote.shipping.status === 'unsupported_destination') && quote.shipping.countryCode) {
         const countryCode = quote.shipping.countryCode;
         setShippingAddress((current) => ({...current, countryCode: current.countryCode || countryCode}));
@@ -121,12 +139,7 @@ export function CheckoutPage({
   }, [quote]);
 
   const physicalCount = acceptedQuote?.lines.filter((line) => line.fulfillmentType === 'physical' && line.quantity > 0).length ?? 0;
-  const shippingAddressReady =
-    physicalCount === 0 ||
-    (shippingAddress.countryCode.length === 2 &&
-      shippingAddress.recipientName.trim().length > 0 &&
-      shippingAddress.phoneNumber.trim().length >= 5 &&
-      shippingAddress.addressLine1.trim().length > 0);
+  const shippingAddressReady = canSubmitAcceptedQuote(lifecycle, physicalCount > 0 ? shippingAddress : null);
   const readyToSubmit =
     Boolean(acceptedQuote) &&
     acceptedQuote?.status === 'ready' &&
@@ -146,6 +159,40 @@ export function CheckoutPage({
       ].filter(Boolean) as string[]
     )
   );
+
+  async function requestQuote(destination: QuoteDestination, nextAddress?: ShippingAddress) {
+    const current = lifecycleRef.current;
+    const transition = beginQuoteRequest(current, destination);
+    setLifecycle(transition.state);
+    if (nextAddress) setShippingAddress(nextAddress);
+    try {
+      const baseQuote = current.acceptedQuote;
+      const result = await refreshCheckoutQuoteAction({
+        locale,
+        market: baseQuote?.market ?? (locale === 'vi' ? 'vn' : 'intl'),
+        lines: baseQuote?.lines.map((line) => ({
+          productId: line.productId, variantId: line.variantId, quantity: line.requestedQuantity,
+          marketAtAdd: line.marketAtAdd, addedAt: baseQuote.quotedAt, updatedAt: baseQuote.quotedAt
+        })) ?? cart?.lines ?? [],
+        destinationCountryCode: destination.countryCode,
+        destinationRegionCode: destination.regionCode,
+        shippingQuoteVersion: 2,
+        discountCode: baseQuote?.discount.status === 'applied' || baseQuote?.discount.status === 'not_eligible' ? baseQuote.discount.code : null,
+        priorAcceptedQuoteHash: baseQuote?.hash ?? null
+      });
+      const latest = lifecycleRef.current;
+      const settled = result.status === 'success'
+        ? settleQuoteRequest(latest, transition.request.requestId, {status: 'ready', quote: result.quote})
+        : settleQuoteRequest(latest, transition.request.requestId, {status: result.status === 'invalid' ? 'server_error' : 'network_error', code: result.code});
+      setLifecycle(settled);
+    } catch {
+      setLifecycle(settleQuoteRequest(lifecycleRef.current, transition.request.requestId, {status: 'network_error'}));
+    }
+  }
+
+  function acceptExternalQuote(nextQuote: CartQuote) {
+    setLifecycle(createCheckoutQuoteLifecycleState(nextQuote, lifecycleRef.current.destination));
+  }
 
   async function submit() {
     setSubmitAttempted(true);
@@ -221,18 +268,18 @@ export function CheckoutPage({
                   <SavedAddressSelector
                     locale={locale}
                     addresses={savedAddresses}
-                    acceptedQuote={acceptedQuote}
-                    onShippingAddressSelected={setShippingAddress}
-                    onAcceptedQuote={setAcceptedQuote}
+                    pending={lifecycle.activeRequestId !== null}
+                    onApply={(address) => requestQuote({countryCode: address.countryCode, regionCode: address.region}, address)}
                   />
                 </div>
               ) : null}
               <DestinationForm
                 locale={locale}
-                acceptedQuote={acceptedQuote}
                 shippingAddress={shippingAddress}
+                lifecycle={lifecycle}
+                showValidation={submitAttempted}
                 onShippingAddressChange={setShippingAddress}
-                onAcceptedQuote={setAcceptedQuote}
+                onDestinationChange={requestQuote}
               />
             </CardContent>
           </Card>
@@ -243,7 +290,7 @@ export function CheckoutPage({
             <p className="text-sm leading-6 text-[var(--muted-foreground)]">{t.discountIntro}</p>
           </CardHeader>
           <CardContent className="pt-1">
-            <DiscountCodeForm locale={locale} acceptedQuote={acceptedQuote} onAcceptedQuote={setAcceptedQuote} />
+            <DiscountCodeForm locale={locale} acceptedQuote={acceptedQuote} onAcceptedQuote={acceptExternalQuote} />
           </CardContent>
         </Card>
         {submitResult?.status === 'success' ? (
@@ -292,6 +339,15 @@ export function CheckoutPage({
           ) : null}
         </div>
       </aside>
+      {lifecycle.proposal ? (
+        <QuoteDiffDialog
+          locale={locale}
+          proposal={lifecycle.proposal.quote}
+          changes={lifecycle.proposal.materialChanges}
+          onConfirm={() => setLifecycle(acceptQuoteProposal(lifecycleRef.current))}
+          onCancel={() => setLifecycle(reviewDestination(lifecycleRef.current, lifecycleRef.current.destination))}
+        />
+      ) : null}
     </main>
   );
 }

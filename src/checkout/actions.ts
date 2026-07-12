@@ -1,18 +1,16 @@
 'use server';
 
-import {z} from 'zod';
 import {suggestMarketFromCountry} from '@/catalog/market';
 import {getOrderPath} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {runMonitoredAction} from '@/operations/monitoring';
 import {setGuestOrderAccessCookieFromServer} from '@/payments/guest-access';
-import {diffMaterialQuotes} from './market-revalidation';
 import {quoteCartIntent} from './quote';
 import {submitCheckout} from './submit-checkout';
 import {quoteCartInputSchema, type CartQuote} from './types';
 
 export type CheckoutQuoteActionState =
-  | {status: 'success'; quote: CartQuote; materialChanges: ReturnType<typeof diffMaterialQuotes>}
+  | {status: 'success'; quote: CartQuote; materialChanges: []}
   | {status: 'invalid'; code: 'invalid_checkout_quote'}
   | {status: 'error'; code: 'checkout_quote_failed'; errorId?: string};
 
@@ -30,15 +28,15 @@ export type SubmitCheckoutActionState =
       errorId?: string;
     };
 
-const checkoutQuoteInputSchema = quoteCartInputSchema.extend({
-  acceptedQuote: z.custom<CartQuote>().optional().nullable()
-});
-
 export async function refreshCheckoutQuoteAction(input: unknown): Promise<CheckoutQuoteActionState> {
-  const parsed = checkoutQuoteInputSchema.safeParse(input);
+  const parsed = quoteCartInputSchema.strict().safeParse(input);
   if (!parsed.success) {
     return {status: 'invalid', code: 'invalid_checkout_quote'};
   }
+
+  const destinationCountryCode = parsed.data.destinationCountryCode?.trim().toUpperCase() || null;
+  const destinationRegionCode = parsed.data.destinationRegionCode?.trim().toUpperCase() || null;
+  const market = destinationCountryCode ? suggestMarketFromCountry(destinationCountryCode) : parsed.data.market;
 
   return runMonitoredAction({
     area: 'checkout',
@@ -46,23 +44,26 @@ export async function refreshCheckoutQuoteAction(input: unknown): Promise<Checko
     errorCode: 'checkout_quote_failed',
     summary: 'Checkout quote failed',
     facts: {
-      market: parsed.data.market
+      market,
+      ...(destinationCountryCode ? {destinationCountryCode} : {}),
+      ...(destinationRegionCode ? {destinationRegionCode} : {})
     },
     errorResult: {status: 'error', code: 'checkout_quote_failed'} as const,
     operation: async () => {
-    const client = await createSupabaseServerClient();
-    const {
-      data: {user}
-    } = await client.auth.getUser();
-    const destinationCountryCode = parsed.data.destinationCountryCode?.trim().toUpperCase() || null;
-    const market = destinationCountryCode ? suggestMarketFromCountry(destinationCountryCode) : parsed.data.market;
-    const destinationRegionCode = parsed.data.destinationRegionCode?.trim().toUpperCase() || null;
-    const quote = await quoteCartIntent({...parsed.data, market, destinationCountryCode, destinationRegionCode, shippingQuoteVersion: 2, userId: user?.id ?? null, client});
-    return {
-      status: 'success',
-      quote,
-      materialChanges: parsed.data.acceptedQuote ? diffMaterialQuotes(parsed.data.acceptedQuote, quote) : []
-    } as const;
+      const client = await createSupabaseServerClient();
+      const {
+        data: {user}
+      } = await client.auth.getUser();
+      const quote = await quoteCartIntent({
+        ...parsed.data,
+        market,
+        destinationCountryCode,
+        destinationRegionCode,
+        shippingQuoteVersion: 2,
+        userId: user?.id ?? null,
+        client
+      });
+      return {status: 'success', quote, materialChanges: []} as const;
     }
   });
 }
@@ -80,35 +81,35 @@ export async function submitCheckoutAction(input: unknown): Promise<SubmitChecko
     },
     errorResult: {status: 'error', code: 'checkout_submit_failed'} as const,
     operation: async () => {
-    const client = await createSupabaseServerClient();
-    const {
-      data: {user}
-    } = await client.auth.getUser();
-    const result = await submitCheckout(
-      {
-        ...inputRecord,
-        userId: user?.id ?? null
-      } as never,
-      client as never
-    );
-    if (result.status !== 'success') {
-      return result;
-    }
+      const client = await createSupabaseServerClient();
+      const {
+        data: {user}
+      } = await client.auth.getUser();
+      const result = await submitCheckout(
+        {
+          ...inputRecord,
+          userId: user?.id ?? null
+        } as never,
+        client as never
+      );
+      if (result.status !== 'success') {
+        return result;
+      }
 
-    await setGuestOrderAccessCookieFromServer({
-      orderNumber: result.orderNumber,
-      rawToken: result.guestAccessToken,
-      reservationExpiresAt: result.reservationExpiresAt
-    });
+      await setGuestOrderAccessCookieFromServer({
+        orderNumber: result.orderNumber,
+        rawToken: result.guestAccessToken,
+        reservationExpiresAt: result.reservationExpiresAt
+      });
 
-    const locale = inputRecord.locale === 'en' ? 'en' : 'vi';
-    return {
-      status: 'success',
-      orderId: result.orderId,
-      orderNumber: result.orderNumber,
-      reservationExpiresAt: result.reservationExpiresAt,
-      orderPath: getOrderPath(locale, result.orderNumber)
-    } as const;
+      const locale = inputRecord.locale === 'en' ? 'en' : 'vi';
+      return {
+        status: 'success',
+        orderId: result.orderId,
+        orderNumber: result.orderNumber,
+        reservationExpiresAt: result.reservationExpiresAt,
+        orderPath: getOrderPath(locale, result.orderNumber)
+      } as const;
     }
   });
 }

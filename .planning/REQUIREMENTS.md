@@ -41,9 +41,9 @@
 - [x] **SHIP-08**: Each shipping profile can define exact-country rules and at most one fallback destination rule per currency, with exact-country rules taking precedence.
 - [x] **SHIP-09**: Checkout resolves shipping deterministically through variant, product, and store-default profiles and fails closed only when no eligible exact or fallback rule exists.
 - [x] **SHIP-10**: Admin can configure normalized region-level shipping adjustments that either add to or replace a country rule, with US state and territory support in v1.
-- [ ] **SHIP-11**: Checkout recalculates server-authoritative shipping when country or applicable region changes and requires confirmation before applying any material total, market, currency, or eligibility change.
+- [x] **SHIP-11**: Checkout recalculates server-authoritative shipping when country or applicable region changes and requires confirmation before applying any material total, market, currency, or eligibility change.
 - [x] **SHIP-12**: Submitted physical orders preserve immutable evidence of the selected shipping profile, destination rule, region adjustment, and final shipping allocation.
-- [ ] **SHIP-13**: US physical checkout requires a normalized two-letter state or territory code and postal code before order submission.
+- [x] **SHIP-13**: US physical checkout requires a normalized two-letter state or territory code and postal code before order submission.
 
 ### Inventory and Orders
 

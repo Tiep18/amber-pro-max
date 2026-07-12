@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-05-PLAN.md
-last_updated: "2026-07-12T16:52:58.8831366+07:00"
-last_activity: 2026-07-12 -- Phase 08 Plan 05 completed; Plan 06 is next
+stopped_at: Completed Phase 08 (9/9 plans)
+last_updated: "2026-07-12T18:04:00+07:00"
+last_activity: 2026-07-12 -- Phase 08 completed with checkout, database, security, responsive, and build verification
 progress:
   total_phases: 8
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 71
-  completed_plans: 65
-  percent: 75
+  completed_plans: 69
+  percent: 97
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 08 (shipping-profile-fallbacks-destination-zones-and-us-region-s) — EXECUTING
-Plan: 6 of 9
-Status: Ready to execute
-Last activity: 2026-07-12 -- Phase 08 Plan 05 completed; Plan 06 is next
+Plan: 9 of 9
+Status: Complete
+Last activity: 2026-07-12 -- Phase 08 Plan 09 completed and all phase gates recorded
 
-Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and Wave 6 can begin.
+Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; Plan 09 checkout UI integration is in progress.
 
 ## Performance Metrics
 
@@ -146,6 +146,9 @@ Recent decisions affecting current work:
 - [Phase 08]: Shipping aggregation consumes canonical final allocation fees while preserving highest-first-once ordering. — Applies region adjustments without arithmetic drift.
 - [Phase 08 Plan 05]: Admin shipping separates parcel profiles, destination rules, US adjustments, and assignment visibility into one protected responsive workspace.
 - [Phase 08 Plan 05]: Locale-prefixed auth routes bypass next-intl proxy handling so physical auth pages render for admin browser flows.
+- [Phase 08 Plan 06]: Product-level shipping profiles remain valid for products with variants. â€” Variants without overrides inherit product assignment before the store default, so the legacy trigger that blocked product assignment after variants existed was replaced.
+- [Phase 08 Plan 06]: Catalog assignment UI uses server-projected effective state and existing Plan 08-04 actions only. â€” Keeps admin authorization and profile allowlisting server-owned while avoiding client database access.
+- [Phase 08 Plan 06]: Product Store default preview uses the active store default profile, not the current product effective profile. â€” Prevents the Sheet from displaying stale product assignment as the default after an in-place change.
 
 ### Pending Todos
 

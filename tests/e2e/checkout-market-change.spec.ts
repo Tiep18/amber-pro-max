@@ -142,18 +142,23 @@ test('destination changes require a blocking material-change confirmation', asyn
 
   await page.goto('/vi/thanh-toan');
   await expect(page.getByRole('heading', {name: 'Thanh toan'})).toBeVisible();
-  await page.getByPlaceholder('Tim quoc gia').fill('US');
-  await page.getByRole('combobox', {name: 'Quoc gia giao hang'}).selectOption('US');
-  await page.getByLabel('Ten nguoi nhan').fill('Taylor Customer');
-  await page.getByLabel('So dien thoai').fill('+15551234567');
-  await page.getByLabel('Dia chi dong 1').fill('123 Market Street');
-  await page.getByRole('button', {name: 'Cap nhat dia chi giao hang'}).click();
-  await expect(page.getByRole('dialog', {name: 'Xem lai thay doi giao hang'})).toBeVisible();
-  await expect(page.getByText(/Market: vn -> intl/)).toBeVisible();
-  await page.getByRole('button', {name: 'Giu bao gia cu'}).click();
-  await expect(page.getByRole('dialog', {name: 'Xem lai thay doi giao hang'})).toHaveCount(0);
+  await page.getByRole('combobox', {name: 'Quốc gia giao hàng'}).click();
+  await page.getByRole('option', {name: /\(US\)/}).click();
+  await expect(page.getByRole('dialog', {name: 'Phí giao hàng và tổng tiền đã thay đổi'})).toBeVisible();
+  await expect(page.getByText(/Shipping: .* -> \$7\.50/)).toBeVisible();
+  await page.getByRole('button', {name: 'Xem lại địa chỉ'}).click();
+  await expect(page.getByRole('dialog', {name: 'Phí giao hàng và tổng tiền đã thay đổi'})).toHaveCount(0);
 
-  await page.getByRole('button', {name: 'Cap nhat dia chi giao hang'}).click();
-  await page.getByRole('button', {name: 'Xac nhan thay doi'}).click();
+  await page.getByRole('combobox', {name: 'Bang hoặc vùng lãnh thổ'}).click();
+  await page.getByRole('option', {name: 'CA', exact: true}).click();
+  await page.getByRole('button', {name: 'Dùng phí giao hàng mới'}).click();
+  await page.getByLabel('Tên người nhận').fill('Taylor Customer');
+  await page.getByLabel('Số điện thoại').fill('+15551234567');
+  await page.getByLabel('Địa chỉ').fill('123 Market Street');
+  await page.getByLabel('Mã ZIP hoặc mã bưu chính').fill('94105');
   await expect(page.getByText('$25.50')).toBeVisible();
+
+  await page.setViewportSize({width: 390, height: 844});
+  await expect(page.getByRole('combobox', {name: 'Quốc gia giao hàng'})).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

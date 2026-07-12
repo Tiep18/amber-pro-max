@@ -53,6 +53,17 @@ const readyQuote = {
   quotedAt: '2026-07-08T00:00:00.000Z'
 };
 
+function validQuoteInput() {
+  return {
+    locale: 'en',
+    market: 'intl',
+    lines: [],
+    destinationCountryCode: 'us',
+    destinationRegionCode: 'ca',
+    shippingQuoteVersion: 2 as const,
+    priorAcceptedQuoteHash: 'hash'
+  };
+}
 function validCheckoutInput() {
   return {
     locale: 'en',
@@ -84,7 +95,7 @@ describe('checkout operational error instrumentation', () => {
   it('records checkout quote exceptions and returns the operational error id', async () => {
     quoteCartIntentMock.mockRejectedValue(new Error('quote database failed for buyer@example.test'));
 
-    await expect(refreshCheckoutQuoteAction(validCheckoutInput())).resolves.toEqual({
+    await expect(refreshCheckoutQuoteAction(validQuoteInput())).resolves.toEqual({
       status: 'error',
       code: 'checkout_quote_failed',
       errorId: '76000000-0000-4000-8000-000000000001'
@@ -129,7 +140,7 @@ describe('checkout operational error instrumentation', () => {
     quoteCartIntentMock.mockRejectedValue(new Error('quote failed'));
     submitCheckoutMock.mockRejectedValue(new Error('submit failed'));
 
-    await expect(refreshCheckoutQuoteAction(validCheckoutInput())).resolves.toEqual({
+    await expect(refreshCheckoutQuoteAction(validQuoteInput())).resolves.toEqual({
       status: 'error',
       code: 'checkout_quote_failed'
     });

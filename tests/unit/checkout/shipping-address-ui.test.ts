@@ -1,5 +1,11 @@
 import {describe, expect, test} from 'vitest';
 import {
+  US_SHIPPING_REGION_CODES,
+  shippingAddressSchema,
+  validateShippingDestination
+} from '@/checkout/shipping-address';
+import {
+  US_SHIPPING_REGION_OPTIONS,
   getShippingCountryOptions,
   validateCheckoutShippingAddress,
   type CheckoutShippingAddressDraft
@@ -46,6 +52,21 @@ const acceptedQuote = {
   quotedAt: '2026-06-20T00:00:00.000Z'
 } satisfies CartQuote;
 
+const completeAddress: CheckoutShippingAddressDraft = {
+  recipientName: 'Taylor Customer',
+  phoneNumber: '+15551234567',
+  countryCode: 'US',
+  region: 'CA',
+  locality: 'San Francisco',
+  addressLine1: '123 Market Street',
+  addressLine2: null,
+  postalCode: '94105'
+};
+
+function issueCodes(result: ReturnType<typeof validateShippingDestination>) {
+  return result.success ? [] : result.issues.map((item) => item.code);
+}
+
 describe('shipping address UI helpers', () => {
   test('offers a broad searchable country list instead of a small hard-coded subset', () => {
     const countries = getShippingCountryOptions('en');
@@ -61,7 +82,74 @@ describe('shipping address UI helpers', () => {
     );
   });
 
-  test('returns field-specific validation messages for incomplete or malformed addresses', () => {
+  test('exports exactly 50 states, DC, and five territories with stable keys', () => {
+    expect(US_SHIPPING_REGION_OPTIONS).toHaveLength(56);
+    expect(new Set(US_SHIPPING_REGION_OPTIONS.map((option) => option.code)).size).toBe(56);
+    expect(US_SHIPPING_REGION_OPTIONS.map((option) => option.code)).toEqual([...US_SHIPPING_REGION_CODES]);
+    expect(US_SHIPPING_REGION_OPTIONS.every((option) => /^[A-Z]{2}$/.test(option.code))).toBe(true);
+    expect(US_SHIPPING_REGION_OPTIONS.every((option) => option.labelKey === `shippingRegion.${option.code}`)).toBe(true);
+    expect(US_SHIPPING_REGION_OPTIONS.map((option) => option.code)).toEqual(
+      expect.arrayContaining(['DC', 'AS', 'GU', 'MP', 'PR', 'VI'])
+    );
+  });
+
+  test('accepts country-only preview without recipient or street fields', () => {
+    expect(validateShippingDestination({countryCode: 'US'}, {mode: 'preview', hasPhysicalLines: true})).toEqual({
+      success: true,
+      data: {countryCode: 'US', region: null}
+    });
+  });
+
+  test.each([
+    [{countryCode: ''}, 'country_required'],
+    [{countryCode: 'usa'}, 'country_invalid'],
+    [{countryCode: 'us'}, 'country_invalid'],
+    [{countryCode: 'US', region: 'California'}, 'us_region_invalid'],
+    [{countryCode: 'US', region: 'ca'}, 'us_region_invalid']
+  ])('rejects malformed preview input %#', (input, expectedCode) => {
+    expect(issueCodes(validateShippingDestination(input, {mode: 'preview', hasPhysicalLines: true}))).toContain(expectedCode);
+  });
+
+  test.each([
+    [{...completeAddress, region: null}, 'us_region_required'],
+    [{...completeAddress, region: 'California'}, 'us_region_invalid'],
+    [{...completeAddress, region: 'ca'}, 'us_region_invalid'],
+    [{...completeAddress, region: 'ZZ'}, 'us_region_invalid'],
+    [{...completeAddress, postalCode: null}, 'us_postal_required'],
+    [{...completeAddress, postalCode: '1'}, 'us_postal_invalid'],
+    [{...completeAddress, postalCode: '94105@'}, 'us_postal_invalid'],
+    [{...completeAddress, postalCode: '123456789012345678901'}, 'us_postal_invalid']
+  ])('rejects invalid final US address %#', (input, expectedCode) => {
+    expect(issueCodes(validateShippingDestination(input, {mode: 'final', hasPhysicalLines: true}))).toContain(expectedCode);
+  });
+
+  test('accepts controlled US region and postal values at final validation', () => {
+    expect(validateShippingDestination(completeAddress, {mode: 'final', hasPhysicalLines: true})).toEqual({
+      success: true,
+      data: completeAddress
+    });
+  });
+
+  test('keeps non-US final addresses and digital-only checkout unchanged', () => {
+    const vietnamAddress = {...completeAddress, countryCode: 'VN', region: 'Ho Chi Minh', postalCode: null};
+    expect(validateShippingDestination(vietnamAddress, {mode: 'final', hasPhysicalLines: true}).success).toBe(true);
+    expect(validateShippingDestination(null, {mode: 'final', hasPhysicalLines: false})).toEqual({success: true, data: null});
+  });
+
+  test('rejects browser-owned shipping evidence and unknown address fields', () => {
+    const untrusted = {
+      ...completeAddress,
+      shippingAmountMinor: 0,
+      shippingProfileId: 'profile-id',
+      shippingRuleId: 'rule-id',
+      adjustmentMode: 'replace',
+      quoteEvidence: 'browser-owned'
+    };
+    expect(shippingAddressSchema.safeParse(untrusted).success).toBe(false);
+    expect(validateShippingDestination(untrusted, {mode: 'final', hasPhysicalLines: true}).success).toBe(false);
+  });
+
+  test('returns field-specific localized messages for incomplete addresses', () => {
     const draft: CheckoutShippingAddressDraft = {
       recipientName: '',
       phoneNumber: '123',
@@ -82,21 +170,7 @@ describe('shipping address UI helpers', () => {
   });
 
   test('accepts a complete address without validation errors', () => {
-    expect(
-      validateCheckoutShippingAddress(
-        {
-          recipientName: 'Taylor Customer',
-          phoneNumber: '+15551234567',
-          countryCode: 'US',
-          region: 'California',
-          locality: 'San Francisco',
-          addressLine1: '123 Market Street',
-          addressLine2: null,
-          postalCode: '94105'
-        },
-        'en'
-      )
-    ).toEqual({});
+    expect(validateCheckoutShippingAddress(completeAddress, 'en')).toEqual({});
   });
 
   test('builds saved-address quote refresh input from the accepted quote and selected country', () => {
@@ -119,7 +193,7 @@ describe('shipping address UI helpers', () => {
       locale: 'en',
       market: 'intl',
       destinationCountryCode: 'VN',
-      acceptedQuote,
+      priorAcceptedQuoteHash: 'quote-hash',
       lines: [
         {
           productId: '10000000-0000-4000-8000-000000000002',
@@ -131,5 +205,12 @@ describe('shipping address UI helpers', () => {
         }
       ]
     });
+    expect(
+      buildSavedAddressQuoteRefreshInput({
+        locale: 'en',
+        acceptedQuote,
+        shippingAddress: {...completeAddress, countryCode: 'VN', region: 'Ho Chi Minh'}
+      })
+    ).not.toHaveProperty('acceptedQuote');
   });
 });

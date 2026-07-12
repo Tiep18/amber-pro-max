@@ -271,7 +271,7 @@ select results_eq(
       '[{"lineId":"contract","productId":"08023000-0000-0000-0000-000000000004","variantId":null,"quantity":1}]',
       'US', 'USD', null
     )) key order by key$$,
-  $$values ('allocations'::text), ('countryCode'::text), ('currencyCode'::text), ('regionCode'::text), ('status'::text)$$,
+  $$values ('allocations'::text), ('countryCode'::text), ('currencyCode'::text), ('regionCode'::text), ('status'::text), ('version'::text)$$,
   'wrapper returns only the constrained top-level JSON contract'
 );
 

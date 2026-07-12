@@ -9,6 +9,7 @@ import {
 } from '@/components/admin/catalog/variant-editor';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Json } from '@/types/supabase';
+import { getCatalogShippingAssignmentData } from '../../shipping-assignment-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,7 +98,7 @@ export default async function ProductVariantsPage({
   const product = productResult.data as ProductRow;
   const variantRows = (variantsResult.data ?? []) as VariantRow[];
   const variantIds = variantRows.map((variant) => variant.id);
-  const [inventoryResult, overrideResult] = variantIds.length
+  const [inventoryResult, overrideResult, shippingAssignmentData] = variantIds.length
     ? await Promise.all([
         supabase
           .from('inventory_records')
@@ -106,9 +107,10 @@ export default async function ProductVariantsPage({
         supabase
           .from('variant_market_offers')
           .select('variant_id, market_code, enabled, currency_code, price_minor')
-          .in('variant_id', variantIds)
+          .in('variant_id', variantIds),
+        getCatalogShippingAssignmentData(parsed.data, variantIds)
       ])
-    : [null, null];
+    : [null, null, await getCatalogShippingAssignmentData(parsed.data)];
 
   const inventoryByVariant = new Map(
     (inventoryResult?.data ?? []).map((inventory) => [
@@ -122,6 +124,12 @@ export default async function ProductVariantsPage({
     current.push(override);
     overridesByVariant.set(override.variant_id, current);
   }
+  const shippingByVariant = new Map(
+    shippingAssignmentData.variantAssignments.map((assignment) => [
+      assignment.variantId,
+      assignment.explicitProfileId
+    ])
+  );
 
   const variants: VariantEditorVariant[] = variantRows.map((variant) => ({
     id: variant.id,
@@ -130,6 +138,7 @@ export default async function ProductVariantsPage({
     displayOrder: variant.display_order,
     mediaId: variant.media_id,
     quantityOnHand: inventoryByVariant.get(variant.id) ?? 0,
+    shippingProfileId: shippingByVariant.get(variant.id) ?? null,
     overrides: (overridesByVariant.get(variant.id) ?? []).map((override) => ({
       marketCode: override.market_code === 'vn' ? 'vn' : 'intl',
       enabled: override.enabled,
@@ -167,6 +176,8 @@ export default async function ProductVariantsPage({
           id: media.id,
           label: media.alt_text_en || media.alt_text_vi || media.object_path
         }))}
+        shippingProfiles={shippingAssignmentData.profiles}
+        productShippingAssignment={shippingAssignmentData.productAssignment}
       />
     </AdminPageShell>
   );

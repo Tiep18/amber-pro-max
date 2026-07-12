@@ -13,6 +13,11 @@ import {
 } from '@/catalog/actions';
 import { productDraftSchema, type ProductDraftInput } from '@/catalog/schemas';
 import type { CatalogLocale, ProductType } from '@/catalog/types';
+import {
+  ShippingAssignmentSheet,
+  type ShippingAssignmentProfile,
+  type ShippingProfileOption
+} from '@/components/admin/commerce/shipping-assignment-sheet';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,6 +51,13 @@ type ProductFormProps = {
   techniques: CatalogOption[];
   tags: CatalogOption[];
   collections: CatalogOption[];
+  shippingProfiles?: ShippingProfileOption[];
+  storeDefaultShippingProfile?: ShippingAssignmentProfile | null;
+  shippingAssignment?: {
+    explicitProfileId: string | null;
+    effectiveProfile: ShippingAssignmentProfile | null;
+    effectiveSource: 'Product' | 'Store default';
+  };
 };
 
 type EditorSection = 'basics' | 'content' | 'seo' | 'pricing' | 'taxonomy' | 'publish';
@@ -474,7 +486,10 @@ export function ProductForm({
   categories,
   techniques,
   tags,
-  collections
+  collections,
+  shippingProfiles = [],
+  storeDefaultShippingProfile = null,
+  shippingAssignment
 }: ProductFormProps) {
   const router = useRouter();
   const [draft, setDraft] = useState<ProductDraftInput>(initialProduct ?? defaultDraft());
@@ -517,6 +532,9 @@ export function ProductForm({
   ];
   const readyItemCount = readinessItems.filter((item) => item.ready).length;
   const hasUnsavedChanges = JSON.stringify(draft) !== savedSignature;
+  const canAssignShipping = Boolean(
+    productId && draft.productType === 'physical_finished' && shippingAssignment
+  );
   const activeSectionIndex = editorSections.findIndex((section) => section.id === activeSection);
   const sectionErrorCounts = useMemo(
     () =>
@@ -1311,6 +1329,22 @@ export function ProductForm({
                   International offer {intlOfferReady ? 'ready' : 'off or missing price'}
                 </span>
               </div>
+              {canAssignShipping && shippingAssignment ? (
+                <ShippingAssignmentSheet
+                  owner={{ type: 'product', productId: productId as string }}
+                  profiles={shippingProfiles}
+                  explicitProfileId={shippingAssignment.explicitProfileId}
+                  effectiveProfile={shippingAssignment.effectiveProfile}
+                  effectiveSource={shippingAssignment.effectiveSource}
+                  storeDefaultProfile={storeDefaultShippingProfile}
+                  title="Parcel profile"
+                  description="Product-level assignment used by variants unless a variant override exists."
+                />
+              ) : draft.productType === 'physical_finished' && !productId ? (
+                <div className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-muted)] p-3 text-sm text-[var(--muted-foreground)]">
+                  Save the product once to choose a parcel profile.
+                </div>
+              ) : null}
               {productId ? (
                 <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--border)]/65 pt-3">
                   <Link

@@ -1,335 +1,111 @@
 'use client';
 
-import {useState, useTransition} from 'react';
-import {refreshCheckoutQuoteAction} from '@/checkout/actions';
-import type {MaterialQuoteChange} from '@/checkout/market-revalidation';
-import {getShippingCountryOptions, validateCheckoutShippingAddress} from '@/checkout/shipping-address-ui';
+import {useState} from 'react';
+import {getShippingCountryOptions, US_SHIPPING_REGION_OPTIONS, validateCheckoutShippingAddress} from '@/checkout/shipping-address-ui';
 import type {ShippingAddress} from '@/checkout/shipping-address';
-import type {CartQuote} from '@/checkout/types';
+import type {CheckoutQuoteLifecycleState, QuoteDestination} from '@/checkout/quote-lifecycle';
 import type {Locale} from '@/i18n/routing';
-import {Alert} from '@/components/ui/alert';
-import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
-import {QuoteDiffDialog} from './quote-diff-dialog';
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 
 const copy = {
   en: {
-    country: 'Shipping country',
-    recipient: 'Recipient name',
-    phone: 'Phone number',
-    addressLine1: 'Address line 1',
-    addressLine2: 'Address line 2',
-    locality: 'City',
-    region: 'State / province',
-    postalCode: 'Postal code',
-    optional: 'Optional',
-    searchCountry: 'Search countries',
-    clearCountry: 'Clear country',
-    countryPlaceholder: 'Select a country',
-    noCountryResults: 'No matching countries',
-    submit: 'Update destination',
-    pending: 'Calculating',
-    invalid: 'Choose a shipping country and complete the required address fields.',
-    error: 'Destination could not be calculated.'
+    country: 'Shipping country', recipient: 'Recipient name', phone: 'Phone number', addressLine1: 'Street address',
+    addressLine2: 'Apartment, suite, etc.', locality: 'City', region: 'State or territory', postalCode: 'ZIP or postal code',
+    optional: 'Optional', countryPlaceholder: 'Choose a country', regionPlaceholder: 'Choose a state or territory',
+    awaitingCountry: 'Choose a country to calculate shipping.', awaitingRegion: 'Choose a state or territory to finish calculating shipping.',
+    calculating: 'Calculating shipping...', updating: 'Updating shipping. Your previous total remains visible.',
+    ready: 'Shipping is calculated for this destination.', unsupported: 'We cannot ship these items to this destination. Edit the destination to try again.',
+    network: 'We could not reach the shipping service. Change the destination or try again.', server: 'Shipping could not be calculated. Change the destination or try again.'
   },
   vi: {
-    country: 'Quoc gia giao hang',
-    recipient: 'Ten nguoi nhan',
-    phone: 'So dien thoai',
-    addressLine1: 'Dia chi dong 1',
-    addressLine2: 'Dia chi dong 2',
-    locality: 'Thanh pho',
-    region: 'Tinh / bang',
-    postalCode: 'Ma buu chinh',
-    optional: 'Khong bat buoc',
-    searchCountry: 'Tim quoc gia',
-    clearCountry: 'Xoa quoc gia',
-    countryPlaceholder: 'Chon quoc gia',
-    noCountryResults: 'Khong tim thay quoc gia phu hop',
-    submit: 'Cap nhat dia chi giao hang',
-    pending: 'Dang tinh',
-    invalid: 'Chon quoc gia giao hang va dien cac thong tin dia chi bat buoc.',
-    error: 'Khong the tinh dia diem giao hang.'
+    country: 'Quốc gia giao hàng', recipient: 'Tên người nhận', phone: 'Số điện thoại', addressLine1: 'Địa chỉ',
+    addressLine2: 'Căn hộ, tầng, tòa nhà', locality: 'Thành phố', region: 'Bang hoặc vùng lãnh thổ', postalCode: 'Mã ZIP hoặc mã bưu chính',
+    optional: 'Không bắt buộc', countryPlaceholder: 'Chọn quốc gia', regionPlaceholder: 'Chọn bang hoặc vùng lãnh thổ',
+    awaitingCountry: 'Chọn quốc gia để tính phí giao hàng.', awaitingRegion: 'Chọn bang hoặc vùng lãnh thổ để hoàn tất tính phí.',
+    calculating: 'Đang tính phí giao hàng...', updating: 'Đang cập nhật phí giao hàng. Tổng tiền trước đó vẫn được giữ nguyên.',
+    ready: 'Đã tính phí giao hàng cho địa chỉ này.', unsupported: 'Hiện chưa thể giao các sản phẩm này tới địa chỉ đã chọn. Hãy chỉnh sửa địa chỉ để thử lại.',
+    network: 'Không thể kết nối dịch vụ tính phí. Hãy thử lại hoặc đổi địa chỉ.', server: 'Không thể tính phí giao hàng. Hãy thử lại hoặc đổi địa chỉ.'
   }
 } as const;
 
 export type CheckoutShippingAddress = ShippingAddress;
 
-const emptyAddress: CheckoutShippingAddress = {
-  recipientName: '',
-  phoneNumber: '',
-  countryCode: '',
-  region: null,
-  locality: null,
-  addressLine1: '',
-  addressLine2: null,
-  postalCode: null
-};
-
-export function DestinationForm({
-  locale,
-  acceptedQuote,
-  shippingAddress,
-  onShippingAddressChange,
-  onAcceptedQuote
-}: {
+export function DestinationForm({locale, shippingAddress, lifecycle, showValidation, onShippingAddressChange, onDestinationChange}: {
   locale: Locale;
-  acceptedQuote: CartQuote | null;
   shippingAddress: CheckoutShippingAddress;
+  lifecycle: CheckoutQuoteLifecycleState;
+  showValidation: boolean;
   onShippingAddressChange: (address: CheckoutShippingAddress) => void;
-  onAcceptedQuote: (quote: CartQuote) => void;
+  onDestinationChange: (destination: QuoteDestination) => void;
 }) {
   const t = copy[locale];
-  const [error, setError] = useState<string | null>(null);
-  const [proposal, setProposal] = useState<{quote: CartQuote; changes: MaterialQuoteChange[]} | null>(null);
-  const [countrySearch, setCountrySearch] = useState('');
-  const [showValidation, setShowValidation] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [touched, setTouched] = useState(false);
   const countries = getShippingCountryOptions(locale);
-  const selectedCountry = countries.find((country) => country.code === shippingAddress.countryCode) ?? null;
-  const filteredCountries = countrySearch.trim()
-    ? countries.filter((country) => country.searchText.includes(countrySearch.trim().toLowerCase())).slice(0, 60)
-    : countries;
-  const visibleCountries =
-    selectedCountry && !filteredCountries.some((country) => country.code === selectedCountry.code)
-      ? [selectedCountry, ...filteredCountries]
-      : filteredCountries;
-  const validationErrors = validateCheckoutShippingAddress(shippingAddress, locale);
-  const addressReady = Object.keys(validationErrors).length === 0;
+  const errors = validateCheckoutShippingAddress(shippingAddress, locale);
+  const revealErrors = showValidation || touched;
+  const isUs = shippingAddress.countryCode === 'US';
 
-  function fieldError(field: keyof CheckoutShippingAddress) {
-    return showValidation ? validationErrors[field] : null;
+  function update(patch: Partial<CheckoutShippingAddress>) {
+    onShippingAddressChange({...shippingAddress, ...patch});
   }
-
-  function updateAddress(patch: Partial<CheckoutShippingAddress>) {
-    onShippingAddressChange({...emptyAddress, ...shippingAddress, ...patch});
+  function errorFor(field: keyof CheckoutShippingAddress) {
+    return revealErrors ? errors[field] : null;
   }
+  const status = lifecycle.loadingMode === 'initial' ? t.calculating
+    : lifecycle.loadingMode === 'updating' ? t.updating
+      : lifecycle.issue?.kind === 'unsupported' ? t.unsupported
+        : lifecycle.issue?.kind === 'network' ? t.network
+          : lifecycle.issue?.kind === 'server' ? t.server
+            : !shippingAddress.countryCode ? t.awaitingCountry
+              : isUs && !shippingAddress.region ? t.awaitingRegion : t.ready;
 
-  function submit() {
-    setShowValidation(true);
-    setError(null);
-    if (!addressReady) {
-      setError(t.invalid);
-      return;
-    }
-    startTransition(async () => {
-      const result = await refreshCheckoutQuoteAction({
-        locale,
-        market: acceptedQuote?.market ?? (locale === 'vi' ? 'vn' : 'intl'),
-        lines: acceptedQuote?.lines.map((line) => ({
-          productId: line.productId,
-          variantId: line.variantId,
-          quantity: line.requestedQuantity,
-          marketAtAdd: line.marketAtAdd,
-          addedAt: acceptedQuote.quotedAt,
-          updatedAt: acceptedQuote.quotedAt
-        })) ?? [],
-        destinationCountryCode: shippingAddress.countryCode,
-        destinationRegionCode: shippingAddress.region,
-        shippingQuoteVersion: 2,
-        acceptedQuote
-      });
-      if (result.status === 'invalid') {
-        setError(t.invalid);
-        return;
-      }
-      if (result.status === 'error') {
-        setError(t.error);
-        return;
-      }
-      if (result.materialChanges.length > 0) {
-        setProposal({quote: result.quote, changes: result.materialChanges});
-        return;
-      }
-      onAcceptedQuote(result.quote);
-    });
-  }
-
-  return (
-    <div className="grid gap-4">
-      {error ? <Alert variant="destructive">{error}</Alert> : null}
-      <div className="grid gap-2">
-        <div className="flex items-center justify-between gap-3">
-          <label htmlFor="shipping-country-search" className="font-semibold">
-            {t.country} <span className="text-[var(--destructive)]">*</span>
-          </label>
-          {selectedCountry ? (
-            <Button
-              variant="ghost"
-              className="min-h-9 px-2 text-sm"
-              onClick={() => {
-                setCountrySearch('');
-                updateAddress({countryCode: ''});
-              }}
-            >
-              {t.clearCountry}
-            </Button>
-          ) : null}
-        </div>
-        <Input
-          id="shipping-country-search"
-          value={countrySearch}
-          placeholder={selectedCountry ? `${selectedCountry.label} (${selectedCountry.code})` : t.searchCountry}
-          onChange={(event) => setCountrySearch(event.target.value)}
-          onBlur={() => setShowValidation(true)}
-          aria-describedby={fieldError('countryCode') ? 'shipping-country-error' : undefined}
-          aria-invalid={Boolean(fieldError('countryCode'))}
-          className="min-h-10 rounded-b-none text-sm"
-        />
-        <select
-          value={shippingAddress.countryCode}
-          onChange={(event) => {
-            updateAddress({countryCode: event.target.value});
-            setCountrySearch('');
-            setShowValidation(true);
-          }}
-          aria-label={t.country}
-          aria-describedby={fieldError('countryCode') ? 'shipping-country-error' : undefined}
-          aria-invalid={Boolean(fieldError('countryCode'))}
-          className="min-h-11 w-full rounded-b-[var(--radius-control)] border border-t-0 border-[var(--border)] bg-[var(--surface)] px-3 text-base outline-none transition-colors focus:border-[var(--accent)]"
-        >
-          <option value="">{t.countryPlaceholder}</option>
-          {visibleCountries.map((country) => (
-            <option key={country.code} value={country.code}>
-              {country.label} ({country.code})
-            </option>
-          ))}
-          {visibleCountries.length === 0 ? (
-            <option value="" disabled>
-              {t.noCountryResults}
-            </option>
-          ) : null}
-        </select>
-        {fieldError('countryCode') ? (
-          <p id="shipping-country-error" className="text-sm font-medium text-[var(--destructive)]">
-            {fieldError('countryCode')}
-          </p>
-        ) : null}
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="space-y-2" htmlFor="shipping-recipient-name">
-          <span className="font-semibold">
-            {t.recipient} <span className="text-[var(--destructive)]">*</span>
-          </span>
-        <Input
-            id="shipping-recipient-name"
-            value={shippingAddress.recipientName}
-            onChange={(event) => updateAddress({recipientName: event.target.value})}
-            onBlur={() => setShowValidation(true)}
-            aria-describedby={fieldError('recipientName') ? 'shipping-recipient-name-error' : undefined}
-            aria-invalid={Boolean(fieldError('recipientName'))}
-          />
-          {fieldError('recipientName') ? (
-            <p id="shipping-recipient-name-error" className="text-sm font-medium text-[var(--destructive)]">
-              {fieldError('recipientName')}
-            </p>
-          ) : null}
-        </label>
-        <label className="space-y-2" htmlFor="shipping-phone-number">
-          <span className="font-semibold">
-            {t.phone} <span className="text-[var(--destructive)]">*</span>
-          </span>
-          <Input
-            id="shipping-phone-number"
-            type="tel"
-            autoComplete="tel"
-            value={shippingAddress.phoneNumber}
-            onChange={(event) => updateAddress({phoneNumber: event.target.value})}
-            onBlur={() => setShowValidation(true)}
-            aria-describedby={fieldError('phoneNumber') ? 'shipping-phone-number-error' : undefined}
-            aria-invalid={Boolean(fieldError('phoneNumber'))}
-          />
-          {fieldError('phoneNumber') ? (
-            <p id="shipping-phone-number-error" className="text-sm font-medium text-[var(--destructive)]">
-              {fieldError('phoneNumber')}
-            </p>
-          ) : null}
-        </label>
-      </div>
-      <label className="space-y-2" htmlFor="shipping-address-line-1">
-        <span className="font-semibold">
-          {t.addressLine1} <span className="text-[var(--destructive)]">*</span>
-        </span>
-        <Input
-          id="shipping-address-line-1"
-          autoComplete="address-line1"
-          value={shippingAddress.addressLine1}
-          onChange={(event) => updateAddress({addressLine1: event.target.value})}
-          onBlur={() => setShowValidation(true)}
-          aria-describedby={fieldError('addressLine1') ? 'shipping-address-line-1-error' : undefined}
-          aria-invalid={Boolean(fieldError('addressLine1'))}
-        />
-        {fieldError('addressLine1') ? (
-          <p id="shipping-address-line-1-error" className="text-sm font-medium text-[var(--destructive)]">
-            {fieldError('addressLine1')}
-          </p>
-        ) : null}
-      </label>
-      <label className="space-y-2" htmlFor="shipping-address-line-2">
-        <span className="flex items-center justify-between gap-3">
-          <span className="font-semibold">{t.addressLine2}</span>
-          <span className="text-xs font-medium text-[var(--muted-foreground)]">{t.optional}</span>
-        </span>
-        <Input
-          id="shipping-address-line-2"
-          autoComplete="address-line2"
-          value={shippingAddress.addressLine2 ?? ''}
-          onChange={(event) => updateAddress({addressLine2: event.target.value})}
-        />
-      </label>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <label className="space-y-2" htmlFor="shipping-locality">
-          <span className="flex items-center justify-between gap-3">
-            <span className="font-semibold">{t.locality}</span>
-            <span className="text-xs font-medium text-[var(--muted-foreground)]">{t.optional}</span>
-          </span>
-          <Input
-            id="shipping-locality"
-            autoComplete="address-level2"
-            value={shippingAddress.locality ?? ''}
-            onChange={(event) => updateAddress({locality: event.target.value})}
-          />
-        </label>
-        <label className="space-y-2" htmlFor="shipping-region">
-          <span className="flex items-center justify-between gap-3">
-            <span className="font-semibold">{t.region}</span>
-            <span className="text-xs font-medium text-[var(--muted-foreground)]">{t.optional}</span>
-          </span>
-          <Input
-            id="shipping-region"
-            autoComplete="address-level1"
-            value={shippingAddress.region ?? ''}
-            onChange={(event) => updateAddress({region: event.target.value})}
-          />
-        </label>
-        <label className="space-y-2" htmlFor="shipping-postal-code">
-          <span className="flex items-center justify-between gap-3">
-            <span className="font-semibold">{t.postalCode}</span>
-            <span className="text-xs font-medium text-[var(--muted-foreground)]">{t.optional}</span>
-          </span>
-          <Input
-            id="shipping-postal-code"
-            autoComplete="postal-code"
-            value={shippingAddress.postalCode ?? ''}
-            onChange={(event) => updateAddress({postalCode: event.target.value})}
-          />
-        </label>
-      </div>
-      <Button disabled={pending} onClick={submit} aria-disabled={!addressReady || pending} className="w-full sm:w-auto">
-        {pending ? t.pending : t.submit}
-      </Button>
-      {proposal ? (
-        <QuoteDiffDialog
-          locale={locale}
-          proposal={proposal.quote}
-          changes={proposal.changes}
-          onCancel={() => setProposal(null)}
-          onConfirm={() => {
-            onAcceptedQuote(proposal.quote);
-            setProposal(null);
-          }}
-        />
-      ) : null}
+  return <div className="grid gap-5">
+    <div className="grid gap-2">
+      <label className="font-semibold" id="shipping-country-label">{t.country} <span className="text-[var(--destructive)]">*</span></label>
+      <Select value={shippingAddress.countryCode} onValueChange={(countryCode) => {
+        const region = countryCode === 'US' ? shippingAddress.region : null;
+        update({countryCode, region, postalCode: countryCode === 'US' ? shippingAddress.postalCode : shippingAddress.postalCode});
+        onDestinationChange({countryCode, regionCode: region});
+      }}>
+        <SelectTrigger aria-labelledby="shipping-country-label" aria-invalid={Boolean(errorFor('countryCode'))}><SelectValue placeholder={t.countryPlaceholder}/></SelectTrigger>
+        <SelectContent>{countries.map((country) => <SelectItem key={country.code} value={country.code}>{country.label} ({country.code})</SelectItem>)}</SelectContent>
+      </Select>
+      {errorFor('countryCode') ? <p className="text-sm font-medium text-[var(--destructive)]">{errorFor('countryCode')}</p> : null}
     </div>
-  );
+
+    {isUs ? <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-2">
+        <label className="font-semibold" id="shipping-region-label">{t.region} <span className="text-[var(--destructive)]">*</span></label>
+        <Select value={shippingAddress.region ?? ''} onValueChange={(region) => {update({region}); onDestinationChange({countryCode: 'US', regionCode: region});}}>
+          <SelectTrigger aria-labelledby="shipping-region-label" aria-invalid={Boolean(errorFor('region'))}><SelectValue placeholder={t.regionPlaceholder}/></SelectTrigger>
+          <SelectContent>{US_SHIPPING_REGION_OPTIONS.map((option) => <SelectItem key={option.code} value={option.code}>{option.code}</SelectItem>)}</SelectContent>
+        </Select>
+        {errorFor('region') ? <p className="text-sm font-medium text-[var(--destructive)]">{errorFor('region')}</p> : null}
+      </div>
+      <Field id="shipping-postal-code" label={t.postalCode} required value={shippingAddress.postalCode ?? ''} error={errorFor('postalCode')} onBlur={() => setTouched(true)} onChange={(postalCode) => update({postalCode})}/>
+    </div> : null}
+
+    <div role="status" aria-live="polite" className="flex min-h-14 items-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-2 text-sm text-[var(--muted-foreground)]">{status}</div>
+
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field id="shipping-recipient-name" label={t.recipient} required value={shippingAddress.recipientName} error={errorFor('recipientName')} onBlur={() => setTouched(true)} onChange={(recipientName) => update({recipientName})}/>
+      <Field id="shipping-phone-number" label={t.phone} required type="tel" value={shippingAddress.phoneNumber} error={errorFor('phoneNumber')} onBlur={() => setTouched(true)} onChange={(phoneNumber) => update({phoneNumber})}/>
+    </div>
+    <Field id="shipping-address-line-1" label={t.addressLine1} required value={shippingAddress.addressLine1} error={errorFor('addressLine1')} onBlur={() => setTouched(true)} onChange={(addressLine1) => update({addressLine1})}/>
+    <Field id="shipping-address-line-2" label={t.addressLine2} optional={t.optional} value={shippingAddress.addressLine2 ?? ''} onChange={(addressLine2) => update({addressLine2})}/>
+    <div className={`grid gap-3 ${isUs ? '' : 'sm:grid-cols-3'}`}>
+      <Field id="shipping-locality" label={t.locality} optional={t.optional} value={shippingAddress.locality ?? ''} onChange={(locality) => update({locality})}/>
+      {!isUs ? <Field id="shipping-region" label={t.region} optional={t.optional} value={shippingAddress.region ?? ''} onChange={(region) => update({region})}/> : null}
+      {!isUs ? <Field id="shipping-postal-code" label={t.postalCode} optional={t.optional} value={shippingAddress.postalCode ?? ''} onChange={(postalCode) => update({postalCode})}/> : null}
+    </div>
+  </div>;
+}
+
+function Field({id, label, value, required, optional, type, error, onChange, onBlur}: {id: string; label: string; value: string; required?: boolean; optional?: string; type?: string; error?: string | null; onChange: (value: string) => void; onBlur?: () => void}) {
+  return <label className="grid gap-2" htmlFor={id}>
+    <span className="flex justify-between gap-3 font-semibold">{label}{required ? <span className="text-[var(--destructive)]">*</span> : optional ? <span className="text-xs font-medium text-[var(--muted-foreground)]">{optional}</span> : null}</span>
+    <Input id={id} type={type} value={value} aria-invalid={Boolean(error)} onBlur={onBlur} onChange={(event) => onChange(event.target.value)}/>
+    {error ? <span className="text-sm font-medium text-[var(--destructive)]">{error}</span> : null}
+  </label>;
 }
