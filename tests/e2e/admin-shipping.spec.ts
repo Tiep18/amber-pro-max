@@ -105,8 +105,10 @@ test('admin manages parcel default, destination rule, and US adjustment', async 
   await page.getByLabel('Each additional item').fill('0.50');
   await page.getByRole('button', { name: 'Save US adjustment' }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
-  await expect(page.getByText('CA')).toBeVisible();
-  await expect(page.getByText('Add surcharge')).toBeVisible();
+  const adjustmentsSection = page.locator('section').filter({ hasText: 'US region adjustments' });
+  const adjustmentRow = adjustmentsSection.locator('article').filter({ hasText: profileName });
+  await expect(adjustmentRow.getByText('CA', { exact: true })).toBeVisible();
+  await expect(adjustmentRow.getByText('Add surcharge')).toBeVisible();
 
   await expect(page.getByRole('button', { name: 'Deactivate' }).first()).toBeVisible();
   await expect(

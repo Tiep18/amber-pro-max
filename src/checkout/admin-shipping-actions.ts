@@ -47,14 +47,14 @@ const profileIdSchema = z.guid();
 const currencySchema = z.enum(['VND', 'USD']);
 const usRegionCodeSchema = z.string().trim().toUpperCase().regex(/^(?:AL|AK|AS|AZ|AR|CA|CO|CT|DE|DC|FL|GA|GU|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MH|MA|MI|FM|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|MP|OH|OK|OR|PW|PA|PR|RI|SC|SD|TN|TX|UT|VT|VI|VA|WA|WV|WI|WY)$/);
 
-export const shippingProfileSaveSchema = z.object({
+const shippingProfileSaveSchema = z.object({
   profileId: profileIdSchema.optional(),
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(500).nullable().optional(),
   active: z.boolean()
 }).strict();
 
-export const shippingRuleSaveSchema = z.object({
+const shippingRuleSaveSchema = z.object({
   ruleId: profileIdSchema.optional(),
   profileId: profileIdSchema,
   destinationKind: z.enum(['exact_country', 'fallback']),
@@ -72,7 +72,7 @@ export const shippingRuleSaveSchema = z.object({
   }
 });
 
-export const shippingRegionAdjustmentSaveSchema = z.object({
+const shippingRegionAdjustmentSaveSchema = z.object({
   adjustmentId: profileIdSchema.optional(),
   shippingRuleId: profileIdSchema,
   countryCode: z.literal('US'),

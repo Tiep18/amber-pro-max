@@ -6,11 +6,18 @@ import {updateSession} from './lib/supabase/proxy';
 import {isUnprefixedCustomerPath} from './proxy-paths';
 
 const intlMiddleware = createMiddleware(routing);
+const localizedAuthPathPattern =
+  /^\/(?:en|vi)\/(?:sign-in|register|forgot-password|reset-password|dang-nhap|dang-ky|quen-mat-khau|dat-lai-mat-khau)(?:\/|$)/;
 
 export default async function proxy(request: NextRequest) {
   const {pathname, search} = request.nextUrl;
 
-  if (pathname.startsWith('/sitemaps') || pathname.startsWith('/admin') || pathname.startsWith('/auth')) {
+  if (
+    pathname.startsWith('/sitemaps') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/auth') ||
+    localizedAuthPathPattern.test(pathname)
+  ) {
     return updateSession(request, NextResponse.next());
   }
 
