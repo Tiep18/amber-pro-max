@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { DeactivateShippingProfileButton } from './deactivate-shipping-profile-button';
 import {ShippingRuleSheet} from './shipping-rule-sheet';
+import {ShippingRegionAdjustmentSheet} from './shipping-region-adjustment-sheet';
 
 export type AdminShippingRule = {
   id: string;
@@ -74,6 +75,14 @@ export function ShippingProfileList({ profiles }: { profiles: AdminShippingProfi
           </p>
         </div>
         <ShippingRuleSheet profiles={profiles.map(({id, name, active}) => ({id, name, active}))} />
+        <ShippingRegionAdjustmentSheet rules={profiles.flatMap((profile) =>
+          (profile.shipping_rules ?? []).map((rule) => ({
+            id: rule.id,
+            label: `${profile.name} · ${rule.country_code} · ${rule.currency_code}`,
+            currencyCode: rule.currency_code,
+            countryCode: rule.country_code
+          }))
+        )} />
         <div className="grid gap-2 sm:grid-cols-[minmax(190px,1fr)_140px_130px]">
           <label className="relative">
             <span className="sr-only">Search shipping profiles</span>
