@@ -370,7 +370,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 5. Fulfillment and Purchase Access | 11/11 | Complete   | 2026-06-20 |
 | 6. Customer Retention and Trust | 10/10 | Complete    | 2026-06-23 |
 | 7. Content, SEO, and Launch Readiness | 9/10 | In Progress|  |
-| 8. Shipping profile fallbacks, destination zones, and US region surcharges | 1/9 | In Progress|  |
+| 8. Shipping profile fallbacks, destination zones, and US region surcharges | 2/9 | In Progress|  |
 
 ### Phase 8: Shipping profile fallbacks, destination zones, and US region surcharges
 
@@ -379,7 +379,7 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 **UI hint:** yes
 **Requirements**: SHIP-07, SHIP-08, SHIP-09, SHIP-10, SHIP-11, SHIP-12, SHIP-13
 **Depends on:** Phase 7
-**Plans:** 1/9 plans executed
+**Plans:** 2/9 plans executed
 
 **Success Criteria**:
 
@@ -397,7 +397,7 @@ Plans:
 
 **Wave 2** *(blocked on 08-01 and its approved non-production schema push)*
 
-- [ ] 08-02-PLAN.md - Implement the deterministic resolver, region modes, unchanged aggregation, direct private-function denial, and hardened public wrapper
+- [x] 08-02-PLAN.md - Implement the deterministic resolver, region modes, unchanged aggregation, direct private-function denial, and hardened public wrapper
 
 **Wave 3** *(blocked on 08-02)*
 

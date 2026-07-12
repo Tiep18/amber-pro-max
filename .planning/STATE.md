@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-07-12T03:50:20.489Z"
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-07-12T04:52:00.582Z"
 last_activity: 2026-07-12 -- Phase 08 execution started
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 71
-  completed_plans: 63
+  completed_plans: 64
   percent: 75
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 08 (shipping-profile-fallbacks-destination-zones-and-us-region-s) — EXECUTING
-Plan: 2 of 9
+Plan: 3 of 9
 Status: Ready to execute
 Last activity: 2026-07-12 -- Phase 08 execution started
 
@@ -92,6 +92,7 @@ Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and
 | Phase 06 P08 | 75 min | 2 tasks | 17 files |
 | Phase 06 P09 | 48 min | 2 tasks | 9 files |
 | Phase 08 P01 | 34 min | 3 tasks | 5 files |
+| Phase 08 P02 | 56 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -140,6 +141,9 @@ Recent decisions affecting current work:
 - [Phase 08]: Store-default state remains separate from shipping profiles and starts empty; no profile or fallback is selected implicitly. — Prevents migration-time policy selection and keeps profile activation independent from store-default intent.
 - [Phase 08]: Existing shipping rules become exact_country without changing semantic values. — Preserves IDs, countries, currencies, fees, and active state while enabling explicit fallbacks.
 - [Phase 08]: Plan 08-03 exclusively owns the checked-in Supabase type refresh. — Avoids overlapping source ownership while local and linked generated interfaces have already been checked.
+- [Phase 08]: Private shipping resolver direct execution is restricted to owner/service_role; browser roles use the hardened public wrapper. — Closes the direct private-function privilege path while preserving public quote callability.
+- [Phase 08]: Shipping resolution is all-or-error across six fixed precedence tiers with exact-country before fallback. — Preserves exact-country behavior and prevents unsupported physical lines from becoming zero-cost shipping.
+- [Phase 08]: Shipping aggregation consumes canonical final allocation fees while preserving highest-first-once ordering. — Applies region adjustments without arithmetic drift.
 
 ### Pending Todos
 
@@ -279,6 +283,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-12T03:50:20.440Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-07-12T04:52:00.543Z
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None
