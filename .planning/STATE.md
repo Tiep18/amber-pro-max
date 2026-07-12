@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-04-PLAN.md
-last_updated: "2026-07-12T14:10:00.000Z"
-last_activity: 2026-07-12 -- Phase 08 Plan 04 completed; Plan 05 is next
+stopped_at: Completed 08-05-PLAN.md
+last_updated: "2026-07-12T16:52:58.8831366+07:00"
+last_activity: 2026-07-12 -- Phase 08 Plan 05 completed; Plan 06 is next
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 71
-  completed_plans: 64
+  completed_plans: 65
   percent: 75
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 08 (shipping-profile-fallbacks-destination-zones-and-us-region-s) — EXECUTING
-Plan: 5 of 9
+Plan: 6 of 9
 Status: Ready to execute
-Last activity: 2026-07-12 -- Phase 08 Plan 04 completed; Plan 05 is next
+Last activity: 2026-07-12 -- Phase 08 Plan 05 completed; Plan 06 is next
 
 Progress: Phase 06 completed and human-approved; Phase 07 Wave 5 is complete and Wave 6 can begin.
 
@@ -144,6 +144,8 @@ Recent decisions affecting current work:
 - [Phase 08]: Private shipping resolver direct execution is restricted to owner/service_role; browser roles use the hardened public wrapper. — Closes the direct private-function privilege path while preserving public quote callability.
 - [Phase 08]: Shipping resolution is all-or-error across six fixed precedence tiers with exact-country before fallback. — Preserves exact-country behavior and prevents unsupported physical lines from becoming zero-cost shipping.
 - [Phase 08]: Shipping aggregation consumes canonical final allocation fees while preserving highest-first-once ordering. — Applies region adjustments without arithmetic drift.
+- [Phase 08 Plan 05]: Admin shipping separates parcel profiles, destination rules, US adjustments, and assignment visibility into one protected responsive workspace.
+- [Phase 08 Plan 05]: Locale-prefixed auth routes bypass next-intl proxy handling so physical auth pages render for admin browser flows.
 
 ### Pending Todos
 
