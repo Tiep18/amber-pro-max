@@ -369,6 +369,7 @@ export async function saveVariantShippingProfileAction(input: unknown): Promise<
           .eq('variant_id', parsed.data.variantId);
         if (error) return {status: 'error', code: 'shipping_assignment_failed'} as const;
         revalidateVariants(variant.product_id);
+        revalidatePath('/admin/shipping');
         return {status: 'saved'} as const;
       }
 
@@ -386,6 +387,7 @@ export async function saveVariantShippingProfileAction(input: unknown): Promise<
       );
       if (error) return {status: 'error', code: 'shipping_assignment_failed'} as const;
       revalidateVariants(variant.product_id);
+      revalidatePath('/admin/shipping');
       return {status: 'saved'} as const;
     }
   });

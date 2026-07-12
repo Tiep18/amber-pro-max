@@ -1,5 +1,6 @@
 'use server';
 
+import {revalidatePath} from 'next/cache';
 import {z} from 'zod';
 import {requireAdmin} from '@/auth/guards';
 import {invalidateCatalogCache} from '@/lib/cache-invalidation';
@@ -357,7 +358,11 @@ export async function saveProductShippingProfileAction(input: unknown): Promise<
       return error ? {status: 'error', code: 'shipping_assignment_failed'} as const : {status: 'saved'} as const;
     }
   }).then((result) => {
-    if (result.status === 'saved') invalidateCatalogCache();
+    if (result.status === 'saved') {
+      revalidatePath(`/admin/catalog/${parsed.data.productId}`);
+      revalidatePath('/admin/shipping');
+      invalidateCatalogCache();
+    }
     return result;
   });
 }

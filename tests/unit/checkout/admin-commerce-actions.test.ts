@@ -17,7 +17,13 @@ vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient}));
 vi.mock('@/operations/errors', () => ({recordOperationalFailure}));
 
 import {createDiscountCodeAction, disableDiscountCodeAction} from '@/checkout/admin-discount-actions';
-import {createShippingProfileAction, deactivateShippingProfileAction} from '@/checkout/admin-shipping-actions';
+import {
+  createShippingProfileAction,
+  deactivateShippingProfileAction,
+  saveShippingRegionAdjustmentAction,
+  saveShippingRuleAction,
+  setStoreDefaultShippingProfileAction
+} from '@/checkout/admin-shipping-actions';
 
 const discountId = '11111111-1111-4111-8111-111111111111';
 const profileId = '22222222-2222-4222-8222-222222222222';
@@ -54,6 +60,46 @@ beforeEach(() => {
 });
 
 describe('admin commerce operational recording', () => {
+  test('rejects malformed fallback rules and unsupported US region codes before opening a database client', async () => {
+    await expect(
+      saveShippingRuleAction({
+        profileId,
+        destinationKind: 'fallback',
+        countryCode: 'US',
+        currencyCode: 'USD',
+        firstItemFeeMinor: 500,
+        additionalItemFeeMinor: 100,
+        active: true
+      })
+    ).resolves.toEqual({status: 'invalid', code: 'invalid_shipping_rule'});
+    await expect(
+      saveShippingRegionAdjustmentAction({
+        shippingRuleId: profileId,
+        countryCode: 'US',
+        regionCode: 'California',
+        mode: 'surcharge',
+        firstItemFeeMinor: 100,
+        additionalItemFeeMinor: 0,
+        active: true
+      })
+    ).resolves.toEqual({status: 'invalid', code: 'invalid_shipping_region'});
+
+    expect(requireAdmin).toHaveBeenCalledTimes(2);
+    expect(createSupabaseServerClient).not.toHaveBeenCalled();
+  });
+
+  test('sets a store default through the single atomic RPC after authorization', async () => {
+    const rpc = vi.fn(async () => ({error: null}));
+    createSupabaseServerClient.mockResolvedValue({rpc});
+
+    await expect(setStoreDefaultShippingProfileAction(profileId)).resolves.toEqual({status: 'updated'});
+
+    expect(requireAdmin).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith('admin_set_shipping_store_default', {p_profile_id: profileId});
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/shipping');
+  });
+
   test('records discount create persistence failures without exposing raw discount details', async () => {
     const insert = vi.fn(() => ({
       select: vi.fn(() => ({

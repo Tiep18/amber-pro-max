@@ -9,8 +9,15 @@ import {runMonitoredAction} from '@/operations/monitoring';
 // Phase 08 tables/RPCs are introduced by the pending migration. Keep this narrow
 // bridge until `src/types/supabase.ts` is regenerated against that migration.
 type ShippingAdminDatabaseClient = {
-  from: (table: string) => any;
+  from: (table: string) => ShippingAdminQuery;
   rpc: (functionName: string, args: Record<string, unknown>) => Promise<{error: unknown}>;
+};
+
+type ShippingAdminQuery = {
+  update: (values: object) => {eq: (column: string, value: string) => Promise<{error: unknown}>};
+  insert: (values: object) => {
+    select: (columns: string) => {single: () => Promise<{data: {id: string} | null; error: unknown}>};
+  };
 };
 
 export type CreateShippingProfileResult =
