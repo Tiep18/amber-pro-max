@@ -40,7 +40,7 @@ export function ShippingCreateSheet() {
       >
         <div className="mb-5 border-b border-[var(--border)] pb-4">
           <p className="text-sm text-[var(--muted-foreground)]">
-            Define one destination and its manual first and additional item fees.
+            Create a reusable parcel profile. Add destination rules after the profile is saved.
           </p>
         </div>
         <ShippingProfileForm
