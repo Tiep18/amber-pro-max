@@ -13,6 +13,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { DeactivateShippingProfileButton } from './deactivate-shipping-profile-button';
+import {ShippingRuleSheet} from './shipping-rule-sheet';
 
 export type AdminShippingRule = {
   id: string;
@@ -72,6 +73,7 @@ export function ShippingProfileList({ profiles }: { profiles: AdminShippingProfi
             Review destination coverage, fees, and availability.
           </p>
         </div>
+        <ShippingRuleSheet profiles={profiles.map(({id, name, active}) => ({id, name, active}))} />
         <div className="grid gap-2 sm:grid-cols-[minmax(190px,1fr)_140px_130px]">
           <label className="relative">
             <span className="sr-only">Search shipping profiles</span>
