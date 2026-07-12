@@ -65,7 +65,7 @@ export function ShippingProfileList({ profiles }: { profiles: AdminShippingProfi
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <MapPin className="size-4 text-[var(--accent)]" aria-hidden="true" />
-            <h2 className="font-semibold">Shipping profile queue</h2>
+            <h2 className="font-semibold">Package type queue</h2>
             <span className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-2 py-0.5 text-xs font-semibold tabular-nums">
               {filtered.length}/{profiles.length}
             </span>
@@ -85,7 +85,7 @@ export function ShippingProfileList({ profiles }: { profiles: AdminShippingProfi
         )} />
         <div className="grid gap-2 sm:grid-cols-[minmax(190px,1fr)_140px_130px]">
           <label className="relative">
-            <span className="sr-only">Search shipping profiles</span>
+            <span className="sr-only">Search package types</span>
             <Search
               className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]"
               aria-hidden="true"
@@ -123,7 +123,7 @@ export function ShippingProfileList({ profiles }: { profiles: AdminShippingProfi
       {filtered.length === 0 ? (
         <AdminEmptyState
           icon={MapPin}
-          title={profiles.length ? 'No profiles match these filters.' : 'No shipping profiles yet.'}
+          title={profiles.length ? 'No package types match these filters.' : 'No package types yet.'}
           description={
             profiles.length
               ? 'Change the search, status, or currency filter.'

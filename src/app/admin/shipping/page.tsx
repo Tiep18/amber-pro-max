@@ -75,16 +75,16 @@ export default async function AdminShippingPage() {
     0
   );
   const metrics = [
-    { label: 'Profiles', value: profiles.length, description: 'configured groups', icon: Truck },
+    { label: 'Package types', value: profiles.length, description: 'configured groups', icon: Truck },
     {
       label: 'Active',
       value: activeProfiles,
       description: 'available at checkout',
       icon: CircleCheck
     },
-    { label: 'Rules', value: ruleCount, description: 'destination rows', icon: MapPin },
+    { label: 'Shipping fees', value: ruleCount, description: 'destination rows', icon: MapPin },
     {
-      label: 'US adjustments',
+      label: 'US surcharges',
       value: adjustmentCount,
       description: 'regional overrides',
       icon: ShieldCheck
@@ -95,8 +95,8 @@ export default async function AdminShippingPage() {
     <AdminPageShell>
       <AdminPageHeader
         eyebrow="Admin shipping"
-        title="Shipping profiles"
-        description="Configure parcel defaults, destination fees, and US regional adjustments."
+        title="Shipping setup"
+        description="Configure package types, destination fees, and US state surcharges."
         action={<ShippingCreateSheet />}
       />
 
@@ -133,7 +133,7 @@ export default async function AdminShippingPage() {
 
       {error ? (
         <Alert variant="destructive">
-          <AlertTitle>Shipping profiles could not be loaded.</AlertTitle>
+          <AlertTitle>Shipping setup could not be loaded.</AlertTitle>
           <p className="mt-1 text-sm">Refresh the page or review sanitized operational errors.</p>
         </Alert>
       ) : null}

@@ -114,15 +114,15 @@ export function ShippingRegionAdjustmentSheet({ rules }: { rules: RuleOption[] }
           setOpen(true);
         }}
       >
-        <Plus className="size-4" aria-hidden="true" /> Add US adjustment
+        <Plus className="size-4" aria-hidden="true" /> Add US surcharge
       </Button>
       <Sheet
         open={open}
         onOpenChange={setOpen}
         showTrigger={false}
-        triggerLabel="Add US region adjustment"
-        title="Add US region adjustment"
-        closeLabel="Close US adjustment form"
+        triggerLabel="Add US state surcharge"
+        title="Add US state surcharge"
+        closeLabel="Close US surcharge form"
         contentClassName="!w-[min(520px,96vw)] max-sm:!w-screen"
       >
         <form
@@ -148,17 +148,17 @@ export function ShippingRegionAdjustmentSheet({ rules }: { rules: RuleOption[] }
               setError(
                 result.status === 'invalid'
                   ? 'Check the selected region and fees.'
-                  : 'The adjustment could not be saved.'
+                  : 'The surcharge could not be saved.'
               );
             });
           }}
         >
           {error ? <Alert variant="destructive">{error}</Alert> : null}
           <label className="grid gap-2">
-            <span className="text-sm font-semibold">Destination rule</span>
+            <span className="text-sm font-semibold">United States shipping fee</span>
             <Select name="shippingRuleId">
-              <SelectTrigger aria-label="Destination rule">
-                <SelectValue placeholder="Choose a US rule" />
+              <SelectTrigger aria-label="United States shipping fee">
+                <SelectValue placeholder="Choose a US fee row" />
               </SelectTrigger>
               <SelectContent>
                 {eligibleRules.map((rule) => (
@@ -207,7 +207,7 @@ export function ShippingRegionAdjustmentSheet({ rules }: { rules: RuleOption[] }
             </label>
           </div>
           <Button type="submit" disabled={pending}>
-            {pending ? 'Saving adjustment...' : 'Save US adjustment'}
+            {pending ? 'Saving surcharge...' : 'Save US surcharge'}
           </Button>
         </form>
       </Sheet>

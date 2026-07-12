@@ -63,12 +63,12 @@ type ShippingAssignmentSheetProps = {
 function resultMessage(result: ProductShippingProfileResult | VariantShippingProfileResult) {
   if (result.status === 'saved') return null;
   const labels: Record<string, string> = {
-    invalid_shipping_assignment: 'Check the parcel profile assignment.',
-    inactive_shipping_profile: 'Choose an active parcel profile.',
-    variant_not_found: 'Variant not found. Save the variant before assigning a profile.',
-    shipping_assignment_failed: 'Parcel profile assignment could not be saved.'
+    invalid_shipping_assignment: 'Check the package type assignment.',
+    inactive_shipping_profile: 'Choose an active package type.',
+    variant_not_found: 'Variant not found. Save the variant before assigning a package type.',
+    shipping_assignment_failed: 'Package type assignment could not be saved.'
   };
-  return labels[result.code] ?? 'Parcel profile assignment could not be saved.';
+  return labels[result.code] ?? 'Package type assignment could not be saved.';
 }
 
 function sourceTone(source: ShippingAssignmentSource) {
@@ -86,8 +86,8 @@ export function ShippingAssignmentSheet({
   storeDefaultProfile = null,
   inheritedProfile = null,
   inheritedSource = 'Store default',
-  title = 'Parcel profile',
-  description = 'Controls which parcel fee profile applies during checkout.',
+  title = 'Package type',
+  description = 'Controls which package fee group applies during checkout.',
   triggerClassName,
   onSaved
 }: ShippingAssignmentSheetProps) {
@@ -186,8 +186,8 @@ export function ShippingAssignmentSheet({
             setOpen(nextOpen);
             if (nextOpen) resetDraft();
           }}
-          triggerLabel="Change parcel profile"
-          title="Change parcel profile"
+          triggerLabel="Change package type"
+          title="Change package type"
           closeLabel="Keep current assignment"
           showTriggerLabel
           triggerIcon={<Truck aria-hidden="true" className="size-4" />}
@@ -196,7 +196,7 @@ export function ShippingAssignmentSheet({
           bodyClassName="grid content-start gap-5"
         >
           <div className="grid gap-1 rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-3 text-sm">
-            <span className="font-semibold">Current effective profile</span>
+            <span className="font-semibold">Current package type</span>
             <span>{currentProfileLabel}</span>
             <span className="text-[var(--muted-foreground)]">Source: {snapshot.source}</span>
           </div>
@@ -206,7 +206,7 @@ export function ShippingAssignmentSheet({
           <label className="grid gap-2">
             <span className="text-sm font-semibold">Assignment</span>
             <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
-              <SelectTrigger aria-label="Parcel profile assignment">
+              <SelectTrigger aria-label="Package type assignment">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

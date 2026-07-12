@@ -38,16 +38,16 @@ export function ShippingProfileForm({ onCreated }: { onCreated?: (profileId: str
       }}
     >
       {result?.status === 'saved' ? (
-        <Alert variant="success">Shipping profile created.</Alert>
+        <Alert variant="success">Package type created.</Alert>
       ) : null}
       {result?.status === 'invalid' ? (
-        <Alert variant="destructive">Check the shipping profile fields.</Alert>
+        <Alert variant="destructive">Check the package type fields.</Alert>
       ) : null}
       {result?.status === 'error' ? (
-        <Alert variant="destructive">Shipping profile could not be created.</Alert>
+        <Alert variant="destructive">Package type could not be created.</Alert>
       ) : null}
       <label className="grid gap-2">
-        <span className="text-sm font-semibold">Profile name</span>
+        <span className="text-sm font-semibold">Package type name</span>
         <Input name="name" autoComplete="off" required />
       </label>
       <label className="grid gap-2">
@@ -58,7 +58,7 @@ export function ShippingProfileForm({ onCreated }: { onCreated?: (profileId: str
         />
       </label>
       <Button type="submit" className="mt-1 w-full" disabled={pending}>
-        {pending ? 'Creating profile...' : 'Create shipping profile'}
+        {pending ? 'Creating package type...' : 'Create package type'}
       </Button>
     </form>
   );

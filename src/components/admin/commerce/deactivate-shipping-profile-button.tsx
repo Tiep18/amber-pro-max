@@ -34,7 +34,7 @@ export function DeactivateShippingProfileButton({
         disabled={Boolean(blockedReason) || disabled || pending}
         onClick={() => {
           const confirmed = window.confirm(
-            `Deactivate "${profileName}"?\n\nExisting assignments stay in place, but checkout quotes will stop using this profile.`
+            `Deactivate "${profileName}"?\n\nExisting assignments stay in place, but checkout quotes will stop using this package type.`
           );
           if (!confirmed) {
             return;
@@ -57,7 +57,7 @@ export function DeactivateShippingProfileButton({
       ) : null}
       {result?.status === 'error' ? (
         <p className="text-sm text-[var(--destructive)]">
-          Shipping profile could not be deactivated.
+          Package type could not be deactivated.
         </p>
       ) : null}
     </div>

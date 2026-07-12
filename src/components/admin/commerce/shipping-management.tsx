@@ -1,12 +1,12 @@
 'use client';
 
 import { useMemo, useState, useTransition, type ReactNode } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MapPin, Search, ShieldCheck, Truck } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, MapPin, PackageCheck, Search, ShieldCheck, Truck } from 'lucide-react';
 import { formatMoney, type CurrencyCode } from '@/catalog/money';
 import { setStoreDefaultShippingProfileAction } from '@/checkout/admin-shipping-actions';
 import { AdminEmptyState, AdminStatusPill } from '@/components/admin/admin-page';
-import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -53,11 +53,6 @@ export type AdminShippingProfile = {
   shipping_rules: AdminShippingRule[] | null;
 };
 
-type RuleRow = AdminShippingRule & {
-  profileName: string;
-  profileActive: boolean;
-};
-
 type AdjustmentGroup = {
   key: string;
   profileName: string;
@@ -78,7 +73,27 @@ function feeLabel(currencyCode: CurrencyCode, firstMinor: number, additionalMino
 }
 
 function destinationLabel(rule: Pick<AdminShippingRule, 'match_kind' | 'country_code'>) {
-  return rule.match_kind === 'fallback' ? 'Other countries' : (rule.country_code ?? 'Unknown');
+  if (rule.match_kind === 'fallback') return 'Other countries';
+  if (rule.country_code === 'VN') return 'Vietnam';
+  if (rule.country_code === 'US') return 'United States';
+  return rule.country_code ?? 'Unknown';
+}
+
+function destinationMeta(rule: Pick<AdminShippingRule, 'match_kind' | 'country_code'>) {
+  if (rule.match_kind === 'fallback') {
+    return { label: 'Other countries', detail: 'Fallback coverage', priority: 30 };
+  }
+  if (rule.country_code === 'VN') {
+    return { label: 'Vietnam', detail: 'Country code VN', priority: 10 };
+  }
+  if (rule.country_code === 'US') {
+    return { label: 'United States', detail: 'Country code US', priority: 20 };
+  }
+  return {
+    label: rule.country_code ?? 'Unknown',
+    detail: 'Specific country',
+    priority: 40
+  };
 }
 
 function summarizeCodes(codes: string[]) {
@@ -119,6 +134,87 @@ function SectionSurface({
   );
 }
 
+function ReadinessPanel({
+  hasDefault,
+  hasVietnamRule,
+  hasUsRule,
+  hasFallbackRule,
+  adjustmentCount
+}: {
+  hasDefault: boolean;
+  hasVietnamRule: boolean;
+  hasUsRule: boolean;
+  hasFallbackRule: boolean;
+  adjustmentCount: number;
+}) {
+  const items = [
+    {
+      label: 'Default package type',
+      ready: hasDefault,
+      detail: hasDefault
+        ? 'Products without a custom assignment have a fallback.'
+        : 'Choose a default package type before relying on fallback shipping.'
+    },
+    {
+      label: 'Vietnam shipping fee',
+      ready: hasVietnamRule,
+      detail: hasVietnamRule ? 'Vietnam checkout has a direct fee row.' : 'Add a VN row for domestic checkout.'
+    },
+    {
+      label: 'United States shipping fee',
+      ready: hasUsRule,
+      detail: hasUsRule ? 'US checkout has a direct fee row.' : 'Add a US row for US customers.'
+    },
+    {
+      label: 'Other countries fee',
+      ready: hasFallbackRule,
+      detail: hasFallbackRule
+        ? 'Countries without direct rows can still receive a quote.'
+        : 'Add Other countries so unsupported destinations do not surprise customers.'
+    }
+  ];
+  const readyCount = items.filter((item) => item.ready).length;
+
+  return (
+    <section className="grid gap-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[0_10px_30px_rgba(92,48,26,0.05)] sm:p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Shipping readiness</h2>
+          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+            A quick check for the destinations customers are most likely to use.
+          </p>
+        </div>
+        <span className="w-fit rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-3 py-1 text-sm font-semibold tabular-nums">
+          {readyCount}/4 ready
+        </span>
+      </div>
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        {items.map((item) => (
+          <div
+            key={item.label}
+            className="grid min-h-28 content-start gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-paper)] p-3"
+          >
+            <div className="flex items-start gap-2">
+              <CheckCircle2
+                className={item.ready ? 'mt-0.5 size-4 text-[var(--success)]' : 'mt-0.5 size-4 text-[var(--muted-foreground)]'}
+                aria-hidden="true"
+              />
+              <div className="min-w-0">
+                <p className="font-semibold">{item.label}</p>
+                <p className="mt-1 text-sm text-[var(--muted-foreground)]">{item.detail}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-sm text-[var(--muted-foreground)]">
+        US state surcharges are optional. Current setup has{' '}
+        <span className="font-semibold text-[var(--foreground)] tabular-nums">{adjustmentCount}</span>.
+      </p>
+    </section>
+  );
+}
+
 function SetDefaultProfileButton({
   profile,
   currentDefaultName
@@ -129,6 +225,9 @@ function SetDefaultProfileButton({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const title = currentDefaultName
+    ? `"${profile.name}" will replace "${currentDefaultName}" as the fallback package type.`
+    : `"${profile.name}" will be used for products without a custom assignment.`;
 
   return (
     <div className="grid gap-2">
@@ -138,12 +237,6 @@ function SetDefaultProfileButton({
         className="min-h-10 px-3 text-sm"
         disabled={pending || !profile.active}
         onClick={() => {
-          const body = currentDefaultName
-            ? `New unassigned products and variants will use "${profile.name}" instead of "${currentDefaultName}".`
-            : `New unassigned products and variants will use "${profile.name}".`;
-          if (!window.confirm(`Change the default parcel profile?\n\n${body}`)) {
-            return;
-          }
           setError(null);
           startTransition(async () => {
             const result = await setStoreDefaultShippingProfileAction(profile.id);
@@ -151,9 +244,10 @@ function SetDefaultProfileButton({
               router.refresh();
               return;
             }
-            setError('Default parcel profile could not be changed.');
+            setError('Default package type could not be changed.');
           });
         }}
+        title={title}
       >
         {pending ? 'Setting default...' : 'Set as default'}
       </Button>
@@ -240,26 +334,18 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
         .filter((rule) => currency === 'all' || rule.currency_code === currency)
         .slice()
         .sort((a, b) => {
+          const aMeta = destinationMeta(a);
+          const bMeta = destinationMeta(b);
+          if (aMeta.priority !== bMeta.priority) {
+            return aMeta.priority - bMeta.priority;
+          }
           if (a.currency_code !== b.currency_code) {
             return a.currency_code.localeCompare(b.currency_code);
           }
-          if (a.match_kind !== b.match_kind) {
-            return a.match_kind === 'exact_country' ? -1 : 1;
-          }
-          return destinationLabel(a).localeCompare(destinationLabel(b));
+          return aMeta.label.localeCompare(bMeta.label);
         }),
     [currency, rules]
   );
-
-  const ruleGroups = useMemo(() => {
-    const groups = new Map<CurrencyCode, RuleRow[]>();
-    for (const rule of sortedRules) {
-      const group = groups.get(rule.currency_code) ?? [];
-      group.push(rule);
-      groups.set(rule.currency_code, group);
-    }
-    return Array.from(groups.entries());
-  }, [sortedRules]);
 
   const activeProfileOptions = profiles.map(({ active, id, name }) => ({ active, id, name }));
   const ruleOptions = rules.map((rule) => ({
@@ -269,49 +355,35 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
     countryCode: rule.country_code
   }));
   const assignmentTotal = profiles.reduce((total, profile) => total + profile.assignmentCount, 0);
+  const hasVietnamRule = rules.some((rule) => rule.active && rule.country_code === 'VN');
+  const hasUsRule = rules.some((rule) => rule.active && rule.country_code === 'US');
+  const hasFallbackRule = rules.some((rule) => rule.active && rule.match_kind === 'fallback');
 
   return (
     <div className="grid gap-8">
-      {!currentDefault ? (
-        <Alert variant="warning">
-          <AlertTitle>
-            Shipping setup is not ready for destinations without an exact or attached profile rule.
-          </AlertTitle>
-          <p className="mt-1 text-sm">Select a default parcel profile to provide a fallback.</p>
-        </Alert>
-      ) : null}
+      <ReadinessPanel
+        hasDefault={Boolean(currentDefault)}
+        hasVietnamRule={hasVietnamRule}
+        hasUsRule={hasUsRule}
+        hasFallbackRule={hasFallbackRule}
+        adjustmentCount={adjustmentGroups.length}
+      />
 
       <SectionSurface
-        title="Parcel profiles"
-        description="Reusable parcel groups, default coverage, and assignment impact."
-        count={filteredProfiles.length}
+        title="Shipping fees by destination"
+        description="The rows customers actually hit at checkout."
+        count={sortedRules.length}
+        action={<ShippingRuleSheet profiles={activeProfileOptions} />}
       >
-        <div className="grid gap-2 border-b border-[var(--border)] px-4 py-4 sm:grid-cols-[minmax(220px,1fr)_150px_130px] sm:px-6">
-          <label className="relative">
-            <span className="sr-only">Search shipping profiles</span>
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]"
-              aria-hidden="true"
-            />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search profile or destination"
-              className="min-h-10 pl-9 text-sm"
-            />
-          </label>
-          <Select value={status} onValueChange={(value) => setStatus(value as typeof status)}>
-            <SelectTrigger aria-label="Filter by status" className="h-10 min-h-10 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="grid gap-2 border-b border-[var(--border)] px-4 py-4 sm:grid-cols-[minmax(220px,1fr)_150px] sm:px-6">
+          <div className="flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--muted-foreground)]">
+            <MapPin className="size-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">
+              Package types stay behind the scenes. Start here when changing customer-facing shipping fees.
+            </span>
+          </div>
           <Select value={currency} onValueChange={(value) => setCurrency(value as typeof currency)}>
-            <SelectTrigger aria-label="Filter by currency" className="h-10 min-h-10 text-sm">
+            <SelectTrigger aria-label="Filter destination fees by currency" className="h-10 min-h-10 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -322,14 +394,101 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
           </Select>
         </div>
 
+        {sortedRules.length === 0 ? (
+          <AdminEmptyState
+            icon={MapPin}
+            title="No shipping fees for this currency."
+            description="Add Vietnam, United States, or Other countries coverage."
+          />
+        ) : (
+          <div className="divide-y divide-[var(--border)]">
+            {sortedRules.map((rule) => {
+              const meta = destinationMeta(rule);
+              const regionCount = rule.shipping_region_adjustments?.length ?? 0;
+              return (
+              <article
+                key={rule.id}
+                className="grid gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(160px,0.8fr)_minmax(190px,1fr)_minmax(220px,1.15fr)_150px_110px] lg:items-center"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{meta.label}</p>
+                  <p className="mt-1 truncate text-sm text-[var(--muted-foreground)]">
+                    {meta.detail}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{rule.profileName}</p>
+                  <p className="text-sm text-[var(--muted-foreground)]">Package type</p>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold tabular-nums">
+                    {rule.currency_code}
+                  </p>
+                  <p className="text-sm text-[var(--muted-foreground)]">
+                    {feeLabel(
+                      rule.currency_code,
+                      rule.first_item_fee_minor,
+                      rule.additional_item_fee_minor
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold tabular-nums">{regionCount}</p>
+                  <p className="text-sm text-[var(--muted-foreground)]">US state surcharges</p>
+                </div>
+                <div className="flex justify-start lg:justify-end">
+                  <AdminStatusPill
+                    tone={rule.active && rule.profileActive ? 'success' : 'default'}
+                  >
+                    {rule.active && rule.profileActive ? 'Active' : 'Inactive'}
+                  </AdminStatusPill>
+                </div>
+              </article>
+              );
+            })}
+          </div>
+        )}
+      </SectionSurface>
+
+      <SectionSurface
+        title="Package types"
+        description="Reusable package groups for products and variants."
+        count={filteredProfiles.length}
+      >
+        <div className="grid gap-2 border-b border-[var(--border)] px-4 py-4 sm:grid-cols-[minmax(220px,1fr)_150px] sm:px-6">
+          <label className="relative">
+            <span className="sr-only">Search package types</span>
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]"
+              aria-hidden="true"
+            />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search package type or destination"
+              className="min-h-10 pl-9 text-sm"
+            />
+          </label>
+          <Select value={status} onValueChange={(value) => setStatus(value as typeof status)}>
+            <SelectTrigger aria-label="Filter package types by status" className="h-10 min-h-10 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {filteredProfiles.length === 0 ? (
           <AdminEmptyState
-            icon={Truck}
-            title={profiles.length ? 'No profiles match these filters.' : 'No parcel profiles yet.'}
+            icon={PackageCheck}
+            title={profiles.length ? 'No package types match these filters.' : 'No package types yet.'}
             description={
               profiles.length
-                ? 'Change the search, status, or currency filter.'
-                : 'Add a profile to define package dimensions and weight.'
+                ? 'Change the search or status filter.'
+                : 'Add a package type before creating destination fees.'
             }
           />
         ) : (
@@ -355,13 +514,13 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
                 </div>
                 <div>
                   <p className="text-sm font-semibold tabular-nums">{profile.assignmentCount}</p>
-                  <p className="text-sm text-[var(--muted-foreground)]">assignments</p>
+                  <p className="text-sm text-[var(--muted-foreground)]">product assignments</p>
                 </div>
                 <div>
                   <p className="text-sm font-semibold tabular-nums">
                     {(profile.shipping_rules ?? []).length}
                   </p>
-                  <p className="text-sm text-[var(--muted-foreground)]">rules</p>
+                  <p className="text-sm text-[var(--muted-foreground)]">destination fees</p>
                 </div>
                 <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
                   {!profile.isDefault ? (
@@ -376,7 +535,7 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
                     disabled={!profile.active}
                     blockedReason={
                       profile.isDefault
-                        ? `"${profile.name}" is the default parcel profile. Set another profile as default before deleting it.`
+                        ? `"${profile.name}" is the default package type. Set another package type as default before deleting it.`
                         : undefined
                     }
                   />
@@ -388,75 +547,16 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
       </SectionSurface>
 
       <SectionSurface
-        title="Destination rules"
-        description="Exact country rows appear before the Other countries fallback for each currency."
-        count={sortedRules.length}
-        action={<ShippingRuleSheet profiles={activeProfileOptions} />}
-      >
-        {ruleGroups.length === 0 ? (
-          <AdminEmptyState
-            icon={MapPin}
-            title="No destination rules for this currency."
-            description="Add a country rule or an Other countries fallback."
-          />
-        ) : (
-          <div className="divide-y divide-[var(--border)]">
-            {ruleGroups.map(([groupCurrency, groupRules]) => (
-              <div key={groupCurrency}>
-                <div className="flex items-center justify-between bg-[var(--surface-muted)] px-4 py-3 text-sm sm:px-6">
-                  <span className="font-semibold">{groupCurrency}</span>
-                  <span className="text-[var(--muted-foreground)]">{groupRules.length} rules</span>
-                </div>
-                <div className="divide-y divide-[var(--border)]">
-                  {groupRules.map((rule) => (
-                    <article
-                      key={rule.id}
-                      className="grid gap-3 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(140px,0.7fr)_minmax(180px,1fr)_minmax(230px,1.2fr)_120px] lg:items-center"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold">{destinationLabel(rule)}</p>
-                        <p className="text-sm text-[var(--muted-foreground)]">
-                          {rule.match_kind === 'fallback' ? 'Fallback' : 'Specific country'}
-                        </p>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{rule.profileName}</p>
-                        <p className="text-sm text-[var(--muted-foreground)]">Parcel profile</p>
-                      </div>
-                      <p className="text-sm text-[var(--muted-foreground)]">
-                        {feeLabel(
-                          rule.currency_code,
-                          rule.first_item_fee_minor,
-                          rule.additional_item_fee_minor
-                        )}
-                      </p>
-                      <div className="flex justify-start lg:justify-end">
-                        <AdminStatusPill
-                          tone={rule.active && rule.profileActive ? 'success' : 'default'}
-                        >
-                          {rule.active && rule.profileActive ? 'Active' : 'Inactive'}
-                        </AdminStatusPill>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </SectionSurface>
-
-      <SectionSurface
-        title="US region adjustments"
-        description="Regional surcharge or replacement rules layered on top of US shipping."
+        title="US state surcharges"
+        description="Optional surcharge or replacement fees layered on top of United States shipping."
         count={adjustmentGroups.length}
         action={<ShippingRegionAdjustmentSheet rules={ruleOptions} />}
       >
         {adjustmentGroups.length === 0 ? (
           <AdminEmptyState
             icon={ShieldCheck}
-            title="No US region adjustments."
-            description="Standard destination rules apply to every state and territory."
+            title="No US state surcharges."
+            description="Standard United States shipping applies to every state and territory."
           />
         ) : (
           <div className="divide-y divide-[var(--border)]">
@@ -497,19 +597,36 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
       </SectionSurface>
 
       <SectionSurface
-        title="Assignments"
-        description="Product and variant assignment controls stay in the catalog workflow."
+        title="Product package assignments"
+        description="Most products can use the default package type. Assign custom package types only when the parcel is meaningfully different."
         count={assignmentTotal}
       >
-        <AdminEmptyState
-          icon={Truck}
-          title={
-            assignmentTotal
-              ? `${assignmentTotal} explicit assignments are counted on parcel profiles.`
-              : 'No explicit assignments.'
-          }
-          description="Products and variants without an explicit assignment use the store default parcel profile."
-        />
+        <div className="grid gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <Truck className="size-4 text-[var(--accent)]" aria-hidden="true" />
+              <p className="font-semibold">
+                {assignmentTotal
+                  ? `${assignmentTotal} custom product or variant assignments`
+                  : 'No custom assignments'}
+              </p>
+            </div>
+            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+              Products and variants without a custom assignment use{' '}
+              <span className="font-semibold text-[var(--foreground)]">
+                {currentDefault?.name ?? 'the default package type'}
+              </span>
+              .
+            </p>
+          </div>
+          <Link
+            href="/admin/catalog"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] transition-colors hover:bg-[var(--surface-muted)]"
+          >
+            Open catalog
+            <ArrowUpRight className="size-4" aria-hidden="true" />
+          </Link>
+        </div>
       </SectionSurface>
     </div>
   );

@@ -25,22 +25,22 @@ export function ShippingCreateSheet() {
         ) : (
           <Plus className="size-4" aria-hidden="true" />
         )}
-        {created ? 'Profile created' : 'New profile'}
+        {created ? 'Package type created' : 'New package type'}
       </Button>
       <Sheet
         open={open}
         onOpenChange={setOpen}
         showTrigger={false}
-        triggerLabel="New shipping profile"
-        title="Create shipping profile"
-        closeLabel="Close shipping profile form"
+        triggerLabel="New package type"
+        title="Create package type"
+        closeLabel="Close package type form"
         contentClassName="!w-[min(520px,96vw)] max-sm:!w-screen"
         headerClassName="px-5 sm:px-6"
         bodyClassName="p-5 sm:p-6"
       >
         <div className="mb-5 border-b border-[var(--border)] pb-4">
           <p className="text-sm text-[var(--muted-foreground)]">
-            Create a reusable parcel profile. Add destination rules after the profile is saved.
+            Create a reusable package group for products that share similar shipping fees.
           </p>
         </div>
         <ShippingProfileForm
