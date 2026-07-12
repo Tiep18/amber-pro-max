@@ -18,7 +18,7 @@ import {ShippingRegionAdjustmentSheet} from './shipping-region-adjustment-sheet'
 
 export type AdminShippingRule = {
   id: string;
-  country_code: string;
+  country_code: string | null;
   currency_code: CurrencyCode;
   first_item_fee_minor: number;
   additional_item_fee_minor: number;
@@ -50,7 +50,7 @@ export function ShippingProfileList({ profiles }: { profiles: AdminShippingProfi
         !normalized ||
         profile.name.toLowerCase().includes(normalized) ||
         (profile.description ?? '').toLowerCase().includes(normalized) ||
-        rules.some((rule) => rule.country_code.toLowerCase().includes(normalized));
+        rules.some((rule) => (rule.country_code ?? 'other countries').toLowerCase().includes(normalized));
       const matchesStatus =
         status === 'all' || (status === 'active' ? profile.active : !profile.active);
       const matchesCurrency =
@@ -78,7 +78,7 @@ export function ShippingProfileList({ profiles }: { profiles: AdminShippingProfi
         <ShippingRegionAdjustmentSheet rules={profiles.flatMap((profile) =>
           (profile.shipping_rules ?? []).map((rule) => ({
             id: rule.id,
-            label: `${profile.name} · ${rule.country_code} · ${rule.currency_code}`,
+            label: `${profile.name} · ${rule.country_code ?? 'Other countries'} · ${rule.currency_code}`,
             currencyCode: rule.currency_code,
             countryCode: rule.country_code
           }))
@@ -156,7 +156,7 @@ export function ShippingProfileList({ profiles }: { profiles: AdminShippingProfi
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-semibold">
-                        {rule.country_code} · {rule.currency_code}
+                        {rule.country_code ?? 'Other countries'} · {rule.currency_code}
                       </span>
                       {!rule.active ? (
                         <span className="text-xs text-[var(--muted-foreground)]">Inactive</span>
