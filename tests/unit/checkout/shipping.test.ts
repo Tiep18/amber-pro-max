@@ -86,6 +86,38 @@ describe('calculateShippingQuote', () => {
     expect(original).toMatchObject({amountMinor: 875, firstItemLineId: 'alpha'});
   });
 
+  test('preserves highest-first-once totals for mixed profiles, quantities, and free shipping', () => {
+    const quote = calculateShippingQuote({
+      countryCode: 'US',
+      currencyCode: 'USD',
+      lines: [
+        physicalLine({
+          lineId: 'profile-a-two-units',
+          quantity: 2,
+          rule: {additionalItemFeeMinor: 100, countryCode: 'US', firstItemFeeMinor: 500}
+        }),
+        physicalLine({
+          lineId: 'profile-b-three-units',
+          quantity: 3,
+          shippingProfileId: 'profile-b',
+          rule: {additionalItemFeeMinor: 250, countryCode: 'US', firstItemFeeMinor: 900}
+        }),
+        physicalLine({
+          lineId: 'free-line',
+          quantity: 4,
+          rule: {additionalItemFeeMinor: 0, countryCode: 'US', firstItemFeeMinor: 0}
+        })
+      ]
+    });
+
+    expect(quote).toMatchObject({
+      status: 'ready',
+      amountMinor: 1600,
+      chargeableUnitCount: 5,
+      firstItemLineId: 'profile-b-three-units'
+    });
+  });
+
   test('blocks unsupported destinations without returning a placeholder amount', () => {
     const quote = calculateShippingQuote({
       countryCode: 'CA',
