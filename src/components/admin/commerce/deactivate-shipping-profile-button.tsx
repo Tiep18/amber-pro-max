@@ -12,12 +12,14 @@ type DeactivateShippingProfileButtonProps = {
   profileId: string;
   profileName: string;
   disabled?: boolean;
+  blockedReason?: string;
 };
 
 export function DeactivateShippingProfileButton({
   profileId,
   profileName,
-  disabled
+  disabled,
+  blockedReason
 }: DeactivateShippingProfileButtonProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -29,10 +31,10 @@ export function DeactivateShippingProfileButton({
         type="button"
         variant="destructive"
         className="min-h-9 px-3 text-sm"
-        disabled={disabled || pending}
+        disabled={Boolean(blockedReason) || disabled || pending}
         onClick={() => {
           const confirmed = window.confirm(
-            `Deactivate ${profileName}? Existing attachments stay in place, but checkout quotes will stop using this profile.`
+            `Deactivate "${profileName}"?\n\nExisting assignments stay in place, but checkout quotes will stop using this profile.`
           );
           if (!confirmed) {
             return;
@@ -48,6 +50,11 @@ export function DeactivateShippingProfileButton({
       >
         Deactivate
       </Button>
+      {blockedReason ? (
+        <p className="max-w-64 text-left text-sm text-[var(--muted-foreground)] lg:text-right">
+          {blockedReason}
+        </p>
+      ) : null}
       {result?.status === 'error' ? (
         <p className="text-sm text-[var(--destructive)]">
           Shipping profile could not be deactivated.
