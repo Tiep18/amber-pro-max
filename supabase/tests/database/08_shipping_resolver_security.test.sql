@@ -157,6 +157,8 @@ select is(
   'inactive or nonmatching adjustments leave the base rule unchanged'
 );
 
+update public.shipping_store_defaults set active = false where active;
+update public.shipping_rules set active = false where profile_id = '08020000-0000-0000-0000-000000000003';
 select is(
   public.get_checkout_shipping_quote_v2(
     '[{"lineId":"unsupported-z","productId":"08023000-0000-0000-0000-000000000002","variantId":null,"quantity":1}]',
@@ -165,6 +167,8 @@ select is(
   'error',
   'unsupported physical lines fail closed'
 );
+update public.shipping_store_defaults set active = true where shipping_profile_id = '08020000-0000-0000-0000-000000000005';
+update public.shipping_rules set active = true where profile_id = '08020000-0000-0000-0000-000000000003' and id <> '08021000-0000-0000-0000-000000000010';
 select is(
   public.get_checkout_shipping_quote_v2('[]', 'US', 'USD', null) ->> 'code',
   'invalid_lines',

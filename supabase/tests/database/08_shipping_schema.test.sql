@@ -267,8 +267,8 @@ select results_eq(
   $$select status, code
     from jsonb_to_record(public.get_checkout_shipping_quote_v2('[]'::jsonb, 'US', 'USD', 'CA'))
       as r(status text, code text)$$,
-  $$values ('error'::text, 'resolver_not_ready'::text)$$,
-  'quote wrapper fails closed until Plan 08-02 installs the resolver'
+  $$values ('error'::text, 'invalid_lines'::text)$$,
+  'quote wrapper rejects empty line intent after Plan 08-02 installs the resolver'
 );
 
 set local role anon;

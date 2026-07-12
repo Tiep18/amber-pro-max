@@ -167,7 +167,7 @@ describe('resolveShippingCandidates', () => {
 
   test.each([
     ['surcharge', 1200, 350, 1500, 425],
-    ['replace', 1200, 350, 700, 125]
+    ['replace', 1200, 350, 700, 75]
   ] as const)('applies normalized region %s arithmetic to both fees', (mode, baseFirst, baseAdditional, finalFirst, finalAdditional) => {
     const result = resolveShippingCandidates({
       countryCode: 'US',

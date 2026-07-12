@@ -1,4 +1,5 @@
 import type {CurrencyCode} from '@/catalog/money';
+import type {ResolvedShippingAllocation} from '@/checkout/shipping-resolution';
 
 export type ShippingRuleQuote = {
   countryCode: string;
@@ -15,6 +16,7 @@ export type ShippingQuoteLine = {
   currencyCode: CurrencyCode;
   shippingProfileId: string | null;
   rule: ShippingRuleQuote | null;
+  resolvedAllocation?: ResolvedShippingAllocation | null;
 };
 
 export type ChargeableShippingUnit = {
@@ -67,11 +69,13 @@ function unitSortKey(unit: ChargeableShippingUnit) {
 
 export function selectChargeablePhysicalUnits(lines: ShippingQuoteLine[]): ChargeableShippingUnit[] {
   return lines.flatMap((line) => {
-    if (line.fulfillmentType !== 'physical' || line.quantity <= 0 || !line.rule) {
+    const firstItemFeeMinor = line.resolvedAllocation?.finalFirstItemFeeMinor ?? line.rule?.firstItemFeeMinor;
+    const additionalItemFeeMinor = line.resolvedAllocation?.finalAdditionalItemFeeMinor ?? line.rule?.additionalItemFeeMinor;
+    if (line.fulfillmentType !== 'physical' || line.quantity <= 0 || firstItemFeeMinor === undefined || additionalItemFeeMinor === undefined) {
       return [];
     }
 
-    if (line.rule.firstItemFeeMinor === 0 && line.rule.additionalItemFeeMinor === 0) {
+    if (firstItemFeeMinor === 0 && additionalItemFeeMinor === 0) {
       return [];
     }
 
@@ -80,8 +84,8 @@ export function selectChargeablePhysicalUnits(lines: ShippingQuoteLine[]): Charg
       productId: line.productId,
       variantId: line.variantId,
       unitIndex,
-      firstItemFeeMinor: line.rule?.firstItemFeeMinor ?? 0,
-      additionalItemFeeMinor: line.rule?.additionalItemFeeMinor ?? 0
+      firstItemFeeMinor,
+      additionalItemFeeMinor
     }));
   });
 }
@@ -111,7 +115,15 @@ export function calculateShippingQuote(input: CalculateShippingQuoteInput): Ship
   }
 
   const unsupportedLineIds = physicalLines
-    .filter((line) => !line.rule || line.rule.countryCode.toUpperCase() !== countryCode)
+    .filter((line) => {
+      if (line.resolvedAllocation) {
+        return (
+          line.resolvedAllocation.destinationCountryCode !== countryCode ||
+          line.resolvedAllocation.currencyCode !== input.currencyCode
+        );
+      }
+      return !line.rule || line.rule.countryCode.toUpperCase() !== countryCode;
+    })
     .map((line) => line.lineId)
     .sort();
 

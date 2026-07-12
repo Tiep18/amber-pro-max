@@ -118,6 +118,44 @@ describe('calculateShippingQuote', () => {
     });
   });
 
+  test('aggregates canonical final allocation fees without trusting legacy rule amounts', () => {
+    const quote = calculateShippingQuote({
+      countryCode: 'US',
+      currencyCode: 'USD',
+      lines: [
+        physicalLine({
+          lineId: 'resolved-region-line',
+          quantity: 2,
+          rule: {additionalItemFeeMinor: 1, countryCode: 'US', firstItemFeeMinor: 1},
+          resolvedAllocation: {
+            baseAdditionalItemFeeMinor: 100,
+            baseFirstItemFeeMinor: 500,
+            currencyCode: 'USD',
+            destinationCountryCode: 'US',
+            finalAdditionalItemFeeMinor: 175,
+            finalFirstItemFeeMinor: 800,
+            lineId: 'resolved-region-line',
+            productId: 'product-a',
+            profileName: 'US parcel',
+            quantity: 2,
+            regionAdditionalItemFeeMinor: 75,
+            regionAdjustmentId: 'adjustment-ca',
+            regionCode: 'CA',
+            regionFirstItemFeeMinor: 300,
+            regionMode: 'surcharge',
+            ruleMatchKind: 'exact_country',
+            shippingProfileId: 'profile-a',
+            shippingRuleId: 'rule-us',
+            source: 'product',
+            variantId: null
+          }
+        })
+      ]
+    });
+
+    expect(quote).toMatchObject({status: 'ready', amountMinor: 975, firstItemLineId: 'resolved-region-line'});
+  });
+
   test('blocks unsupported destinations without returning a placeholder amount', () => {
     const quote = calculateShippingQuote({
       countryCode: 'CA',
