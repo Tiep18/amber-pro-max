@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(42);
+select plan(51);
 
 select has_table('public', 'products', 'products table exists');
 select has_table('public', 'product_translations', 'product translations table exists');
@@ -371,6 +371,126 @@ select is(
   ),
   'published',
   'publishing updates the product status'
+);
+
+update public.product_translations
+set title = ''
+where product_id = '20000000-0000-0000-0000-000000000001'
+  and locale = 'en';
+
+select is(
+  (select status from public.products where id = '20000000-0000-0000-0000-000000000001'),
+  'draft',
+  'blanking a localized title demotes a published product'
+);
+
+select ok(
+  exists (
+    select 1
+    from public.catalog_publish_issues('20000000-0000-0000-0000-000000000001')
+    where issue_code = 'missing_translation' and locale = 'en'
+  ),
+  'a blank localized title reports the stable missing translation blocker'
+);
+
+update public.product_translations
+set title = 'Crochet bear'
+where product_id = '20000000-0000-0000-0000-000000000001'
+  and locale = 'en';
+
+select results_eq(
+  $$select published from public.publish_catalog_product('20000000-0000-0000-0000-000000000001')$$,
+  $$values (true)$$,
+  'restoring the title allows explicit republish'
+);
+
+update public.product_market_offers
+set price_minor = null
+where product_id = '20000000-0000-0000-0000-000000000001'
+  and market_code = 'intl';
+
+select is(
+  (select status from public.products where id = '20000000-0000-0000-0000-000000000001'),
+  'draft',
+  'removing an enabled offer price demotes a published product'
+);
+
+select ok(
+  exists (
+    select 1
+    from public.catalog_publish_issues('20000000-0000-0000-0000-000000000001')
+    where issue_code = 'invalid_market_offer' and market_code = 'intl'
+  ),
+  'an enabled null-price offer reports the stable invalid offer blocker'
+);
+
+update public.product_market_offers
+set price_minor = 700
+where product_id = '20000000-0000-0000-0000-000000000001'
+  and market_code = 'intl';
+
+select results_eq(
+  $$select published from public.publish_catalog_product('20000000-0000-0000-0000-000000000001')$$,
+  $$values (true)$$,
+  'restoring the offer price allows explicit republish'
+);
+
+insert into public.product_translations (
+  product_id, locale, slug, title, description, seo_title, seo_description,
+  social_image_bucket, social_image_path
+)
+values
+  (
+    '20000000-0000-0000-0000-000000000003', 'vi', 'gau-thanh-pham',
+    'Gau thanh pham', '', 'Gau thanh pham', 'Gau moc san.',
+    'product-media', 'products/finished/social-vi.jpg'
+  ),
+  (
+    '20000000-0000-0000-0000-000000000003', 'en', 'finished-bear',
+    'Finished bear', '', 'Finished bear', 'Ready-made crochet bear.',
+    'product-media', 'products/finished/social-en.jpg'
+  );
+
+insert into public.product_media (
+  product_id, bucket_id, object_path, display_order, is_primary
+)
+values (
+  '20000000-0000-0000-0000-000000000003',
+  'product-media',
+  'products/finished/primary.jpg',
+  0,
+  true
+);
+
+insert into public.product_market_offers (
+  product_id, market_code, currency_code, enabled, price_minor
+)
+values ('20000000-0000-0000-0000-000000000003', 'vn', 'VND', true, 450000);
+
+select results_eq(
+  $$select published from public.publish_catalog_product('20000000-0000-0000-0000-000000000003')$$,
+  $$values (true)$$,
+  'a complete product can publish with one eligible market offer'
+);
+
+insert into public.product_market_offers (
+  product_id, market_code, currency_code, enabled, price_minor
+)
+values ('20000000-0000-0000-0000-000000000003', 'intl', 'USD', true, null);
+
+select is(
+  (select status from public.products where id = '20000000-0000-0000-0000-000000000003'),
+  'draft',
+  'inserting an enabled null-price offer demotes a published product'
+);
+
+select ok(
+  exists (
+    select 1
+    from public.catalog_publish_issues('20000000-0000-0000-0000-000000000003')
+    where issue_code = 'invalid_market_offer' and market_code = 'intl'
+  ),
+  'an inserted enabled null-price offer reports the stable invalid offer blocker'
 );
 
 delete from public.product_digital_assets

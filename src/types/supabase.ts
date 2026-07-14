@@ -2679,7 +2679,7 @@ export type Database = {
           product_id: string
           seo_description: string | null
           seo_title: string | null
-          slug: string
+          slug: string | null
           social_image_bucket: string | null
           social_image_path: string | null
           specifications: Json
@@ -2694,7 +2694,7 @@ export type Database = {
           product_id: string
           seo_description?: string | null
           seo_title?: string | null
-          slug: string
+          slug?: string | null
           social_image_bucket?: string | null
           social_image_path?: string | null
           specifications?: Json
@@ -2709,7 +2709,7 @@ export type Database = {
           product_id?: string
           seo_description?: string | null
           seo_title?: string | null
-          slug?: string
+          slug?: string | null
           social_image_bucket?: string | null
           social_image_path?: string | null
           specifications?: Json

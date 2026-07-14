@@ -12,7 +12,7 @@ type TranslationRow = {
   title: string;
   description: string;
   specifications: Json;
-  slug: string;
+  slug: string | null;
   seo_title: string | null;
   seo_description: string | null;
 };
@@ -100,11 +100,14 @@ export async function getCatalogOptions() {
 }
 
 function titleForProduct(product: AdminProductRow) {
-  return (
-    product.product_translations.find((translation) => translation.locale === 'en')?.title ??
-    product.product_translations[0]?.title ??
-    'Untitled product'
-  );
+  const preferredTitle = product.product_translations
+    .find((translation) => translation.locale === 'en')
+    ?.title.trim();
+  const fallbackTitle = product.product_translations
+    .find((translation) => translation.title.trim().length > 0)
+    ?.title.trim();
+
+  return preferredTitle || fallbackTitle || 'Untitled product';
 }
 
 function thumbnailForProduct(

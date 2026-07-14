@@ -78,16 +78,16 @@ describe('product draft schema', () => {
     expect(productDraftSchema.safeParse(draft).success).toBe(true);
   });
 
-  it('rejects an enabled market without a non-negative integer price', () => {
+  it('allows publish-readiness omissions in an incomplete draft', () => {
     const draft = validDraft();
+    draft.translations.vi.title = '';
+    draft.translations.vi.slug = '   ';
     draft.offers.vn = {enabled: true, priceMinor: null};
 
-    const result = productDraftSchema.safeParse(draft);
-
-    expect(result.success).toBe(false);
+    expect(productDraftSchema.safeParse(draft).success).toBe(true);
   });
 
-  it('rejects invalid localized slugs and non-object specifications', () => {
+  it('rejects malformed non-empty slugs and non-object specifications', () => {
     const draft = validDraft();
     draft.translations.en.slug = 'Little Bear';
     draft.translations.en.specifications = '[]';

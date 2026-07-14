@@ -1,7 +1,13 @@
 import {z} from 'zod';
 
 const uuidSchema = z.uuid();
-const slugSchema = z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const slugSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) => value.length === 0 || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value),
+    'invalid_slug'
+  );
 
 const specificationsSchema = z
   .string()
@@ -21,7 +27,7 @@ const specificationsSchema = z
   });
 
 const translationSchema = z.object({
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().max(200),
   description: z.string().trim().max(20_000),
   specifications: specificationsSchema,
   slug: slugSchema.max(200),
@@ -29,20 +35,10 @@ const translationSchema = z.object({
   seoDescription: z.string().trim().max(500)
 });
 
-const offerSchema = z
-  .object({
-    enabled: z.boolean(),
-    priceMinor: z.number().int().nonnegative().nullable()
-  })
-  .superRefine((offer, context) => {
-    if (offer.enabled && offer.priceMinor === null) {
-      context.addIssue({
-        code: 'custom',
-        path: ['priceMinor'],
-        message: 'enabled_market_requires_price'
-      });
-    }
-  });
+const offerSchema = z.object({
+  enabled: z.boolean(),
+  priceMinor: z.number().int().nonnegative().nullable()
+});
 
 export const productDraftSchema = z.object({
   productId: uuidSchema.optional(),

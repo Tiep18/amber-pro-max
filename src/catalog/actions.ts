@@ -85,7 +85,7 @@ export async function saveProductDraftAction(input: ProductDraftInput): Promise<
               title: translation.title,
               description: translation.description,
               specifications: translation.specifications,
-              slug: translation.slug,
+              slug: translation.slug || null,
               seo_title: translation.seoTitle || null,
               seo_description: translation.seoDescription || null
             };

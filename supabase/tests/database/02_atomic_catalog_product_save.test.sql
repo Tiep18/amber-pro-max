@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(14);
+select plan(21);
 
 select has_function(
   'public',
@@ -207,6 +207,122 @@ select is(
   (select count(*) from public.product_categories where product_id = '02000000-0000-4000-8000-000000000010'),
   0::bigint,
   'successful aggregate save replaces relation membership'
+);
+
+create temporary table saved_incomplete_products (id uuid primary key);
+
+select lives_ok(
+  $call$
+    insert into saved_incomplete_products (id)
+    select public.admin_save_catalog_product(
+      '{
+        "product_id":null,
+        "product_type":"pdf_pattern",
+        "translations":[
+          {"locale":"vi","slug":null,"title":"","description":"Partial VI","specifications":{},"seo_title":null,"seo_description":null},
+          {"locale":"en","slug":null,"title":"Partial EN","description":"","specifications":{},"seo_title":null,"seo_description":null}
+        ],
+        "offers":[
+          {"market_code":"vn","currency_code":"VND","enabled":true,"price_minor":null},
+          {"market_code":"intl","currency_code":"USD","enabled":false,"price_minor":null}
+        ],
+        "category_ids":[],
+        "technique_ids":[],
+        "tag_ids":[],
+        "collections":[]
+      }'::jsonb
+    )
+  $call$,
+  'an incomplete catalog aggregate saves atomically'
+);
+
+select is(
+  (
+    select count(*)
+    from public.product_translations pt
+    join saved_incomplete_products sip on sip.id = pt.product_id
+    where pt.slug is null
+  ),
+  2::bigint,
+  'an incomplete draft reloads both nullable localized slugs'
+);
+
+select is(
+  (
+    select count(*)
+    from public.product_market_offers pmo
+    join saved_incomplete_products sip on sip.id = pmo.product_id
+    where pmo.enabled and pmo.price_minor is null
+  ),
+  1::bigint,
+  'an incomplete enabled market offer retains its missing draft price'
+);
+
+select results_eq(
+  $$
+    select distinct issue_code
+    from saved_incomplete_products sip
+    cross join lateral public.catalog_publish_issues(sip.id)
+    where issue_code in (
+      'missing_translation',
+      'missing_slug',
+      'invalid_market_offer',
+      'missing_market_offer'
+    )
+    order by issue_code
+  $$,
+  $$values
+    ('invalid_market_offer'::text),
+    ('missing_market_offer'::text),
+    ('missing_slug'::text),
+    ('missing_translation'::text)$$,
+  'publish readiness reports stable blockers for the incomplete draft'
+);
+
+select results_eq(
+  $$
+    select published
+    from saved_incomplete_products sip
+    cross join lateral public.publish_catalog_product(sip.id)
+  $$,
+  $$values (false)$$,
+  'the incomplete aggregate remains blocked from publication'
+);
+
+select lives_ok(
+  $call$
+    insert into saved_incomplete_products (id)
+    select public.admin_save_catalog_product(
+      '{
+        "product_id":null,
+        "product_type":"physical_finished",
+        "translations":[
+          {"locale":"vi","slug":null,"title":"","description":"","specifications":{},"seo_title":null,"seo_description":null},
+          {"locale":"en","slug":null,"title":"","description":"","specifications":{},"seo_title":null,"seo_description":null}
+        ],
+        "offers":[
+          {"market_code":"vn","currency_code":"VND","enabled":false,"price_minor":null},
+          {"market_code":"intl","currency_code":"USD","enabled":false,"price_minor":null}
+        ],
+        "category_ids":[],
+        "technique_ids":[],
+        "tag_ids":[],
+        "collections":[]
+      }'::jsonb
+    )
+  $call$,
+  'a second incomplete draft can also use null localized slugs'
+);
+
+select is(
+  (
+    select count(*)
+    from public.product_translations pt
+    join saved_incomplete_products sip on sip.id = pt.product_id
+    where pt.slug is null
+  ),
+  4::bigint,
+  'nullable localized slugs do not collide across incomplete drafts'
 );
 
 select finish();
