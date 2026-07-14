@@ -9,7 +9,9 @@ import {
   CheckCircle2,
   ChevronDown,
   PackageCheck,
+  PackageOpen,
   Search,
+  SlidersHorizontal,
   Truck
 } from 'lucide-react';
 import { formatMoney, type CurrencyCode } from '@/catalog/money';
@@ -174,11 +176,13 @@ function ReadinessBanner({ profiles }: { profiles: AdminShippingProfile[] }) {
 function SetDefaultProfileButton({
   profile,
   currentDefault,
-  assignmentTotal
+  assignmentTotal,
+  compact = false
 }: {
   profile: AdminShippingProfile;
   currentDefault: AdminShippingProfile | null;
   assignmentTotal: number;
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -203,7 +207,7 @@ function SetDefaultProfileButton({
       <Button
         type="button"
         variant="secondary"
-        className="min-h-11 px-3 text-sm"
+        className={compact ? 'min-h-11 px-3 text-sm' : 'min-h-11 px-4 text-sm'}
         disabled={!profile.active || pending}
         onClick={() => setOpen(true)}
       >
@@ -251,51 +255,64 @@ function RateCell({
 
   if (!rule) {
     return (
-      <div className="grid min-h-28 content-between gap-3 rounded-[var(--radius-control)] border border-dashed border-[var(--destructive)]/50 bg-[color:color-mix(in_srgb,var(--destructive)_4%,var(--surface))] p-3">
-        <div>
-          <p className="text-sm font-semibold text-[var(--destructive)]">Rate missing</p>
-          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-            Checkout has no {config.currency} rate.
+      <section className="grid gap-3 bg-[color:color-mix(in_srgb,var(--destructive)_4%,var(--surface))] px-4 py-3 sm:px-5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">
+            {config.label}
           </p>
+          <AdminStatusPill tone="default">Missing</AdminStatusPill>
         </div>
-        <ShippingRuleSheet
-          profiles={profiles}
-          presetProfileId={profile.id}
-          presetDestination={destination}
-          triggerLabel={`Add ${config.label} rate`}
-          triggerVariant="ghost"
-        />
-      </div>
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-[var(--destructive)]">Rate missing</p>
+            <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
+              No {config.currency} checkout rate.
+            </p>
+          </div>
+          <ShippingRuleSheet
+            profiles={profiles}
+            presetProfileId={profile.id}
+            presetDestination={destination}
+            triggerLabel="Add rate"
+            triggerVariant="ghost"
+          />
+        </div>
+      </section>
     );
   }
 
   const rate = formatRate(rule);
   return (
-    <div
-      className={`grid min-h-28 content-between gap-3 rounded-[var(--radius-control)] border p-3 ${
+    <section
+      className={`grid gap-3 px-4 py-3 sm:px-5 ${
         rule.active && profile.active
-          ? 'border-[var(--border)] bg-[var(--surface-paper)]'
-          : 'border-[var(--destructive)]/40 bg-[color:color-mix(in_srgb,var(--destructive)_4%,var(--surface))]'
+          ? 'bg-[var(--surface)]'
+          : 'bg-[color:color-mix(in_srgb,var(--destructive)_4%,var(--surface))]'
       }`}
     >
-      <div>
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold tabular-nums">{rate.first}</p>
-          <AdminStatusPill tone={rule.active && profile.active ? 'success' : 'default'}>
-            {rule.active && profile.active ? 'Active' : 'Inactive'}
-          </AdminStatusPill>
-        </div>
-        <p className="mt-1 text-xs text-[var(--muted-foreground)] tabular-nums">
-          + {rate.additional} each additional
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">
+          {config.label}
         </p>
+        <AdminStatusPill tone={rule.active && profile.active ? 'success' : 'default'}>
+          {rule.active && profile.active ? 'Active' : 'Inactive'}
+        </AdminStatusPill>
       </div>
-      <ShippingRuleSheet
-        profiles={profiles}
-        rule={rule}
-        triggerLabel="Edit rate"
-        triggerVariant="ghost"
-      />
-    </div>
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-base font-semibold tabular-nums">{rate.first}</p>
+          <p className="mt-0.5 text-xs text-[var(--muted-foreground)] tabular-nums">
+            + {rate.additional} each additional
+          </p>
+        </div>
+        <ShippingRuleSheet
+          profiles={profiles}
+          rule={rule}
+          triggerLabel="Edit"
+          triggerVariant="ghost"
+        />
+      </div>
+    </section>
   );
 }
 
@@ -323,18 +340,31 @@ function PackageDetails({
   );
   const usRule = findStandardRule(profile, 'US');
   const adjustments = usRule?.shipping_region_adjustments ?? [];
+  const overrideCount = customRules.length + adjustments.length;
 
   return (
     <details className="group border-t border-[var(--border)]">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-sm font-semibold hover:bg-[var(--surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-inset sm:px-5">
-        Advanced destinations and US state adjustments
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 bg-[var(--surface-muted)]/35 px-4 py-2.5 hover:bg-[var(--surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-inset sm:px-5">
+        <span className="flex min-w-0 items-center gap-2.5">
+          <SlidersHorizontal className="size-4 shrink-0 text-[var(--accent)]" aria-hidden="true" />
+          <span className="font-semibold">Overrides</span>
+          <span className="rounded-full bg-[var(--surface)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--muted-foreground)]">
+            {overrideCount}
+          </span>
+          <span className="hidden truncate text-sm font-normal text-[var(--muted-foreground)] sm:inline">
+            Custom countries &amp; US states
+          </span>
+        </span>
         <ChevronDown
-          className="size-4 transition-transform group-open:rotate-180"
+          className="size-4 shrink-0 transition-transform group-open:rotate-180"
           aria-hidden="true"
         />
       </summary>
-      <div className="grid gap-6 border-t border-[var(--border)] bg-[var(--surface-paper)] px-4 py-5 sm:px-5 xl:grid-cols-2">
-        <section aria-labelledby={`custom-${profile.id}`}>
+      <div className="grid border-t border-[var(--border)] bg-[var(--surface-paper)] xl:grid-cols-2">
+        <div className="border-b border-[var(--border)] px-4 py-2.5 text-sm text-[var(--muted-foreground)] xl:col-span-2">
+          Overrides for <strong className="text-[var(--foreground)]">{profile.name}</strong>
+        </div>
+        <section className="p-4 sm:p-5" aria-labelledby={`custom-${profile.id}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h4 id={`custom-${profile.id}`} className="font-semibold">
@@ -351,14 +381,14 @@ function PackageDetails({
               triggerLabel="Add country"
             />
           </div>
-          <div className="mt-4 grid gap-2">
+          <div className="mt-4 divide-y divide-[var(--border)] border-y border-[var(--border)]">
             {customRules.length ? (
               customRules.map((rule) => {
                 const rate = formatRate(rule);
                 return (
                   <div
                     key={rule.id}
-                    className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -381,14 +411,17 @@ function PackageDetails({
                 );
               })
             ) : (
-              <p className="rounded-[var(--radius-control)] border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted-foreground)]">
+              <p className="py-4 text-sm text-[var(--muted-foreground)]">
                 No custom country rates.
               </p>
             )}
           </div>
         </section>
 
-        <section aria-labelledby={`adjustments-${profile.id}`}>
+        <section
+          className="border-t border-[var(--border)] p-4 sm:p-5 xl:border-l xl:border-t-0"
+          aria-labelledby={`adjustments-${profile.id}`}
+        >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h4 id={`adjustments-${profile.id}`} className="font-semibold">
@@ -404,12 +437,12 @@ function PackageDetails({
               triggerLabel="Add state"
             />
           </div>
-          <div className="mt-4 grid gap-2">
+          <div className="mt-4 divide-y divide-[var(--border)] border-y border-[var(--border)]">
             {adjustments.length ? (
               adjustments.map((adjustment) => (
                 <div
                   key={adjustment.id}
-                  className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -443,7 +476,7 @@ function PackageDetails({
                 </div>
               ))
             ) : (
-              <p className="rounded-[var(--radius-control)] border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted-foreground)]">
+              <p className="py-4 text-sm text-[var(--muted-foreground)]">
                 No state-specific adjustments. The base US rate applies everywhere.
               </p>
             )}
@@ -489,8 +522,8 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
     <div className="grid gap-6">
       <ReadinessBanner profiles={profiles} />
 
-      <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_30px_rgba(92,48,26,0.05)]">
-        <div className="flex flex-col gap-4 border-b border-[var(--border)] px-4 py-5 sm:px-6 lg:flex-row lg:items-end lg:justify-between">
+      <section className="grid gap-3">
+        <div className="flex flex-col gap-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] px-4 py-4 shadow-[0_10px_30px_rgba(92,48,26,0.04)] sm:px-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-lg font-semibold">Package rates</h2>
@@ -533,13 +566,22 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
         </div>
 
         {filteredProfiles.length ? (
-          <div className="divide-y divide-[var(--border)]">
-            {filteredProfiles.map((profile) => (
-              <article key={profile.id}>
-                <div className="grid gap-4 p-4 sm:p-5 xl:grid-cols-[minmax(190px,0.8fr)_repeat(3,minmax(190px,1fr))]">
-                  <div className="flex min-h-28 flex-col justify-between gap-3">
+          <div className="grid gap-3">
+            {filteredProfiles.map((profile, index) => (
+              <article
+                key={profile.id}
+                className="relative overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_24px_rgba(92,48,26,0.05)] before:absolute before:inset-y-0 before:left-0 before:z-10 before:w-1 before:bg-[var(--accent)] [content-visibility:auto] [contain-intrinsic-size:280px]"
+              >
+                <header className="grid gap-4 border-b border-[var(--border)] bg-[var(--surface-muted)]/40 py-3 pl-5 pr-4 sm:pr-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] text-[var(--accent)]">
+                      <PackageOpen className="size-5" aria-hidden="true" />
+                    </span>
                     <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+                        Package {String(index + 1).padStart(2, '0')}
+                      </p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-2">
                         <h3 className="font-semibold">{profile.name}</h3>
                         {profile.isDefault ? (
                           <AdminStatusPill tone="success">Default</AdminStatusPill>
@@ -548,69 +590,57 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
                           {profile.active ? 'Active' : 'Inactive'}
                         </AdminStatusPill>
                       </div>
-                      <p className="mt-1 line-clamp-2 text-sm text-[var(--muted-foreground)]">
-                        {profile.description || 'No internal description'}
-                      </p>
-                      <Link
-                        href="/admin/catalog"
-                        className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-[var(--accent)] underline-offset-4 hover:underline"
-                      >
-                        {profile.assignmentCount} custom assignment
-                        {profile.assignmentCount === 1 ? '' : 's'}
-                        <ArrowUpRight className="size-4" aria-hidden="true" />
-                      </Link>
-                    </div>
-                    <details className="group/actions relative">
-                      <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-sm font-semibold hover:bg-[var(--surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">
-                        Package actions
-                        <ChevronDown
-                          className="size-4 transition-transform group-open/actions:rotate-180"
-                          aria-hidden="true"
-                        />
-                      </summary>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <ShippingProfileEditSheet profile={profile} />
-                        {!profile.isDefault ? (
-                          <SetDefaultProfileButton
-                            profile={profile}
-                            currentDefault={currentDefault}
-                            assignmentTotal={assignmentTotal}
-                          />
-                        ) : null}
-                        <DeactivateShippingProfileButton
-                          profileId={profile.id}
-                          profileName={profile.name}
-                          active={profile.active}
-                          assignmentCount={profile.assignmentCount}
-                          blockedReason={
-                            profile.isDefault && profile.active
-                              ? 'Set another package type as default before deactivating this one.'
-                              : undefined
-                          }
-                        />
-                      </div>
-                    </details>
-                  </div>
-                  {(['VN', 'US', 'fallback'] as const).map((destination) => (
-                    <div key={destination}>
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">
-                          {destinationConfig[destination].label}
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <p className="line-clamp-1 text-sm text-[var(--muted-foreground)]">
+                          {profile.description || 'No internal description'}
                         </p>
-                        {destination === 'US' ? (
-                          <span className="text-xs text-[var(--muted-foreground)] tabular-nums">
-                            {findStandardRule(profile, 'US')?.shipping_region_adjustments?.length ??
-                              0}{' '}
-                            state rules
-                          </span>
-                        ) : null}
+                        <Link
+                          href="/admin/catalog"
+                          className="inline-flex min-h-9 shrink-0 items-center gap-1 text-sm font-semibold text-[var(--accent)] underline-offset-4 hover:underline"
+                        >
+                          {profile.assignmentCount} assignment
+                          {profile.assignmentCount === 1 ? '' : 's'}
+                          <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                        </Link>
                       </div>
-                      <RateCell
-                        destination={destination}
-                        profile={profile}
-                        profiles={profileOptions}
-                      />
                     </div>
+                  </div>
+                  <div
+                    className="flex flex-wrap items-start gap-1 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-1"
+                    role="group"
+                    aria-label={`Actions for ${profile.name}`}
+                  >
+                    <ShippingProfileEditSheet profile={profile} compact />
+                    {!profile.isDefault ? (
+                      <SetDefaultProfileButton
+                        profile={profile}
+                        currentDefault={currentDefault}
+                        assignmentTotal={assignmentTotal}
+                        compact
+                      />
+                    ) : null}
+                    <DeactivateShippingProfileButton
+                      profileId={profile.id}
+                      profileName={profile.name}
+                      active={profile.active}
+                      assignmentCount={profile.assignmentCount}
+                      compact
+                      blockedReason={
+                        profile.isDefault && profile.active
+                          ? 'Set another package type as default before deactivating this one.'
+                          : undefined
+                      }
+                    />
+                  </div>
+                </header>
+                <div className="grid divide-y divide-[var(--border)] lg:grid-cols-3 lg:divide-x lg:divide-y-0 lg:divide-[var(--border)]">
+                  {(['VN', 'US', 'fallback'] as const).map((destination) => (
+                    <RateCell
+                      key={destination}
+                      destination={destination}
+                      profile={profile}
+                      profiles={profileOptions}
+                    />
                   ))}
                 </div>
                 <PackageDetails
@@ -622,17 +652,19 @@ export function ShippingManagement({ profiles }: { profiles: AdminShippingProfil
             ))}
           </div>
         ) : (
-          <AdminEmptyState
-            icon={profiles.length ? Search : PackageCheck}
-            title={
-              profiles.length ? 'No package types match these filters.' : 'No package types yet.'
-            }
-            description={
-              profiles.length
-                ? 'Change the search or status filter.'
-                : 'Create a package type, then add its destination rates.'
-            }
-          />
+          <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)]">
+            <AdminEmptyState
+              icon={profiles.length ? Search : PackageCheck}
+              title={
+                profiles.length ? 'No package types match these filters.' : 'No package types yet.'
+              }
+              description={
+                profiles.length
+                  ? 'Change the search or status filter.'
+                  : 'Create a package type, then add its destination rates.'
+              }
+            />
+          </div>
         )}
       </section>
 

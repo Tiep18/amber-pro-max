@@ -18,6 +18,7 @@ type ShippingProfileAvailabilityButtonProps = {
   /** @deprecated Use active instead. Kept for the legacy profile list. */
   disabled?: boolean;
   blockedReason?: string;
+  compact?: boolean;
 };
 
 export function DeactivateShippingProfileButton({
@@ -26,7 +27,8 @@ export function DeactivateShippingProfileButton({
   active: activeProp,
   assignmentCount = 0,
   disabled,
-  blockedReason
+  blockedReason,
+  compact = false
 }: ShippingProfileAvailabilityButtonProps) {
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -81,7 +83,7 @@ export function DeactivateShippingProfileButton({
         <Power className="size-4" aria-hidden="true" />
         Deactivate
       </Button>
-      {blockedReason ? (
+      {blockedReason && !compact ? (
         <p className="max-w-72 text-sm text-[var(--muted-foreground)]">{blockedReason}</p>
       ) : null}
       {result?.status === 'error' || result?.status === 'invalid' ? (

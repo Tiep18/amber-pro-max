@@ -106,25 +106,31 @@ test('admin manages parcel default, destination rule, and US adjustment', async 
   await expect(page.getByRole('heading', { name: profileName })).toBeVisible();
 
   const packageRow = page.locator('article').filter({ hasText: profileName });
-  await packageRow.getByText('Package actions').click();
   await packageRow.getByRole('button', { name: 'Set default' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Set as default' }).click();
   await expect(packageRow.getByText('Default')).toBeVisible();
 
-  await packageRow.getByRole('button', { name: 'Add United States rate' }).click();
-  await page.getByLabel('First item fee').fill('7.50');
-  await page.getByLabel('Additional item fee').fill('2.25');
-  await page.getByRole('button', { name: 'Create shipping rate' }).click();
-  await expect(page.getByRole('dialog')).toBeHidden();
+  const usRate = packageRow.locator('section').filter({ hasText: 'United States' });
+  await usRate.getByRole('button', { name: 'Add rate' }).click();
+  const rateDialog = page.getByRole('dialog');
+  await expect(rateDialog.getByText(profileName)).toBeVisible();
+  await expect(rateDialog.getByText('United States')).toBeVisible();
+  await expect(rateDialog.getByRole('combobox', { name: 'Package type' })).toHaveCount(0);
+  await expect(rateDialog.getByRole('combobox', { name: 'Shipping destination' })).toHaveCount(0);
+  await rateDialog.getByLabel('First item fee').fill('7.50');
+  await rateDialog.getByLabel('Additional item fee').fill('2.25');
+  await rateDialog.getByRole('button', { name: 'Create shipping rate' }).click();
+  await expect(rateDialog).toBeHidden();
   await expect(packageRow.getByText('$7.50')).toBeVisible();
   await expect(packageRow.getByText(/\+ \$2\.25 each additional/)).toBeVisible();
 
-  await packageRow.getByText('Advanced destinations and US state adjustments').click();
+  await packageRow.getByText('Overrides').click();
   await packageRow.getByRole('button', { name: 'Add state' }).click();
   await page.getByLabel('State or territory').click();
   await page.getByRole('option', { name: 'California (CA)' }).click();
   await page.getByLabel('Adjustment type').click();
   await page.getByRole('option', { name: 'Add to the base rate' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByLabel('First item').fill('1.25');
   await page.getByLabel('Each additional item').fill('0.50');
   await page.getByRole('button', { name: 'Create US adjustment' }).click();
@@ -132,10 +138,7 @@ test('admin manages parcel default, destination rule, and US adjustment', async 
   await expect(packageRow.getByText('California (CA)')).toBeVisible();
   await expect(packageRow.getByText(/Add \$1\.25 first/)).toBeVisible();
 
-  const packageActions = packageRow.locator('details').filter({ hasText: 'Package actions' });
-  if (!(await packageActions.evaluate((element) => (element as HTMLDetailsElement).open))) {
-    await packageActions.locator('summary').click();
-  }
+  const packageActions = packageRow.getByRole('group', { name: `Actions for ${profileName}` });
   await expect(packageActions.getByRole('button', { name: 'Deactivate' })).toBeVisible();
   await expect(
     page.locator('body').evaluate((body) => body.scrollWidth <= window.innerWidth)

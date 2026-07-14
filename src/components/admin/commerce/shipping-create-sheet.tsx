@@ -109,7 +109,13 @@ export function ShippingCreateSheet() {
   );
 }
 
-export function ShippingProfileEditSheet({ profile }: { profile: ShippingProfileDraft }) {
+export function ShippingProfileEditSheet({
+  profile,
+  compact = false
+}: {
+  profile: ShippingProfileDraft;
+  compact?: boolean;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -121,7 +127,7 @@ export function ShippingProfileEditSheet({ profile }: { profile: ShippingProfile
         onClick={() => setOpen(true)}
       >
         <Pencil className="size-4" aria-hidden="true" />
-        Edit package
+        {compact ? 'Edit' : 'Edit package'}
       </Button>
       <ProfileSheet profile={profile} open={open} setOpen={setOpen} />
     </>
