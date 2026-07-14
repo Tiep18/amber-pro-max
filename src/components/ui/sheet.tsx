@@ -81,7 +81,7 @@ export function Sheet({
             <SheetPrimitive.Close asChild>
               <Button
                 variant="ghost"
-                className="h-10 min-h-10 w-10 shrink-0 rounded-[var(--radius-control)] !px-0 text-[var(--muted-foreground)] transition duration-200 hover:rotate-3 hover:bg-[var(--surface-muted)]/70 hover:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                className="h-11 min-h-11 w-11 shrink-0 rounded-[var(--radius-control)] !px-0 text-[var(--muted-foreground)] transition duration-200 hover:rotate-3 hover:bg-[var(--surface-muted)]/70 hover:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               >
                 <X aria-hidden="true" className="h-5 w-5 shrink-0" strokeWidth={1.7} />
                 <span className="sr-only">{closeLabel}</span>

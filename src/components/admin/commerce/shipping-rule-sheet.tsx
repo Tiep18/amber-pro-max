@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { Pencil, Plus } from 'lucide-react';
 import { saveShippingRuleAction } from '@/checkout/admin-shipping-actions';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -15,8 +16,19 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { Sheet } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
 
 type ProfileOption = { id: string; name: string; active: boolean };
+export type ShippingRuleDraft = {
+  id: string;
+  profile_id: string;
+  match_kind: 'exact_country' | 'fallback';
+  country_code: string | null;
+  currency_code: 'USD' | 'VND';
+  first_item_fee_minor: number;
+  additional_item_fee_minor: number;
+  active: boolean;
+};
 type DestinationChoice = 'VN' | 'US' | 'fallback' | 'custom';
 
 const destinationChoices: Array<{
@@ -24,98 +36,225 @@ const destinationChoices: Array<{
   label: string;
   description: string;
 }> = [
-  { value: 'VN', label: 'Vietnam', description: 'Domestic shipping in VND' },
-  { value: 'US', label: 'United States', description: 'US checkout shipping in USD' },
-  { value: 'fallback', label: 'Other countries', description: 'Fallback for countries without a dedicated row' },
-  { value: 'custom', label: 'Custom country', description: 'Use an ISO 2-letter country code' }
+  { value: 'VN', label: 'Vietnam', description: 'Domestic shipping, normally charged in VND.' },
+  {
+    value: 'US',
+    label: 'United States',
+    description: 'International checkout shipping, normally charged in USD.'
+  },
+  {
+    value: 'fallback',
+    label: 'Other countries',
+    description: 'Used when this package has no dedicated country rate.'
+  },
+  { value: 'custom', label: 'Custom country', description: 'Use an ISO 2-letter country code.' }
 ];
 
-function minor(value: FormDataEntryValue | null, currency: 'USD' | 'VND') {
-  const parsed = Number(
-    String(value ?? '')
-      .replace(/,/g, '')
-      .trim()
-  );
-  return Number.isFinite(parsed) && parsed >= 0
-    ? Math.round(parsed * (currency === 'USD' ? 100 : 1))
-    : -1;
+function displayAmount(minor: number, currency: 'USD' | 'VND') {
+  return currency === 'USD' ? (minor / 100).toFixed(2) : String(minor);
 }
 
-export function ShippingRuleSheet({ profiles }: { profiles: ProfileOption[] }) {
+function initialDestination(
+  rule?: ShippingRuleDraft,
+  preset?: DestinationChoice
+): DestinationChoice {
+  if (!rule) return preset ?? 'US';
+  if (rule.match_kind === 'fallback') return 'fallback';
+  if (rule.country_code === 'VN' || rule.country_code === 'US') return rule.country_code;
+  return 'custom';
+}
+
+function FieldError({ children }: { children?: string }) {
+  return children ? (
+    <span role="alert" className="text-sm font-medium text-[var(--destructive)]">
+      {children}
+    </span>
+  ) : null;
+}
+
+export function ShippingRuleSheet({
+  profiles,
+  rule,
+  presetDestination,
+  presetProfileId,
+  triggerLabel,
+  triggerVariant = 'secondary'
+}: {
+  profiles: ProfileOption[];
+  rule?: ShippingRuleDraft;
+  presetDestination?: DestinationChoice;
+  presetProfileId?: string;
+  triggerLabel?: string;
+  triggerVariant?: 'primary' | 'secondary' | 'ghost';
+}) {
   const router = useRouter();
+  const countryRef = useRef<HTMLInputElement>(null);
+  const firstFeeRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
-  const [destinationChoice, setDestinationChoice] = useState<DestinationChoice>('US');
-  const [currency, setCurrency] = useState<'USD' | 'VND'>('USD');
+  const [dirty, setDirty] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [destinationChoice, setDestinationChoice] = useState<DestinationChoice>(() =>
+    initialDestination(rule, presetDestination)
+  );
+  const [profileId, setProfileId] = useState(rule?.profile_id ?? presetProfileId ?? '');
+  const [currency, setCurrency] = useState<'USD' | 'VND'>(
+    rule?.currency_code ?? (presetDestination === 'VN' ? 'VND' : 'USD')
+  );
+  const [countryCode, setCountryCode] = useState(rule?.country_code ?? '');
+  const [firstItemFee, setFirstItemFee] = useState(
+    rule ? displayAmount(rule.first_item_fee_minor, rule.currency_code) : ''
+  );
+  const [additionalItemFee, setAdditionalItemFee] = useState(
+    rule ? displayAmount(rule.additional_item_fee_minor, rule.currency_code) : ''
+  );
+  const [active, setActive] = useState(rule?.active ?? true);
+  const [errors, setErrors] = useState<
+    Partial<Record<'profile' | 'country' | 'first' | 'additional', string>>
+  >({});
   const [result, setResult] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const activeProfiles = profiles.filter((profile) => profile.active);
+  const editing = Boolean(rule);
+  const activeProfiles = profiles.filter(
+    (profile) => profile.active || profile.id === rule?.profile_id
+  );
   const mode = destinationChoice === 'fallback' ? 'fallback' : 'exact_country';
+  const label = triggerLabel ?? (editing ? 'Edit rate' : 'Add shipping fee');
+  const destinationDescription = useMemo(
+    () => destinationChoices.find((choice) => choice.value === destinationChoice)?.description,
+    [destinationChoice]
+  );
+
+  function markDirty() {
+    setDirty(true);
+    setResult(null);
+  }
+
+  function amountToMinor(value: string) {
+    const parsed = Number(value.replaceAll(',', '').trim());
+    if (!Number.isFinite(parsed) || parsed < 0) return null;
+    return Math.round(parsed * (currency === 'USD' ? 100 : 1));
+  }
+
+  function validate() {
+    const next: typeof errors = {};
+    if (!profileId) next.profile = 'Choose a package type.';
+    if (destinationChoice === 'custom' && !/^[A-Z]{2}$/.test(countryCode.trim().toUpperCase())) {
+      next.country = 'Enter a valid 2-letter country code.';
+    }
+    if (amountToMinor(firstItemFee) === null) next.first = 'Enter a zero or positive amount.';
+    if (amountToMinor(additionalItemFee) === null)
+      next.additional = 'Enter a zero or positive amount.';
+    setErrors(next);
+    if (next.country) countryRef.current?.focus();
+    else if (next.first) firstFeeRef.current?.focus();
+    return Object.keys(next).length === 0;
+  }
+
+  function resetDraft() {
+    const choice = initialDestination(rule, presetDestination);
+    setDestinationChoice(choice);
+    setProfileId(rule?.profile_id ?? presetProfileId ?? '');
+    setCurrency(rule?.currency_code ?? (choice === 'VN' ? 'VND' : 'USD'));
+    setCountryCode(rule?.country_code ?? '');
+    setFirstItemFee(rule ? displayAmount(rule.first_item_fee_minor, rule.currency_code) : '');
+    setAdditionalItemFee(
+      rule ? displayAmount(rule.additional_item_fee_minor, rule.currency_code) : ''
+    );
+    setActive(rule?.active ?? true);
+    setErrors({});
+    setResult(null);
+    setDirty(false);
+  }
+
+  function requestOpen(nextOpen: boolean) {
+    if (nextOpen) {
+      resetDraft();
+      setOpen(true);
+      return;
+    }
+    if (dirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    setOpen(false);
+  }
 
   return (
     <>
       <Button
         type="button"
-        className="min-h-10 gap-2 px-3 text-sm"
+        variant={triggerVariant}
+        className="min-h-11 gap-2 px-3 text-sm"
         disabled={!activeProfiles.length}
-        onClick={() => {
-          setResult(null);
-          setDestinationChoice('US');
-          setCurrency('USD');
-          setOpen(true);
-        }}
+        onClick={() => requestOpen(true)}
       >
-        <Plus className="size-4" aria-hidden="true" /> Add shipping fee
+        {editing ? (
+          <Pencil className="size-4" aria-hidden="true" />
+        ) : (
+          <Plus className="size-4" aria-hidden="true" />
+        )}
+        {label}
       </Button>
       <Sheet
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={requestOpen}
         showTrigger={false}
-        triggerLabel="Add shipping fee"
-        title="Add shipping fee"
-        closeLabel="Close shipping fee form"
+        triggerLabel={label}
+        title={editing ? 'Edit shipping rate' : 'Add shipping rate'}
+        closeLabel="Close shipping rate form"
         contentClassName="!w-[min(520px,96vw)] max-sm:!w-screen"
       >
         <form
-          className="grid gap-4"
+          className="grid gap-5"
+          noValidate
           onSubmit={(event) => {
             event.preventDefault();
-            const form = new FormData(event.currentTarget);
-            const selectedCurrency = String(form.get('currencyCode')) === 'VND' ? 'VND' : 'USD';
-            const countryCode =
+            if (!validate()) return;
+            const normalizedCountry =
               destinationChoice === 'custom'
-                ? String(form.get('countryCode') ?? '').toUpperCase()
+                ? countryCode.trim().toUpperCase()
                 : destinationChoice === 'fallback'
                   ? null
                   : destinationChoice;
             startTransition(async () => {
               const action = await saveShippingRuleAction({
-                profileId: form.get('profileId'),
+                ruleId: rule?.id,
+                profileId,
                 destinationKind: mode,
-                countryCode,
-                currencyCode: selectedCurrency,
-                firstItemFeeMinor: minor(form.get('firstItemFee'), selectedCurrency),
-                additionalItemFeeMinor: minor(form.get('additionalItemFee'), selectedCurrency),
-                active: true
+                countryCode: normalizedCountry,
+                currencyCode: currency,
+                firstItemFeeMinor: amountToMinor(firstItemFee)!,
+                additionalItemFeeMinor: amountToMinor(additionalItemFee)!,
+                active
               });
-              if (action.status === 'saved') {
+              if (action.status === 'saved' || action.status === 'updated') {
+                setDirty(false);
                 setOpen(false);
                 router.refresh();
                 return;
               }
               setResult(
                 action.status === 'invalid'
-                  ? 'Check the destination and fee fields.'
-                  : 'The shipping fee could not be saved.'
+                  ? 'This package already has that destination and currency, or a field is invalid. Edit the existing rate instead.'
+                  : 'The shipping rate could not be saved. Try again.'
               );
             });
           }}
         >
           {result ? <Alert variant="destructive">{result}</Alert> : null}
-          <label className="grid gap-2">
+
+          <div className="grid gap-1.5">
             <span className="text-sm font-semibold">Package type</span>
-            <Select name="profileId">
-              <SelectTrigger aria-label="Package type">
-                <SelectValue placeholder="Choose a package type" />
+            <Select
+              value={profileId}
+              onValueChange={(value) => {
+                setProfileId(value);
+                setErrors((current) => ({ ...current, profile: undefined }));
+                markDirty();
+              }}
+            >
+              <SelectTrigger aria-label="Package type" aria-invalid={Boolean(errors.profile)}>
+                <SelectValue placeholder="Choose a package type…" />
               </SelectTrigger>
               <SelectContent>
                 {activeProfiles.map((profile) => (
@@ -125,15 +264,20 @@ export function ShippingRuleSheet({ profiles }: { profiles: ProfileOption[] }) {
                 ))}
               </SelectContent>
             </Select>
-          </label>
-          <label className="grid gap-2">
+            <FieldError>{errors.profile}</FieldError>
+          </div>
+
+          <div className="grid gap-1.5">
             <span className="text-sm font-semibold">Shipping destination</span>
             <Select
               value={destinationChoice}
               onValueChange={(value) => {
-                const nextChoice = value as DestinationChoice;
-                setDestinationChoice(nextChoice);
-                setCurrency(nextChoice === 'VN' ? 'VND' : 'USD');
+                const next = value as DestinationChoice;
+                setDestinationChoice(next);
+                if (next === 'VN') setCurrency('VND');
+                if (next === 'US' || next === 'fallback') setCurrency('USD');
+                setErrors((current) => ({ ...current, country: undefined }));
+                markDirty();
               }}
             >
               <SelectTrigger aria-label="Shipping destination">
@@ -147,26 +291,41 @@ export function ShippingRuleSheet({ profiles }: { profiles: ProfileOption[] }) {
                 ))}
               </SelectContent>
             </Select>
-            <span className="text-sm text-[var(--muted-foreground)]">
-              {destinationChoices.find((choice) => choice.value === destinationChoice)?.description}
-            </span>
-          </label>
+            <p className="text-sm text-[var(--muted-foreground)]">{destinationDescription}</p>
+          </div>
+
           {destinationChoice === 'custom' ? (
-            <label className="grid gap-2">
+            <label className="grid gap-1.5">
               <span className="text-sm font-semibold">Country code</span>
               <Input
-                name="countryCode"
+                ref={countryRef}
+                value={countryCode}
                 maxLength={2}
-                placeholder="JP"
-                required
-                className="uppercase"
+                autoComplete="off"
+                spellCheck={false}
+                aria-invalid={Boolean(errors.country)}
+                className={cn('uppercase', errors.country && 'border-[var(--destructive)]')}
+                onChange={(event) => {
+                  setCountryCode(event.target.value.toUpperCase());
+                  setErrors((current) => ({ ...current, country: undefined }));
+                  markDirty();
+                }}
+                placeholder="JP…"
               />
+              <FieldError>{errors.country}</FieldError>
             </label>
           ) : null}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <label className="grid gap-2">
+
+          <div className="grid gap-4 sm:grid-cols-[120px_1fr]">
+            <div className="grid gap-1.5">
               <span className="text-sm font-semibold">Currency</span>
-              <Select name="currencyCode" value={currency} onValueChange={(value) => setCurrency(value as typeof currency)}>
+              <Select
+                value={currency}
+                onValueChange={(value) => {
+                  setCurrency(value as typeof currency);
+                  markDirty();
+                }}
+              >
                 <SelectTrigger aria-label="Currency">
                   <SelectValue />
                 </SelectTrigger>
@@ -175,21 +334,94 @@ export function ShippingRuleSheet({ profiles }: { profiles: ProfileOption[] }) {
                   <SelectItem value="VND">VND</SelectItem>
                 </SelectContent>
               </Select>
-            </label>
-            <label className="grid gap-2 sm:col-span-2">
-              <span className="text-sm font-semibold">First item fee</span>
-              <Input name="firstItemFee" inputMode="decimal" required />
+            </div>
+            <label className="grid gap-1.5">
+              <span className="flex items-center justify-between gap-2 text-sm font-semibold">
+                First item fee
+                <span className="text-xs font-normal text-[var(--muted-foreground)]">
+                  {currency}
+                </span>
+              </span>
+              <Input
+                ref={firstFeeRef}
+                value={firstItemFee}
+                inputMode="decimal"
+                aria-invalid={Boolean(errors.first)}
+                className={cn(errors.first && 'border-[var(--destructive)]')}
+                onChange={(event) => {
+                  setFirstItemFee(event.target.value);
+                  setErrors((current) => ({ ...current, first: undefined }));
+                  markDirty();
+                }}
+                placeholder={currency === 'USD' ? '8.00…' : '35000…'}
+              />
+              <FieldError>{errors.first}</FieldError>
             </label>
           </div>
-          <label className="grid gap-2">
-            <span className="text-sm font-semibold">Additional item fee</span>
-            <Input name="additionalItemFee" inputMode="decimal" required />
+
+          <label className="grid gap-1.5">
+            <span className="flex items-center justify-between gap-2 text-sm font-semibold">
+              Each additional item
+              <span className="text-xs font-normal text-[var(--muted-foreground)]">{currency}</span>
+            </span>
+            <Input
+              value={additionalItemFee}
+              inputMode="decimal"
+              aria-invalid={Boolean(errors.additional)}
+              className={cn(errors.additional && 'border-[var(--destructive)]')}
+              onChange={(event) => {
+                setAdditionalItemFee(event.target.value);
+                setErrors((current) => ({ ...current, additional: undefined }));
+                markDirty();
+              }}
+              placeholder={currency === 'USD' ? '2.00…' : '10000…'}
+            />
+            <FieldError>{errors.additional}</FieldError>
           </label>
+
+          {editing ? (
+            <div className="grid gap-1.5">
+              <span className="text-sm font-semibold">Rate availability</span>
+              <Select
+                value={active ? 'active' : 'inactive'}
+                onValueChange={(value) => {
+                  setActive(value === 'active');
+                  markDirty();
+                }}
+              >
+                <SelectTrigger aria-label="Shipping rate availability">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active at checkout</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
           <Button type="submit" disabled={pending}>
-            {pending ? 'Saving shipping fee...' : 'Save shipping fee'}
+            {pending
+              ? 'Saving shipping rate…'
+              : editing
+                ? 'Save shipping rate'
+                : 'Create shipping rate'}
           </Button>
         </form>
       </Sheet>
+      <ConfirmationDialog
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        title="Discard shipping rate changes?"
+        description="This rate has unsaved changes. Closing now will discard them."
+        confirmLabel="Discard changes"
+        destructive
+        onConfirm={() => {
+          setConfirmDiscard(false);
+          setDirty(false);
+          setOpen(false);
+        }}
+      />
     </>
   );
 }

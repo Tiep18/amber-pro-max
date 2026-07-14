@@ -12,8 +12,38 @@ const serviceHeaders = {
 };
 
 const createdUserIds: string[] = [];
+const createdProfileNames: string[] = [];
 
 test.afterEach(async () => {
+  await Promise.all(
+    createdProfileNames.splice(0).map(async (profileName) => {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/shipping_profiles?name=eq.${encodeURIComponent(profileName)}&select=id`,
+        { headers: serviceHeaders }
+      );
+      if (!response.ok) throw new Error(`Profile lookup failed during cleanup: ${response.status}`);
+      const profiles = (await response.json()) as Array<{ id: string }>;
+      for (const profile of profiles) {
+        await fetch(
+          `${supabaseUrl}/rest/v1/shipping_store_defaults?shipping_profile_id=eq.${profile.id}`,
+          {
+            method: 'PATCH',
+            headers: serviceHeaders,
+            body: JSON.stringify({ active: false })
+          }
+        );
+        await fetch(
+          `${supabaseUrl}/rest/v1/shipping_store_defaults?shipping_profile_id=eq.${profile.id}`,
+          { method: 'DELETE', headers: serviceHeaders }
+        );
+        const deleted = await fetch(
+          `${supabaseUrl}/rest/v1/shipping_profiles?id=eq.${profile.id}`,
+          { method: 'DELETE', headers: serviceHeaders }
+        );
+        if (!deleted.ok) throw new Error(`Profile cleanup failed: ${deleted.status}`);
+      }
+    })
+  );
   await Promise.all(
     createdUserIds.splice(0).map(async (userId) => {
       await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
@@ -53,64 +83,60 @@ async function createAdmin() {
 test('admin manages parcel default, destination rule, and US adjustment', async ({ page }) => {
   const admin = await createAdmin();
   const profileName = `US small parcel ${Date.now()}`;
+  createdProfileNames.push(profileName);
 
   await page.goto('/en/sign-in?next=/admin/shipping');
   await page.getByLabel('Email').fill(admin.email);
   await page.getByLabel('Password').fill(admin.password);
   await page.getByRole('button', { name: 'Sign in' }).click();
 
-  await expect(page).toHaveURL(/\/admin\/shipping$/);
-  await expect(page.getByRole('heading', { name: 'Shipping profiles' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Parcel profiles' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Destination rules' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'US region adjustments' })).toBeVisible();
+  await expect(page).toHaveURL((url) => url.pathname === '/admin/shipping');
+  await expect(page.getByRole('heading', { name: 'Shipping setup' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Package rates' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'New profile' }).click();
+  await page.getByRole('button', { name: 'New package type' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByLabel('Profile name').fill(profileName);
-  await page.getByLabel('Description').fill('Small parcel profile for US checkout coverage');
-  await page.getByRole('button', { name: 'Create shipping profile' }).click();
+  await page.getByLabel('Package type name').fill(profileName);
+  await page
+    .getByLabel('Internal description')
+    .fill('Small parcel profile for US checkout coverage');
+  await page.getByRole('button', { name: 'Create package type' }).click();
 
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByRole('heading', { name: profileName })).toBeVisible();
 
-  page.once('dialog', (dialog) => dialog.accept());
-  await page
-    .locator('article')
-    .filter({ hasText: profileName })
-    .getByRole('button', { name: 'Set as default' })
-    .click();
-  await expect(
-    page.locator('article').filter({ hasText: profileName }).getByText('Default')
-  ).toBeVisible();
+  const packageRow = page.locator('article').filter({ hasText: profileName });
+  await packageRow.getByText('Package actions').click();
+  await packageRow.getByRole('button', { name: 'Set default' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Set as default' }).click();
+  await expect(packageRow.getByText('Default')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Add rule' }).click();
-  await page.getByLabel('Parcel profile').click();
-  await page.getByRole('option', { name: profileName }).click();
-  await page.getByLabel('Country code').fill('US');
+  await packageRow.getByRole('button', { name: 'Add United States rate' }).click();
   await page.getByLabel('First item fee').fill('7.50');
   await page.getByLabel('Additional item fee').fill('2.25');
-  await page.getByRole('button', { name: 'Save destination rule' }).click();
+  await page.getByRole('button', { name: 'Create shipping rate' }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
-  await expect(page.getByText('$7.50 first / $2.25 additional').last()).toBeVisible();
+  await expect(packageRow.getByText('$7.50')).toBeVisible();
+  await expect(packageRow.getByText(/\+ \$2\.25 each additional/)).toBeVisible();
 
-  await page.getByRole('button', { name: 'Add US adjustment' }).click();
-  await page.getByLabel('Destination rule').click();
-  await page.getByRole('option', { name: new RegExp(`${profileName}.*US.*USD`) }).click();
+  await packageRow.getByText('Advanced destinations and US state adjustments').click();
+  await packageRow.getByRole('button', { name: 'Add state' }).click();
   await page.getByLabel('State or territory').click();
   await page.getByRole('option', { name: 'California (CA)' }).click();
   await page.getByLabel('Adjustment type').click();
-  await page.getByRole('option', { name: 'Add surcharge' }).click();
+  await page.getByRole('option', { name: 'Add to the base rate' }).click();
   await page.getByLabel('First item').fill('1.25');
   await page.getByLabel('Each additional item').fill('0.50');
-  await page.getByRole('button', { name: 'Save US adjustment' }).click();
+  await page.getByRole('button', { name: 'Create US adjustment' }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
-  const adjustmentsSection = page.locator('section').filter({ hasText: 'US region adjustments' });
-  const adjustmentRow = adjustmentsSection.locator('article').filter({ hasText: profileName });
-  await expect(adjustmentRow.getByText('CA', { exact: true })).toBeVisible();
-  await expect(adjustmentRow.getByText('Add surcharge')).toBeVisible();
+  await expect(packageRow.getByText('California (CA)')).toBeVisible();
+  await expect(packageRow.getByText(/Add \$1\.25 first/)).toBeVisible();
 
-  await expect(page.getByRole('button', { name: 'Deactivate' }).first()).toBeVisible();
+  const packageActions = packageRow.locator('details').filter({ hasText: 'Package actions' });
+  if (!(await packageActions.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await packageActions.locator('summary').click();
+  }
+  await expect(packageActions.getByRole('button', { name: 'Deactivate' })).toBeVisible();
   await expect(
     page.locator('body').evaluate((body) => body.scrollWidth <= window.innerWidth)
   ).resolves.toBe(true);
