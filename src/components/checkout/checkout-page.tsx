@@ -5,7 +5,12 @@ import {useRouter} from 'next/navigation';
 import type {CustomerShippingAddress} from '@/account/addresses';
 import type {Locale} from '@/i18n/routing';
 import type {CartQuote} from '@/checkout/types';
-import {refreshCheckoutQuoteAction, submitCheckoutAction, type SubmitCheckoutActionState} from '@/checkout/actions';
+import {
+  prepareGuestCheckoutRecoveryAction,
+  refreshCheckoutQuoteAction,
+  submitCheckoutAction,
+  type SubmitCheckoutActionState
+} from '@/checkout/actions';
 import type {ShippingAddress} from '@/checkout/shipping-address';
 import {
   acceptQuoteProposal,
@@ -204,7 +209,7 @@ export function CheckoutPage({
     }
     setSubmitting(true);
     setSubmitResult(null);
-    const result = await submitCheckoutAction({
+    const submitInput = {
       locale,
       market: acceptedQuote.market,
       lines: cart.lines,
@@ -219,7 +224,15 @@ export function CheckoutPage({
           : null,
       shippingAddress: physicalCount > 0 ? shippingAddress : null,
       discountCode: acceptedQuote.discount.status === 'applied' || acceptedQuote.discount.status === 'not_eligible' ? acceptedQuote.discount.code : null
+    };
+    const prepared = await prepareGuestCheckoutRecoveryAction({
+      acceptedQuoteHash: submitInput.acceptedQuoteHash,
+      contactEmail: submitInput.contactEmail,
+      paymentIntent: submitInput.paymentIntent
     });
+    const result = prepared.status === 'ready'
+      ? await submitCheckoutAction(submitInput)
+      : ({status: 'invalid', code: prepared.code} as const);
     setSubmitResult(result);
     setSubmitting(false);
     if (result.status === 'success') {

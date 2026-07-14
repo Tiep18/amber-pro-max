@@ -8,7 +8,6 @@ export type SubmitCheckoutResult =
       orderId: string;
       orderNumber: string;
       reservationExpiresAt: string;
-      guestAccessToken: string | null;
     }
   | {
       status: 'invalid' | 'stale' | 'conflict' | 'retryable' | 'error';
@@ -51,8 +50,7 @@ function mapRpcResult(value: unknown): SubmitCheckoutResult {
       status: 'success',
       orderId: row.orderId,
       orderNumber: row.orderNumber,
-      reservationExpiresAt: row.reservationExpiresAt,
-      guestAccessToken: typeof row.guestAccessToken === 'string' ? row.guestAccessToken : null
+      reservationExpiresAt: row.reservationExpiresAt
     };
   }
   if (

@@ -157,8 +157,7 @@ describe('submitCheckout', () => {
         status: 'success',
         orderId: 'order-1',
         orderNumber: 'ATB-0001',
-        reservationExpiresAt: '2026-06-15T00:15:00.000Z',
-        guestAccessToken: 'guest-token'
+        reservationExpiresAt: '2026-06-15T00:15:00.000Z'
       },
       error: null
     });
@@ -185,8 +184,7 @@ describe('submitCheckout', () => {
       status: 'success',
       orderId: 'order-1',
       orderNumber: 'ATB-0001',
-      reservationExpiresAt: '2026-06-15T00:15:00.000Z',
-      guestAccessToken: 'guest-token'
+      reservationExpiresAt: '2026-06-15T00:15:00.000Z'
     });
   });
 

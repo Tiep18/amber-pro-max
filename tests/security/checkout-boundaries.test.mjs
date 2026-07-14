@@ -53,3 +53,21 @@ test('checkout submit revalidates commercial facts privately before persistence'
   assert.doesNotMatch(migration, /_serverShippingAllocationMinor/);
   assert.doesNotMatch(migration, /highest[-_ ]first|package grouping/i);
 });
+
+test('guest retry recovery keeps raw credentials server-only and persists hashes only', () => {
+  const migration = readFileSync('supabase/migrations/20260714162000_secure_guest_checkout_retry_recovery.sql', 'utf8');
+  const action = readFileSync('src/checkout/actions.ts', 'utf8');
+  const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  const submit = readFileSync('src/checkout/submit-checkout.ts', 'utf8');
+
+  assert.match(migration, /attempt_id_hash text primary key/);
+  assert.match(migration, /for update/);
+  assert.match(migration, /p_payload - 'guestRecovery'/);
+  assert.match(migration, /'guest-attempt:' \|\| attempt_hash/);
+  assert.match(migration, /revoke all on table private\.checkout_guest_attempt_claims from public, anon, authenticated/);
+  assert.match(action, /prepareGuestCheckoutRecoveryFromServer/);
+  assert.match(action, /setGuestOrderAccessCookieFromServer/);
+  assert.match(client, /await prepareGuestCheckoutRecoveryAction/);
+  assert.doesNotMatch(client, /guestRecovery|attemptId|\bproof\b|localStorage|sessionStorage/);
+  assert.doesNotMatch(submit, /guestAccessToken/);
+});

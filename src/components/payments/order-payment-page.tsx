@@ -16,6 +16,7 @@ import {getAuthorizedOrderPayment} from '@/payments/queries';
 import {getPaymentStatusPresentation, mapCustomerPaymentStatus} from '@/payments/status';
 import {getVietQrInstructions, type VietQrInstructionResult} from '@/payments/vietqr/instructions';
 import {PaymentStatePanel} from './payment-state-panel';
+import {GuestRecoveryAcknowledger} from './guest-recovery-acknowledger';
 import {PayPalButtons} from './paypal-buttons';
 import {VietQrInstructions} from './vietqr-instructions';
 
@@ -108,6 +109,7 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
 
   return (
     <main className="container grid gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <GuestRecoveryAcknowledger orderNumber={result.order.orderNumber} />
       <section className="grid content-start gap-5">
         <PaymentStatePanel
           orderNumber={result.order.orderNumber}

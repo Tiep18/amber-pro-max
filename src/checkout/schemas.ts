@@ -4,6 +4,11 @@ import {quoteCartInputSchema} from './types';
 
 export const checkoutPaymentIntentSchema = z.enum(['paypal_intent', 'vietqr_intent']);
 
+const guestRecoverySchema = z.object({
+  attemptId: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+  proof: z.string().regex(/^[A-Za-z0-9_-]{43}$/)
+}).strict();
+
 export const submitCheckoutInputSchema = quoteCartInputSchema.extend({
   acceptedQuoteHash: z.string().trim().min(1).max(256),
   acceptedQuote: z.unknown(),
@@ -11,6 +16,7 @@ export const submitCheckoutInputSchema = quoteCartInputSchema.extend({
   contactEmail: z.email().max(320),
   paymentIntent: checkoutPaymentIntentSchema,
   guestCartId: z.string().trim().max(128).optional().nullable(),
+  guestRecovery: guestRecoverySchema.optional(),
   exceptionGrantToken: z.string().trim().max(256).optional().nullable(),
   shippingAddress: shippingAddressSchema.optional().nullable()
 }).superRefine((input, context) => {
