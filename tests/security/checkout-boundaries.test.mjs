@@ -48,5 +48,8 @@ test('checkout submit revalidates commercial facts privately before persistence'
   assert.match(migration, /revoke all on function private\.checkout_commercial_quote_is_current\(jsonb, uuid\) from public, anon, authenticated/);
   assert.match(migration, /case when shipping_address ->> 'countryCode' = 'US'/);
   assert.match(migration, /on conflict \(order_line_id\) do nothing/);
+  assert.match(migration, /Rebuild every persisted line snapshot from locked database rows/);
+  assert.match(migration, /perform set_config\('app\.checkout_shipping_allocations'/);
+  assert.doesNotMatch(migration, /_serverShippingAllocationMinor/);
   assert.doesNotMatch(migration, /highest[-_ ]first|package grouping/i);
 });

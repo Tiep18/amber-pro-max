@@ -26,9 +26,8 @@ declare
   discount_code text := nullif(upper(btrim(coalesce(p_payload ->> 'discountCode', ''))), '');
   discount_rule public.discount_codes%rowtype;
   eligible_subtotal bigint := 0;
-  remaining_discount bigint := 0;
   expected_line_discount bigint;
-  eligible boolean;
+  line_eligible boolean;
   line_count integer;
 begin
   if jsonb_typeof(quote) <> 'object'
@@ -49,6 +48,28 @@ begin
   if line_count <> jsonb_array_length(p_payload -> 'lines') or line_count = 0 then
     return false;
   end if;
+
+  -- Hold the commercial rows used below until order persistence completes.
+  -- Inventory is locked for update because reservation availability is also a
+  -- mutable input and the legacy persistence function reuses the same lock.
+  perform 1 from public.products
+  where id in (select (value ->> 'productId')::uuid from jsonb_array_elements(quote -> 'lines'))
+  for share;
+  perform 1 from public.product_market_offers
+  where product_id in (select (value ->> 'productId')::uuid from jsonb_array_elements(quote -> 'lines'))
+    and market_code = quote ->> 'market'
+  for share;
+  perform 1 from public.product_variants
+  where id in (select nullif(value ->> 'variantId', '')::uuid from jsonb_array_elements(quote -> 'lines'))
+  for share;
+  perform 1 from public.variant_market_offers
+  where variant_id in (select nullif(value ->> 'variantId', '')::uuid from jsonb_array_elements(quote -> 'lines'))
+    and market_code = quote ->> 'market'
+  for share;
+  perform 1 from public.inventory_records
+  where product_id in (select (value ->> 'productId')::uuid from jsonb_array_elements(quote -> 'lines'))
+     or variant_id in (select nullif(value ->> 'variantId', '')::uuid from jsonb_array_elements(quote -> 'lines'))
+  for update;
 
   for quote_line in select value from jsonb_array_elements(quote -> 'lines')
   loop
@@ -124,7 +145,7 @@ begin
     if expected_quantity <= 0
       or quote_line ->> 'status' is distinct from expected_status
       or (quote_line ->> 'fulfillmentType') is distinct from
-        case when product_kind = 'pdf_pattern' then 'digital' else 'physical' end
+        (case when product_kind = 'pdf_pattern' then 'digital' else 'physical' end)
       or (quote_line ->> 'quantity')::integer <> expected_quantity
       or (quote_line ->> 'unitPriceMinor')::bigint <> offer_price
       or (quote_line ->> 'lineSubtotalMinor')::bigint <> offer_price * expected_quantity
@@ -157,7 +178,7 @@ begin
       ) then
       for quote_line in select value from jsonb_array_elements(quote -> 'lines')
       loop
-        eligible := not exists (
+        line_eligible := not exists (
           select 1 from public.discount_code_products where discount_code_id = discount_rule.id
           union all select 1 from public.discount_code_categories where discount_code_id = discount_rule.id
           union all select 1 from public.discount_code_collections where discount_code_id = discount_rule.id
@@ -176,7 +197,7 @@ begin
           where dcc.discount_code_id = discount_rule.id
             and cp.product_id = (quote_line ->> 'productId')::uuid
         );
-        if eligible then
+        if line_eligible then
           eligible_subtotal := eligible_subtotal + (quote_line ->> 'lineSubtotalMinor')::bigint;
         end if;
       end loop;
@@ -193,7 +214,6 @@ begin
 
   -- Match the exact proportional floor + largest-remainder allocation used by
   -- the TypeScript quote path. This also verifies every line allocation.
-  remaining_discount := expected_discount;
   for quote_line in
     with candidates as (
       select
@@ -262,10 +282,10 @@ security definer
 set search_path = public, pg_temp
 as $$
 begin
-  if new.quote_line_snapshot ? '_serverShippingAllocationMinor' then
-    new.shipping_allocation_minor := (new.quote_line_snapshot ->> '_serverShippingAllocationMinor')::bigint;
-    new.quote_line_snapshot := new.quote_line_snapshot - '_serverShippingAllocationMinor';
-  end if;
+  new.shipping_allocation_minor := coalesce(
+    (nullif(current_setting('app.checkout_shipping_allocations', true), '')::jsonb ->> new.line_id)::bigint,
+    0
+  );
   return new;
 end;
 $$;
@@ -298,6 +318,7 @@ declare
   actor text;
   idem_key text := coalesce(p_payload ->> 'idempotencyKey', '');
   existing_order public.checkout_orders%rowtype;
+  accepted_quote jsonb := p_payload -> 'acceptedQuote';
   quote jsonb := p_payload -> 'acceptedQuote';
   shipping_address jsonb := p_payload -> 'shippingAddress';
   physical_lines jsonb;
@@ -305,11 +326,15 @@ declare
   allocation jsonb;
   authoritative_shipping_minor bigint := 0;
   authoritative_allocations jsonb := '[]'::jsonb;
+  canonical_shipping_allocations jsonb := '[]'::jsonb;
+  shipping_allocation_map jsonb := '{}'::jsonb;
+  canonical_lines jsonb;
+  canonical_discount jsonb;
+  server_quote_hash text;
   winner_line_id text;
   result jsonb;
   created_order_id uuid;
-  order_line_id uuid;
-  enriched_lines jsonb;
+  created_order_line_id uuid;
 begin
   if jsonb_typeof(p_payload) <> 'object' or jsonb_typeof(quote) <> 'object' or length(idem_key) < 8 then
     return jsonb_build_object('status', 'invalid', 'code', 'invalid_checkout_submit');
@@ -337,24 +362,98 @@ begin
     );
   end if;
 
+  -- Rebuild every persisted line snapshot from locked database rows. The
+  -- browser quote is used only for already-verified quantities and discount
+  -- allocations; descriptive metadata is never copied from the caller.
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'lineId', source.line ->> 'lineId',
+    'productId', p.id,
+    'variantId', pv.id,
+    'slug', pt.slug,
+    'title', pt.title,
+    'fulfillmentType', case when p.product_type = 'pdf_pattern' then 'digital' else 'physical' end,
+    'status', source.line ->> 'status',
+    'quantity', (source.line ->> 'quantity')::integer,
+    'requestedQuantity', (source.line ->> 'requestedQuantity')::integer,
+    'marketAtAdd', accepted_quote ->> 'market',
+    'currencyCode', coalesce(vmo.currency_code, pmo.currency_code),
+    'unitPriceMinor', coalesce(vmo.price_minor, pmo.price_minor),
+    'lineSubtotalMinor', coalesce(vmo.price_minor, pmo.price_minor) * (source.line ->> 'quantity')::integer,
+    'excludedSubtotalMinor', coalesce(vmo.price_minor, pmo.price_minor)
+      * ((source.line ->> 'requestedQuantity')::integer - (source.line ->> 'quantity')::integer),
+    'variantLabel', case when pv.id is null then null else coalesce(
+      (select string_agg(attribute.value, ' / ' order by attribute.key) from jsonb_each_text(pv.attributes) attribute),
+      pv.sku
+    ) end,
+    'sku', pv.sku,
+    'imageUrl', null,
+    'categoryIds', coalesce((select jsonb_agg(pc.category_id order by pc.category_id) from public.product_categories pc where pc.product_id = p.id), '[]'::jsonb),
+    'collectionIds', coalesce((select jsonb_agg(cp.collection_id order by cp.collection_id) from public.collection_products cp where cp.product_id = p.id), '[]'::jsonb),
+    'discountAllocationMinor', (source.line ->> 'discountAllocationMinor')::bigint,
+    'change', null
+  ) order by source.line ->> 'lineId'), '[]'::jsonb)
+  into canonical_lines
+  from jsonb_array_elements(accepted_quote -> 'lines') source(line)
+  join public.products p on p.id = (source.line ->> 'productId')::uuid
+  join public.product_translations pt on pt.product_id = p.id and pt.locale = p_payload ->> 'locale'
+  join public.product_market_offers pmo on pmo.product_id = p.id and pmo.market_code = accepted_quote ->> 'market'
+  left join public.product_variants pv on pv.id = nullif(source.line ->> 'variantId', '')::uuid
+  left join public.variant_market_offers vmo on vmo.variant_id = pv.id and vmo.market_code = accepted_quote ->> 'market';
+
+  if jsonb_array_length(canonical_lines) <> jsonb_array_length(accepted_quote -> 'lines') then
+    return jsonb_build_object('status', 'stale', 'code', 'stale_commercial_quote', 'dimensions', jsonb_build_array('catalog'));
+  end if;
+
+  canonical_discount := case
+    when coalesce((accepted_quote -> 'discount' ->> 'amountMinor')::bigint, 0) > 0 then
+      jsonb_build_object(
+        'status', 'applied', 'code', upper(btrim(p_payload ->> 'discountCode')),
+        'amountMinor', (accepted_quote -> 'discount' ->> 'amountMinor')::bigint,
+        'allocations', (select coalesce(jsonb_agg(jsonb_build_object(
+          'lineId', line ->> 'lineId', 'amountMinor', (line ->> 'discountAllocationMinor')::bigint
+        ) order by line ->> 'lineId') filter (where (line ->> 'discountAllocationMinor')::bigint > 0), '[]'::jsonb)
+          from jsonb_array_elements(canonical_lines) rows(line))
+      )
+    when nullif(btrim(coalesce(p_payload ->> 'discountCode', '')), '') is not null then
+      jsonb_build_object('status', 'not_eligible', 'code', upper(btrim(p_payload ->> 'discountCode')), 'amountMinor', 0)
+    else jsonb_build_object('status', 'not_applied', 'code', null, 'amountMinor', 0)
+  end;
+
+  quote := jsonb_build_object(
+    'status', 'ready', 'locale', p_payload ->> 'locale',
+    'market', accepted_quote ->> 'market', 'currencyCode', accepted_quote ->> 'currencyCode',
+    'lines', canonical_lines,
+    'subtotalMinor', (accepted_quote ->> 'subtotalMinor')::bigint,
+    'excludedSubtotalMinor', (select coalesce(sum((line ->> 'excludedSubtotalMinor')::bigint), 0) from jsonb_array_elements(canonical_lines) rows(line)),
+    'discount', canonical_discount,
+    'shipping', jsonb_build_object('status', 'no_shipping_required', 'amountMinor', 0, 'countryCode', null),
+    'totalMinor', (accepted_quote ->> 'totalMinor')::bigint,
+    'changes', '[]'::jsonb,
+    'quotedAt', statement_timestamp()
+  );
+
   select coalesce(jsonb_agg(jsonb_build_object(
     'lineId', line ->> 'lineId', 'productId', line ->> 'productId',
     'variantId', case when line ? 'variantId' then line -> 'variantId' else 'null'::jsonb end,
     'quantity', line -> 'quantity'
   ) order by line ->> 'lineId'), '[]'::jsonb)
   into physical_lines
-  from jsonb_array_elements(quote -> 'lines') as lines(line)
+  from jsonb_array_elements(canonical_lines) as lines(line)
   where line ->> 'fulfillmentType' = 'physical'
     and line ->> 'status' in ('ready', 'quantity_capped')
     and (line ->> 'quantity')::integer > 0;
 
   if jsonb_array_length(physical_lines) = 0 then
+    server_quote_hash := encode(extensions.digest(quote::text, 'sha256'), 'hex');
+    quote := quote || jsonb_build_object('hash', server_quote_hash);
+    p_payload := jsonb_set(jsonb_set(p_payload, '{acceptedQuote}', quote), '{acceptedQuoteHash}', to_jsonb(server_quote_hash));
+    perform set_config('app.checkout_shipping_allocations', '{}'::jsonb::text, true);
     return public.submit_checkout_legacy_v1(p_payload);
   end if;
 
   if jsonb_typeof(shipping_address) <> 'object'
     or coalesce(shipping_address ->> 'countryCode', '') !~ '^[A-Z]{2}$'
-    or shipping_address ->> 'countryCode' is distinct from quote -> 'shipping' ->> 'countryCode' then
+    or shipping_address ->> 'countryCode' is distinct from accepted_quote -> 'shipping' ->> 'countryCode' then
     return jsonb_build_object('status', 'invalid', 'code', 'shipping_address_required');
   end if;
   if shipping_address ->> 'countryCode' = 'US' and (
@@ -365,10 +464,30 @@ begin
   end if;
 
   resolved := private.resolve_checkout_shipping_allocations_v2(
-    physical_lines, shipping_address ->> 'countryCode', quote ->> 'currencyCode',
+    physical_lines, shipping_address ->> 'countryCode', accepted_quote ->> 'currencyCode',
     case when shipping_address ->> 'countryCode' = 'US'
       then nullif(upper(btrim(coalesce(shipping_address ->> 'region', ''))), '')
       else null end
+  );
+  if resolved ->> 'status' <> 'ready' then
+    return jsonb_build_object('status', 'stale', 'code', 'stale_shipping_quote', 'dimensions', jsonb_build_array('shipping'));
+  end if;
+
+  -- Lock selected shipping configuration and resolve again after the locks so
+  -- an update cannot land between verification and immutable persistence.
+  perform 1 from public.shipping_profiles
+  where id in (select (value ->> 'shippingProfileId')::uuid from jsonb_array_elements(resolved -> 'allocations'))
+  for share;
+  perform 1 from public.shipping_rules
+  where id in (select (value ->> 'shippingRuleId')::uuid from jsonb_array_elements(resolved -> 'allocations'))
+  for share;
+  perform 1 from public.shipping_region_adjustments
+  where id in (select nullif(value ->> 'regionAdjustmentId', '')::uuid from jsonb_array_elements(resolved -> 'allocations'))
+  for share;
+  resolved := private.resolve_checkout_shipping_allocations_v2(
+    physical_lines, shipping_address ->> 'countryCode', accepted_quote ->> 'currencyCode',
+    case when shipping_address ->> 'countryCode' = 'US'
+      then nullif(upper(btrim(coalesce(shipping_address ->> 'region', ''))), '') else null end
   );
   if resolved ->> 'status' <> 'ready' then
     return jsonb_build_object('status', 'stale', 'code', 'stale_shipping_quote', 'dimensions', jsonb_build_array('shipping'));
@@ -396,8 +515,8 @@ begin
   into authoritative_allocations
   from jsonb_array_elements(resolved -> 'allocations');
 
-  if quote -> 'shipping' ->> 'status' <> 'ready'
-    or (quote -> 'shipping' ->> 'amountMinor')::bigint <> authoritative_shipping_minor
+  if accepted_quote -> 'shipping' ->> 'status' <> 'ready'
+    or (accepted_quote -> 'shipping' ->> 'amountMinor')::bigint <> authoritative_shipping_minor
     or authoritative_allocations is distinct from (
       select coalesce(jsonb_agg(jsonb_build_object(
         'lineId', value ->> 'lineId', 'source', value ->> 'source',
@@ -406,23 +525,50 @@ begin
         'finalFirstItemFeeMinor', value -> 'finalFirstItemFeeMinor',
         'finalAdditionalItemFeeMinor', value -> 'finalAdditionalItemFeeMinor'
       ) order by value ->> 'lineId'), '[]'::jsonb)
-      from jsonb_array_elements(coalesce(quote -> 'shipping' -> 'allocations', '[]'::jsonb))
+      from jsonb_array_elements(coalesce(accepted_quote -> 'shipping' -> 'allocations', '[]'::jsonb))
     ) then
     return jsonb_build_object('status', 'stale', 'code', 'stale_shipping_quote', 'dimensions', jsonb_build_array('shipping'));
   end if;
 
-  select jsonb_agg(line || jsonb_build_object('_serverShippingAllocationMinor', coalesce((
-    select case when a.value ->> 'lineId' = winner_line_id
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'lineId', a.value ->> 'lineId', 'productId', a.value -> 'productId', 'variantId', a.value -> 'variantId',
+    'quantity', (a.value ->> 'quantity')::integer, 'source', a.value ->> 'source',
+    'shippingProfileId', a.value ->> 'shippingProfileId', 'profileName', a.value ->> 'profileName',
+    'shippingRuleId', a.value ->> 'shippingRuleId', 'ruleMatchKind', a.value ->> 'ruleMatchKind',
+    'destinationCountryCode', a.value ->> 'destinationCountryCode', 'currencyCode', a.value ->> 'currencyCode',
+    'baseFirstItemFeeMinor', (a.value ->> 'baseFirstItemFeeMinor')::integer,
+    'baseAdditionalItemFeeMinor', (a.value ->> 'baseAdditionalItemFeeMinor')::integer,
+    'regionAdjustmentId', a.value -> 'regionAdjustmentId', 'regionCode', a.value -> 'regionCode',
+    'regionMode', a.value -> 'regionMode', 'regionFirstItemFeeMinor', a.value -> 'regionFirstItemFeeMinor',
+    'regionAdditionalItemFeeMinor', a.value -> 'regionAdditionalItemFeeMinor',
+    'finalFirstItemFeeMinor', (a.value ->> 'finalFirstItemFeeMinor')::integer,
+    'finalAdditionalItemFeeMinor', (a.value ->> 'finalAdditionalItemFeeMinor')::integer,
+    'firstItemWinnerUnits', case when a.value ->> 'lineId' = winner_line_id then 1 else 0 end,
+    'allocatedShippingMinor', case when a.value ->> 'lineId' = winner_line_id
       then (a.value ->> 'finalFirstItemFeeMinor')::bigint
         + (((a.value ->> 'quantity')::integer - 1) * (a.value ->> 'finalAdditionalItemFeeMinor')::bigint)
       else (a.value ->> 'quantity')::integer * (a.value ->> 'finalAdditionalItemFeeMinor')::bigint end
-    from jsonb_array_elements(resolved -> 'allocations') a
-    where a.value ->> 'lineId' = line ->> 'lineId'
-  ), 0)) order by line ->> 'lineId')
-  into enriched_lines
-  from jsonb_array_elements(quote -> 'lines') lines(line);
-  quote := jsonb_set(quote, '{lines}', enriched_lines);
-  p_payload := jsonb_set(p_payload, '{acceptedQuote}', quote);
+  ) order by a.value ->> 'lineId'), '[]'::jsonb)
+  into canonical_shipping_allocations
+  from jsonb_array_elements(resolved -> 'allocations') a;
+
+  select coalesce(jsonb_object_agg(
+    value ->> 'lineId', (value ->> 'allocatedShippingMinor')::bigint
+  ), '{}'::jsonb) into shipping_allocation_map
+  from jsonb_array_elements(canonical_shipping_allocations);
+  perform set_config('app.checkout_shipping_allocations', shipping_allocation_map::text, true);
+
+  quote := jsonb_set(quote, '{shipping}', jsonb_build_object(
+    'status', 'ready', 'version', 2, 'amountMinor', authoritative_shipping_minor,
+    'countryCode', shipping_address ->> 'countryCode',
+    'regionCode', case when shipping_address ->> 'countryCode' = 'US' then upper(btrim(shipping_address ->> 'region')) else null end,
+    'firstItemLineId', winner_line_id,
+    'chargeableUnitCount', (select coalesce(sum((value ->> 'quantity')::integer), 0) from jsonb_array_elements(resolved -> 'allocations')),
+    'allocations', canonical_shipping_allocations
+  ));
+  server_quote_hash := encode(extensions.digest(quote::text, 'sha256'), 'hex');
+  quote := quote || jsonb_build_object('hash', server_quote_hash);
+  p_payload := jsonb_set(jsonb_set(p_payload, '{acceptedQuote}', quote), '{acceptedQuoteHash}', to_jsonb(server_quote_hash));
 
   result := public.submit_checkout_legacy_v1(p_payload);
   if result ->> 'status' <> 'success' then return result; end if;
@@ -430,7 +576,7 @@ begin
 
   for allocation in select value from jsonb_array_elements(resolved -> 'allocations')
   loop
-    select id into order_line_id from public.checkout_order_lines
+    select id into created_order_line_id from public.checkout_order_lines
     where order_id = created_order_id and line_id = allocation ->> 'lineId';
     insert into public.checkout_order_shipping_allocations (
       order_id, order_line_id, source_tier, shipping_profile_id, profile_name, shipping_rule_id,
@@ -439,7 +585,7 @@ begin
       region_first_item_fee_minor, region_additional_item_fee_minor, final_first_item_fee_minor,
       final_additional_item_fee_minor, quantity, first_item_winner_units, allocated_shipping_minor
     ) values (
-      created_order_id, order_line_id, allocation ->> 'source', (allocation ->> 'shippingProfileId')::uuid,
+      created_order_id, created_order_line_id, allocation ->> 'source', (allocation ->> 'shippingProfileId')::uuid,
       allocation ->> 'profileName', (allocation ->> 'shippingRuleId')::uuid,
       allocation ->> 'ruleMatchKind', allocation ->> 'destinationCountryCode', allocation ->> 'currencyCode',
       (allocation ->> 'baseFirstItemFeeMinor')::integer, (allocation ->> 'baseAdditionalItemFeeMinor')::integer,

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(35);
 
 select has_function(
   'private', 'checkout_commercial_quote_is_current', array['jsonb', 'uuid'],
@@ -19,8 +19,12 @@ select function_privs_are(
   'public', 'submit_checkout', array['jsonb'], 'anon', array['EXECUTE'],
   'anon can execute only the public submit boundary'
 );
-select has_constraint(
-  'public', 'checkout_orders', 'checkout_orders_authoritative_arithmetic_check',
+select ok(
+  exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.checkout_orders'::regclass
+      and conname = 'checkout_orders_authoritative_arithmetic_check'
+  ),
   'orders enforce authoritative subtotal/discount/shipping arithmetic'
 );
 select has_trigger(
@@ -138,21 +142,188 @@ select ok(
     'checkout_commercial_quote_is_current'),
   'idempotency lookup occurs before commercial and shipping resolution'
 );
-select like(
+select matches(
   pg_get_functiondef('public.submit_checkout(jsonb)'::regprocedure),
-  '%case when shipping_address ->> ''countryCode'' = ''US''%',
+  'case when shipping_address ->> ''countryCode'' = ''US''',
   'only US addresses pass a region into the shipping resolver'
 );
-select like(
+select matches(
   pg_get_functiondef('public.submit_checkout(jsonb)'::regprocedure),
-  '%on conflict (order_line_id) do nothing%',
+  'on conflict \(order_line_id\) do nothing',
   'allocation snapshot insertion is safe under idempotent races'
 );
-select like(
+select matches(
   pg_get_functiondef('public.submit_checkout(jsonb)'::regprocedure),
-  '%shipping_allocation_minor <> coalesce(a.allocated_shipping_minor, 0)%',
+  'shipping_allocation_minor <> coalesce\(a.allocated_shipping_minor, 0\)',
   'legacy and v2 per-line shipping evidence must match'
 );
+
+-- Behavioral physical checkout fixture: two lines, a non-US free-form region,
+-- authoritative metadata, payment creation and repeat submission.
+insert into public.products (id, product_type, status, published_at) values
+  ('08141000-0000-0000-0000-000000000001', 'physical_finished', 'published', now()),
+  ('08141000-0000-0000-0000-000000000002', 'physical_finished', 'published', now());
+insert into public.product_translations (product_id, locale, slug, title, description) values
+  ('08141000-0000-0000-0000-000000000001', 'en', 'canonical-bear', 'Canonical bear', ''),
+  ('08141000-0000-0000-0000-000000000002', 'en', 'canonical-bunny', 'Canonical bunny', '');
+insert into public.product_market_offers (product_id, market_code, enabled, currency_code, price_minor) values
+  ('08141000-0000-0000-0000-000000000001', 'intl', true, 'USD', 2000),
+  ('08141000-0000-0000-0000-000000000002', 'intl', true, 'USD', 3000);
+insert into public.inventory_records (product_id, quantity_on_hand) values
+  ('08141000-0000-0000-0000-000000000001', 10),
+  ('08141000-0000-0000-0000-000000000002', 10);
+insert into public.shipping_profiles (id, name, active)
+values ('08141000-0000-0000-0000-000000000010', 'Vietnam physical fixture', true);
+insert into public.shipping_rules (
+  id, profile_id, match_kind, country_code, currency_code,
+  first_item_fee_minor, additional_item_fee_minor, active
+) values (
+  '08141000-0000-0000-0000-000000000011',
+  '08141000-0000-0000-0000-000000000010', 'exact_country', 'VN', 'USD', 500, 100, true
+);
+insert into public.product_shipping_profiles (product_id, profile_id) values
+  ('08141000-0000-0000-0000-000000000001', '08141000-0000-0000-0000-000000000010'),
+  ('08141000-0000-0000-0000-000000000002', '08141000-0000-0000-0000-000000000010');
+
+create temporary table hardening_payloads (name text primary key, payload jsonb);
+with shipping as (
+  select public.get_checkout_shipping_quote_v2(
+    '[
+      {"lineId":"08141000-0000-0000-0000-000000000001::product","productId":"08141000-0000-0000-0000-000000000001","variantId":null,"quantity":2},
+      {"lineId":"08141000-0000-0000-0000-000000000002::product","productId":"08141000-0000-0000-0000-000000000002","variantId":null,"quantity":1}
+    ]'::jsonb, 'VN', 'USD', null
+  ) quote
+), accepted as (
+  select jsonb_build_object(
+    'status', 'ready', 'locale', 'en', 'market', 'intl', 'currencyCode', 'USD',
+    'lines', jsonb_build_array(
+      jsonb_build_object(
+        'lineId', '08141000-0000-0000-0000-000000000001::product',
+        'productId', '08141000-0000-0000-0000-000000000001', 'variantId', null,
+        'slug', 'forged-slug', 'title', 'FORGED BROWSER TITLE', 'fulfillmentType', 'physical',
+        'status', 'ready', 'quantity', 2, 'requestedQuantity', 2, 'marketAtAdd', 'intl',
+        'currencyCode', 'USD', 'unitPriceMinor', 2000, 'lineSubtotalMinor', 4000,
+        'excludedSubtotalMinor', 0, 'discountAllocationMinor', 0
+      ),
+      jsonb_build_object(
+        'lineId', '08141000-0000-0000-0000-000000000002::product',
+        'productId', '08141000-0000-0000-0000-000000000002', 'variantId', null,
+        'slug', 'forged-slug-2', 'title', 'FORGED BROWSER TITLE 2', 'fulfillmentType', 'physical',
+        'status', 'ready', 'quantity', 1, 'requestedQuantity', 1, 'marketAtAdd', 'intl',
+        'currencyCode', 'USD', 'unitPriceMinor', 3000, 'lineSubtotalMinor', 3000,
+        'excludedSubtotalMinor', 0, 'discountAllocationMinor', 0
+      )
+    ),
+    'subtotalMinor', 7000, 'excludedSubtotalMinor', 0,
+    'discount', jsonb_build_object('status', 'not_applied', 'amountMinor', 0),
+    'shipping', jsonb_build_object(
+      'status', 'ready', 'version', 2, 'countryCode', 'VN', 'regionCode', null,
+      'amountMinor', 700, 'firstItemLineId', '08141000-0000-0000-0000-000000000001::product',
+      'chargeableUnitCount', 3, 'allocations', shipping.quote -> 'allocations'
+    ),
+    'totalMinor', 7700, 'hash', 'physical-client-hash', 'quotedAt', now()
+  ) quote from shipping
+)
+insert into hardening_payloads (name, payload)
+select 'base', jsonb_build_object(
+  'locale', 'en', 'market', 'intl',
+  'lines', jsonb_build_array(
+    jsonb_build_object('productId', '08141000-0000-0000-0000-000000000001', 'variantId', null, 'quantity', 2, 'marketAtAdd', 'intl'),
+    jsonb_build_object('productId', '08141000-0000-0000-0000-000000000002', 'variantId', null, 'quantity', 1, 'marketAtAdd', 'intl')
+  ),
+  'destinationCountryCode', 'VN', 'destinationRegionCode', null, 'discountCode', null,
+  'acceptedQuoteHash', 'physical-client-hash', 'acceptedQuote', accepted.quote,
+  'idempotencyKey', 'physical-hardening-base', 'guestCartId', 'physical-hardening-guest',
+  'contactEmail', 'physical-hardening@example.test', 'paymentIntent', 'paypal_intent',
+  'shippingAddress', jsonb_build_object(
+    'recipientName', 'Test recipient', 'phoneNumber', '+84901234567', 'countryCode', 'VN',
+    'region', 'Ho Chi Minh City', 'locality', 'Thu Duc', 'addressLine1', '2 Nguyen Hue',
+    'addressLine2', null, 'postalCode', '700000'
+  )
+) from accepted;
+
+create temporary table hardening_submit_results (attempt integer, result jsonb);
+insert into hardening_submit_results values
+  (1, public.submit_checkout((select payload from hardening_payloads where name = 'base'))),
+  (2, public.submit_checkout((select payload from hardening_payloads where name = 'base')));
+
+select is((select result ->> 'status' from hardening_submit_results where attempt = 1), 'success', 'physical submit succeeds');
+select is(
+  (select result ->> 'orderId' from hardening_submit_results where attempt = 1),
+  (select result ->> 'orderId' from hardening_submit_results where attempt = 2),
+  'same actor and idempotency key return the same physical order'
+);
+select is((select count(*)::integer from public.checkout_orders where id = (select (result ->> 'orderId')::uuid from hardening_submit_results where attempt = 1)), 1, 'retry creates one order');
+select is((select count(*)::integer from public.checkout_order_lines where order_id = (select (result ->> 'orderId')::uuid from hardening_submit_results where attempt = 1)), 2, 'retry creates one line set');
+select is((select count(*)::integer from public.checkout_inventory_reservations where order_id = (select (result ->> 'orderId')::uuid from hardening_submit_results where attempt = 1)), 2, 'retry creates one reservation set');
+select is((select count(*)::integer from public.payments where order_id = (select (result ->> 'orderId')::uuid from hardening_submit_results where attempt = 1)), 1, 'retry creates one payment row');
+select is((select count(*)::integer from public.checkout_order_shipping_allocations where order_id = (select (result ->> 'orderId')::uuid from hardening_submit_results where attempt = 1)), 2, 'retry creates one shipping snapshot set');
+select is((select shipping_address ->> 'region' from public.checkout_orders where id = (select (result ->> 'orderId')::uuid from hardening_submit_results where attempt = 1)), 'Ho Chi Minh City', 'non-US region remains in immutable address');
+select is((select quote_snapshot #>> '{shipping,regionCode}' from public.checkout_orders where id = (select (result ->> 'orderId')::uuid from hardening_submit_results where attempt = 1)), null, 'non-US region is absent from resolver evidence');
+select is((select quote_snapshot #>> '{lines,0,title}' from public.checkout_orders where id = (select (result ->> 'orderId')::uuid from hardening_submit_results where attempt = 1)), 'Canonical bear', 'order quote snapshot uses database title');
+select ok(not (select quote_snapshot::text like '%_serverShippingAllocationMinor%' from public.checkout_orders where id = (select (result ->> 'orderId')::uuid from hardening_submit_results where attempt = 1)), 'order snapshot contains no internal allocation marker');
+select is(
+  (select count(*)::integer from public.checkout_order_lines l join public.checkout_order_shipping_allocations a on a.order_line_id = l.id where l.order_id = (select (result ->> 'orderId')::uuid from hardening_submit_results where attempt = 1) and l.shipping_allocation_minor = a.allocated_shipping_minor),
+  2, 'both physical line allocation representations match'
+);
+select is(
+  (select sum(shipping_allocation_minor)::bigint from public.checkout_order_lines where order_id = (select (result ->> 'orderId')::uuid from hardening_submit_results where attempt = 1)),
+  (select shipping_minor from public.checkout_orders where id = (select (result ->> 'orderId')::uuid from hardening_submit_results where attempt = 1)),
+  'line allocations sum to authoritative order shipping'
+);
+
+insert into hardening_payloads
+select 'tampered', jsonb_set(jsonb_set(payload, '{idempotencyKey}', '"physical-tampered-total"'), '{acceptedQuote,totalMinor}', '1')
+from hardening_payloads where name = 'base';
+select is(public.submit_checkout((select payload from hardening_payloads where name = 'tampered')) ->> 'code', 'stale_commercial_quote', 'tampered total is rejected by public submit');
+select is((select count(*)::integer from public.checkout_orders where idempotency_key = 'physical-tampered-total'), 0, 'tampered total creates no order or payment graph');
+
+update public.product_market_offers set price_minor = 2500 where product_id = '08141000-0000-0000-0000-000000000001' and market_code = 'intl';
+insert into hardening_payloads
+select 'stale-price', jsonb_set(payload, '{idempotencyKey}', '"physical-stale-price"') from hardening_payloads where name = 'base';
+select is(public.submit_checkout((select payload from hardening_payloads where name = 'stale-price')) ->> 'code', 'stale_commercial_quote', 'price changed after quote is rejected');
+select is((select count(*)::integer from public.checkout_orders where idempotency_key = 'physical-stale-price'), 0, 'stale price creates nothing');
+
+update public.product_market_offers set price_minor = 2000 where product_id = '08141000-0000-0000-0000-000000000001' and market_code = 'intl';
+update public.shipping_rules set first_item_fee_minor = 900 where id = '08141000-0000-0000-0000-000000000011';
+insert into hardening_payloads
+select 'stale-shipping', jsonb_set(payload, '{idempotencyKey}', '"physical-stale-shipping"') from hardening_payloads where name = 'base';
+select is(public.submit_checkout((select payload from hardening_payloads where name = 'stale-shipping')) ->> 'code', 'stale_shipping_quote', 'shipping configuration changed after quote is rejected');
+select is((select count(*)::integer from public.checkout_orders where idempotency_key = 'physical-stale-shipping'), 0, 'stale shipping creates nothing');
+update public.shipping_rules set first_item_fee_minor = 500 where id = '08141000-0000-0000-0000-000000000011';
+
+insert into public.discount_codes (code, discount_type, percentage_bps, market, minimum_subtotal_minor)
+values ('SAVE10', 'percentage', 1000, 'intl', 0);
+insert into hardening_payloads
+select 'stale-discount',
+  jsonb_set(
+    jsonb_set(
+      jsonb_set(
+        jsonb_set(
+          jsonb_set(payload, '{idempotencyKey}', '"physical-stale-discount"'),
+          '{discountCode}', '"SAVE10"'
+        ),
+        '{acceptedQuote,discount}', '{"status":"applied","code":"SAVE10","amountMinor":700,"allocations":[{"lineId":"08141000-0000-0000-0000-000000000001::product","amountMinor":400},{"lineId":"08141000-0000-0000-0000-000000000002::product","amountMinor":300}]}'::jsonb
+      ),
+      '{acceptedQuote,lines,0,discountAllocationMinor}', '400'
+    ),
+    '{acceptedQuote,lines,1,discountAllocationMinor}', '300'
+  ) || jsonb_build_object(
+    'acceptedQuote', jsonb_set(
+      jsonb_set(
+        jsonb_set(
+          jsonb_set(payload -> 'acceptedQuote', '{discount}', '{"status":"applied","code":"SAVE10","amountMinor":700,"allocations":[{"lineId":"08141000-0000-0000-0000-000000000001::product","amountMinor":400},{"lineId":"08141000-0000-0000-0000-000000000002::product","amountMinor":300}]}'::jsonb),
+          '{lines,0,discountAllocationMinor}', '400'
+        ),
+        '{lines,1,discountAllocationMinor}', '300'
+      ),
+      '{totalMinor}', '7000'
+    )
+  )
+from hardening_payloads where name = 'base';
+update public.discount_codes set percentage_bps = 2000 where code = 'SAVE10';
+select is(public.submit_checkout((select payload from hardening_payloads where name = 'stale-discount')) ->> 'code', 'stale_commercial_quote', 'discount changed after quote is rejected');
+select is((select count(*)::integer from public.checkout_orders where idempotency_key = 'physical-stale-discount'), 0, 'stale discount creates nothing');
 
 select * from finish();
 rollback;
