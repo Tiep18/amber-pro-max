@@ -44,7 +44,10 @@ function resultVariant(result: MediaActionResult | null) {
   if (!result) {
     return 'default' as const;
   }
-  return result.status === 'success' ? ('success' as const) : ('destructive' as const);
+  if (result.status !== 'success') {
+    return 'destructive' as const;
+  }
+  return result.warning ? ('warning' as const) : ('success' as const);
 }
 
 function resultText(result: MediaActionResult | null) {

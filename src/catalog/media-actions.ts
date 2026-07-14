@@ -34,7 +34,7 @@ type MediaActionCode =
   | 'remove_failed';
 
 export type MediaActionResult =
-  | {status: 'success'; message: string}
+  | {status: 'success'; message: string; warning?: 'cleanup_failed'}
   | {status: 'invalid'; code: MediaActionCode}
   | {status: 'error'; code: MediaActionCode};
 
@@ -106,9 +106,43 @@ async function nextDisplayOrder(productId: string) {
   return (data?.display_order ?? -1) + 1;
 }
 
-async function removeStorageObject(bucket: typeof PRODUCT_MEDIA_BUCKET | typeof PATTERN_PDF_BUCKET, objectPath: string) {
-  const supabase = await createSupabaseServerClient();
-  await supabase.storage.from(bucket).remove([objectPath]);
+function storageObjectAlreadyMissing(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const candidate = error as {status?: unknown; statusCode?: unknown; code?: unknown};
+  if (candidate.status === 404 || candidate.statusCode === 404 || candidate.statusCode === '404') {
+    return true;
+  }
+  if (typeof candidate.code !== 'string') {
+    return false;
+  }
+  return ['404', 'not_found', 'object_not_found', 'no_such_key'].includes(candidate.code.toLowerCase());
+}
+
+async function removeStorageObject(
+  bucket: typeof PRODUCT_MEDIA_BUCKET | typeof PATTERN_PDF_BUCKET,
+  objectPath: string
+): Promise<{status: 'removed'} | {status: 'error'}> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const result = await supabase.storage.from(bucket).remove([objectPath]);
+    return !result.error || storageObjectAlreadyMissing(result.error) ? {status: 'removed'} : {status: 'error'};
+  } catch {
+    return {status: 'error'};
+  }
+}
+
+async function recordStorageRemovalFailure(input: {
+  action: string;
+  errorCode: string;
+  summary: string;
+  productId: string;
+  referenceId?: string;
+  code: MediaActionCode;
+  severity?: 'warning' | 'error';
+}) {
+  await monitoredMediaFailure(input);
 }
 
 async function mediaForProduct(productId: string, mediaId: string) {
@@ -171,7 +205,17 @@ export async function uploadProductImageAction(formData: FormData): Promise<Medi
     is_primary: false
   });
   if (error) {
-    await removeStorageObject(PRODUCT_MEDIA_BUCKET, objectPath);
+    const cleanup = await removeStorageObject(PRODUCT_MEDIA_BUCKET, objectPath);
+    if (cleanup.status === 'error') {
+      await recordStorageRemovalFailure({
+        action: 'media_upload_rollback_cleanup',
+        errorCode: 'catalog_media_rollback_cleanup_failed',
+        summary: 'Catalog media rollback cleanup failed',
+        productId: parsed.data,
+        code: 'remove_failed',
+        severity: 'warning'
+      });
+    }
     await monitoredMediaFailure({
       action: 'media_association',
       errorCode: 'catalog_media_association_failed',
@@ -329,6 +373,19 @@ export async function removeProductMediaAction(productId: string, mediaId: strin
     return {status: 'invalid', code: 'media_not_found'};
   }
 
+  const storageRemoval = await removeStorageObject(PRODUCT_MEDIA_BUCKET, media.object_path);
+  if (storageRemoval.status === 'error') {
+    await recordStorageRemovalFailure({
+      action: 'media_storage_remove',
+      errorCode: 'catalog_media_storage_remove_failed',
+      summary: 'Catalog media storage remove failed',
+      productId: parsed.data.productId,
+      referenceId: parsed.data.mediaId,
+      code: 'remove_failed'
+    });
+    return {status: 'error', code: 'remove_failed'};
+  }
+
   const supabase = await createSupabaseServerClient();
   const clearSocialResult = await supabase
     .from('product_translations')
@@ -342,9 +399,9 @@ export async function removeProductMediaAction(productId: string, mediaId: strin
       summary: 'Catalog media social image clear failed',
       productId: parsed.data.productId,
       referenceId: parsed.data.mediaId,
-      code: 'update_failed',
-      severity: 'warning'
+      code: 'remove_failed'
     });
+    return {status: 'error', code: 'remove_failed'};
   }
   const {error} = await supabase
     .from('product_media')
@@ -363,7 +420,6 @@ export async function removeProductMediaAction(productId: string, mediaId: strin
     return {status: 'error', code: 'remove_failed'};
   }
 
-  await removeStorageObject(PRODUCT_MEDIA_BUCKET, media.object_path);
   revalidateMedia(parsed.data.productId);
   return {status: 'success', message: 'Image removed'};
 }
@@ -427,7 +483,17 @@ export async function uploadPatternPdfAction(formData: FormData): Promise<MediaA
     {onConflict: 'product_id'}
   );
   if (error) {
-    await removeStorageObject(PATTERN_PDF_BUCKET, objectPath);
+    const cleanup = await removeStorageObject(PATTERN_PDF_BUCKET, objectPath);
+    if (cleanup.status === 'error') {
+      await recordStorageRemovalFailure({
+        action: 'pattern_pdf_upload_rollback_cleanup',
+        errorCode: 'catalog_pattern_pdf_rollback_cleanup_failed',
+        summary: 'Catalog pattern PDF rollback cleanup failed',
+        productId: parsed.data.productId,
+        code: 'remove_failed',
+        severity: 'warning'
+      });
+    }
     await monitoredMediaFailure({
       action: 'pattern_pdf_association',
       errorCode: 'catalog_pattern_pdf_association_failed',
@@ -439,7 +505,23 @@ export async function uploadPatternPdfAction(formData: FormData): Promise<MediaA
   }
 
   if (existing.data?.object_path && existing.data.object_path !== objectPath) {
-    await removeStorageObject(PATTERN_PDF_BUCKET, existing.data.object_path);
+    const cleanup = await removeStorageObject(PATTERN_PDF_BUCKET, existing.data.object_path);
+    if (cleanup.status === 'error') {
+      await recordStorageRemovalFailure({
+        action: 'pattern_pdf_replacement_cleanup',
+        errorCode: 'catalog_pattern_pdf_replacement_cleanup_failed',
+        summary: 'Catalog pattern PDF replacement cleanup failed',
+        productId: parsed.data.productId,
+        code: 'remove_failed',
+        severity: 'warning'
+      });
+      revalidateMedia(parsed.data.productId);
+      return {
+        status: 'success',
+        message: 'Private PDF associated; old file cleanup needs attention.',
+        warning: 'cleanup_failed'
+      };
+    }
   }
 
   revalidateMedia(parsed.data.productId);
@@ -463,6 +545,18 @@ export async function removePatternPdfAction(productId: string): Promise<MediaAc
     return {status: 'invalid', code: 'media_not_found'};
   }
 
+  const storageRemoval = await removeStorageObject(PATTERN_PDF_BUCKET, existing.data.object_path);
+  if (storageRemoval.status === 'error') {
+    await recordStorageRemovalFailure({
+      action: 'pattern_pdf_storage_remove',
+      errorCode: 'catalog_pattern_pdf_storage_remove_failed',
+      summary: 'Catalog pattern PDF storage remove failed',
+      productId: parsed.data.productId,
+      code: 'remove_failed'
+    });
+    return {status: 'error', code: 'remove_failed'};
+  }
+
   const {error} = await supabase.from('product_digital_assets').delete().eq('product_id', parsed.data.productId);
   if (error) {
     await monitoredMediaFailure({
@@ -475,7 +569,6 @@ export async function removePatternPdfAction(productId: string): Promise<MediaAc
     return {status: 'error', code: 'remove_failed'};
   }
 
-  await removeStorageObject(PATTERN_PDF_BUCKET, existing.data.object_path);
   revalidateMedia(parsed.data.productId);
   return {status: 'success', message: 'Private PDF removed'};
 }
