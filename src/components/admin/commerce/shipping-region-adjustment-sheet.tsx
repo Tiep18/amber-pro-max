@@ -141,6 +141,9 @@ export function ShippingRegionAdjustmentSheet({
   const eligibleRules = rules.filter(
     (rule) => rule.currencyCode === 'USD' && rule.countryCode === 'US'
   );
+  const ruleLocked = Boolean(adjustment || presetRuleId);
+  const selectedRuleLabel =
+    eligibleRules.find((rule) => rule.id === ruleId)?.label ?? 'Unknown US rate';
   const label = triggerLabel ?? (editing ? 'Edit surcharge' : 'Add US surcharge');
 
   function markDirty() {
@@ -247,32 +250,44 @@ export function ShippingRegionAdjustmentSheet({
         >
           {error ? <Alert variant="destructive">{error}</Alert> : null}
 
-          <div className="grid gap-1.5">
-            <span className="text-sm font-semibold">United States shipping rate</span>
-            <Select
-              value={ruleId}
-              onValueChange={(value) => {
-                setRuleId(value);
-                setErrors((current) => ({ ...current, rule: undefined }));
-                markDirty();
-              }}
-            >
-              <SelectTrigger
-                aria-label="United States shipping rate"
-                aria-invalid={Boolean(errors.rule)}
+          {ruleLocked ? (
+            <div className="grid gap-1.5">
+              <span className="text-sm font-semibold">United States shipping rate</span>
+              <div className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-muted)]/55 px-3 py-2.5">
+                <p className="font-semibold text-[var(--foreground)]">{selectedRuleLabel}</p>
+                <p className="mt-0.5 text-sm text-[var(--muted-foreground)]">
+                  This adjustment stays attached to the selected package rate.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-1.5">
+              <span className="text-sm font-semibold">United States shipping rate</span>
+              <Select
+                value={ruleId}
+                onValueChange={(value) => {
+                  setRuleId(value);
+                  setErrors((current) => ({ ...current, rule: undefined }));
+                  markDirty();
+                }}
               >
-                <SelectValue placeholder="Choose a US rate…" />
-              </SelectTrigger>
-              <SelectContent>
-                {eligibleRules.map((rule) => (
-                  <SelectItem key={rule.id} value={rule.id}>
-                    {rule.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldError>{errors.rule}</FieldError>
-          </div>
+                <SelectTrigger
+                  aria-label="United States shipping rate"
+                  aria-invalid={Boolean(errors.rule)}
+                >
+                  <SelectValue placeholder="Choose a US rate…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {eligibleRules.map((rule) => (
+                    <SelectItem key={rule.id} value={rule.id}>
+                      {rule.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError>{errors.rule}</FieldError>
+            </div>
+          )}
 
           <div className="grid gap-1.5">
             <span className="text-sm font-semibold">State or territory</span>

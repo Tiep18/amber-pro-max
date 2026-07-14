@@ -61,6 +61,12 @@ export function Sheet({
         <SheetPrimitive.Overlay className="sheet-overlay fixed inset-0 z-50 bg-[rgba(38,35,31,0.32)]" />
         <SheetPrimitive.Content
           data-side={side}
+          onInteractOutside={(event) => {
+            const target = event.target;
+            if (target instanceof Element && target.closest('[data-sheet-select-content]')) {
+              event.preventDefault();
+            }
+          }}
           className={cn(
             'sheet-content fixed bottom-0 top-0 z-50 flex h-dvh w-[min(420px,92vw)] flex-col overflow-hidden bg-[linear-gradient(180deg,var(--surface-paper),var(--surface))] shadow-[0_0_90px_rgb(73_52_32/24%)] outline-none ring-1 ring-white/60',
             side === 'left'

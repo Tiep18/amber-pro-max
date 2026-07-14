@@ -72,6 +72,18 @@ function FieldError({ children }: { children?: string }) {
   ) : null;
 }
 
+function ContextField({ label, value, detail }: { label: string; value: string; detail?: string }) {
+  return (
+    <div className="grid gap-1.5">
+      <span className="text-sm font-semibold">{label}</span>
+      <div className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-muted)]/55 px-3 py-2.5">
+        <p className="font-semibold">{value}</p>
+        {detail ? <p className="mt-0.5 text-sm text-[var(--muted-foreground)]">{detail}</p> : null}
+      </div>
+    </div>
+  );
+}
+
 export function ShippingRuleSheet({
   profiles,
   rule,
@@ -114,6 +126,9 @@ export function ShippingRuleSheet({
   const [result, setResult] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const editing = Boolean(rule);
+  const profileLocked = Boolean(rule || presetProfileId);
+  const destinationLocked = Boolean(rule || presetDestination);
+  const currencyLocked = Boolean(rule || (presetDestination && presetDestination !== 'custom'));
   const activeProfiles = profiles.filter(
     (profile) => profile.active || profile.id === rule?.profile_id
   );
@@ -123,6 +138,11 @@ export function ShippingRuleSheet({
     () => destinationChoices.find((choice) => choice.value === destinationChoice)?.description,
     [destinationChoice]
   );
+  const selectedProfileName =
+    profiles.find((profile) => profile.id === profileId)?.name ?? 'Unknown package';
+  const selectedDestinationLabel =
+    destinationChoices.find((choice) => choice.value === destinationChoice)?.label ??
+    'Unknown destination';
 
   function markDirty() {
     setDirty(true);
@@ -243,58 +263,74 @@ export function ShippingRuleSheet({
         >
           {result ? <Alert variant="destructive">{result}</Alert> : null}
 
-          <div className="grid gap-1.5">
-            <span className="text-sm font-semibold">Package type</span>
-            <Select
-              value={profileId}
-              onValueChange={(value) => {
-                setProfileId(value);
-                setErrors((current) => ({ ...current, profile: undefined }));
-                markDirty();
-              }}
-            >
-              <SelectTrigger aria-label="Package type" aria-invalid={Boolean(errors.profile)}>
-                <SelectValue placeholder="Choose a package type…" />
-              </SelectTrigger>
-              <SelectContent>
-                {activeProfiles.map((profile) => (
-                  <SelectItem key={profile.id} value={profile.id}>
-                    {profile.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldError>{errors.profile}</FieldError>
-          </div>
+          {profileLocked ? (
+            <ContextField label="Package type" value={selectedProfileName} />
+          ) : (
+            <div className="grid gap-1.5">
+              <span className="text-sm font-semibold">Package type</span>
+              <Select
+                value={profileId}
+                onValueChange={(value) => {
+                  setProfileId(value);
+                  setErrors((current) => ({ ...current, profile: undefined }));
+                  markDirty();
+                }}
+              >
+                <SelectTrigger aria-label="Package type" aria-invalid={Boolean(errors.profile)}>
+                  <SelectValue placeholder="Choose a package type…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeProfiles.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError>{errors.profile}</FieldError>
+            </div>
+          )}
 
-          <div className="grid gap-1.5">
-            <span className="text-sm font-semibold">Shipping destination</span>
-            <Select
-              value={destinationChoice}
-              onValueChange={(value) => {
-                const next = value as DestinationChoice;
-                setDestinationChoice(next);
-                if (next === 'VN') setCurrency('VND');
-                if (next === 'US' || next === 'fallback') setCurrency('USD');
-                setErrors((current) => ({ ...current, country: undefined }));
-                markDirty();
-              }}
-            >
-              <SelectTrigger aria-label="Shipping destination">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {destinationChoices.map((choice) => (
-                  <SelectItem key={choice.value} value={choice.value}>
-                    {choice.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-sm text-[var(--muted-foreground)]">{destinationDescription}</p>
-          </div>
+          {destinationLocked ? (
+            <ContextField
+              label="Shipping destination"
+              value={
+                destinationChoice === 'custom' && countryCode
+                  ? `${selectedDestinationLabel} · ${countryCode}`
+                  : selectedDestinationLabel
+              }
+              detail={destinationDescription}
+            />
+          ) : (
+            <div className="grid gap-1.5">
+              <span className="text-sm font-semibold">Shipping destination</span>
+              <Select
+                value={destinationChoice}
+                onValueChange={(value) => {
+                  const next = value as DestinationChoice;
+                  setDestinationChoice(next);
+                  if (next === 'VN') setCurrency('VND');
+                  if (next === 'US' || next === 'fallback') setCurrency('USD');
+                  setErrors((current) => ({ ...current, country: undefined }));
+                  markDirty();
+                }}
+              >
+                <SelectTrigger aria-label="Shipping destination">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {destinationChoices.map((choice) => (
+                    <SelectItem key={choice.value} value={choice.value}>
+                      {choice.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-[var(--muted-foreground)]">{destinationDescription}</p>
+            </div>
+          )}
 
-          {destinationChoice === 'custom' ? (
+          {destinationChoice === 'custom' && !editing ? (
             <label className="grid gap-1.5">
               <span className="text-sm font-semibold">Country code</span>
               <Input
@@ -317,24 +353,28 @@ export function ShippingRuleSheet({
           ) : null}
 
           <div className="grid gap-4 sm:grid-cols-[120px_1fr]">
-            <div className="grid gap-1.5">
-              <span className="text-sm font-semibold">Currency</span>
-              <Select
-                value={currency}
-                onValueChange={(value) => {
-                  setCurrency(value as typeof currency);
-                  markDirty();
-                }}
-              >
-                <SelectTrigger aria-label="Currency">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="VND">VND</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {currencyLocked ? (
+              <ContextField label="Currency" value={currency} />
+            ) : (
+              <div className="grid gap-1.5">
+                <span className="text-sm font-semibold">Currency</span>
+                <Select
+                  value={currency}
+                  onValueChange={(value) => {
+                    setCurrency(value as typeof currency);
+                    markDirty();
+                  }}
+                >
+                  <SelectTrigger aria-label="Currency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="VND">VND</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <label className="grid gap-1.5">
               <span className="flex items-center justify-between gap-2 text-sm font-semibold">
                 First item fee
