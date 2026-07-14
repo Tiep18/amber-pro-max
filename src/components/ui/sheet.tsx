@@ -67,11 +67,15 @@ export function Sheet({
             selectLayerInteractionRef.current = Boolean(
               ownerDocument.querySelector('[data-sheet-select-content][data-state="open"]')
             );
-            if (selectLayerInteractionRef.current) {
-              ownerDocument.defaultView?.setTimeout(() => {
-                selectLayerInteractionRef.current = false;
-              }, 0);
-            }
+          }}
+          onPointerUpCapture={(event) => {
+            // Keep the Select guard alive for the whole press, including the click after pointerup.
+            event.currentTarget.ownerDocument.defaultView?.setTimeout(() => {
+              selectLayerInteractionRef.current = false;
+            }, 0);
+          }}
+          onPointerCancelCapture={() => {
+            selectLayerInteractionRef.current = false;
           }}
         />
         <SheetPrimitive.Content

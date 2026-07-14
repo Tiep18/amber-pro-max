@@ -118,15 +118,25 @@ test('admin manages parcel default, destination rule, and US adjustment', async 
   await expect(rateDialog.getByRole('combobox', { name: 'Package type' })).toHaveCount(0);
   await expect(rateDialog.getByRole('combobox', { name: 'Shipping destination' })).toHaveCount(0);
   await rateDialog.getByLabel('First item fee').fill('7.50');
-  await rateDialog.getByLabel('Additional item fee').fill('2.25');
+  await rateDialog.getByLabel('Each additional item').fill('2.25');
   await rateDialog.getByRole('button', { name: 'Create shipping rate' }).click();
   await expect(rateDialog).toBeHidden();
   await expect(packageRow.getByText('$7.50')).toBeVisible();
   await expect(packageRow.getByText(/\+ \$2\.25 each additional/)).toBeVisible();
 
-  await packageRow.getByText('Overrides').click();
+  await packageRow.getByText('Overrides', { exact: true }).click();
   await packageRow.getByRole('button', { name: 'Add state' }).click();
-  await page.getByLabel('State or territory').click();
+  const stateSelect = page.getByLabel('State or territory');
+  await stateSelect.click();
+  const stateSelectBox = await stateSelect.boundingBox();
+  expect(stateSelectBox).not.toBeNull();
+  await page.mouse.move(stateSelectBox!.x + 24, stateSelectBox!.y + stateSelectBox!.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(20);
+  await page.mouse.up();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(stateSelect).toHaveAttribute('aria-expanded', 'false');
+  await stateSelect.click();
   await page.getByRole('option', { name: 'California (CA)' }).click();
   await page.getByLabel('Adjustment type').click();
   await page.getByRole('option', { name: 'Add to the base rate' }).click();
@@ -135,7 +145,7 @@ test('admin manages parcel default, destination rule, and US adjustment', async 
   await page.locator('.sheet-overlay').click({ position: { x: 12, y: 12 } });
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByLabel('First item').fill('1.25');
-  await page.getByLabel('Each additional item').fill('0.50');
+  await page.getByLabel('Each additional').fill('0.50');
   await page.getByRole('button', { name: 'Create US adjustment' }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(packageRow.getByText('California (CA)')).toBeVisible();
