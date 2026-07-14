@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed quick task 260714-ij7 admin shipping package UI polish and Sheet interaction fix
-last_updated: "2026-07-14T13:36:00+07:00"
-last_activity: 2026-07-14 -- Quick task completed: compact admin shipping package UI and locked rate context
+stopped_at: Completed quick task 260714-kzt checkout shipping submit hardening
+last_updated: "2026-07-14T15:49:00+07:00"
+last_activity: 2026-07-14 -- Quick task completed: authoritative checkout totals, retry safety, region normalization, and allocation evidence
 progress:
   total_phases: 8
   completed_phases: 7
@@ -164,6 +164,7 @@ None yet.
 
 | #                                                     | Description                                                                                                                      | Date       | Commit      | Directory                                                                                                                                                 |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 260714-kzt                                            | Harden checkout totals, physical-submit retries, non-US regions, and per-line shipping allocation evidence                       | 2026-07-14 | 68d700c0    | [260714-kzt](./quick/260714-kzt-harden-checkout-shipping-totals-physical/)                                                                                |
 | 260714-ij7                                            | Polish admin shipping package cards, lock rate context, and fix Select interactions inside shared Sheets                         | 2026-07-14 | 098fc7fd    | [260714-ij7](./quick/260714-ij7-polish-admin-shipping-package-ui-for-cle/)                                                                                |
 | 260714-g7i                                            | Redesign admin shipping into an actionable package-rate workspace with safe edit and readiness flows                            | 2026-07-14 | 33fb90e1    | [260714-g7i](./quick/260714-g7i-redesign-admin-shipping-into-an-actionab/)                                                                                |
 | 260619-phase-4-docs-refresh                           | Update Phase 4 docs after checkout shipping-address/address-UX commits                                                           | 2026-06-19 | this commit | [260619-phase-4-docs-refresh](./quick/260619-phase-4-docs-refresh/)                                                                                       |
