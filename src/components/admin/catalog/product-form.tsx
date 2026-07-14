@@ -14,6 +14,10 @@ import {
 import { productDraftSchema, type ProductDraftInput } from '@/catalog/schemas';
 import type { CatalogLocale, ProductType } from '@/catalog/types';
 import {
+  reconcileCollectionMemberships,
+  type CatalogCollectionOption
+} from '@/catalog/collection-ordering';
+import {
   ShippingAssignmentSheet,
   type ShippingAssignmentProfile,
   type ShippingProfileOption
@@ -50,7 +54,7 @@ type ProductFormProps = {
   categories: CatalogOption[];
   techniques: CatalogOption[];
   tags: CatalogOption[];
-  collections: CatalogOption[];
+  collections: CatalogCollectionOption[];
   shippingProfiles?: ShippingProfileOption[];
   storeDefaultShippingProfile?: ShippingAssignmentProfile | null;
   shippingAssignment?: {
@@ -509,6 +513,14 @@ export function ProductForm({
   const [savedSignature, setSavedSignature] = useState(() =>
     JSON.stringify(initialProduct ?? draft)
   );
+  const collectionOrderMemory = useRef(
+    new Map(
+      (initialProduct?.collections ?? []).map((membership) => [
+        membership.collectionId,
+        membership.displayOrder
+      ])
+    )
+  );
   const manualNavigationUntil = useRef(0);
   const productId = draft.productId;
   const blockedIssues = result?.status === 'blocked' ? result.issues : [];
@@ -631,18 +643,27 @@ export function ProductForm({
   }
 
   function updateCollectionIds(nextIds: string[]) {
-    setDraft((current) => ({
-      ...current,
-      collections: nextIds.map((collectionId) => ({
-        collectionId,
-        displayOrder:
-          current.collections.find((collection) => collection.collectionId === collectionId)
-            ?.displayOrder ?? 0
-      }))
-    }));
+    setDraft((current) => {
+      for (const membership of current.collections) {
+        collectionOrderMemory.current.set(membership.collectionId, membership.displayOrder);
+      }
+      return {
+        ...current,
+        collections: reconcileCollectionMemberships(
+          nextIds,
+          current.collections,
+          Array.from(collectionOrderMemory.current, ([collectionId, displayOrder]) => ({
+            collectionId,
+            displayOrder
+          })),
+          collections
+        )
+      };
+    });
   }
 
   function updateCollectionOrder(id: string, displayOrder: number) {
+    collectionOrderMemory.current.set(id, displayOrder);
     setDraft((current) => ({
       ...current,
       collections: current.collections.map((collection) =>

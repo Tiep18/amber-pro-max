@@ -97,6 +97,13 @@ describe('product draft schema', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it.each([-1, 1.5])('rejects invalid collection display order %s', (displayOrder) => {
+    const draft = validDraft();
+    draft.collections[0].displayOrder = displayOrder;
+
+    expect(productDraftSchema.safeParse(draft).success).toBe(false);
+  });
 });
 
 describe('publish issue mapping', () => {

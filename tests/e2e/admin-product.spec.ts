@@ -141,6 +141,21 @@ test('admin persists an incomplete draft and publish saves the current editor sn
     createTaxonomyFixture('tags', 'tag_translations', 'tag_id', 'Beginner'),
     createTaxonomyFixture('collections', 'collection_translations', 'collection_id', 'Spring')
   ]);
+  const occupiedProductResponse = await rest('products', {
+    method: 'POST',
+    headers: {Prefer: 'return=representation'},
+    body: JSON.stringify({product_type: 'physical_finished'})
+  });
+  const [{id: occupiedProductId}] = (await occupiedProductResponse.json()) as Array<{id: string}>;
+  createdProductIds.push(occupiedProductId);
+  await rest('collection_products', {
+    method: 'POST',
+    body: JSON.stringify({
+      collection_id: collection.id,
+      product_id: occupiedProductId,
+      display_order: 7
+    })
+  });
   const admin = await createConfirmedUser('admin');
   await signIn(page, admin, 'admin');
 
@@ -179,7 +194,7 @@ test('admin persists an incomplete draft and publish saves the current editor sn
   await page.getByRole('button', {name: technique.label, exact: true}).click();
   await page.getByRole('button', {name: tag.label, exact: true}).click();
   await page.getByRole('button', {name: collection.label, exact: true}).click();
-  await page.getByLabel(`${collection.label} display order`).fill('3');
+  await expect(page.getByLabel(`${collection.label} display order`)).toHaveValue('8');
 
   await page.getByLabel('Vietnam price in VND').fill('173000');
 
@@ -198,6 +213,14 @@ test('admin persists an incomplete draft and publish saves the current editor sn
   await expect(page.getByText('Vietnamese social image')).toBeVisible();
   await expect(page.getByText('English social image')).toBeVisible();
   await expect(page.getByText('Private PDF')).toBeVisible();
+
+  const membershipsResponse = await rest(
+    `collection_products?collection_id=eq.${collection.id}&select=product_id,display_order&order=display_order`
+  );
+  expect(await membershipsResponse.json()).toEqual([
+    {product_id: occupiedProductId, display_order: 7},
+    {product_id: productId, display_order: 8}
+  ]);
 
   await expect(page.getByRole('link', {name: 'Manage media and PDF'})).toHaveAttribute(
     'href',

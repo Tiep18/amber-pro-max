@@ -3,6 +3,10 @@ import 'server-only';
 import {notFound} from 'next/navigation';
 import {PRODUCT_MEDIA_BUCKET} from '@/catalog/media-schemas';
 import {assertCatalogAdminQueryResults} from '@/catalog/admin-query-results';
+import {
+  joinCollectionNextOrders,
+  type CatalogCollectionOption
+} from '@/catalog/collection-ordering';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import type {Json} from '@/types/supabase';
 import type {CatalogOption, ProductFormInitial} from '@/components/admin/catalog/product-form';
@@ -88,12 +92,27 @@ async function localizedOptions(
   }));
 }
 
+async function localizedCollectionOptions(): Promise<CatalogCollectionOption[]> {
+  const options = await localizedOptions('collection_translations', 'collection_id');
+  if (options.length === 0) {
+    return [];
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const result = await supabase.rpc('admin_catalog_collection_next_orders', {
+    target_collection_ids: options.map((option) => option.id)
+  });
+  await assertCatalogAdminQueryResults([result], {action: 'catalog_options_collection_orders'});
+
+  return joinCollectionNextOrders(options, result.data ?? []);
+}
+
 export async function getCatalogOptions() {
   const [categories, techniques, tags, collections] = await Promise.all([
     localizedOptions('category_translations', 'category_id'),
     localizedOptions('technique_translations', 'technique_id'),
     localizedOptions('tag_translations', 'tag_id'),
-    localizedOptions('collection_translations', 'collection_id')
+    localizedCollectionOptions()
   ]);
 
   return {categories, techniques, tags, collections};
