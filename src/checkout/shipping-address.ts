@@ -86,6 +86,20 @@ function issue(field: keyof ShippingAddress, code: ShippingAddressIssueCode): Sh
   return {field, code};
 }
 
+/**
+ * Shipping region adjustments are deliberately US-only. Keep the original
+ * address region for fulfillment, but never pass free-form international
+ * administrative areas into the controlled resolver boundary.
+ */
+export function resolverRegionCode(
+  countryCode: string | null | undefined,
+  region: string | null | undefined
+): UsShippingRegionCode | null {
+  if (countryCode?.trim().toUpperCase() !== 'US') return null;
+  const normalized = region?.trim().toUpperCase() ?? '';
+  return usRegionCodes.has(normalized) ? (normalized as UsShippingRegionCode) : null;
+}
+
 export function normalizeLegacyShippingAddress(input: unknown): unknown {
   if (!isRecord(input)) return input;
   const countryCode = typeof input.countryCode === 'string' ? input.countryCode.trim().toUpperCase() : input.countryCode;

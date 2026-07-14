@@ -1,6 +1,7 @@
 import {describe, expect, test} from 'vitest';
 import {
   US_SHIPPING_REGION_CODES,
+  resolverRegionCode,
   shippingAddressSchema,
   validateShippingDestination
 } from '@/checkout/shipping-address';
@@ -136,6 +137,14 @@ describe('shipping address UI helpers', () => {
     expect(validateShippingDestination(null, {mode: 'final', hasPhysicalLines: false})).toEqual({success: true, data: null});
   });
 
+  test('keeps international region text in the address but removes it from resolver intent', () => {
+    const address = {...completeAddress, countryCode: 'VN', region: 'Ho Chi Minh City'};
+    expect(shippingAddressSchema.parse(address).region).toBe('Ho Chi Minh City');
+    expect(resolverRegionCode(address.countryCode, address.region)).toBeNull();
+    expect(resolverRegionCode('US', 'ca')).toBe('CA');
+    expect(resolverRegionCode('US', 'California')).toBeNull();
+  });
+
   test('rejects browser-owned shipping evidence and unknown address fields', () => {
     const untrusted = {
       ...completeAddress,
@@ -193,6 +202,7 @@ describe('shipping address UI helpers', () => {
       locale: 'en',
       market: 'intl',
       destinationCountryCode: 'VN',
+      destinationRegionCode: null,
       priorAcceptedQuoteHash: 'quote-hash',
       lines: [
         {

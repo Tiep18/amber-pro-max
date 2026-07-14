@@ -54,4 +54,14 @@ describe('saved address quote refresh', () => {
     expect(result.state).toMatchObject({activeRequestId: 1, loadingMode: 'updating'});
     expect(result.quoteInput.destinationCountryCode).toBe('US');
   });
+
+  it('preserves a non-US address region while excluding it from resolver intent', () => {
+    const international = {...address, countryCode: 'VN', region: 'Ho Chi Minh City'};
+    const result = beginSavedAddressQuoteRequest({
+      state: createCheckoutQuoteLifecycleState(quote), locale: 'en', shippingAddress: international
+    });
+    expect(result.shippingAddress.region).toBe('Ho Chi Minh City');
+    expect(result.request.destination).toEqual({countryCode: 'VN', regionCode: null});
+    expect(result.quoteInput.destinationRegionCode).toBeNull();
+  });
 });

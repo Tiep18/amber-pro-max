@@ -10,6 +10,7 @@ import {
   type DiscountRule
 } from './discounts';
 import type { ShippingRuleQuote } from './shipping';
+import {resolverRegionCode} from './shipping-address';
 import {
   type CartQuote,
   type CartQuoteLine,
@@ -631,7 +632,7 @@ export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<Ca
       ? await quoteShippingV2({
           client: input.client,
           countryCode: input.destinationCountryCode,
-          regionCode: input.destinationRegionCode?.trim().toUpperCase() || null,
+          regionCode: resolverRegionCode(input.destinationCountryCode, input.destinationRegionCode),
           currencyCode: payableLines[0]?.currencyCode ?? lines[0]?.currencyCode ?? 'USD',
           lines: payableLines
         })

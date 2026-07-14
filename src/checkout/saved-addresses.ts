@@ -1,6 +1,6 @@
 import type {Locale} from '@/i18n/routing';
 import {beginQuoteRequest, type CheckoutQuoteLifecycleState} from './quote-lifecycle';
-import {shippingAddressSchema, type ShippingAddress} from './shipping-address';
+import {resolverRegionCode, shippingAddressSchema, type ShippingAddress} from './shipping-address';
 import type {CartQuote, QuoteCartActionInput} from './types';
 
 export function buildSavedAddressQuoteRefreshInput({
@@ -26,7 +26,7 @@ export function buildSavedAddressQuoteRefreshInput({
         updatedAt: acceptedQuote.quotedAt
       })) ?? [],
     destinationCountryCode: address.countryCode,
-    destinationRegionCode: address.region,
+    destinationRegionCode: resolverRegionCode(address.countryCode, address.region),
     shippingQuoteVersion: 2,
     discountCode:
       acceptedQuote?.discount.status === 'applied' || acceptedQuote?.discount.status === 'not_eligible'
@@ -48,7 +48,7 @@ export function beginSavedAddressQuoteRequest({
   const address = shippingAddressSchema.parse(shippingAddress);
   const transition = beginQuoteRequest(state, {
     countryCode: address.countryCode,
-    regionCode: address.region
+    regionCode: resolverRegionCode(address.countryCode, address.region)
   });
   return {
     ...transition,

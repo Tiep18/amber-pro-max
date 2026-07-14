@@ -199,4 +199,13 @@ describe('checkout quote lifecycle', () => {
     expect(state.proposal).toBeNull();
     expect(canSubmitAcceptedQuote(state, {...usAddress, region: 'NY'})).toBe(false);
   });
+
+  it('does not treat non-US free-form regions as shipping adjustment material', () => {
+    const reviewed = reviewDestination(createCheckoutQuoteLifecycleState(physicalQuote()), {
+      countryCode: 'VN', regionCode: 'Ho Chi Minh City'
+    });
+    expect(reviewed.destination).toEqual({countryCode: 'VN', regionCode: null});
+    const request = beginQuoteRequest(reviewed, {countryCode: 'VN', regionCode: 'Da Nang'});
+    expect(request.request.destination).toEqual({countryCode: 'VN', regionCode: null});
+  });
 });

@@ -2,6 +2,7 @@ import {diffMaterialQuotes, type MaterialQuoteChange} from './market-revalidatio
 import {
   quoteHasPhysicalLines,
   quoteShippingCountryCode,
+  resolverRegionCode,
   validateShippingDestination,
   type ShippingAddress
 } from './shipping-address';
@@ -70,9 +71,10 @@ export function createCheckoutQuoteLifecycleState(
 }
 
 export function normalizeDestination(destination: Partial<QuoteDestination>): QuoteDestination {
+  const countryCode = normalizeCode(destination.countryCode, 2);
   return {
-    countryCode: normalizeCode(destination.countryCode, 2),
-    regionCode: normalizeCode(destination.regionCode, 3)
+    countryCode,
+    regionCode: resolverRegionCode(countryCode, destination.regionCode)
   };
 }
 
@@ -191,7 +193,10 @@ export function canSubmitAcceptedQuote(
   });
   const currentDestination = normalizeDestination({
     countryCode: shippingAddress?.countryCode ?? state.destination.countryCode,
-    regionCode: shippingAddress?.region ?? state.destination.regionCode
+    regionCode: resolverRegionCode(
+      shippingAddress?.countryCode ?? state.destination.countryCode,
+      shippingAddress?.region ?? state.destination.regionCode
+    )
   });
   return destinationsMatch(currentDestination, quoteDestination);
 }
