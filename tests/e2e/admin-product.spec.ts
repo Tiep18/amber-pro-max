@@ -91,12 +91,26 @@ async function signIn(page: Page, user: {email: string; password: string}, expec
   await page.getByLabel('Password').fill(user.password);
   await page.getByRole('button', {name: 'Sign in'}).click();
   if (expected === 'admin') {
-    await expect(page).toHaveURL(/\/admin\/catalog$/);
+    await expect(page).toHaveURL((url) => url.pathname === '/admin/catalog');
     await expect(page.getByRole('heading', {name: 'Products', exact: true})).toBeVisible();
   } else {
-    await expect(page).toHaveURL(/\/admin\/forbidden$/);
+    await expect(page).toHaveURL((url) => url.pathname === '/admin/forbidden');
     await expect(page.getByRole('heading', {name: 'Access denied'})).toBeVisible();
   }
+}
+
+async function selectProductType(page: Page, option: 'PDF pattern' | 'Physical finished good') {
+  await page.getByLabel('Product type').click();
+  await page.getByRole('option', {name: option, exact: true}).click();
+}
+
+async function selectLocale(page: Page, panel: 'content' | 'seo', locale: 'Vietnamese' | 'English') {
+  const panelIndex = panel === 'content' ? 0 : 1;
+  await page
+    .getByRole('tablist', {name: 'Content language'})
+    .nth(panelIndex)
+    .getByRole('tab', {name: locale})
+    .click();
 }
 
 test.afterAll(async () => {
@@ -117,9 +131,10 @@ test.afterAll(async () => {
   }
 });
 
-test('admin creates and edits bilingual product basics and sees publish blockers', async ({page}) => {
+test('admin persists an incomplete draft and publish saves the current editor snapshot', async ({page}) => {
   const slugSuffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-  const englishTitle = `Spring bunny pattern ${slugSuffix}`;
+  const partialVietnameseTitle = `Mau tho dang do ${slugSuffix}`;
+  const unsavedEnglishTitle = `Publish snapshot bunny ${slugSuffix}`;
   const [category, technique, tag, collection] = await Promise.all([
     createTaxonomyFixture('categories', 'category_translations', 'category_id', 'Animals'),
     createTaxonomyFixture('techniques', 'technique_translations', 'technique_id', 'Amigurumi'),
@@ -131,33 +146,13 @@ test('admin creates and edits bilingual product basics and sees publish blockers
 
   await page.goto('/admin/catalog/new');
   await expect(page.getByRole('heading', {name: 'New product'})).toBeVisible();
-  await page.getByLabel('Product type').selectOption('pdf_pattern');
+  await selectProductType(page, 'PDF pattern');
 
-  await page.getByLabel('Vietnamese title').fill('Mau tho mua xuan');
-  await page.getByLabel('Vietnamese description').fill('Huong dan moc tho.');
+  await page.getByLabel('Vietnamese title').fill(partialVietnameseTitle);
+  await page.getByLabel('Vietnamese description').fill('Ban nhap dang viet do.');
   await page.getByLabel('Vietnamese specifications JSON').fill('{"difficulty":"easy"}');
-  await page.getByLabel('Vietnamese slug').fill(`mau-tho-mua-xuan-${slugSuffix}`);
-  await page.getByLabel('Vietnamese SEO title').fill('Mau tho mua xuan');
-  await page.getByLabel('Vietnamese SEO description').fill('Tai mau moc tho mua xuan.');
-
-  await page.getByLabel('English title').fill(englishTitle);
-  await page.getByLabel('English description').fill('Crochet a spring bunny.');
-  await page.getByLabel('English specifications JSON').fill('{"difficulty":"easy"}');
-  await page.getByLabel('English slug').fill(`spring-bunny-pattern-${slugSuffix}`);
-  await page.getByLabel('English SEO title').fill('Spring bunny pattern');
-  await page.getByLabel('English SEO description').fill('Download the spring bunny crochet pattern.');
-
-  await page.getByLabel(category.label).check();
-  await page.getByLabel(technique.label).check();
-  await page.getByLabel(tag.label).check();
-  await page.getByLabel(collection.label, {exact: true}).check();
-  await page.getByLabel(`${collection.label} display order`).fill('3');
-
-  await page.getByLabel('Vietnam market enabled').check();
-  await page.getByLabel('Vietnam price in VND').fill('125000');
-  await page.getByLabel('International market enabled').check();
-  await page.getByLabel('International price in USD cents').fill('700');
-  await page.getByRole('button', {name: 'Save draft'}).click();
+  await page.getByRole('button', {name: 'Vietnam market enabled'}).click();
+  await page.getByRole('button', {name: 'Save draft', exact: true}).first().click();
 
   await expect(page).toHaveURL(/\/admin\/catalog\/[0-9a-f-]+(?:\?saved=1)?$/);
   const productId = new URL(page.url()).pathname.split('/').at(-1);
@@ -165,9 +160,37 @@ test('admin creates and edits bilingual product basics and sees publish blockers
   createdProductIds.push(productId!);
   await expect(page.getByText('Draft saved')).toBeVisible();
 
-  await page.getByLabel('International price in USD cents').fill('850');
-  await page.getByRole('button', {name: 'Save draft'}).click();
-  await expect(page.getByText('Draft saved')).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel('Vietnamese title')).toHaveValue(partialVietnameseTitle);
+  await expect(page.getByLabel('Vietnamese description')).toHaveValue('Ban nhap dang viet do.');
+  await expect(page.getByRole('button', {name: 'Vietnam market enabled'})).toHaveAttribute(
+    'data-state',
+    'on'
+  );
+  await expect(page.getByLabel('Vietnam price in VND')).toHaveValue('');
+  await expect(page.getByText('Current status: draft')).toBeVisible();
+
+  await selectLocale(page, 'content', 'English');
+  await page.getByLabel('English title').fill(unsavedEnglishTitle);
+  await page.getByLabel('English description').fill('Current snapshot saved by publish.');
+  await page.getByLabel('English specifications JSON').fill('{"difficulty":"easy"}');
+
+  await page.getByRole('button', {name: category.label, exact: true}).click();
+  await page.getByRole('button', {name: technique.label, exact: true}).click();
+  await page.getByRole('button', {name: tag.label, exact: true}).click();
+  await page.getByRole('button', {name: collection.label, exact: true}).click();
+  await page.getByLabel(`${collection.label} display order`).fill('3');
+
+  await page.getByLabel('Vietnam price in VND').fill('173000');
+
+  await selectLocale(page, 'seo', 'Vietnamese');
+  await page.getByLabel('Vietnamese slug').fill(`mau-tho-mua-xuan-${slugSuffix}`);
+  await page.getByLabel('Vietnamese SEO title').fill('Mau tho mua xuan');
+  await page.getByLabel('Vietnamese SEO description').fill('Tai mau moc tho mua xuan.');
+  await selectLocale(page, 'seo', 'English');
+  await page.getByLabel('English slug').fill(`publish-snapshot-bunny-${slugSuffix}`);
+  await page.getByLabel('English SEO title').fill('Publish snapshot bunny');
+  await page.getByLabel('English SEO description').fill('Download the spring bunny crochet pattern.');
 
   await page.getByRole('button', {name: 'Publish product'}).click();
   await expect(page.getByRole('heading', {name: 'Publishing blocked'})).toBeVisible();
@@ -185,9 +208,16 @@ test('admin creates and edits bilingual product basics and sees publish blockers
     `/admin/catalog/${productId}/variants`
   );
 
+  await page.reload();
+  await selectLocale(page, 'content', 'English');
+  await expect(page.getByLabel('English title')).toHaveValue(unsavedEnglishTitle);
+  await expect(page.getByLabel('Vietnam price in VND')).toHaveValue('173000');
+  await expect(page.getByText('Current status: draft')).toBeVisible();
+
   await page.goto('/admin/catalog');
-  await expect(page.getByText(englishTitle)).toBeVisible();
-  await expect(page.getByRole('link', {name: new RegExp(`${englishTitle}.*draft`)})).toBeVisible();
+  const productRow = page.getByRole('row').filter({hasText: unsavedEnglishTitle});
+  await expect(productRow).toBeVisible();
+  await expect(productRow.getByText('draft', {exact: true})).toBeVisible();
 });
 
 test('customer cannot access the product editor', async ({page}) => {
