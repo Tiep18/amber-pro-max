@@ -66,8 +66,8 @@ insert into guest_race_payloads values
     'contactEmail', 'guest-race@example.test', 'paymentIntent', 'paypal_intent'
   ));
 
-select extensions.dblink_connect('guest_race_a', 'host=host.docker.internal port=55432 dbname=postgres user=postgres password=postgres');
-select extensions.dblink_connect('guest_race_b', 'host=host.docker.internal port=55432 dbname=postgres user=postgres password=postgres');
+select extensions.dblink_connect('guest_race_a', 'host=db port=5432 dbname=postgres user=postgres password=postgres');
+select extensions.dblink_connect('guest_race_b', 'host=db port=5432 dbname=postgres user=postgres password=postgres');
 select extensions.dblink_send_query(
   'guest_race_a',
   format('select public.submit_checkout(%L::jsonb)', (select payload::text from guest_race_payloads where name = 'a'))
