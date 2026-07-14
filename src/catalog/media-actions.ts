@@ -452,6 +452,16 @@ export async function uploadPatternPdfAction(formData: FormData): Promise<MediaA
     .select('object_path')
     .eq('product_id', parsed.data.productId)
     .maybeSingle();
+  if (existing.error) {
+    await monitoredMediaFailure({
+      action: 'pattern_pdf_existing_lookup',
+      errorCode: 'catalog_pattern_pdf_lookup_failed',
+      summary: 'Catalog pattern PDF lookup failed',
+      productId: parsed.data.productId,
+      code: 'association_failed'
+    });
+    return {status: 'error', code: 'association_failed'};
+  }
 
   const upload = await supabase.storage.from(PATTERN_PDF_BUCKET).upload(objectPath, bytes, {
     contentType: patternPdfMimeType,

@@ -203,6 +203,59 @@ describe('catalog media storage deletion outcomes', () => {
     );
   });
 
+  it('fails closed before uploading when the existing PDF asset lookup fails', async () => {
+    const productQuery = {
+      select: vi.fn(() => productQuery),
+      eq: vi.fn(() => productQuery),
+      maybeSingle: vi.fn(async () => ({data: {id: productId, product_type: 'pdf_pattern'}, error: null}))
+    };
+    const assetQuery = {
+      select: vi.fn(() => assetQuery),
+      eq: vi.fn(() => assetQuery),
+      maybeSingle: vi.fn(async () => ({
+        data: null,
+        error: {message: 'raw lookup failure for patterns/private-current.pdf', details: 'object_path leaked'}
+      }))
+    };
+    const upload = vi.fn();
+    const upsert = vi.fn();
+    createSupabaseServerClientMock
+      .mockResolvedValueOnce({from: vi.fn(() => productQuery)})
+      .mockResolvedValueOnce({
+        from: vi.fn(() => ({...assetQuery, upsert})),
+        storage: {from: vi.fn(() => ({upload}))}
+      });
+    const formData = new FormData();
+    formData.set('productId', productId);
+    formData.set('pdf', new File(['%PDF'], 'private-admin-name.pdf', {type: 'application/pdf'}));
+
+    await expect(uploadPatternPdfAction(formData)).resolves.toEqual({
+      status: 'error',
+      code: 'association_failed'
+    });
+
+    expect(upload).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+    expect(invalidateCatalogCacheMock).not.toHaveBeenCalled();
+    expect(recordOperationalFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        errorCode: 'catalog_pattern_pdf_lookup_failed',
+        summary: 'Catalog pattern PDF lookup failed',
+        facts: expect.objectContaining({
+          action: 'pattern_pdf_existing_lookup',
+          productId,
+          referenceId: null,
+          code: 'association_failed'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(
+      /private-current|private-admin-name|raw lookup|object_path|details/i
+    );
+  });
+
   it('keeps an image association failure when uploaded-object rollback cleanup also fails', async () => {
     const productQuery = {
       select: vi.fn(() => productQuery),
