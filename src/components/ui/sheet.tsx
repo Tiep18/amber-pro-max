@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Dialog as SheetPrimitive } from 'radix-ui';
 import { Button } from './button';
@@ -43,6 +43,8 @@ export function Sheet({
   bodyClassName?: string;
   children: ReactNode;
 }) {
+  const selectLayerInteractionRef = useRef(false);
+
   return (
     <SheetPrimitive.Root open={open} onOpenChange={onOpenChange}>
       {showTrigger ? (
@@ -58,12 +60,28 @@ export function Sheet({
         </SheetPrimitive.Trigger>
       ) : null}
       <SheetPrimitive.Portal>
-        <SheetPrimitive.Overlay className="sheet-overlay fixed inset-0 z-50 bg-[rgba(38,35,31,0.32)]" />
+        <SheetPrimitive.Overlay
+          className="sheet-overlay fixed inset-0 z-50 bg-[rgba(38,35,31,0.32)]"
+          onPointerDownCapture={(event) => {
+            const ownerDocument = event.currentTarget.ownerDocument;
+            selectLayerInteractionRef.current = Boolean(
+              ownerDocument.querySelector('[data-sheet-select-content][data-state="open"]')
+            );
+            if (selectLayerInteractionRef.current) {
+              ownerDocument.defaultView?.setTimeout(() => {
+                selectLayerInteractionRef.current = false;
+              }, 0);
+            }
+          }}
+        />
         <SheetPrimitive.Content
           data-side={side}
           onInteractOutside={(event) => {
             const target = event.target;
-            if (target instanceof Element && target.closest('[data-sheet-select-content]')) {
+            if (
+              selectLayerInteractionRef.current ||
+              (target instanceof Element && target.closest('[data-sheet-select-content]'))
+            ) {
               event.preventDefault();
             }
           }}

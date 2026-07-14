@@ -131,6 +131,9 @@ test('admin manages parcel default, destination rule, and US adjustment', async 
   await page.getByLabel('Adjustment type').click();
   await page.getByRole('option', { name: 'Add to the base rate' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByLabel('Adjustment type').click();
+  await page.locator('.sheet-overlay').click({ position: { x: 12, y: 12 } });
+  await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByLabel('First item').fill('1.25');
   await page.getByLabel('Each additional item').fill('0.50');
   await page.getByRole('button', { name: 'Create US adjustment' }).click();
