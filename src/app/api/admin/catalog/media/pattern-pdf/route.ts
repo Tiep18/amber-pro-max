@@ -1,4 +1,5 @@
 import {NextRequest, NextResponse} from 'next/server';
+import {requireAdmin} from '@/auth/guards';
 import {uploadPatternPdfAction} from '@/catalog/media-actions';
 import {MAX_PATTERN_PDF_BYTES} from '@/catalog/media-schemas';
 
@@ -28,6 +29,8 @@ export async function POST(request: NextRequest) {
   if (bodyTooLarge(request)) {
     return json(413, {status: 'invalid', code: 'invalid_file'});
   }
+
+  await requireAdmin();
 
   const formData = await request.formData().catch(() => null);
   if (!formData) {

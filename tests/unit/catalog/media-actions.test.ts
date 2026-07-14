@@ -21,7 +21,13 @@ vi.mock('@/lib/cache-invalidation', () => ({invalidateCatalogCache: invalidateCa
 vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient: createSupabaseServerClientMock}));
 vi.mock('@/operations/errors', () => ({recordOperationalFailure: recordOperationalFailureMock}));
 
-import {removeProductMediaAction, updateProductMediaDetailsAction} from '@/catalog/media-actions';
+import {
+  removeProductMediaAction,
+  updateProductMediaDetailsAction,
+  uploadPatternPdfAction,
+  uploadProductImageAction
+} from '@/catalog/media-actions';
+import {MAX_PATTERN_PDF_BYTES, MAX_PRODUCT_IMAGE_BYTES} from '@/catalog/media-schemas';
 
 const productId = '11111111-1111-4111-8111-111111111111';
 const mediaId = '22222222-2222-4222-8222-222222222222';
@@ -165,5 +171,62 @@ describe('catalog media operational recording', () => {
       status: 'error',
       code: 'remove_failed'
     });
+  });
+});
+
+describe('catalog media action file validation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireAdminMock.mockResolvedValue({id: 'admin-id', email: 'admin@example.com'});
+  });
+
+  function formWithFile(field: 'image' | 'pdf', file: File) {
+    const formData = new FormData();
+    formData.set('productId', productId);
+    formData.set(field, file);
+    return formData;
+  }
+
+  function fileWithReportedSize(parts: BlobPart[], name: string, type: string, size: number) {
+    const file = new File(parts, name, {type});
+    Object.defineProperty(file, 'size', {value: size});
+    return file;
+  }
+
+  it('rejects image MIME types outside the allowlist', async () => {
+    const formData = formWithFile('image', new File(['image'], 'product.svg', {type: 'image/svg+xml'}));
+
+    await expect(uploadProductImageAction(formData)).resolves.toEqual({status: 'invalid', code: 'invalid_file'});
+
+    expect(requireAdminMock).toHaveBeenCalledOnce();
+    expect(createSupabaseServerClientMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects the actual image file size even when route headers could pass', async () => {
+    const image = fileWithReportedSize(['image'], 'product.jpg', 'image/jpeg', MAX_PRODUCT_IMAGE_BYTES + 1);
+
+    await expect(uploadProductImageAction(formWithFile('image', image))).resolves.toEqual({
+      status: 'invalid',
+      code: 'invalid_file'
+    });
+
+    expect(createSupabaseServerClientMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['MIME type', new File(['pdf'], 'pattern.pdf', {type: 'text/plain'})],
+    ['file suffix', new File(['pdf'], 'pattern.txt', {type: 'application/pdf'})],
+    [
+      'actual file size',
+      fileWithReportedSize(['pdf'], 'pattern.pdf', 'application/pdf', MAX_PATTERN_PDF_BYTES + 1)
+    ]
+  ])('rejects an invalid PDF %s', async (_reason, pdf) => {
+    await expect(uploadPatternPdfAction(formWithFile('pdf', pdf))).resolves.toEqual({
+      status: 'invalid',
+      code: 'invalid_file'
+    });
+
+    expect(requireAdminMock).toHaveBeenCalledOnce();
+    expect(createSupabaseServerClientMock).not.toHaveBeenCalled();
   });
 });
