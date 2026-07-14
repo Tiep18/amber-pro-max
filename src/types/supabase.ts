@@ -592,6 +592,127 @@ export type Database = {
           },
         ]
       }
+      checkout_order_shipping_allocations: {
+        Row: {
+          allocated_shipping_minor: number
+          base_additional_item_fee_minor: number
+          base_first_item_fee_minor: number
+          created_at: string
+          currency_code: string
+          destination_country_code: string
+          final_additional_item_fee_minor: number
+          final_first_item_fee_minor: number
+          first_item_winner_units: number
+          id: string
+          order_id: string
+          order_line_id: string
+          profile_name: string
+          quantity: number
+          region_additional_item_fee_minor: number | null
+          region_adjustment_id: string | null
+          region_code: string | null
+          region_first_item_fee_minor: number | null
+          region_mode: string | null
+          rule_match_kind: string
+          shipping_profile_id: string
+          shipping_rule_id: string
+          source_tier: string
+        }
+        Insert: {
+          allocated_shipping_minor: number
+          base_additional_item_fee_minor: number
+          base_first_item_fee_minor: number
+          created_at?: string
+          currency_code: string
+          destination_country_code: string
+          final_additional_item_fee_minor: number
+          final_first_item_fee_minor: number
+          first_item_winner_units: number
+          id?: string
+          order_id: string
+          order_line_id: string
+          profile_name: string
+          quantity: number
+          region_additional_item_fee_minor?: number | null
+          region_adjustment_id?: string | null
+          region_code?: string | null
+          region_first_item_fee_minor?: number | null
+          region_mode?: string | null
+          rule_match_kind: string
+          shipping_profile_id: string
+          shipping_rule_id: string
+          source_tier: string
+        }
+        Update: {
+          allocated_shipping_minor?: number
+          base_additional_item_fee_minor?: number
+          base_first_item_fee_minor?: number
+          created_at?: string
+          currency_code?: string
+          destination_country_code?: string
+          final_additional_item_fee_minor?: number
+          final_first_item_fee_minor?: number
+          first_item_winner_units?: number
+          id?: string
+          order_id?: string
+          order_line_id?: string
+          profile_name?: string
+          quantity?: number
+          region_additional_item_fee_minor?: number | null
+          region_adjustment_id?: string | null
+          region_code?: string | null
+          region_first_item_fee_minor?: number | null
+          region_mode?: string | null
+          rule_match_kind?: string
+          shipping_profile_id?: string
+          shipping_rule_id?: string
+          source_tier?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkout_order_shipping_allocations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_order_shipping_allocations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_payment_statuses"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "checkout_order_shipping_allocations_order_line_id_fkey"
+            columns: ["order_line_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_order_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_order_shipping_allocations_region_adjustment_id_fkey"
+            columns: ["region_adjustment_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_region_adjustments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_order_shipping_allocations_shipping_profile_id_fkey"
+            columns: ["shipping_profile_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_order_shipping_allocations_shipping_rule_id_fkey"
+            columns: ["shipping_rule_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checkout_orders: {
         Row: {
           accepted_quote_hash: string
@@ -2769,16 +2890,17 @@ export type Database = {
         }
         Relationships: []
       }
-      shipping_rules: {
+      shipping_region_adjustments: {
         Row: {
           active: boolean
           additional_item_fee_minor: number
           country_code: string
           created_at: string
-          currency_code: string
           first_item_fee_minor: number
           id: string
-          profile_id: string
+          mode: string
+          region_code: string
+          shipping_rule_id: string
           updated_at: string
         }
         Insert: {
@@ -2786,10 +2908,11 @@ export type Database = {
           additional_item_fee_minor: number
           country_code: string
           created_at?: string
-          currency_code: string
           first_item_fee_minor: number
           id?: string
-          profile_id: string
+          mode: string
+          region_code: string
+          shipping_rule_id: string
           updated_at?: string
         }
         Update: {
@@ -2797,9 +2920,57 @@ export type Database = {
           additional_item_fee_minor?: number
           country_code?: string
           created_at?: string
+          first_item_fee_minor?: number
+          id?: string
+          mode?: string
+          region_code?: string
+          shipping_rule_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipping_region_adjustments_shipping_rule_id_fkey"
+            columns: ["shipping_rule_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipping_rules: {
+        Row: {
+          active: boolean
+          additional_item_fee_minor: number
+          country_code: string | null
+          created_at: string
+          currency_code: string
+          first_item_fee_minor: number
+          id: string
+          match_kind: string
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          additional_item_fee_minor: number
+          country_code?: string | null
+          created_at?: string
+          currency_code: string
+          first_item_fee_minor: number
+          id?: string
+          match_kind?: string
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          additional_item_fee_minor?: number
+          country_code?: string | null
+          created_at?: string
           currency_code?: string
           first_item_fee_minor?: number
           id?: string
+          match_kind?: string
           profile_id?: string
           updated_at?: string
         }
@@ -2808,6 +2979,38 @@ export type Database = {
             foreignKeyName: "shipping_rules_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
+            referencedRelation: "shipping_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipping_store_defaults: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          shipping_profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          shipping_profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          shipping_profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipping_store_defaults_shipping_profile_id_fkey"
+            columns: ["shipping_profile_id"]
+            isOneToOne: true
             referencedRelation: "shipping_profiles"
             referencedColumns: ["id"]
           },
@@ -3212,6 +3415,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_set_shipping_store_default: {
+        Args: { p_profile_id: string }
+        Returns: string
+      }
       apply_payment_transition: { Args: { p_payload: Json }; Returns: Json }
       blog_publish_issues: {
         Args: { target_post_id: string }
@@ -3378,6 +3585,15 @@ export type Database = {
           collection_ids: string[]
           product_id: string
         }[]
+      }
+      get_checkout_shipping_quote_v2: {
+        Args: {
+          p_country_code: string
+          p_currency_code: string
+          p_lines: Json
+          p_region_code?: string
+        }
+        Returns: Json
       }
       get_checkout_shipping_rules: {
         Args: {
@@ -3595,6 +3811,7 @@ export type Database = {
         Returns: Json
       }
       submit_checkout: { Args: { p_payload: Json }; Returns: Json }
+      submit_checkout_legacy_v1: { Args: { p_payload: Json }; Returns: Json }
       submit_product_review: {
         Args: {
           p_body: string
