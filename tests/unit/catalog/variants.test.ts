@@ -19,15 +19,18 @@ vi.mock('@/operations/errors', () => ({ recordOperationalFailure }));
 import {
   adjustInventoryAction,
   removeVariantAction,
+  saveVariantAggregateAction,
   saveVariantAction,
   saveVariantPriceOverrideAction
 } from '@/catalog/variant-actions';
 import { resolveEffectiveVariantPrice } from '@/catalog/variant-pricing';
 import {
   inventoryAdjustmentSchema,
+  variantAggregateDraftSchema,
   variantDraftSchema,
   variantPriceOverrideSchema
 } from '@/catalog/variant-schemas';
+import {saveVariantEditorDraft, type VariantEditorVariant} from '@/components/admin/catalog/variant-editor';
 
 const productId = '11111111-1111-4111-8111-111111111111';
 const variantId = '22222222-2222-4222-8222-222222222222';
@@ -112,6 +115,29 @@ describe('variant schemas', () => {
       }).success
     ).toBe(false);
   });
+
+  it('validates the complete variant aggregate and rejects duplicate override markets', () => {
+    const input = {
+      productId,
+      variantId,
+      sku: 'BEAR-S',
+      attributes: '{"size":"small"}',
+      displayOrder: 0,
+      mediaId: null,
+      quantityOnHand: 3,
+      overrides: [
+        {marketCode: 'vn' as const, enabled: true, currencyCode: 'VND' as const, priceMinor: 120000}
+      ]
+    };
+
+    expect(variantAggregateDraftSchema.safeParse(input).success).toBe(true);
+    expect(
+      variantAggregateDraftSchema.safeParse({
+        ...input,
+        overrides: [...input.overrides, {...input.overrides[0], priceMinor: 130000}]
+      }).success
+    ).toBe(false);
+  });
 });
 
 describe('effective variant pricing', () => {
@@ -148,6 +174,18 @@ describe('effective variant pricing', () => {
       currencyCode: 'USD',
       priceMinor: 700
     });
+  });
+
+  it('treats an explicit disabled override as unavailable instead of falling back', () => {
+    const price = resolveEffectiveVariantPrice({
+      marketCode: 'intl',
+      parentOffers: [{ marketCode: 'intl', enabled: true, currencyCode: 'USD', priceMinor: 700 }],
+      variantOverrides: [
+        { marketCode: 'intl', enabled: false, currencyCode: 'USD', priceMinor: 900 }
+      ]
+    });
+
+    expect(price).toEqual({source: 'none', marketCode: 'intl'});
   });
 });
 
@@ -187,7 +225,21 @@ describe('variant actions', () => {
       'inventory',
       () => adjustInventoryAction({ ownerType: 'variant', productId, variantId, quantityOnHand: 3 })
     ],
-    ['remove variant', () => removeVariantAction({ productId, variantId })]
+    ['remove variant', () => removeVariantAction({ productId, variantId })],
+    [
+      'aggregate variant save',
+      () =>
+        saveVariantAggregateAction({
+          productId,
+          variantId,
+          sku: 'BEAR-S',
+          attributes: '{"size":"small"}',
+          displayOrder: 0,
+          mediaId: null,
+          quantityOnHand: 3,
+          overrides: []
+        })
+    ]
   ])('authorizes before creating a database client for %s', async (_label, invoke) => {
     requireAdmin.mockRejectedValueOnce(new Error('redirected'));
 
@@ -241,6 +293,99 @@ describe('variant actions', () => {
         mediaId: null
       })
     ).resolves.toEqual({ status: 'invalid', code: 'duplicate_sku' });
+  });
+
+  it('saves a variant, desired overrides, and inventory through one aggregate RPC', async () => {
+    const rpc = vi.fn(async () => ({data: variantId, error: null}));
+    createSupabaseServerClient.mockResolvedValue({rpc});
+
+    await expect(
+      saveVariantAggregateAction({
+        productId,
+        variantId,
+        sku: 'BEAR-S',
+        attributes: '{"size":"small"}',
+        displayOrder: 2,
+        mediaId: null,
+        quantityOnHand: 3,
+        overrides: [
+          {marketCode: 'intl', enabled: false, currencyCode: 'USD', priceMinor: 900}
+        ]
+      })
+    ).resolves.toEqual({status: 'success', message: 'Variant saved'});
+
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith('admin_save_catalog_variant', {
+      p_payload: {
+        product_id: productId,
+        variant_id: variantId,
+        sku: 'BEAR-S',
+        attributes: {size: 'small'},
+        display_order: 2,
+        media_id: null,
+        quantity_on_hand: 3,
+        overrides: [
+          {market_code: 'intl', enabled: false, currency_code: 'USD', price_minor: 900}
+        ]
+      }
+    });
+  });
+
+  it.each([
+    ['P2001', 'product_not_found'],
+    ['P2002', 'not_physical_product'],
+    ['P2003', 'wrong_inventory_owner'],
+    ['23505', 'duplicate_sku'],
+    ['23514', 'wrong_inventory_owner']
+  ] as const)('maps aggregate database code %s to %s', async (databaseCode, expectedCode) => {
+    createSupabaseServerClient.mockResolvedValue({
+      rpc: vi.fn(async () => ({data: null, error: {code: databaseCode}}))
+    });
+
+    await expect(
+      saveVariantAggregateAction({
+        productId,
+        variantId,
+        sku: 'BEAR-S',
+        attributes: '{"size":"small"}',
+        displayOrder: 0,
+        mediaId: null,
+        quantityOnHand: 3,
+        overrides: []
+      })
+    ).resolves.toEqual({status: 'invalid', code: expectedCode});
+  });
+
+  it('lets the editor persist a variant through exactly one aggregate action call', async () => {
+    const save = vi.fn(async () => ({status: 'success', message: 'Variant saved'} as const));
+    const draft: VariantEditorVariant = {
+      id: variantId,
+      sku: 'BEAR-S',
+      attributes: '{"size":"small"}',
+      displayOrder: 1,
+      mediaId: null,
+      quantityOnHand: 5,
+      shippingProfileId: null,
+      overrides: [
+        {marketCode: 'intl', enabled: false, currencyCode: 'USD', priceMinor: 900}
+      ]
+    };
+
+    await expect(saveVariantEditorDraft(productId, draft, save)).resolves.toEqual({
+      status: 'success',
+      message: 'Variant saved'
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId,
+        variantId,
+        quantityOnHand: 5,
+        overrides: [
+          {marketCode: 'intl', enabled: false, currencyCode: 'USD', priceMinor: 900}
+        ]
+      })
+    );
   });
 
   it('records generic variant save failures without exposing SKU attributes or database details', async () => {

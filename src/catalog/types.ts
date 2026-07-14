@@ -18,6 +18,7 @@ export type PublishIssueCode =
   | "missing_market_offer"
   | "invalid_market_offer"
   | "missing_private_pdf"
+  | "incompatible_product_data"
   | "invalid_inventory";
 
 export interface CatalogMoney {

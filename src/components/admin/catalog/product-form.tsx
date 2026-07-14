@@ -102,6 +102,7 @@ function blockerLabel(code: string, locale?: CatalogLocale) {
     missing_market_offer: 'Market offer',
     invalid_market_offer: 'Market offer',
     missing_private_pdf: 'Private PDF',
+    incompatible_product_data: 'Product type data',
     invalid_inventory: 'Inventory',
     publish_requirement: 'Publish requirement'
   };
@@ -183,6 +184,7 @@ function validationMessage(code: string, path: string) {
     missing_social_image: 'Add a social image in the media workflow.',
     missing_primary_image: 'Add a primary image in the media workflow.',
     missing_private_pdf: 'Upload the protected PDF in the media workflow.',
+    incompatible_product_data: 'Remove variants, inventory, shipping, or PDF data owned by the previous product type.',
     invalid_inventory: 'Check variants and inventory before publishing.',
     publish_requirement: 'Complete this publishing requirement.'
   };

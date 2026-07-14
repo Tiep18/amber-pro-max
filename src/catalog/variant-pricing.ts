@@ -28,16 +28,18 @@ export function resolveEffectiveVariantPrice({
   parentOffers: VariantPriceRow[];
   variantOverrides: VariantPriceRow[];
 }): EffectiveVariantPrice {
-  const override = variantOverrides.find(
-    (offer) => offer.marketCode === marketCode && offer.enabled && offer.priceMinor !== null
-  );
-  if (override?.priceMinor !== null && override?.priceMinor !== undefined) {
-    return {
-      source: 'variant',
-      marketCode,
-      currencyCode: override.currencyCode,
-      priceMinor: override.priceMinor
-    };
+  const override = variantOverrides.find((offer) => offer.marketCode === marketCode);
+  if (override) {
+    if (override.enabled && override.priceMinor !== null) {
+      return {
+        source: 'variant',
+        marketCode,
+        currencyCode: override.currencyCode,
+        priceMinor: override.priceMinor
+      };
+    }
+
+    return {source: 'none', marketCode};
   }
 
   const parent = parentOffers.find((offer) => offer.marketCode === marketCode && offer.enabled && offer.priceMinor !== null);

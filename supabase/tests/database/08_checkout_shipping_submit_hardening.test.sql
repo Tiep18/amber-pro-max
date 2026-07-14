@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(48);
+select plan(49);
 
 select has_function(
   'private', 'checkout_commercial_quote_is_current', array['jsonb', 'uuid'],
@@ -41,6 +41,43 @@ values ('08140000-0000-0000-0000-000000000001', 'pdf_pattern', 'published', now(
 insert into public.product_market_offers (
   product_id, market_code, enabled, currency_code, price_minor
 ) values ('08140000-0000-0000-0000-000000000001', 'intl', true, 'USD', 2500);
+
+select isnt(
+  private.checkout_commercial_quote_is_current(
+    jsonb_build_object(
+      'locale', 'en', 'market', 'intl', 'paymentIntent', 'paypal_intent',
+      'discountCode', null,
+      'lines', jsonb_build_array(jsonb_build_object(
+        'productId', '08140000-0000-0000-0000-000000000001', 'variantId', null,
+        'quantity', 2, 'marketAtAdd', 'intl'
+      )),
+      'acceptedQuote', jsonb_build_object(
+        'status', 'ready', 'market', 'intl', 'currencyCode', 'USD',
+        'subtotalMinor', 5000, 'totalMinor', 5000,
+        'discount', jsonb_build_object('status', 'not_applied', 'amountMinor', 0),
+        'shipping', jsonb_build_object('status', 'no_shipping_required', 'amountMinor', 0),
+        'lines', jsonb_build_array(jsonb_build_object(
+          'lineId', '08140000-0000-0000-0000-000000000001::product',
+          'productId', '08140000-0000-0000-0000-000000000001', 'variantId', null,
+          'fulfillmentType', 'digital', 'status', 'ready', 'quantity', 2,
+          'requestedQuantity', 2, 'marketAtAdd', 'intl', 'currencyCode', 'USD', 'unitPriceMinor', 2500,
+          'lineSubtotalMinor', 5000, 'discountAllocationMinor', 0
+        ))
+      )
+    ), null
+  ), true,
+  'a digital quote without a private PDF asset is rejected'
+);
+
+insert into public.product_digital_assets (
+  product_id, bucket_id, object_path, file_name, byte_size
+) values (
+  '08140000-0000-0000-0000-000000000001',
+  'pattern-pdfs',
+  'patterns/08140000-0000-0000-0000-000000000001/checkout.pdf',
+  'checkout.pdf',
+  1024
+);
 
 select ok(
   private.checkout_commercial_quote_is_current(

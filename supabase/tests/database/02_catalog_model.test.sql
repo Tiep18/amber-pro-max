@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(34);
+select plan(42);
 
 select has_table('public', 'products', 'products table exists');
 select has_table('public', 'product_translations', 'product translations table exists');
@@ -371,6 +371,94 @@ select is(
   ),
   'published',
   'publishing updates the product status'
+);
+
+delete from public.product_digital_assets
+where product_id = '20000000-0000-0000-0000-000000000001';
+
+select is(
+  (select status from public.products where id = '20000000-0000-0000-0000-000000000001'),
+  'draft',
+  'removing the required private PDF demotes a published pattern'
+);
+
+select results_eq(
+  $$select published
+    from public.publish_catalog_product('20000000-0000-0000-0000-000000000001')$$,
+  $$values (false)$$,
+  'a pattern without its private PDF cannot be republished'
+);
+
+insert into public.product_digital_assets (
+  product_id, bucket_id, object_path, file_name, byte_size
+) values (
+  '20000000-0000-0000-0000-000000000001',
+  'pattern-pdfs',
+  'products/bear/replacement.pdf',
+  'replacement.pdf',
+  2048
+);
+
+select results_eq(
+  $$select published
+    from public.publish_catalog_product('20000000-0000-0000-0000-000000000001')$$,
+  $$values (true)$$,
+  'restoring the required asset allows explicit republish'
+);
+
+update public.products
+set product_type = 'physical_finished'
+where id = '20000000-0000-0000-0000-000000000001';
+
+select is(
+  (select status from public.products where id = '20000000-0000-0000-0000-000000000001'),
+  'draft',
+  'changing a published product type demotes it when old type data is incompatible'
+);
+
+select ok(
+  exists (
+    select 1
+    from public.catalog_publish_issues('20000000-0000-0000-0000-000000000001')
+    where issue_code = 'incompatible_product_data'
+  ),
+  'a physical product retaining a digital asset reports incompatible type data'
+);
+
+select results_eq(
+  $$select published
+    from public.publish_catalog_product('20000000-0000-0000-0000-000000000001')$$,
+  $$values (false)$$,
+  'incompatible type-owned data blocks republish'
+);
+
+update public.products
+set product_type = 'pdf_pattern'
+where id = '20000000-0000-0000-0000-000000000002';
+
+select ok(
+  exists (
+    select 1
+    from public.catalog_publish_issues('20000000-0000-0000-0000-000000000002')
+    where issue_code = 'incompatible_product_data'
+  ),
+  'a PDF product retaining physical variants reports incompatible type data'
+);
+
+insert into public.products (id, product_type, status, published_at)
+values ('20000000-0000-0000-0000-000000000004', 'physical_finished', 'published', now());
+
+insert into public.product_variants (product_id, sku, attributes)
+values (
+  '20000000-0000-0000-0000-000000000004',
+  'PUBLISHED-LATE-VARIANT',
+  '{"size":"small"}'::jsonb
+);
+
+select is(
+  (select status from public.products where id = '20000000-0000-0000-0000-000000000004'),
+  'draft',
+  'adding an inventory-less variant cannot leave a physical product published'
 );
 
 select finish();

@@ -2,6 +2,7 @@ import 'server-only';
 
 import {notFound} from 'next/navigation';
 import {PRODUCT_MEDIA_BUCKET} from '@/catalog/media-schemas';
+import {assertCatalogAdminQueryResults} from '@/catalog/admin-query-results';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import type {Json} from '@/types/supabase';
 import type {CatalogOption, ProductFormInitial} from '@/components/admin/catalog/product-form';
@@ -80,9 +81,7 @@ async function localizedOptions(
           ? supabase.from(table).select('tag_id, name').eq('locale', 'en').order('name')
           : supabase.from(table).select('collection_id, name').eq('locale', 'en').order('name');
   const {data, error} = await query;
-  if (error) {
-    return [];
-  }
+  await assertCatalogAdminQueryResults([{error}], {action: `catalog_options_${table}`});
   return ((data ?? []) as Array<Record<string, string>>).map((row) => ({
     id: String(row[idColumn]),
     label: String(row.name)
@@ -144,20 +143,7 @@ export async function getAdminProducts(filters: AdminCatalogListFilters = {}) {
       'id, product_type, status, updated_at, product_translations(locale,title), product_market_offers(market_code,enabled,price_minor), product_media(object_path,alt_text_en,alt_text_vi,display_order,is_primary)'
     )
     .order('updated_at', {ascending: false});
-  if (error) {
-    return {
-      products: [],
-      total: 0,
-      page: 1,
-      pageSize: ADMIN_CATALOG_PAGE_SIZE,
-      totalPages: 1,
-      stats: {
-        total: 0,
-        published: 0,
-        draftOrHidden: 0
-      }
-    };
-  }
+  await assertCatalogAdminQueryResults([{error}], {action: 'catalog_admin_list'});
 
   const products = (data ?? []) as AdminProductRow[];
   const stats = {
@@ -233,7 +219,20 @@ export async function getProductForForm(productId: string): Promise<ProductFormI
     supabase.from('collection_products').select('collection_id, display_order').eq('product_id', productId)
   ]);
 
-  if (productResult.error || !productResult.data) {
+  await assertCatalogAdminQueryResults(
+    [
+      productResult,
+      translationsResult,
+      offersResult,
+      categoriesResult,
+      techniquesResult,
+      tagsResult,
+      collectionsResult
+    ],
+    {action: 'catalog_product_editor', productId}
+  );
+
+  if (!productResult.data) {
     notFound();
   }
 

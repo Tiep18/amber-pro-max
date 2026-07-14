@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAdmin } from '@/auth/guards';
 import { productIdSchema } from '@/catalog/schemas';
+import { assertCatalogAdminQueryResults } from '@/catalog/admin-query-results';
 import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
 import {
   VariantEditor,
@@ -91,7 +92,12 @@ export default async function ProductVariantsPage({
         .order('display_order', { ascending: true })
     ]);
 
-  if (productResult.error || !productResult.data) {
+  await assertCatalogAdminQueryResults(
+    [productResult, offersResult, productInventoryResult, variantsResult, mediaResult],
+    {action: 'catalog_variant_editor', productId: parsed.data}
+  );
+
+  if (!productResult.data) {
     notFound();
   }
 
@@ -111,6 +117,13 @@ export default async function ProductVariantsPage({
         getCatalogShippingAssignmentData(parsed.data, variantIds)
       ])
     : [null, null, await getCatalogShippingAssignmentData(parsed.data)];
+
+  await assertCatalogAdminQueryResults(
+    [inventoryResult, overrideResult].filter(
+      (result): result is NonNullable<typeof result> => result !== null
+    ),
+    {action: 'catalog_variant_details', productId: parsed.data}
+  );
 
   const inventoryByVariant = new Map(
     (inventoryResult?.data ?? []).map((inventory) => [

@@ -140,7 +140,7 @@ insert into public.products (id, product_type, status, published_at)
 values
   ('40000000-0000-0000-0000-000000000001', 'pdf_pattern', 'published', '2026-01-01T00:00:00Z'),
   ('40000000-0000-0000-0000-000000000002', 'physical_finished', 'published', '2026-01-02T00:00:00Z'),
-  ('40000000-0000-0000-0000-000000000003', 'physical_finished', 'published', '2026-01-03T00:00:00Z'),
+  ('40000000-0000-0000-0000-000000000003', 'physical_finished', 'draft', '2026-01-03T00:00:00Z'),
   ('40000000-0000-0000-0000-000000000004', 'pdf_pattern', 'published', '2026-01-04T00:00:00Z'),
   ('40000000-0000-0000-0000-000000000005', 'pdf_pattern', 'draft', null);
 
@@ -329,6 +329,10 @@ values
   ('45000000-0000-0000-0000-000000000001', 'intl', true, 'USD', 3100),
   ('45000000-0000-0000-0000-000000000002', 'intl', false, 'USD', 3300),
   ('45000000-0000-0000-0000-000000000002', 'vn', true, 'VND', 360000);
+
+update public.products
+set status = 'published'
+where id = '40000000-0000-0000-0000-000000000003';
 
 select results_eq(
   $$select slug, currency_code, price_minor

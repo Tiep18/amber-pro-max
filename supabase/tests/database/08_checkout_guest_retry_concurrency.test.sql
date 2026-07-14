@@ -11,6 +11,14 @@ insert into public.product_translations (product_id, locale, slug, title, descri
 values ('08142000-0000-0000-0000-000000000001', 'en', 'guest-race-pattern', 'Guest race pattern', '');
 insert into public.product_market_offers (product_id, market_code, enabled, currency_code, price_minor)
 values ('08142000-0000-0000-0000-000000000001', 'intl', true, 'USD', 2500);
+insert into public.product_digital_assets (product_id, bucket_id, object_path, file_name, byte_size)
+values (
+  '08142000-0000-0000-0000-000000000001',
+  'pattern-pdfs',
+  'patterns/08142000-0000-0000-0000-000000000001/race.pdf',
+  'race.pdf',
+  1024
+);
 commit;
 
 create temporary table guest_race_payloads (name text primary key, payload jsonb);

@@ -1,9 +1,10 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import type {ProductDraftInput} from '@/catalog/schemas';
 
-const {requireAdmin, createSupabaseServerClient, recordOperationalFailure} = vi.hoisted(() => ({
+const {requireAdmin, createSupabaseServerClient, invalidateCatalogCache, recordOperationalFailure} = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   createSupabaseServerClient: vi.fn(),
+  invalidateCatalogCache: vi.fn(),
   recordOperationalFailure: vi.fn(async () => ({
     status: 'recorded',
     errorId: '76000000-0000-4000-8000-000000000001'
@@ -13,6 +14,7 @@ const {requireAdmin, createSupabaseServerClient, recordOperationalFailure} = vi.
 vi.mock('server-only', () => ({}));
 vi.mock('@/auth/guards', () => ({requireAdmin}));
 vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient}));
+vi.mock('@/lib/cache-invalidation', () => ({invalidateCatalogCache}));
 vi.mock('@/operations/errors', () => ({recordOperationalFailure}));
 
 import {
@@ -117,6 +119,12 @@ describe('publish issue mapping', () => {
           locale: null,
           market_code: null,
           detail: 'constraint detail'
+        },
+        {
+          issue_code: 'incompatible_product_data',
+          locale: null,
+          market_code: null,
+          detail: 'old type data'
         }
       ])
     ).toEqual([
@@ -135,6 +143,11 @@ describe('publish issue mapping', () => {
         code: 'invalid_inventory',
         group: 'variants',
         field: 'inventory'
+      },
+      {
+        code: 'incompatible_product_data',
+        group: 'general',
+        field: 'productType'
       }
     ]);
   });
@@ -227,6 +240,32 @@ describe('catalog actions', () => {
     });
   });
 
+  it('saves the complete product aggregate through one RPC call', async () => {
+    const rpc = vi.fn(async () => ({data: productId, error: null}));
+    createSupabaseServerClient.mockResolvedValue({rpc});
+
+    await expect(saveProductDraftAction(validDraft())).resolves.toEqual({
+      status: 'saved',
+      productId
+    });
+
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith(
+      'admin_save_catalog_product',
+      expect.objectContaining({
+        p_payload: expect.objectContaining({
+          product_id: null,
+          product_type: 'pdf_pattern',
+          category_ids: ['22222222-2222-4222-8222-222222222222'],
+          translations: expect.arrayContaining([
+            expect.objectContaining({locale: 'vi', slug: 'mau-gau-nho'}),
+            expect.objectContaining({locale: 'en', slug: 'little-bear-pattern'})
+          ])
+        })
+      })
+    );
+  });
+
   it('records publish RPC failures without exposing raw database errors', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: null,
@@ -255,31 +294,12 @@ describe('catalog actions', () => {
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/secret_table|relation|Little bear|mau-gau|private/i);
   });
 
-  it('records draft relation failures without exposing raw product content', async () => {
-    const productQuery = {
-      insert: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn(async () => ({data: {id: productId}, error: null}))
-        }))
-      }))
-    };
-    const failingDelete = vi.fn(() => ({
-      eq: vi.fn(async () => ({error: {message: 'private taxonomy detail'}}))
+  it('records atomic draft RPC failures without exposing raw product content', async () => {
+    const rpc = vi.fn(async () => ({
+      data: null,
+      error: {message: 'private taxonomy detail'}
     }));
-    const from = vi.fn((table: string) => {
-      if (table === 'products') {
-        return productQuery;
-      }
-      if (table === 'product_categories') {
-        return {delete: failingDelete};
-      }
-      return {
-        delete: vi.fn(() => ({eq: vi.fn(async () => ({error: null}))})),
-        upsert: vi.fn(async () => ({error: null})),
-        insert: vi.fn(async () => ({error: null}))
-      };
-    });
-    createSupabaseServerClient.mockResolvedValue({from});
+    createSupabaseServerClient.mockResolvedValue({rpc});
 
     await expect(saveProductDraftAction(validDraft())).resolves.toMatchObject({
       status: 'error',
@@ -291,10 +311,9 @@ describe('catalog actions', () => {
         area: 'admin',
         severity: 'error',
         errorCode: 'catalog_save_failed',
-        summary: 'Catalog product relation save failed',
+        summary: 'Catalog product save failed',
         facts: expect.objectContaining({
-          action: 'catalog_save_relations',
-          productId,
+          action: 'catalog_save_product',
           status: 'draft',
           code: 'save_failed'
         })
@@ -334,14 +353,9 @@ describe('catalog actions', () => {
   it('keeps catalog action error states when operational recording fails', async () => {
     recordOperationalFailure.mockRejectedValue(new Error('operational table unavailable'));
 
-    const productQuery = {
-      insert: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn(async () => ({data: null, error: {message: 'product save failed'}}))
-        }))
-      }))
-    };
-    createSupabaseServerClient.mockResolvedValueOnce({from: vi.fn(() => productQuery)});
+    createSupabaseServerClient.mockResolvedValueOnce({
+      rpc: vi.fn(async () => ({data: null, error: {message: 'product save failed'}}))
+    });
     await expect(saveProductDraftAction(validDraft())).resolves.toEqual({
       status: 'error',
       code: 'save_failed'

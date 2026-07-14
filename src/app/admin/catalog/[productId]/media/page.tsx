@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAdmin } from '@/auth/guards';
+import { assertCatalogAdminQueryResults } from '@/catalog/admin-query-results';
 import { mediaProductIdSchema, PRODUCT_MEDIA_BUCKET } from '@/catalog/media-schemas';
 import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
 import {
@@ -62,7 +63,12 @@ export default async function ProductMediaPage({
       .maybeSingle()
   ]);
 
-  if (productResult.error || !productResult.data) {
+  await assertCatalogAdminQueryResults([productResult, mediaResult, assetResult], {
+    action: 'catalog_media_editor',
+    productId: parsed.data
+  });
+
+  if (!productResult.data) {
     notFound();
   }
 

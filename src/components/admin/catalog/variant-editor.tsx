@@ -4,9 +4,7 @@ import {useMemo, useState, useTransition} from 'react';
 import {
   adjustInventoryAction,
   removeVariantAction,
-  removeVariantPriceOverrideAction,
-  saveVariantAction,
-  saveVariantPriceOverrideAction,
+  saveVariantAggregateAction,
   type VariantActionResult
 } from '@/catalog/variant-actions';
 import {resolveEffectiveVariantPrice, type VariantPriceRow} from '@/catalog/variant-pricing';
@@ -101,6 +99,28 @@ function resultText(result: VariantActionResult) {
   return labels[result.code] ?? 'Variant action failed.';
 }
 
+export async function saveVariantEditorDraft(
+  productId: string,
+  draft: VariantEditorVariant,
+  save: typeof saveVariantAggregateAction = saveVariantAggregateAction
+) {
+  return save({
+    productId,
+    variantId: draft.id,
+    sku: draft.sku,
+    attributes: draft.attributes,
+    displayOrder: draft.displayOrder,
+    mediaId: draft.mediaId,
+    quantityOnHand: draft.quantityOnHand,
+    overrides: draft.overrides.map((override) => ({
+      marketCode: override.marketCode,
+      enabled: override.enabled,
+      currencyCode: override.currencyCode,
+      priceMinor: override.priceMinor ?? 0
+    }))
+  });
+}
+
 export function VariantEditor({
   productId,
   productType,
@@ -180,58 +200,17 @@ export function VariantEditor({
   function saveVariant() {
     setMessages([]);
     startTransition(async () => {
-      const variantResult = await saveVariantAction({
-        productId,
-        variantId: draft.id,
-        sku: draft.sku,
-        attributes: draft.attributes,
-        displayOrder: draft.displayOrder,
-        mediaId: draft.mediaId
-      });
+      const variantResult = await saveVariantEditorDraft(productId, draft);
       if (variantResult.status !== 'success') {
         setMessages([{variant: 'destructive', text: resultText(variantResult)}]);
         return;
       }
 
-      const actionMessages: Array<{variant: 'success' | 'warning' | 'destructive'; text: string}> = [
-        {variant: 'success', text: variantResult.message}
-      ];
-      for (const marketCode of ['vn', 'intl'] as const) {
-        const override = draft.overrides.find((item) => item.marketCode === marketCode);
-        const overrideResult = override
-          ? await saveVariantPriceOverrideAction({
-              variantId: draft.id,
-              marketCode,
-              currencyCode: override.currencyCode,
-              priceMinor: override.priceMinor ?? 0
-            })
-          : await removeVariantPriceOverrideAction({variantId: draft.id, marketCode});
-        if (override) {
-          actionMessages.push({
-            variant: overrideResult.status === 'success' ? 'success' : 'destructive',
-            text: resultText(overrideResult)
-          });
-        }
-      }
-
-      const inventoryResult = await adjustInventoryAction({
-        ownerType: 'variant',
-        productId,
-        variantId: draft.id,
-        quantityOnHand: draft.quantityOnHand
+      setVariantList((current) => {
+        const next = current.filter((variant) => variant.id !== draft.id);
+        return [...next, draft].sort((left, right) => left.displayOrder - right.displayOrder || left.sku.localeCompare(right.sku));
       });
-      actionMessages.push({
-        variant: inventoryResult.status === 'success' ? 'success' : 'destructive',
-        text: resultText(inventoryResult)
-      });
-
-      if (inventoryResult.status === 'success') {
-        setVariantList((current) => {
-          const next = current.filter((variant) => variant.id !== draft.id);
-          return [...next, draft].sort((left, right) => left.displayOrder - right.displayOrder || left.sku.localeCompare(right.sku));
-        });
-      }
-      setMessages(actionMessages);
+      setMessages([{variant: 'success', text: variantResult.message}]);
     });
   }
 

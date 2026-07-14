@@ -51,6 +51,39 @@ export const variantPriceOverrideSchema = z
     }
   });
 
+const variantAggregateOverrideSchema = z
+  .object({
+    marketCode: z.enum(['vn', 'intl']),
+    enabled: z.boolean(),
+    currencyCode: z.enum(['VND', 'USD']),
+    priceMinor: z.number().int().nonnegative()
+  })
+  .superRefine((override, context) => {
+    if (marketCurrency[override.marketCode] !== override.currencyCode) {
+      context.addIssue({
+        code: 'custom',
+        path: ['currencyCode'],
+        message: 'override_currency_must_match_market'
+      });
+    }
+  });
+
+export const variantAggregateDraftSchema = variantDraftSchema
+  .extend({
+    quantityOnHand: z.number().int().nonnegative(),
+    overrides: z.array(variantAggregateOverrideSchema).max(2)
+  })
+  .superRefine((variant, context) => {
+    const markets = variant.overrides.map((override) => override.marketCode);
+    if (new Set(markets).size !== markets.length) {
+      context.addIssue({
+        code: 'custom',
+        path: ['overrides'],
+        message: 'duplicate_variant_override_market'
+      });
+    }
+  });
+
 export const removeVariantPriceOverrideSchema = z.object({
   variantId: uuidSchema,
   marketCode: z.enum(['vn', 'intl'])
@@ -76,6 +109,7 @@ export const inventoryAdjustmentSchema = z.discriminatedUnion('ownerType', [
 ]);
 
 export type VariantDraftInput = z.input<typeof variantDraftSchema>;
+export type VariantAggregateDraftInput = z.input<typeof variantAggregateDraftSchema>;
 export type VariantDraft = z.output<typeof variantDraftSchema>;
 export type VariantPriceOverrideInput = z.input<typeof variantPriceOverrideSchema>;
 export type RemoveVariantPriceOverrideInput = z.input<typeof removeVariantPriceOverrideSchema>;

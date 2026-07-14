@@ -31,6 +31,7 @@ const issueMap: Record<
   missing_market_offer: {group: 'offers', field: 'marketOffer'},
   invalid_market_offer: {group: 'offers', field: 'marketOffer'},
   missing_private_pdf: {group: 'media', field: 'privatePdf'},
+  incompatible_product_data: {group: 'general', field: 'productType'},
   invalid_inventory: {group: 'variants', field: 'inventory'}
 };
 

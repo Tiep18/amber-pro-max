@@ -4,6 +4,7 @@ import type {
   ShippingAssignmentProfile,
   ShippingProfileOption
 } from '@/components/admin/commerce/shipping-assignment-sheet';
+import {assertCatalogAdminQueryResults} from '@/catalog/admin-query-results';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 type ProductAssignmentRow = {
@@ -49,7 +50,7 @@ function toProfileMap(profiles: ShippingProfileOption[]) {
 
 export async function getCatalogShippingAssignmentData(productId: string, variantIds: string[] = []) {
   const supabase = await createSupabaseServerClient();
-  const [{ data: profileRows }, productAssignmentResult, defaultResult, variantAssignmentResult] =
+  const [profileResult, productAssignmentResult, defaultResult, variantAssignmentResult] =
     await Promise.all([
       supabase
         .from('shipping_profiles')
@@ -74,7 +75,12 @@ export async function getCatalogShippingAssignmentData(productId: string, varian
         : Promise.resolve({ data: [] as VariantAssignmentRow[], error: null })
     ]);
 
-  const profiles: ShippingProfileOption[] = (profileRows ?? []).map((profile) => ({
+  await assertCatalogAdminQueryResults(
+    [profileResult, productAssignmentResult, defaultResult, variantAssignmentResult],
+    {action: 'catalog_shipping_assignments', productId}
+  );
+
+  const profiles: ShippingProfileOption[] = (profileResult.data ?? []).map((profile) => ({
     id: profile.id,
     name: profile.name
   }));

@@ -11,11 +11,13 @@ import {
   inventoryAdjustmentSchema,
   removeVariantPriceOverrideSchema,
   removeVariantSchema,
+  variantAggregateDraftSchema,
   variantDraftSchema,
   variantPriceOverrideSchema,
   type InventoryAdjustmentInput,
   type RemoveVariantInput,
   type RemoveVariantPriceOverrideInput,
+  type VariantAggregateDraftInput,
   type VariantDraftInput,
   type VariantPriceOverrideInput
 } from './variant-schemas';
@@ -98,6 +100,15 @@ async function mapWriteError(
   }
 ): Promise<VariantActionResult> {
   const code = databaseCode(error);
+  if (code === 'P2001') {
+    return {status: 'invalid', code: 'product_not_found'};
+  }
+  if (code === 'P2002') {
+    return {status: 'invalid', code: 'not_physical_product'};
+  }
+  if (code === 'P2003') {
+    return {status: 'invalid', code: 'wrong_inventory_owner'};
+  }
   if (code === '23505') {
     return {status: 'invalid', code: 'duplicate_sku'};
   }
@@ -111,6 +122,48 @@ async function mapWriteError(
     code: 'save_failed',
     summary: context.summary
   });
+}
+
+export async function saveVariantAggregateAction(
+  input: VariantAggregateDraftInput
+): Promise<VariantActionResult> {
+  await requireAdmin();
+  const parsed = variantAggregateDraftSchema.safeParse(input);
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+
+  const variant = parsed.data;
+  const supabase = await createSupabaseServerClient();
+  const {data, error} = await supabase.rpc('admin_save_catalog_variant', {
+    p_payload: {
+      product_id: variant.productId,
+      variant_id: variant.variantId,
+      sku: variant.sku,
+      attributes: variant.attributes,
+      display_order: variant.displayOrder,
+      media_id: variant.mediaId,
+      quantity_on_hand: variant.quantityOnHand,
+      overrides: variant.overrides.map((override) => ({
+        market_code: override.marketCode,
+        enabled: override.enabled,
+        currency_code: override.currencyCode,
+        price_minor: override.priceMinor
+      }))
+    } as Json
+  });
+
+  if (error || !data) {
+    return mapWriteError(error, {
+      action: 'variant_save',
+      productId: variant.productId,
+      referenceId: variant.variantId,
+      summary: 'Catalog variant aggregate save failed'
+    });
+  }
+
+  revalidateVariants(variant.productId);
+  return {status: 'success', message: 'Variant saved'};
 }
 
 async function productType(productId: string) {

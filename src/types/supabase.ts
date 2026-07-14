@@ -3415,6 +3415,14 @@ export type Database = {
       }
     }
     Functions: {
+      admin_save_catalog_product: {
+        Args: { p_payload: Json }
+        Returns: string
+      }
+      admin_save_catalog_variant: {
+        Args: { p_payload: Json }
+        Returns: string
+      }
       admin_set_shipping_store_default: {
         Args: { p_profile_id: string }
         Returns: string

@@ -11,7 +11,6 @@ import {mapPublishIssues, type PublishBlocker} from './publish-checks';
 import {
   productDraftSchema,
   productIdSchema,
-  type ProductDraft,
   type ProductDraftInput
 } from './schemas';
 
@@ -53,53 +52,8 @@ function validationIssues(error: {issues: {path: PropertyKey[]; message: string}
   }));
 }
 
-async function replaceProductRelations(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  productId: string,
-  draft: ProductDraft
-) {
-  const relationDeletes = await Promise.all([
-    supabase.from('product_categories').delete().eq('product_id', productId),
-    supabase.from('product_techniques').delete().eq('product_id', productId),
-    supabase.from('product_tags').delete().eq('product_id', productId),
-    supabase.from('collection_products').delete().eq('product_id', productId)
-  ]);
-  if (relationDeletes.some(({error}) => error)) {
-    return false;
-  }
-
-  const relationWrites = await Promise.all([
-    draft.categoryIds.length
-      ? supabase
-          .from('product_categories')
-          .insert(draft.categoryIds.map((categoryId) => ({product_id: productId, category_id: categoryId})))
-      : Promise.resolve({error: null}),
-    draft.techniqueIds.length
-      ? supabase
-          .from('product_techniques')
-          .insert(draft.techniqueIds.map((techniqueId) => ({product_id: productId, technique_id: techniqueId})))
-      : Promise.resolve({error: null}),
-    draft.tagIds.length
-      ? supabase
-          .from('product_tags')
-          .insert(draft.tagIds.map((tagId) => ({product_id: productId, tag_id: tagId})))
-      : Promise.resolve({error: null}),
-    draft.collections.length
-      ? supabase.from('collection_products').insert(
-          draft.collections.map(({collectionId, displayOrder}) => ({
-            product_id: productId,
-            collection_id: collectionId,
-            display_order: displayOrder
-          }))
-        )
-      : Promise.resolve({error: null})
-  ]);
-
-  return relationWrites.every(({error}) => !error);
-}
-
 export async function saveProductDraftAction(input: ProductDraftInput): Promise<SaveProductDraftResult> {
-  const admin = await requireAdmin();
+  await requireAdmin();
   const parsed = productDraftSchema.safeParse(input);
   if (!parsed.success) {
     return {status: 'invalid', issues: validationIssues(parsed.error)};
@@ -107,7 +61,7 @@ export async function saveProductDraftAction(input: ProductDraftInput): Promise<
 
   const draft = parsed.data;
   const supabase = await createSupabaseServerClient();
-  const productSaveResult = await runMonitoredAction({
+  const saveResult = await runMonitoredAction({
     area: 'admin',
     action: 'catalog_save_product',
     errorCode: 'catalog_save_failed',
@@ -120,93 +74,59 @@ export async function saveProductDraftAction(input: ProductDraftInput): Promise<
     errorResult: {status: 'error', code: 'save_failed'} as const,
     shouldRecordResult: (result) => result.status === 'error',
     operation: async () => {
-      const productResult = draft.productId
-        ? await supabase
-            .from('products')
-            .update({product_type: draft.productType, updated_at: new Date().toISOString()})
-            .eq('id', draft.productId)
-            .select('id')
-            .maybeSingle()
-        : await supabase
-            .from('products')
-            .insert({product_type: draft.productType, created_by: admin.id})
-            .select('id')
-            .single();
+      const {data, error} = await supabase.rpc('admin_save_catalog_product', {
+        p_payload: {
+          product_id: draft.productId ?? null,
+          product_type: draft.productType,
+          translations: (['vi', 'en'] as const).map((locale) => {
+            const translation = draft.translations[locale];
+            return {
+              locale,
+              title: translation.title,
+              description: translation.description,
+              specifications: translation.specifications,
+              slug: translation.slug,
+              seo_title: translation.seoTitle || null,
+              seo_description: translation.seoDescription || null
+            };
+          }),
+          offers: [
+            {
+              market_code: 'vn',
+              currency_code: 'VND',
+              enabled: draft.offers.vn.enabled,
+              price_minor: draft.offers.vn.priceMinor
+            },
+            {
+              market_code: 'intl',
+              currency_code: 'USD',
+              enabled: draft.offers.intl.enabled,
+              price_minor: draft.offers.intl.priceMinor
+            }
+          ],
+          category_ids: draft.categoryIds,
+          technique_ids: draft.techniqueIds,
+          tag_ids: draft.tagIds,
+          collections: draft.collections.map(({collectionId, displayOrder}) => ({
+            collection_id: collectionId,
+            display_order: displayOrder
+          }))
+        } as Json
+      });
 
-      if (productResult.error || !productResult.data) {
+      if (error || !data) {
         return {status: 'error', code: 'save_failed'} as const;
       }
-      return {status: 'product_saved', productId: productResult.data.id} as const;
+      return {status: 'saved', productId: data} as const;
     }
   });
 
-  if (productSaveResult.status === 'error') {
-    return productSaveResult;
-  }
-
-  const productId = productSaveResult.productId;
-  const translations = (['vi', 'en'] as const).map((locale) => {
-    const translation = draft.translations[locale];
-    return {
-      product_id: productId,
-      locale,
-      title: translation.title,
-      description: translation.description,
-      specifications: translation.specifications as Json,
-      slug: translation.slug,
-      seo_title: translation.seoTitle || null,
-      seo_description: translation.seoDescription || null
-    };
-  });
-  const offers = [
-    {
-      product_id: productId,
-      market_code: 'vn',
-      currency_code: 'VND',
-      enabled: draft.offers.vn.enabled,
-      price_minor: draft.offers.vn.priceMinor
-    },
-    {
-      product_id: productId,
-      market_code: 'intl',
-      currency_code: 'USD',
-      enabled: draft.offers.intl.enabled,
-      price_minor: draft.offers.intl.priceMinor
-    }
-  ];
-
-  const relationSaveResult = await runMonitoredAction({
-    area: 'admin',
-    action: 'catalog_save_relations',
-    errorCode: 'catalog_save_failed',
-    summary: 'Catalog product relation save failed',
-    facts: {
-      productId,
-      productType: draft.productType,
-      status: 'draft'
-    },
-    errorResult: {status: 'error', code: 'save_failed'} as const,
-    shouldRecordResult: (result) => result.status === 'error',
-    operation: async () => {
-      const [{error: translationError}, {error: offerError}, relationsSaved] = await Promise.all([
-        supabase.from('product_translations').upsert(translations, {onConflict: 'product_id,locale'}),
-        supabase.from('product_market_offers').upsert(offers, {onConflict: 'product_id,market_code'}),
-        replaceProductRelations(supabase, productId, draft)
-      ]);
-
-      if (translationError || offerError || !relationsSaved) {
-        return {status: 'error', code: 'save_failed'} as const;
-      }
-      return {status: 'relations_saved'} as const;
-    }
-  });
-
-  if (relationSaveResult.status === 'error') {
-    return relationSaveResult;
+  if (saveResult.status === 'error') {
+    return saveResult;
   }
 
   invalidateCatalogCache();
-  return {status: 'saved', productId};
+  return saveResult;
 }
 
 export async function publishProductAction(productId: string): Promise<PublishProductResult> {
