@@ -35,3 +35,18 @@ test('shipping quotes use the constrained v2 resolver and submit keeps browser s
   assert.match(migration, /insert into public\.checkout_order_shipping_allocations/);
   assert.match(migration, /set search_path = public, pg_temp/);
 });
+
+test('checkout submit revalidates commercial facts privately before persistence', () => {
+  const migration = readFileSync(
+    'supabase/migrations/20260714150000_harden_checkout_submit_authority.sql',
+    'utf8'
+  );
+
+  assert.match(migration, /private\.checkout_commercial_quote_is_current/);
+  assert.match(migration, /stale_commercial_quote/);
+  assert.match(migration, /checkout_orders_authoritative_arithmetic_check/);
+  assert.match(migration, /revoke all on function private\.checkout_commercial_quote_is_current\(jsonb, uuid\) from public, anon, authenticated/);
+  assert.match(migration, /case when shipping_address ->> 'countryCode' = 'US'/);
+  assert.match(migration, /on conflict \(order_line_id\) do nothing/);
+  assert.doesNotMatch(migration, /highest[-_ ]first|package grouping/i);
+});
