@@ -71,3 +71,16 @@ test('guest retry recovery keeps raw credentials server-only and persists hashes
   assert.doesNotMatch(client, /guestRecovery|attemptId|\bproof\b|localStorage|sessionStorage/);
   assert.doesNotMatch(submit, /guestAccessToken/);
 });
+
+test('discount allocation has separate zero and positive control flow', () => {
+  const migration = readFileSync('supabase/migrations/20260714170000_refine_checkout_discount_allocation_guard.sql', 'utf8');
+  const zeroBranch = migration.indexOf('if expected_discount = 0 then');
+  const positiveGuard = migration.indexOf('discount_rule.id is null or eligible_subtotal <= 0');
+  const allocationCte = migration.indexOf('with candidates as', positiveGuard);
+
+  assert.ok(zeroBranch >= 0);
+  assert.ok(positiveGuard > zeroBranch);
+  assert.ok(allocationCte > positiveGuard);
+  assert.match(migration.slice(zeroBranch, positiveGuard), /discountAllocationMinor.*<> 0/s);
+  assert.doesNotMatch(migration.slice(zeroBranch, positiveGuard), /with candidates as/);
+});

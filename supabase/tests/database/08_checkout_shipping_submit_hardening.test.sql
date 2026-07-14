@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(47);
+select plan(48);
 
 select has_function(
   'private', 'checkout_commercial_quote_is_current', array['jsonb', 'uuid'],
@@ -382,6 +382,13 @@ select 'stale-discount',
     )
   ) || jsonb_build_object('guestRecovery', jsonb_build_object('attemptId', repeat('I', 43), 'proof', repeat('J', 43)))
 from hardening_payloads where name = 'base';
+select ok(
+  private.checkout_commercial_quote_is_current(
+    (select payload from hardening_payloads where name = 'stale-discount'),
+    null
+  ),
+  'positive discount preserves exact proportional allocations before the rule changes'
+);
 update public.discount_codes set percentage_bps = 2000 where code = 'SAVE10';
 select is(public.submit_checkout((select payload from hardening_payloads where name = 'stale-discount')) ->> 'code', 'stale_commercial_quote', 'discount changed after quote is rejected');
 select is((select count(*)::integer from public.checkout_orders where idempotency_key = 'physical-stale-discount'), 0, 'stale discount creates nothing');

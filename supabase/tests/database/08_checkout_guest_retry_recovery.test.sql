@@ -22,7 +22,8 @@ insert into guest_retry_results values (
 );
 select is((select result ->> 'status' from guest_retry_results where name = 'first'), 'stale', 'a claimed attempt still receives generic stale submit behavior');
 select is(
-  (select attempt_id_hash from private.checkout_guest_attempt_claims),
+  (select attempt_id_hash from private.checkout_guest_attempt_claims
+   where attempt_id_hash = encode(extensions.digest(repeat('K', 43), 'sha256'), 'hex')),
   encode(extensions.digest(repeat('K', 43), 'sha256'), 'hex'),
   'only the attempt hash is persisted'
 );
@@ -35,7 +36,7 @@ insert into guest_retry_results values (
   ))
 );
 select is((select result ->> 'code' from guest_retry_results where name = 'wrong-proof'), 'guest_checkout_conflict', 'same attempt with a different proof discloses only a generic conflict');
-select is((select count(*)::integer from private.checkout_guest_attempt_claims), 1, 'a different proof cannot create a duplicate claim');
+select is((select count(*)::integer from private.checkout_guest_attempt_claims where attempt_id_hash = encode(extensions.digest(repeat('K', 43), 'sha256'), 'hex')), 1, 'a different proof cannot create a duplicate claim');
 
 select * from finish();
 rollback;

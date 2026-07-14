@@ -9,6 +9,7 @@ const {
   prepareRecoveryMock,
   quoteCartIntentMock,
   recordOperationalFailureMock,
+  setGuestOrderAccessCookieMock,
   submitCheckoutMock
 } = vi.hoisted(() => ({
   createSupabaseServerClientMock: vi.fn(),
@@ -19,6 +20,7 @@ const {
   prepareRecoveryMock: vi.fn(),
   quoteCartIntentMock: vi.fn(),
   recordOperationalFailureMock: vi.fn(),
+  setGuestOrderAccessCookieMock: vi.fn(),
   submitCheckoutMock: vi.fn()
 }));
 
@@ -44,7 +46,7 @@ vi.mock('@/payments/guest-access', () => ({
   getGuestOrderAccessHashFromServer: getGuestOrderAccessHashMock,
   hashGuestOrderAccessToken: vi.fn((value: string) => `hash:${value}`),
   prepareGuestCheckoutRecoveryFromServer: prepareRecoveryMock,
-  setGuestOrderAccessCookieFromServer: vi.fn()
+  setGuestOrderAccessCookieFromServer: setGuestOrderAccessCookieMock
 }));
 vi.mock('@/payments/queries', () => ({getAuthorizedOrderPayment: getAuthorizedOrderPaymentMock}));
 vi.mock('@/operations/errors', () => ({
@@ -191,6 +193,30 @@ describe('checkout operational error instrumentation', () => {
     );
   });
 
+  it('recovers the same guest attempt when the first response has no headers or body', async () => {
+    submitCheckoutMock.mockResolvedValue({
+      status: 'success', orderId: 'order-1', orderNumber: 'ATB-1', reservationExpiresAt: '2026-07-14T10:00:00Z'
+    });
+    await submitCheckoutAction(validCheckoutInput());
+    await submitCheckoutAction(validCheckoutInput());
+    expect(getGuestCheckoutRecoveryMock).toHaveBeenCalledTimes(2);
+    expect(submitCheckoutMock).toHaveBeenCalledTimes(2);
+    expect(setGuestOrderAccessCookieMock).toHaveBeenCalledTimes(2);
+    expect(acknowledgeRecoveryMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps recovery after order-cookie headers apply but submit navigation is lost', async () => {
+    submitCheckoutMock.mockResolvedValue({
+      status: 'success', orderId: 'order-1', orderNumber: 'ATB-1', reservationExpiresAt: '2026-07-14T10:00:00Z'
+    });
+    await submitCheckoutAction(validCheckoutInput());
+    expect(setGuestOrderAccessCookieMock).toHaveBeenCalledOnce();
+    expect(acknowledgeRecoveryMock).not.toHaveBeenCalled();
+    await submitCheckoutAction(validCheckoutInput());
+    expect(setGuestOrderAccessCookieMock).toHaveBeenCalledTimes(2);
+    expect(acknowledgeRecoveryMock).not.toHaveBeenCalled();
+  });
+
   it('does not submit a guest order without a delivered preparation cookie', async () => {
     getGuestCheckoutRecoveryMock.mockResolvedValue(null);
     await expect(submitCheckoutAction(validCheckoutInput())).resolves.toEqual({status: 'invalid', code: 'guest_recovery_required'});
@@ -203,5 +229,21 @@ describe('checkout operational error instrumentation', () => {
     acknowledgeRecoveryMock.mockResolvedValue({status: 'cleared'});
     await expect(acknowledgeGuestCheckoutRecoveryAction('ATB-1')).resolves.toEqual({status: 'cleared'});
     expect(acknowledgeRecoveryMock).toHaveBeenCalledWith('ATB-1', expect.objectContaining({proof: 'b'.repeat(43)}));
+  });
+
+  it('preserves signed-in submit without guest recovery credentials', async () => {
+    createSupabaseServerClientMock.mockResolvedValue({
+      auth: {getUser: vi.fn(async () => ({data: {user: {id: 'user-1'}}, error: null}))}
+    });
+    getGuestCheckoutRecoveryMock.mockResolvedValue(null);
+    submitCheckoutMock.mockResolvedValue({
+      status: 'success', orderId: 'order-2', orderNumber: 'ATB-2', reservationExpiresAt: '2026-07-14T10:00:00Z'
+    });
+    await expect(submitCheckoutAction(validCheckoutInput())).resolves.toMatchObject({status: 'success', orderId: 'order-2'});
+    expect(submitCheckoutMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({guestRecovery: expect.anything()}),
+      expect.anything()
+    );
+    expect(setGuestOrderAccessCookieMock).not.toHaveBeenCalled();
   });
 });
