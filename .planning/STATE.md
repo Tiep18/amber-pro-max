@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed quick task 260715-0sw admin catalog media boundary
-last_updated: "2026-07-15T01:00:00+07:00"
-last_activity: 2026-07-14 -- Completed quick task 260715-0sw: admin media authorization and storage cleanup safety
+stopped_at: Completed quick task 260715-1d9 catalog collection ordering and security boundary
+last_updated: "2026-07-15T01:30:00+07:00"
+last_activity: 2026-07-14 -- Completed quick task 260715-1d9: collection append ordering and private PDF security boundary
 progress:
   total_phases: 8
   completed_phases: 7
@@ -164,6 +164,7 @@ None yet.
 
 | #                                                     | Description                                                                                                                      | Date       | Commit      | Status       | Directory                                                                                                                                                 |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 260715-1d9                                            | Fix admin catalog collection display-order collisions and narrow the catalog boundary security test false positive              | 2026-07-14 | cde1d9d     | Needs Review | [260715-1d9](./quick/260715-1d9-fix-admin-catalog-collection-display-ord/)                                                                                |
 | 260715-0sw                                            | Harden admin catalog media boundary: authenticate before multipart parsing and surface storage deletion failures                | 2026-07-14 | a83382d     | Verified     | [260715-0sw](./quick/260715-0sw-harden-admin-catalog-media-boundary-auth/)                                                                                |
 | 260714-x6u                                            | Fix admin catalog draft/publish flow: allow incomplete drafts and save the current form snapshot before publishing              | 2026-07-14 | 0828690     | Needs Review | [260714-x6u](./quick/260714-x6u-fix-admin-catalog-draft-publish-flow-all/)                                                                                |
 | 260714-mhn                                            | Secure guest checkout retry recovery and make zero-discount allocation validation explicit                                      | 2026-07-14 | cb712144    | [260714-mhn](./quick/260714-mhn-secure-guest-checkout-retry-recovery-and/)                                                                                |
