@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed quick task 260714-kzt checkout shipping submit hardening
-last_updated: "2026-07-14T15:49:00+07:00"
-last_activity: 2026-07-14 -- Quick task completed: authoritative checkout totals, retry safety, region normalization, and allocation evidence
+stopped_at: Completed quick task 260714-mhn secure guest checkout retry recovery
+last_updated: "2026-07-14T17:12:00+07:00"
+last_activity: 2026-07-14 -- Quick task completed: hash-only guest retry recovery and explicit discount allocation branches
 progress:
   total_phases: 8
   completed_phases: 7
@@ -164,6 +164,7 @@ None yet.
 
 | #                                                     | Description                                                                                                                      | Date       | Commit      | Directory                                                                                                                                                 |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 260714-mhn                                            | Secure guest checkout retry recovery and make zero-discount allocation validation explicit                                      | 2026-07-14 | cb712144    | [260714-mhn](./quick/260714-mhn-secure-guest-checkout-retry-recovery-and/)                                                                                |
 | 260714-kzt                                            | Harden checkout totals, physical-submit retries, non-US regions, and per-line shipping allocation evidence                       | 2026-07-14 | 68d700c0    | [260714-kzt](./quick/260714-kzt-harden-checkout-shipping-totals-physical/)                                                                                |
 | 260714-ij7                                            | Polish admin shipping package cards, lock rate context, and fix Select interactions inside shared Sheets                         | 2026-07-14 | 098fc7fd    | [260714-ij7](./quick/260714-ij7-polish-admin-shipping-package-ui-for-cle/)                                                                                |
 | 260714-g7i                                            | Redesign admin shipping into an actionable package-rate workspace with safe edit and readiness flows                            | 2026-07-14 | 33fb90e1    | [260714-g7i](./quick/260714-g7i-redesign-admin-shipping-into-an-actionab/)                                                                                |
