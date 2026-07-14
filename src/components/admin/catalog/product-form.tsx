@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Check, ListTree, Save, Send } from 'lucide-react';
 import {
-  publishProductAction,
+  saveAndPublishProductAction,
   saveProductDraftAction,
   type PublishProductResult,
   type SaveProductDraftResult
@@ -804,16 +804,26 @@ export function ProductForm({
       showValidationIssues([{ path: 'productId', code: 'save_before_publish' }]);
       return;
     }
+    const submittedDraft = draft;
+    const submittedSignature = JSON.stringify(submittedDraft);
     startTransition(async () => {
-      const actionResult = await publishProductAction(productId);
+      const actionResult = await saveAndPublishProductAction(submittedDraft);
       setResult(actionResult);
+      if (actionResult.status === 'invalid' && 'issues' in actionResult) {
+        showValidationIssues(actionResult.issues);
+      }
       if (actionResult.status === 'blocked') {
+        setSavedSignature(submittedSignature);
         showValidationIssues(
           actionResult.issues.map((issue) => ({
             path: pathForPublishIssue(issue),
             code: issue.code
           }))
         );
+      }
+      if (actionResult.status === 'published') {
+        setSavedSignature(submittedSignature);
+        setFieldErrors({});
       }
       router.refresh();
     });

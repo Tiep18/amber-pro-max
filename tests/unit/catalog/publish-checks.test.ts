@@ -20,6 +20,7 @@ vi.mock('@/operations/errors', () => ({recordOperationalFailure}));
 import {
   archiveProductAction,
   publishProductAction,
+  saveAndPublishProductAction,
   saveProductDraftAction
 } from '@/catalog/actions';
 import {mapPublishIssues} from '@/catalog/publish-checks';
@@ -182,6 +183,7 @@ describe('catalog actions', () => {
 
   it.each([
     ['save', () => saveProductDraftAction(validDraft())],
+    ['save then publish', () => saveAndPublishProductAction({...validDraft(), productId})],
     ['publish', () => publishProductAction(productId)],
     ['archive', () => archiveProductAction(productId)]
   ])('authorizes before creating a database client for %s', async (_name, invoke) => {
@@ -264,6 +266,89 @@ describe('catalog actions', () => {
         })
       })
     );
+  });
+
+  it('saves the exact current editor snapshot before checking publish blockers', async () => {
+    const draft = {...validDraft(), productId};
+    draft.translations.en.title = 'Unsaved editor title';
+    draft.offers.vn.priceMinor = 175000;
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({data: productId, error: null})
+      .mockResolvedValueOnce({data: [{published: false}], error: null})
+      .mockResolvedValueOnce({
+        data: [
+          {
+            issue_code: 'missing_primary_image',
+            locale: null,
+            market_code: null,
+            detail: 'raw detail'
+          }
+        ],
+        error: null
+      });
+    createSupabaseServerClient.mockResolvedValue({rpc});
+
+    await expect(saveAndPublishProductAction(draft)).resolves.toEqual({
+      status: 'blocked',
+      productId,
+      issues: [
+        {
+          code: 'missing_primary_image',
+          group: 'media',
+          field: 'primaryImage'
+        }
+      ]
+    });
+
+    expect(rpc.mock.calls.map(([name]) => name)).toEqual([
+      'admin_save_catalog_product',
+      'publish_catalog_product',
+      'catalog_publish_issues'
+    ]);
+    expect(rpc.mock.calls[0]).toEqual([
+      'admin_save_catalog_product',
+      {
+        p_payload: expect.objectContaining({
+          product_id: productId,
+          translations: expect.arrayContaining([
+            expect.objectContaining({locale: 'en', title: 'Unsaved editor title'})
+          ]),
+          offers: expect.arrayContaining([
+            expect.objectContaining({market_code: 'vn', price_minor: 175000})
+          ])
+        })
+      }
+    ]);
+  });
+
+  it('does not attempt publication when saving the current snapshot fails', async () => {
+    const rpc = vi.fn().mockResolvedValueOnce({
+      data: null,
+      error: {message: 'aggregate save failed'}
+    });
+    createSupabaseServerClient.mockResolvedValue({rpc});
+
+    await expect(
+      saveAndPublishProductAction({...validDraft(), productId})
+    ).resolves.toMatchObject({status: 'error', code: 'save_failed'});
+
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith('admin_save_catalog_product', expect.any(Object));
+  });
+
+  it('does not create a client or publish when the current snapshot is structurally invalid', async () => {
+    const draft = {...validDraft(), productId};
+    draft.translations.en.slug = 'Invalid Slug';
+
+    await expect(saveAndPublishProductAction(draft)).resolves.toMatchObject({
+      status: 'invalid',
+      issues: expect.arrayContaining([
+        expect.objectContaining({path: 'translations.en.slug', code: 'invalid_slug'})
+      ])
+    });
+
+    expect(createSupabaseServerClient).not.toHaveBeenCalled();
   });
 
   it('records publish RPC failures without exposing raw database errors', async () => {
