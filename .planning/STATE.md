@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed quick task 260714-mhn secure guest checkout retry recovery
-last_updated: "2026-07-14T17:12:00+07:00"
-last_activity: 2026-07-14 -- Quick task completed: hash-only guest retry recovery and explicit discount allocation branches
+stopped_at: Completed quick task 260714-x6u admin catalog draft/publish flow
+last_updated: "2026-07-15T00:35:00+07:00"
+last_activity: 2026-07-14 -- Completed quick task 260714-x6u: incomplete draft persistence and current-snapshot publishing
 progress:
   total_phases: 8
   completed_phases: 7
@@ -162,8 +162,9 @@ None yet.
 
 ### Quick Tasks Completed
 
-| #                                                     | Description                                                                                                                      | Date       | Commit      | Directory                                                                                                                                                 |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #                                                     | Description                                                                                                                      | Date       | Commit      | Status       | Directory                                                                                                                                                 |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 260714-x6u                                            | Fix admin catalog draft/publish flow: allow incomplete drafts and save the current form snapshot before publishing              | 2026-07-14 | 0828690     | Needs Review | [260714-x6u](./quick/260714-x6u-fix-admin-catalog-draft-publish-flow-all/)                                                                                |
 | 260714-mhn                                            | Secure guest checkout retry recovery and make zero-discount allocation validation explicit                                      | 2026-07-14 | cb712144    | [260714-mhn](./quick/260714-mhn-secure-guest-checkout-retry-recovery-and/)                                                                                |
 | 260714-kzt                                            | Harden checkout totals, physical-submit retries, non-US regions, and per-line shipping allocation evidence                       | 2026-07-14 | 68d700c0    | [260714-kzt](./quick/260714-kzt-harden-checkout-shipping-totals-physical/)                                                                                |
 | 260714-ij7                                            | Polish admin shipping package cards, lock rate context, and fix Select interactions inside shared Sheets                         | 2026-07-14 | 098fc7fd    | [260714-ij7](./quick/260714-ij7-polish-admin-shipping-package-ui-for-cle/)                                                                                |
