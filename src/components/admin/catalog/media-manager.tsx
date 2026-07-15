@@ -118,6 +118,14 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function formatUpdatedAt(value: string) {
+  return new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC'
+  }).format(new Date(value));
+}
+
 function operationLabel(operation: Operation | null) {
   if (!operation) return null;
   switch (operation.kind) {
@@ -431,7 +439,7 @@ export function MediaManager({productId, productType, productStatus, images, ass
                   <div className="min-w-0">
                     <p className="flex items-center gap-2 font-semibold"><ShieldCheck aria-hidden="true" className="h-5 w-5 text-[var(--success)]" /> Protected</p>
                     <p className="mt-3 break-words text-sm font-semibold">{asset.fileName}</p>
-                    <p className="mt-1 text-sm text-[var(--muted-foreground)]">{formatBytes(asset.byteSize)} · Updated {new Date(asset.updatedAt).toLocaleString()}</p>
+                    <p className="mt-1 text-sm text-[var(--muted-foreground)]">{formatBytes(asset.byteSize)} · Updated {formatUpdatedAt(asset.updatedAt)} UTC</p>
                     <p className="mt-1 break-words font-mono text-xs text-[var(--muted-foreground)]">Integrity {asset.checksumSha256 ? `${asset.checksumSha256.slice(0, 8)}…${asset.checksumSha256.slice(-8)}` : 'not recorded'}</p>
                   </div>
                   <Button type="button" variant="destructive" className="min-h-11 w-full sm:w-auto" disabled={operation?.kind === 'remove-pdf'} onClick={() => setConfirmation({kind: 'remove-pdf'})}>Remove PDF</Button>

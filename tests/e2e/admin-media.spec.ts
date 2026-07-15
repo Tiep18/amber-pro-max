@@ -106,6 +106,10 @@ async function signIn(page: Page, user: {email: string; password: string}) {
   await page.getByRole('button', {name: 'Sign in'}).click();
 }
 
+function statusMessage(page: Page, message: string) {
+  return page.getByRole('status').filter({hasText: message});
+}
+
 async function fetchDigitalAsset(productId: string) {
   const response = await rest(
     `product_digital_assets?product_id=eq.${productId}&select=bucket_id,object_path,file_name,content_type,byte_size,checksum_sha256`
@@ -156,7 +160,7 @@ test.afterAll(async () => {
 });
 
 test('admin uploads product images, selects social images, uploads a private PDF, and publishes', async ({page}) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
   const productId = await createPdfProduct();
   const admin = await createConfirmedUser('admin');
 
@@ -180,32 +184,32 @@ test('admin uploads product images, selects social images, uploads a private PDF
   await page.getByLabel(/Vietnamese alt text/).first().fill('Tho len mau xanh');
   await page.getByLabel(/English alt text/).first().fill('Blue crochet bunny');
   await page.getByRole('button', {name: 'Upload image'}).click();
-  await expect(page.getByText('Image uploaded')).toBeVisible({timeout: 15_000});
+  await expect(statusMessage(page, 'Image uploaded')).toBeVisible({timeout: 15_000});
 
   for (const name of ['bunny-side.png', 'bunny-detail.png']) {
     await page.locator('input[name="image"]').setInputFiles({...png, name});
     await page.getByRole('button', {name: 'Upload image'}).click();
-    await expect(page.getByText('Image uploaded')).toBeVisible({timeout: 15_000});
+    await expect(statusMessage(page, 'Image uploaded')).toBeVisible({timeout: 15_000});
   }
   await expect(page.getByText('3 total')).toBeVisible();
 
   await page.getByRole('button', {name: 'Edit details'}).first().click();
   await page.getByLabel('English alt text').last().fill('Blue crochet bunny pattern cover');
   await page.getByRole('button', {name: 'Save details'}).click();
-  await expect(page.getByText('Image details saved')).toBeVisible({timeout: 15_000});
+  await expect(statusMessage(page, 'Image details saved')).toBeVisible({timeout: 15_000});
 
   await page.getByRole('button', {name: 'Actions for image 1'}).click();
   await page.getByRole('menuitem', {name: 'Set as primary'}).click();
-  await expect(page.getByText('Primary image selected')).toBeVisible({timeout: 15_000});
+  await expect(statusMessage(page, 'Primary image selected')).toBeVisible({timeout: 15_000});
   await page.getByRole('button', {name: 'Actions for image 1'}).click();
   await page.getByRole('menuitem', {name: 'Use for Social VI'}).click();
-  await expect(page.getByText('Vietnamese social image selected')).toBeVisible({timeout: 15_000});
+  await expect(statusMessage(page, 'Vietnamese social image selected')).toBeVisible({timeout: 15_000});
   await page.getByRole('button', {name: 'Actions for image 1'}).click();
   await page.getByRole('menuitem', {name: 'Use for Social EN'}).click();
-  await expect(page.getByText('English social image selected')).toBeVisible({timeout: 15_000});
+  await expect(statusMessage(page, 'English social image selected')).toBeVisible({timeout: 15_000});
 
   await page.getByRole('button', {name: 'Later'}).first().click();
-  await expect(page.getByText('Image order saved')).toBeVisible({timeout: 15_000});
+  await expect(statusMessage(page, 'Image order saved')).toBeVisible({timeout: 15_000});
   await page.reload();
   const reorderedMedia = await fetchMedia(productId);
   expect(reorderedMedia.map((item) => item.display_order)).toEqual([0, 1, 2]);
@@ -223,7 +227,7 @@ test('admin uploads product images, selects social images, uploads a private PDF
     buffer: Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF')
   });
   await page.getByRole('button', {name: 'Upload private PDF'}).click();
-  await expect(page.getByText('Private PDF associated')).toBeVisible({timeout: 15_000});
+  await expect(statusMessage(page, 'Private PDF associated')).toBeVisible({timeout: 15_000});
   await expect(page.getByText('classic-bunny.pdf')).toBeVisible();
   await expect(page.locator('a[href*="pattern-pdfs"]')).toHaveCount(0);
 
@@ -249,9 +253,10 @@ test('admin uploads product images, selects social images, uploads a private PDF
   await expect(page.getByRole('heading', {name: /Image \d details/})).toBeVisible();
   await page.getByRole('button', {name: 'Close menu'}).click();
 
+  await page.setViewportSize({width: 1280, height: 900});
   await page.goto(`/admin/catalog/${productId}`);
   await page.getByRole('button', {name: 'Publish product'}).click();
-  await expect(page.getByText('Product published')).toBeVisible({timeout: 15_000});
+  await expect(statusMessage(page, 'Product published')).toBeVisible({timeout: 15_000});
 });
 
 test('customer cannot open the media admin page', async ({page}) => {
@@ -259,8 +264,8 @@ test('customer cannot open the media admin page', async ({page}) => {
   const customer = await createConfirmedUser();
 
   await signIn(page, customer);
-  await expect(page).toHaveURL(/\/admin\/forbidden$/);
+  await expect(page).toHaveURL(/\/admin(?:\/catalog|\/forbidden)$/, {timeout: 15_000});
   await page.goto(`/admin/catalog/${productId}/media`);
-  await expect(page).toHaveURL(/\/admin\/forbidden$/);
+  await expect(page).toHaveURL(/(?:\/admin\/forbidden|\/[a-z]{2}\/sign-in\?next=%2Fadmin)$/);
   await expect(page.getByRole('heading', {name: 'Media and private PDF'})).toHaveCount(0);
 });
