@@ -19,10 +19,11 @@ import {
   productImageExtensions,
   productImageMimeTypes,
   removeMediaInputSchema,
+  reorderMediaInputSchema,
   socialImageInputSchema
 } from './media-schemas';
 
-type MediaActionCode =
+export type MediaActionCode =
   | 'invalid_input'
   | 'invalid_file'
   | 'product_not_found'
@@ -31,7 +32,8 @@ type MediaActionCode =
   | 'upload_failed'
   | 'association_failed'
   | 'update_failed'
-  | 'remove_failed';
+  | 'remove_failed'
+  | 'reorder_failed';
 
 export type MediaActionResult =
   | {status: 'success'; message: string; warning?: 'cleanup_failed'}
@@ -41,11 +43,6 @@ export type MediaActionResult =
 function fieldString(formData: FormData, name: string) {
   const value = formData.get(name);
   return typeof value === 'string' ? value : '';
-}
-
-function fieldNumber(formData: FormData, name: string) {
-  const value = Number(fieldString(formData, name));
-  return Number.isFinite(value) ? value : Number.NaN;
 }
 
 function formFile(formData: FormData, name: string) {
@@ -236,8 +233,7 @@ export async function updateProductMediaDetailsAction(formData: FormData): Promi
     productId: fieldString(formData, 'productId'),
     mediaId: fieldString(formData, 'mediaId'),
     altTextVi: fieldString(formData, 'altTextVi'),
-    altTextEn: fieldString(formData, 'altTextEn'),
-    displayOrder: fieldNumber(formData, 'displayOrder')
+    altTextEn: fieldString(formData, 'altTextEn')
   });
   if (!parsed.success) {
     return {status: 'invalid', code: 'invalid_input'};
@@ -248,8 +244,7 @@ export async function updateProductMediaDetailsAction(formData: FormData): Promi
     .from('product_media')
     .update({
       alt_text_vi: parsed.data.altTextVi,
-      alt_text_en: parsed.data.altTextEn,
-      display_order: parsed.data.displayOrder
+      alt_text_en: parsed.data.altTextEn
     })
     .eq('id', parsed.data.mediaId)
     .eq('product_id', parsed.data.productId);
@@ -267,6 +262,36 @@ export async function updateProductMediaDetailsAction(formData: FormData): Promi
 
   revalidateMedia(parsed.data.productId);
   return {status: 'success', message: 'Image details saved'};
+}
+
+export async function reorderProductMediaAction(
+  productId: string,
+  mediaIds: string[]
+): Promise<MediaActionResult> {
+  await requireAdmin();
+  const parsed = reorderMediaInputSchema.safeParse({productId, mediaIds});
+  if (!parsed.success) {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {error} = await supabase.rpc('admin_reorder_product_media', {
+    p_product_id: parsed.data.productId,
+    p_media_ids: parsed.data.mediaIds
+  });
+  if (error) {
+    await monitoredMediaFailure({
+      action: 'media_reorder',
+      errorCode: 'catalog_media_reorder_failed',
+      summary: 'Catalog media reorder failed',
+      productId: parsed.data.productId,
+      code: 'reorder_failed'
+    });
+    return {status: 'error', code: 'reorder_failed'};
+  }
+
+  revalidateMedia(parsed.data.productId);
+  return {status: 'success', message: 'Image order saved'};
 }
 
 export async function setPrimaryProductImageAction(productId: string, mediaId: string): Promise<MediaActionResult> {

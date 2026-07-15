@@ -24,6 +24,7 @@ vi.mock('@/operations/errors', () => ({recordOperationalFailure: recordOperation
 import {
   removePatternPdfAction,
   removeProductMediaAction,
+  reorderProductMediaAction,
   updateProductMediaDetailsAction,
   uploadPatternPdfAction,
   uploadProductImageAction
@@ -140,6 +141,56 @@ describe('catalog media operational recording', () => {
       status: 'error',
       code: 'remove_failed'
     });
+  });
+});
+
+describe('catalog media atomic ordering', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireAdminMock.mockResolvedValue({id: 'admin-id', email: 'admin@example.com'});
+  });
+
+  it('rejects duplicate media identifiers before calling the database', async () => {
+    await expect(reorderProductMediaAction(productId, [mediaId, mediaId])).resolves.toEqual({
+      status: 'invalid',
+      code: 'invalid_input'
+    });
+    expect(createSupabaseServerClientMock).not.toHaveBeenCalled();
+  });
+
+  it('passes the complete ordered identifier array to the typed RPC and revalidates', async () => {
+    const secondMediaId = '33333333-3333-4333-8333-333333333333';
+    const rpc = vi.fn(async () => ({error: null}));
+    createSupabaseServerClientMock.mockResolvedValue({rpc});
+
+    await expect(reorderProductMediaAction(productId, [secondMediaId, mediaId])).resolves.toEqual({
+      status: 'success',
+      message: 'Image order saved'
+    });
+    expect(rpc).toHaveBeenCalledWith('admin_reorder_product_media', {
+      p_product_id: productId,
+      p_media_ids: [secondMediaId, mediaId]
+    });
+    expect(revalidatePathMock).toHaveBeenCalledTimes(2);
+    expect(invalidateCatalogCacheMock).toHaveBeenCalledOnce();
+  });
+
+  it('returns and records only a sanitized reorder failure', async () => {
+    const rpc = vi.fn(async () => ({error: {message: 'raw sql collision with private path'}}));
+    createSupabaseServerClientMock.mockResolvedValue({rpc});
+
+    await expect(reorderProductMediaAction(productId, [mediaId])).resolves.toEqual({
+      status: 'error',
+      code: 'reorder_failed'
+    });
+    expect(recordOperationalFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorCode: 'catalog_media_reorder_failed',
+        summary: 'Catalog media reorder failed',
+        facts: expect.objectContaining({action: 'media_reorder', productId, code: 'reorder_failed'})
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/raw sql|collision|private path/i);
   });
 });
 

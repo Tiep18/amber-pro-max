@@ -38,9 +38,15 @@ export const mediaDetailsInputSchema = z.object({
   productId: uuidSchema,
   mediaId: uuidSchema,
   altTextVi: z.string().trim().max(500),
-  altTextEn: z.string().trim().max(500),
-  displayOrder: z.number().int().nonnegative()
+  altTextEn: z.string().trim().max(500)
 });
+
+export const reorderMediaInputSchema = z
+  .object({
+    productId: uuidSchema,
+    mediaIds: z.array(uuidSchema).max(200)
+  })
+  .refine(({mediaIds}) => new Set(mediaIds).size === mediaIds.length, {path: ['mediaIds']});
 
 export const pdfAssetInputSchema = z.object({
   productId: uuidSchema
@@ -48,3 +54,4 @@ export const pdfAssetInputSchema = z.object({
 
 export type CatalogMediaLocale = z.output<typeof localeSchema>;
 export type MediaDetailsInput = z.output<typeof mediaDetailsInputSchema>;
+export type ReorderMediaInput = z.output<typeof reorderMediaInputSchema>;
