@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed quick task 260715-mma scrollspy implementation; browser verification pending
-last_updated: "2026-07-15T16:46:00+07:00"
-last_activity: 2026-07-15 -- Completed quick task 260715-mma product-form scrollspy optimization (Needs Review)
+stopped_at: Completed quick task 260715-nkp product-form visual refinement; browser verification pending
+last_updated: "2026-07-15T17:08:00+07:00"
+last_activity: 2026-07-15 -- Completed quick task 260715-nkp compact product-form UI refinement (Needs Review)
 progress:
   total_phases: 8
   completed_phases: 7
@@ -275,6 +275,7 @@ None yet.
 | 260712-0ix                                            | Compact Operations desktop rows and move sanitized details into a Sheet                                                           | 2026-07-12 | 1379a89     | [260712-0ix-compact-operations-desktop-rows-and-move](./quick/260712-0ix-compact-operations-desktop-rows-and-move/)                                      |
 | 260712-0si                                            | Redesign admin Reviews moderation workspace                                                                                       | 2026-07-12 | 9cdfb76     | [260712-0si-redesign-admin-reviews-moderation-worksp](./quick/260712-0si-redesign-admin-reviews-moderation-worksp/)                                      |
 | 260715-mma                                            | Optimize admin product form scrollspy without changing catalog business logic                                                     | 2026-07-15 | e5185321    | Needs Review | [260715-mma](./quick/260715-mma-optimize-admin-product-form-scrollspy-wi/)                                                                                 |
+| 260715-nkp                                            | Refine admin product form into a lighter compact editorial workspace without changing catalog behavior                            | 2026-07-15 | 16e21258    | Needs Review | [260715-nkp](./quick/260715-nkp-refine-the-admin-product-form-into-a-lig/)                                                                                 |
 
 ### Debug Sessions Resolved
 
