@@ -113,6 +113,37 @@ async function selectLocale(page: Page, panel: 'content' | 'seo', locale: 'Vietn
     .click();
 }
 
+function productForm(page: Page) {
+  return page.locator('form[data-scrollspy-state]');
+}
+
+function visibleSectionNavigation(page: Page) {
+  return page.locator('nav[aria-label="Product form sections"]:visible');
+}
+
+async function waitForScrollspyIdle(page: Page) {
+  await expect(productForm(page)).toHaveAttribute('data-scrollspy-state', 'idle');
+}
+
+async function positionSectionAtActivationLine(page: Page, sectionId: string) {
+  await page.evaluate(async (id) => {
+    const form = document.querySelector<HTMLElement>('form[data-scrollspy-state]');
+    const section = document.getElementById(id);
+    if (!form || !section) throw new Error(`Missing scrollspy geometry for ${id}`);
+    const targetOffset = Number(form.dataset.scrollspyTargetOffset);
+    const activationBounds = Number(form.dataset.scrollspyActivationBounds);
+    const absoluteSectionTop = window.scrollY + section.getBoundingClientRect().top;
+    const previousBehavior = document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior = 'auto';
+    window.scrollTo({
+      top: absoluteSectionTop - targetOffset - activationBounds,
+      behavior: 'auto'
+    });
+    document.documentElement.style.scrollBehavior = previousBehavior;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  }, sectionId);
+}
+
 test.afterAll(async () => {
   for (const productId of createdProductIds) {
     await rest(`products?id=eq.${productId}`, {method: 'DELETE'});
@@ -209,6 +240,7 @@ test('admin persists an incomplete draft and publish saves the current editor sn
 
   await page.getByRole('button', {name: 'Publish product'}).click();
   await expect(page.getByRole('heading', {name: 'Publishing blocked'})).toBeVisible();
+  await expect(page.locator('#publish-heading')).toBeFocused();
   await expect(page.getByText('Primary product image')).toBeVisible();
   await expect(page.getByText('Vietnamese social image')).toBeVisible();
   await expect(page.getByText('English social image')).toBeVisible();
@@ -241,6 +273,161 @@ test('admin persists an incomplete draft and publish saves the current editor sn
   const productRow = page.getByRole('row').filter({hasText: unsavedEnglishTitle});
   await expect(productRow).toBeVisible();
   await expect(productRow.getByText('draft', {exact: true})).toBeVisible();
+});
+
+test('product editor scrollspy resolves, cancels, measures sticky controls, and respects reduced motion', async ({
+  page
+}) => {
+  test.setTimeout(60_000);
+  const admin = await createConfirmedUser('admin');
+  await signIn(page, admin, 'admin');
+  await page.setViewportSize({width: 1280, height: 900});
+  await page.goto('/admin/catalog/new');
+  await expect(page.getByRole('heading', {name: 'New product'})).toBeVisible();
+
+  const form = productForm(page);
+  await expect
+    .poll(async () => Number(await form.getAttribute('data-scrollspy-target-offset')))
+    .toBeGreaterThan(0);
+
+  await visibleSectionNavigation(page)
+    .getByRole('button', {name: /Content/})
+    .click();
+  await expect(
+    visibleSectionNavigation(page).getByRole('button', {name: /Content/})
+  ).toHaveAttribute('aria-current', 'step');
+  await waitForScrollspyIdle(page);
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const formElement = document.querySelector<HTMLElement>('form[data-scrollspy-state]');
+        const heading = document.getElementById('content-heading');
+        if (!formElement || !heading) return Number.POSITIVE_INFINITY;
+        return Math.abs(
+          heading.closest('section')!.getBoundingClientRect().top -
+            Number(formElement.dataset.scrollspyTargetOffset)
+        );
+      })
+    )
+    .toBeLessThan(3);
+
+  await positionSectionAtActivationLine(page, 'pricing');
+  await expect(
+    page.locator('nav[aria-label="Product form sections"] [aria-current="step"]')
+  ).toHaveCount(1);
+  await expect(
+    page.locator('nav[aria-label="Product form sections"] [aria-current="step"]')
+  ).toContainText('Market offers');
+  await positionSectionAtActivationLine(page, 'content');
+  await expect(
+    page.locator('nav[aria-label="Product form sections"] [aria-current="step"]')
+  ).toContainText('Content');
+
+  await page.evaluate(async () => {
+    const previousBehavior = document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior = 'auto';
+    window.scrollTo({top: document.documentElement.scrollHeight, behavior: 'auto'});
+    document.documentElement.style.scrollBehavior = previousBehavior;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  });
+  await expect(
+    page.locator('nav[aria-label="Product form sections"] [aria-current="step"]')
+  ).toContainText('Readiness');
+
+  const desktopNavigation = visibleSectionNavigation(page);
+  await desktopNavigation.getByRole('button', {name: /Product details/}).click();
+  await desktopNavigation.getByRole('button', {name: /Search and SEO/}).click();
+  await waitForScrollspyIdle(page);
+  await expect(desktopNavigation.getByRole('button', {name: /Search and SEO/})).toHaveAttribute(
+    'aria-current',
+    'step'
+  );
+
+  await desktopNavigation.getByRole('button', {name: /Product details/}).click();
+  await waitForScrollspyIdle(page);
+  await desktopNavigation.getByRole('button', {name: /Readiness/}).click();
+  await expect(form).toHaveAttribute('data-scrollspy-state', 'animating');
+  await page.mouse.wheel(0, 40);
+  await positionSectionAtActivationLine(page, 'content');
+  await expect(form).toHaveAttribute('data-scrollspy-state', 'idle');
+  await expect(desktopNavigation.getByRole('button', {name: /Content/})).toHaveAttribute(
+    'aria-current',
+    'step'
+  );
+
+  const desktopOffset = Number(await form.getAttribute('data-scrollspy-target-offset'));
+  await page.setViewportSize({width: 375, height: 800});
+  await expect
+    .poll(async () => Number(await form.getAttribute('data-scrollspy-target-offset')))
+    .toBeGreaterThan(desktopOffset);
+  await page.getByRole('button', {name: 'Open section navigator'}).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', {name: /Market offers/})
+    .click();
+  await waitForScrollspyIdle(page);
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const formElement = document.querySelector<HTMLElement>('form[data-scrollspy-state]');
+        const section = document.getElementById('pricing');
+        if (!formElement || !section) return Number.POSITIVE_INFINITY;
+        return Math.abs(
+          section.getBoundingClientRect().top - Number(formElement.dataset.scrollspyTargetOffset)
+        );
+      })
+    )
+    .toBeLessThan(3);
+
+  await page.setViewportSize({width: 1280, height: 900});
+  await page.emulateMedia({reducedMotion: 'reduce'});
+  await expect
+    .poll(() => page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches))
+    .toBe(true);
+  await waitForScrollspyIdle(page);
+  const immediateNavigation = await page.evaluate(() => {
+    const formElement = document.querySelector<HTMLElement>('form[data-scrollspy-state]');
+    const section = document.getElementById('content');
+    const navigation = Array.from(
+      document.querySelectorAll<HTMLElement>('nav[aria-label="Product form sections"]')
+    ).find((element) => element.offsetParent !== null);
+    const button = Array.from(navigation?.querySelectorAll<HTMLButtonElement>('button') ?? []).find(
+      (element) => element.textContent?.includes('Content')
+    );
+    if (!formElement || !section || !button) throw new Error('Missing reduced-motion target');
+    const offset = Number(formElement.dataset.scrollspyTargetOffset);
+    const expected = Math.min(
+      document.documentElement.scrollHeight - window.innerHeight,
+      Math.max(0, window.scrollY + section.getBoundingClientRect().top - offset)
+    );
+    button.click();
+    return {
+      actual: window.scrollY,
+      expected,
+      state: formElement.dataset.scrollspyState
+    };
+  });
+  expect(immediateNavigation.state).toBe('idle');
+  expect(Math.abs(immediateNavigation.actual - immediateNavigation.expected)).toBeLessThan(3);
+
+  await selectLocale(page, 'content', 'English');
+  await page.getByLabel('English specifications JSON').fill('not-json');
+  await selectLocale(page, 'content', 'Vietnamese');
+  await page.getByRole('button', {name: 'Save draft', exact: true}).first().click();
+  await expect(
+    page
+      .getByRole('tablist', {name: 'Content language'})
+      .first()
+      .getByRole('tab', {name: 'English'})
+  ).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByLabel('English specifications JSON')).toHaveAttribute(
+    'aria-invalid',
+    'true'
+  );
+  await expect(page.getByLabel('English specifications JSON')).toBeFocused();
+  await expect(
+    page.getByText('Enter valid JSON, for example {"skillLevel":"easy"}.')
+  ).toBeVisible();
 });
 
 test('customer cannot access the product editor', async ({page}) => {
