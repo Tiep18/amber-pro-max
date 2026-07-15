@@ -281,7 +281,7 @@ function OptionMultiSelect({
           placeholder={`Search ${label.toLowerCase()}`}
         />
         {available.length ? (
-          <div className="grid gap-1 border-t border-[var(--border)]/40 pt-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr))]">
+          <div className="grid gap-1 border-t border-[var(--border)]/40 pt-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,7rem),1fr))]">
             {available.map((option) => (
               <button
                 key={option.id}
@@ -768,7 +768,13 @@ export function ProductForm({
 
   function navigateToSection(section: EditorSection) {
     setPendingFieldRequest(null);
-    setMobileOutlineOpen(false);
+    if (mobileOutlineOpen) {
+      setMobileOutlineOpen(false);
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => scrollToSection(section));
+      });
+      return;
+    }
     scrollToSection(section);
   }
 
@@ -1167,7 +1173,7 @@ export function ProductForm({
             isActive={activeSection === 'taxonomy'}
             errorCount={sectionErrorCounts.taxonomy}
           >
-            <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
+            <div className="grid gap-2.5 xl:grid-cols-2">
               <OptionMultiSelect
                 label="Categories"
                 options={categories}
@@ -1184,12 +1190,14 @@ export function ProductForm({
                   setDraft((current) => ({ ...current, techniqueIds: nextIds }))
                 }
               />
-              <OptionMultiSelect
-                label="Tags"
-                options={tags}
-                selectedIds={draft.tagIds}
-                onChange={(nextIds) => setDraft((current) => ({ ...current, tagIds: nextIds }))}
-              />
+              <div className="xl:col-span-2">
+                <OptionMultiSelect
+                  label="Tags"
+                  options={tags}
+                  selectedIds={draft.tagIds}
+                  onChange={(nextIds) => setDraft((current) => ({ ...current, tagIds: nextIds }))}
+                />
+              </div>
             </div>
             <div className="grid gap-2.5 border-t border-[var(--border)]/40 pt-3">
               <OptionMultiSelect
@@ -1359,7 +1367,7 @@ export function ProductForm({
                   Use this checkpoint before publishing. Media, private PDF, and inventory stay in
                   their dedicated workflows so the main editor remains fast.
                 </p>
-                <div className="grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr))]">
+                <div className="grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,7rem),1fr))]">
                   <span
                     className={`flex min-w-0 items-start gap-2 rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs font-semibold leading-5 ${readinessTone(viReady)}`}
                   >
