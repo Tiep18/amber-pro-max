@@ -218,11 +218,11 @@ function pathForPublishIssue(issue: {
 
 function OptionChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-semibold">
+    <span className="inline-flex min-h-11 items-center gap-1 rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface-paper)] pl-2.5 text-xs font-semibold">
       {label}
       <button
         type="button"
-        className="text-[var(--muted-foreground)] hover:text-[var(--destructive)]"
+        className="inline-flex size-11 shrink-0 items-center justify-center rounded-[var(--radius-control)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--destructive-surface)] hover:text-[var(--destructive)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-inset"
         onClick={onRemove}
         aria-label={`Remove ${label}`}
       >
@@ -251,15 +251,15 @@ function OptionMultiSelect({
     .slice(0, 8);
 
   return (
-    <div className="grid gap-2">
+    <div className="grid content-start gap-3 rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface)]/30 p-3">
       <div className="flex items-center justify-between gap-3">
-        <span className="font-semibold">{label}</span>
+        <span className="text-sm font-semibold">{label}</span>
         <span className="text-xs font-semibold text-[var(--muted-foreground)]">
           {selected.length} selected
         </span>
       </div>
-      <div className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-3">
-        <div className="mb-3 flex min-h-8 flex-wrap gap-2">
+      <div className="grid gap-3">
+        <div className="flex min-h-11 flex-wrap items-center gap-2">
           {selected.length ? (
             selected.map((option) => (
               <OptionChip
@@ -269,7 +269,7 @@ function OptionMultiSelect({
               />
             ))
           ) : (
-            <span className="text-sm text-[var(--muted-foreground)]">
+            <span className="text-sm leading-5 text-[var(--muted-foreground)]">
               No {label.toLowerCase()} selected
             </span>
           )}
@@ -277,16 +277,16 @@ function OptionMultiSelect({
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          className="min-h-10 text-sm"
+          className="min-h-11 text-sm"
           placeholder={`Search ${label.toLowerCase()}`}
         />
         {available.length ? (
-          <div className="mt-2 grid gap-1">
+          <div className="grid gap-1 border-t border-[var(--border)]/45 pt-2">
             {available.map((option) => (
               <button
                 key={option.id}
                 type="button"
-                className="rounded-[var(--radius-control)] px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--surface-muted)]"
+                className="min-h-11 rounded-[var(--radius-control)] border border-transparent px-3 py-2 text-left text-sm transition-colors hover:border-[var(--border)]/45 hover:bg-[var(--surface-muted)]/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1"
                 onClick={() => {
                   onChange([...selectedIds, option.id]);
                   setQuery('');
@@ -317,7 +317,7 @@ function LocaleTabs({
     <div
       role="tablist"
       aria-label="Content language"
-      className="inline-flex rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-1"
+      className="inline-flex max-w-full rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface-muted)]/55 p-1"
     >
       {(['vi', 'en'] as const).map((locale) => {
         const selected = value === locale;
@@ -331,9 +331,9 @@ function LocaleTabs({
             aria-controls={`${locale}-${panel}-panel`}
             aria-selected={selected}
             onClick={() => onChange(locale)}
-            className={`inline-flex min-h-10 items-center gap-2 rounded-[calc(var(--radius-control)-2px)] px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 ${
+            className={`inline-flex min-h-11 min-w-0 items-center gap-2 rounded-[calc(var(--radius-control)-2px)] px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 ${
               selected
-                ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-[0_1px_4px_rgba(92,48,26,0.10)]'
+                ? 'bg-[var(--surface-paper)] text-[var(--foreground)] shadow-[0_1px_3px_rgba(92,48,26,0.07)]'
                 : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
             }`}
           >
@@ -350,13 +350,25 @@ function LocaleTabs({
   );
 }
 
+const localizedPanelClassName =
+  'grid gap-4 rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface)]/35 p-3.5 sm:p-4';
+const localizedFieldClassName = 'grid gap-1.5';
+
 function FieldError({ path, errors }: { path: string; errors: FieldErrors }) {
   const message = errors[path];
-  return message ? (
-    <p id={`${fieldDomId(path)}-error`} role="alert" className="text-sm text-[var(--destructive)]">
-      {message}
-    </p>
-  ) : null;
+  return (
+    <div className="min-h-5">
+      {message ? (
+        <p
+          id={`${fieldDomId(path)}-error`}
+          role="alert"
+          className="text-sm leading-5 text-[var(--destructive)]"
+        >
+          {message}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function EditorFormSection({
@@ -946,7 +958,7 @@ export function ProductForm({
             isActive={activeSection === 'basics'}
             errorCount={sectionErrorCounts.basics}
           >
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+            <div className="grid items-start gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
               <div className="block space-y-2">
                 <Label htmlFor="product-type">Product type</Label>
                 <Select
@@ -967,7 +979,7 @@ export function ProductForm({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-3 text-sm">
+              <div className="rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface)]/30 p-3 text-sm">
                 <p className="font-semibold">{productId ? 'Saved draft' : 'New draft'}</p>
                 <p className="mt-1 text-[var(--muted-foreground)]">
                   {initialProduct?.status
@@ -1005,16 +1017,16 @@ export function ProductForm({
                   role="tabpanel"
                   id={`${locale}-content-panel`}
                   aria-labelledby={`${locale}-content-tab`}
-                  className="grid gap-4 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/70 p-4"
+                  className={localizedPanelClassName}
                 >
-                  <div>
-                    <h3 className="text-base font-semibold">{label} content</h3>
+                  <div className="border-b border-[var(--border)]/45 pb-3">
+                    <h3 className="text-[0.95rem] font-semibold">{label} content</h3>
                     <p className="mt-1 text-sm text-[var(--muted-foreground)]">
                       Product-facing copy and specification notes for this locale.
                     </p>
                   </div>
-                  <label className="grid gap-2">
-                    <span className="font-semibold">{label} title</span>
+                  <label className={localizedFieldClassName}>
+                    <span className="text-sm font-semibold">{label} title</span>
                     <Input
                       id={fieldDomId(titlePath)}
                       aria-invalid={Boolean(fieldErrors[titlePath])}
@@ -1027,8 +1039,8 @@ export function ProductForm({
                     />
                     <FieldError path={titlePath} errors={fieldErrors} />
                   </label>
-                  <label className="grid gap-2">
-                    <span className="font-semibold">{label} description</span>
+                  <label className={localizedFieldClassName}>
+                    <span className="text-sm font-semibold">{label} description</span>
                     <Textarea
                       id={fieldDomId(descriptionPath)}
                       aria-invalid={Boolean(fieldErrors[descriptionPath])}
@@ -1045,8 +1057,8 @@ export function ProductForm({
                     />
                     <FieldError path={descriptionPath} errors={fieldErrors} />
                   </label>
-                  <label className="grid gap-2">
-                    <span className="font-semibold">{label} specifications JSON</span>
+                  <label className={localizedFieldClassName}>
+                    <span className="text-sm font-semibold">{label} specifications JSON</span>
                     <Textarea
                       id={fieldDomId(specificationsPath)}
                       aria-invalid={Boolean(fieldErrors[specificationsPath])}
@@ -1097,7 +1109,7 @@ export function ProductForm({
               ].map((market) => (
                 <div
                   key={market.key}
-                  className="grid gap-3 rounded-[var(--radius-control)] border border-[var(--border)] p-3 lg:grid-cols-[1fr_160px_220px_150px] lg:items-center"
+                  className="grid items-start gap-3 rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface)]/30 p-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
                 >
                   <div>
                     <p className="font-semibold">{market.label}</p>
@@ -1107,7 +1119,7 @@ export function ProductForm({
                     pressed={draft.offers[market.key].enabled}
                     onPressedChange={(pressed) => updateOffer(market.key, 'enabled', pressed)}
                     aria-label={`${market.label} market enabled`}
-                    className="min-h-10 justify-self-start border border-[var(--border)] px-3 text-sm data-[state=on]:border-[var(--accent)] data-[state=on]:bg-[var(--accent)] data-[state=on]:text-white"
+                    className="min-h-11 justify-self-start border border-[var(--border)] px-3 text-sm data-[state=on]:border-[var(--accent)] data-[state=on]:bg-[var(--accent)] data-[state=on]:text-white"
                   >
                     <Check
                       aria-hidden="true"
@@ -1117,7 +1129,7 @@ export function ProductForm({
                     />
                     {draft.offers[market.key].enabled ? 'Enabled' : 'Enable'}
                   </Toggle>
-                  <label className="space-y-1">
+                  <label className="grid gap-1.5">
                     <span className="text-sm font-semibold">Price</span>
                     <Input
                       id={fieldDomId(`offers.${market.key}.priceMinor`)}
@@ -1130,7 +1142,7 @@ export function ProductForm({
                           ? `${fieldDomId(`offers.${market.key}.priceMinor`)}-error`
                           : undefined
                       }
-                      className={invalidFieldClass(`offers.${market.key}.priceMinor`, 'min-h-10')}
+                      className={invalidFieldClass(`offers.${market.key}.priceMinor`, 'min-h-11')}
                       value={draft.offers[market.key].priceMinor ?? ''}
                       onChange={(event) =>
                         updateOffer(market.key, 'priceMinor', numberOrNull(event.target.value))
@@ -1139,7 +1151,7 @@ export function ProductForm({
                     <FieldError path={`offers.${market.key}.priceMinor`} errors={fieldErrors} />
                   </label>
                   <span
-                    className={`rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold ${readinessTone(market.ready)}`}
+                    className={`flex min-h-11 items-center rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold ${readinessTone(market.ready)}`}
                   >
                     {market.ready ? 'Ready' : 'Needs price'}
                   </span>
@@ -1156,7 +1168,7 @@ export function ProductForm({
             isActive={activeSection === 'taxonomy'}
             errorCount={sectionErrorCounts.taxonomy}
           >
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
               <OptionMultiSelect
                 label="Categories"
                 options={categories}
@@ -1180,38 +1192,40 @@ export function ProductForm({
                 onChange={(nextIds) => setDraft((current) => ({ ...current, tagIds: nextIds }))}
               />
             </div>
-            <OptionMultiSelect
-              label="Collections"
-              options={collections}
-              selectedIds={draft.collections.map((collection) => collection.collectionId)}
-              onChange={updateCollectionIds}
-            />
-            {draft.collections.length ? (
-              <div className="grid gap-2">
-                <p className="text-sm font-semibold">Collection display order</p>
-                {draft.collections.map((collection) => {
-                  const option = collections.find((item) => item.id === collection.collectionId);
-                  return (
-                    <label
-                      key={collection.collectionId}
-                      className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3 sm:grid-cols-[1fr_160px] sm:items-center"
-                    >
-                      <span className="font-semibold">{option?.label ?? 'Collection'}</span>
-                      <Input
-                        aria-label={`${option?.label ?? 'Collection'} display order`}
-                        type="number"
-                        min="0"
-                        className="min-h-10"
-                        value={selectedCollections.get(collection.collectionId) ?? 0}
-                        onChange={(event) =>
-                          updateCollectionOrder(collection.collectionId, Number(event.target.value))
-                        }
-                      />
-                    </label>
-                  );
-                })}
-              </div>
-            ) : null}
+            <div className="grid gap-3 border-t border-[var(--border)]/45 pt-4">
+              <OptionMultiSelect
+                label="Collections"
+                options={collections}
+                selectedIds={draft.collections.map((collection) => collection.collectionId)}
+                onChange={updateCollectionIds}
+              />
+              {draft.collections.length ? (
+                <div className="grid gap-2">
+                  <p className="text-sm font-semibold">Collection display order</p>
+                  {draft.collections.map((collection) => {
+                    const option = collections.find((item) => item.id === collection.collectionId);
+                    return (
+                      <label
+                        key={collection.collectionId}
+                        className="grid items-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface)]/30 p-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+                      >
+                        <span className="font-semibold">{option?.label ?? 'Collection'}</span>
+                        <Input
+                          aria-label={`${option?.label ?? 'Collection'} display order`}
+                          type="number"
+                          min="0"
+                          className="min-h-11"
+                          value={selectedCollections.get(collection.collectionId) ?? 0}
+                          onChange={(event) =>
+                            updateCollectionOrder(collection.collectionId, Number(event.target.value))
+                          }
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
           </EditorFormSection>
 
           <EditorFormSection
@@ -1241,11 +1255,11 @@ export function ProductForm({
                   role="tabpanel"
                   id={`${locale}-seo-panel`}
                   aria-labelledby={`${locale}-seo-tab`}
-                  className="grid gap-4 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/70 p-4"
+                  className={localizedPanelClassName}
                 >
-                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-                    <div>
-                      <h3 className="text-base font-semibold">{label} search preview</h3>
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)]/45 pb-3">
+                    <div className="min-w-[min(100%,18rem)] flex-1">
+                      <h3 className="text-[0.95rem] font-semibold">{label} search preview</h3>
                       <p className="mt-1 max-w-xl text-sm text-[var(--muted-foreground)]">
                         Prepare the localized URL and search result without retyping product copy.
                       </p>
@@ -1254,7 +1268,7 @@ export function ProductForm({
                       <Button
                         type="button"
                         variant="secondary"
-                        className="min-h-9 px-3 text-xs"
+                        className="min-h-11 px-3 text-xs"
                         onClick={() => generateSlug(locale)}
                       >
                         Generate slug
@@ -1262,7 +1276,7 @@ export function ProductForm({
                       <Button
                         type="button"
                         variant="secondary"
-                        className="min-h-9 px-3 text-xs"
+                        className="min-h-11 px-3 text-xs"
                         onClick={() => copyTitleToSeo(locale)}
                       >
                         Use product title
@@ -1270,15 +1284,15 @@ export function ProductForm({
                       <Button
                         type="button"
                         variant="secondary"
-                        className="min-h-9 px-3 text-xs"
+                        className="min-h-11 px-3 text-xs"
                         onClick={() => summarizeDescriptionToSeo(locale)}
                       >
                         Use summary
                       </Button>
                     </div>
                   </div>
-                  <label className="grid gap-2">
-                    <span className="font-semibold">{label} slug</span>
+                  <label className={localizedFieldClassName}>
+                    <span className="text-sm font-semibold">{label} slug</span>
                     <Input
                       id={fieldDomId(slugPath)}
                       aria-invalid={Boolean(fieldErrors[slugPath])}
@@ -1291,8 +1305,8 @@ export function ProductForm({
                     />
                     <FieldError path={slugPath} errors={fieldErrors} />
                   </label>
-                  <label className="grid gap-2">
-                    <span className="font-semibold">{label} SEO title</span>
+                  <label className={localizedFieldClassName}>
+                    <span className="text-sm font-semibold">{label} SEO title</span>
                     <Input
                       id={fieldDomId(titlePath)}
                       aria-invalid={Boolean(fieldErrors[titlePath])}
@@ -1307,8 +1321,8 @@ export function ProductForm({
                     />
                     <FieldError path={titlePath} errors={fieldErrors} />
                   </label>
-                  <label className="grid gap-2">
-                    <span className="font-semibold">{label} SEO description</span>
+                  <label className={localizedFieldClassName}>
+                    <span className="text-sm font-semibold">{label} SEO description</span>
                     <Textarea
                       id={fieldDomId(descriptionPath)}
                       aria-invalid={Boolean(fieldErrors[descriptionPath])}
@@ -1339,60 +1353,58 @@ export function ProductForm({
             isActive={activeSection === 'publish'}
             errorCount={sectionErrorCounts.publish}
           >
-            <div className="grid gap-3 text-sm">
-              {fieldErrors.productId ? (
-                <p
-                  id={`${fieldDomId('productId')}-error`}
-                  role="alert"
-                  className="rounded-[var(--radius-control)] bg-[var(--destructive-surface)] p-3 font-semibold text-[var(--destructive)]"
-                >
-                  {fieldErrors.productId}
+            <div className="grid gap-4 text-sm">
+              <FieldError path="productId" errors={fieldErrors} />
+              <div className="grid gap-3">
+                <p className="text-[var(--muted-foreground)]">
+                  Use this checkpoint before publishing. Media, private PDF, and inventory stay in
+                  their dedicated workflows so the main editor remains fast.
                 </p>
-              ) : null}
-              <p className="text-[var(--muted-foreground)]">
-                Use this checkpoint before publishing. Media, private PDF, and inventory stay in
-                their dedicated workflows so the main editor remains fast.
-              </p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <span
-                  className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(viReady)}`}
-                >
-                  Vietnamese content {viReady ? 'ready' : 'needs review'}
-                </span>
-                <span
-                  className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(enReady)}`}
-                >
-                  English content {enReady ? 'ready' : 'needs review'}
-                </span>
-                <span
-                  className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(vnOfferReady)}`}
-                >
-                  Vietnam offer {vnOfferReady ? 'ready' : 'off or missing price'}
-                </span>
-                <span
-                  className={`rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(intlOfferReady)}`}
-                >
-                  International offer {intlOfferReady ? 'ready' : 'off or missing price'}
-                </span>
+                <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr))]">
+                  <span
+                    className={`flex min-h-11 items-center rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(viReady)}`}
+                  >
+                    Vietnamese content {viReady ? 'ready' : 'needs review'}
+                  </span>
+                  <span
+                    className={`flex min-h-11 items-center rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(enReady)}`}
+                  >
+                    English content {enReady ? 'ready' : 'needs review'}
+                  </span>
+                  <span
+                    className={`flex min-h-11 items-center rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(vnOfferReady)}`}
+                  >
+                    Vietnam offer {vnOfferReady ? 'ready' : 'off or missing price'}
+                  </span>
+                  <span
+                    className={`flex min-h-11 items-center rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(intlOfferReady)}`}
+                  >
+                    International offer {intlOfferReady ? 'ready' : 'off or missing price'}
+                  </span>
+                </div>
               </div>
               {canAssignShipping && shippingAssignment ? (
-                <ShippingAssignmentSheet
-                  owner={{ type: 'product', productId: productId as string }}
-                  profiles={shippingProfiles}
-                  explicitProfileId={shippingAssignment.explicitProfileId}
-                  effectiveProfile={shippingAssignment.effectiveProfile}
-                  effectiveSource={shippingAssignment.effectiveSource}
-                  storeDefaultProfile={storeDefaultShippingProfile}
-                  title="Parcel profile"
-                  description="Product-level assignment used by variants unless a variant override exists."
-                />
+                <div className="border-t border-[var(--border)]/45 pt-4">
+                  <ShippingAssignmentSheet
+                    owner={{ type: 'product', productId: productId as string }}
+                    profiles={shippingProfiles}
+                    explicitProfileId={shippingAssignment.explicitProfileId}
+                    effectiveProfile={shippingAssignment.effectiveProfile}
+                    effectiveSource={shippingAssignment.effectiveSource}
+                    storeDefaultProfile={storeDefaultShippingProfile}
+                    title="Parcel profile"
+                    description="Product-level assignment used by variants unless a variant override exists."
+                  />
+                </div>
               ) : draft.productType === 'physical_finished' && !productId ? (
-                <div className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-muted)] p-3 text-sm text-[var(--muted-foreground)]">
-                  Save the product once to choose a parcel profile.
+                <div className="border-t border-[var(--border)]/45 pt-4">
+                  <div className="rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface)]/30 p-3 text-sm text-[var(--muted-foreground)]">
+                    Save the product once to choose a parcel profile.
+                  </div>
                 </div>
               ) : null}
               {productId ? (
-                <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--border)]/65 pt-3">
+                <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--border)]/45 pt-4">
                   <Link
                     className="font-semibold text-[var(--accent)]"
                     href={`/admin/catalog/${productId}/media`}
