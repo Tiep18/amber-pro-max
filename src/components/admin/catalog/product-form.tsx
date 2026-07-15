@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Check, ListTree, Save, Send } from 'lucide-react';
 import {
@@ -38,6 +38,7 @@ import { Separator } from '@/components/ui/separator';
 import { Sheet } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
 import { Toggle } from '@/components/ui/toggle';
+import { useProductFormScrollspy } from '@/components/admin/catalog/use-product-form-scrollspy';
 
 export type CatalogOption = {
   id: string;
@@ -148,6 +149,7 @@ const editorSections: Array<{ id: EditorSection; label: string; description: str
   { id: 'seo', label: 'Search and SEO', description: 'Localized URLs and snippets' },
   { id: 'publish', label: 'Readiness', description: 'Final checks and workflows' }
 ];
+const editorSectionIds = editorSections.map((section) => section.id);
 
 function fieldDomId(path: string) {
   return `product-field-${path.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
@@ -377,7 +379,11 @@ function EditorFormSection({
   children: ReactNode;
 }) {
   return (
-    <section id={id} aria-labelledby={`${id}-heading`} className="scroll-mt-28">
+    <section
+      id={id}
+      aria-labelledby={`${id}-heading`}
+      className="scroll-mt-[var(--product-form-anchor-offset)]"
+    >
       <Card
         className={`overflow-hidden p-0 transition-[border-color,box-shadow,background-color] duration-200 ${
           isActive
@@ -505,11 +511,15 @@ export function ProductForm({
       : null
   );
   const [isPending, startTransition] = useTransition();
-  const [activeSection, setActiveSection] = useState<EditorSection>('basics');
   const [contentLocale, setContentLocale] = useState<CatalogLocale>('vi');
   const [seoLocale, setSeoLocale] = useState<CatalogLocale>('vi');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [mobileOutlineOpen, setMobileOutlineOpen] = useState(false);
+  const [pendingFieldRequest, setPendingFieldRequest] = useState<{
+    id: number;
+    path: string;
+    section: EditorSection;
+  } | null>(null);
   const [savedSignature, setSavedSignature] = useState(() =>
     JSON.stringify(initialProduct ?? draft)
   );
@@ -521,7 +531,20 @@ export function ProductForm({
       ])
     )
   );
-  const manualNavigationUntil = useRef(0);
+  const mobileNavigatorRef = useRef<HTMLDivElement>(null);
+  const fieldRequestIdRef = useRef(0);
+  const {
+    activeSection,
+    activationBounds,
+    cancelNavigation,
+    navigateToElement,
+    navigateToSection: scrollToSection,
+    scrollspyState,
+    targetOffset
+  } = useProductFormScrollspy<EditorSection>({
+    sectionIds: editorSectionIds,
+    mobileNavigatorRef
+  });
   const productId = draft.productId;
   const blockedIssues = result?.status === 'blocked' ? result.issues : [];
   const viReady = Boolean(
@@ -706,45 +729,34 @@ export function ProductForm({
     );
   }
 
-  useEffect(() => {
-    const elements = editorSections
-      .map((section) => document.getElementById(section.id))
-      .filter((element): element is HTMLElement => Boolean(element));
-    if (!elements.length) return;
+  useLayoutEffect(() => {
+    if (!pendingFieldRequest) return;
+    const { id, path, section } = pendingFieldRequest;
+    const field = document.getElementById(fieldDomId(path));
+    const target = field ?? document.getElementById(`${section}-heading`);
+    if (!target) {
+      setPendingFieldRequest((current) => (current?.id === id ? null : current));
+      return;
+    }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (Date.now() < manualNavigationUntil.current) return;
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top));
-        const nextId = visible[0]?.target.id as EditorSection | undefined;
-        if (nextId) setActiveSection(nextId);
+    navigateToElement({
+      element: target,
+      activeSection: section,
+      alignment: field ? 'center' : 'start',
+      onCancel: () => {
+        setPendingFieldRequest((current) => (current?.id === id ? null : current));
       },
-      { rootMargin: '-112px 0px -68% 0px', threshold: [0, 0.15, 0.4] }
-    );
-
-    elements.forEach((element) => observer.observe(element));
-    const handleBottom = () => {
-      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 8) {
-        setActiveSection('publish');
+      onComplete: () => {
+        setPendingFieldRequest((current) => (current?.id === id ? null : current));
+        target.focus({ preventScroll: true });
       }
-    };
-    window.addEventListener('scroll', handleBottom, { passive: true });
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('scroll', handleBottom);
-    };
-  }, []);
+    });
+  }, [navigateToElement, pendingFieldRequest]);
 
   function navigateToSection(section: EditorSection) {
-    manualNavigationUntil.current = Date.now() + 700;
-    setActiveSection(section);
+    setPendingFieldRequest(null);
     setMobileOutlineOpen(false);
-    document.getElementById(section)?.scrollIntoView({
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-      block: 'start'
-    });
+    scrollToSection(section);
   }
 
   function navigateToField(path: string) {
@@ -757,23 +769,10 @@ export function ProductForm({
       if (section === 'seo') setSeoLocale('en');
       else setContentLocale('en');
     }
-    manualNavigationUntil.current = Date.now() + 900;
-    setActiveSection(section);
+    cancelNavigation();
     setMobileOutlineOpen(false);
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        const field =
-          document.getElementById(fieldDomId(path)) ??
-          document.getElementById(`${section}-heading`);
-        field?.scrollIntoView({
-          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-            ? 'auto'
-            : 'smooth',
-          block: 'center'
-        });
-        window.setTimeout(() => field?.focus({ preventScroll: true }), 250);
-      });
-    });
+    fieldRequestIdRef.current += 1;
+    setPendingFieldRequest({ id: fieldRequestIdRef.current, path, section });
   }
 
   function showValidationIssues(issues: Array<{ path: string; code: string }>) {
@@ -853,6 +852,14 @@ export function ProductForm({
   return (
     <form
       className="space-y-5 pb-24 lg:space-y-6 lg:pb-0"
+      data-scrollspy-state={scrollspyState}
+      data-scrollspy-target-offset={targetOffset}
+      data-scrollspy-activation-bounds={activationBounds}
+      style={
+        {
+          '--product-form-anchor-offset': `${targetOffset}px`
+        } as CSSProperties
+      }
       onSubmit={(event) => {
         event.preventDefault();
         saveDraft();
@@ -879,7 +886,7 @@ export function ProductForm({
         </Alert>
       ) : null}
 
-      <div className="sticky top-20 z-20 lg:hidden">
+      <div ref={mobileNavigatorRef} className="sticky top-20 z-20 lg:hidden">
         <div className="flex items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--border)]/80 bg-[var(--surface)]/95 p-2.5 shadow-[0_12px_30px_rgba(92,48,26,0.10)] backdrop-blur">
           <div className="min-w-0 px-1">
             <p className="truncate text-sm font-semibold">

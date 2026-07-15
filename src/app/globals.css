@@ -203,6 +203,10 @@ body::before {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   .sheet-overlay,
   .sheet-content {
     animation-duration: 1ms !important;
