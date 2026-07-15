@@ -385,26 +385,30 @@ function EditorFormSection({
       className="scroll-mt-[var(--product-form-anchor-offset)]"
     >
       <Card
-        className={`overflow-hidden p-0 transition-[border-color,box-shadow,background-color] duration-200 ${
+        className={`relative overflow-hidden bg-[var(--surface-paper)]/85 p-0 shadow-none transition-[border-color,background-color] duration-200 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:content-[''] ${
           isActive
-            ? 'border-[var(--accent)] bg-[var(--surface)] shadow-[0_14px_36px_rgba(92,48,26,0.09)]'
-            : 'border-[var(--border)]/75 bg-[var(--surface)]/92 shadow-none'
+            ? 'border-[var(--accent)]/45 bg-[var(--surface-paper)] before:bg-[var(--accent)]'
+            : 'border-[var(--border)]/60 before:bg-[var(--border)]/55'
         }`}
       >
-        <CardHeader className="mb-0 border-b border-[var(--border)]/65 p-4 sm:p-5">
-          <div className="flex min-w-0 items-start gap-3">
+        <CardHeader className="mb-0 border-b border-[var(--border)]/45 px-4 py-3.5 sm:py-4">
+          <div className="flex min-w-0 items-start gap-2.5">
             <span
-              className={`flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-control)] text-sm font-semibold tabular-nums transition-colors ${
+              className={`flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-control)] border bg-transparent text-xs font-semibold tabular-nums transition-colors ${
                 isActive
-                  ? 'bg-[var(--accent)] text-white'
-                  : 'bg-[var(--surface-muted)] text-[var(--muted-foreground)]'
+                  ? 'border-[var(--accent)]/30 bg-[var(--surface-blush)]/55 text-[var(--accent)]'
+                  : 'border-[var(--border)]/65 text-[var(--muted-foreground)]'
               }`}
             >
               {String(index).padStart(2, '0')}
             </span>
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <CardTitle id={`${id}-heading`} tabIndex={-1} className="text-base outline-none">
+                <CardTitle
+                  id={`${id}-heading`}
+                  tabIndex={-1}
+                  className="text-[0.95rem] outline-none"
+                >
                   {title}
                 </CardTitle>
                 {errorCount ? (
@@ -420,11 +424,11 @@ function EditorFormSection({
                   </span>
                 ) : null}
               </div>
-              <p className="text-sm leading-6 text-[var(--muted-foreground)]">{description}</p>
+              <p className="text-sm leading-5 text-[var(--muted-foreground)]">{description}</p>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-5 p-4 sm:p-5">{children}</CardContent>
+        <CardContent className="grid gap-4 p-4">{children}</CardContent>
       </Card>
     </section>
   );
@@ -452,13 +456,15 @@ function SectionNavigation({
             type="button"
             aria-current={isActive ? 'step' : undefined}
             onClick={() => onNavigate(section.id)}
-            className={`group grid min-h-11 grid-cols-[24px_minmax(0,1fr)_24px] items-center gap-2 rounded-[var(--radius-control)] px-2.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 ${
+            className={`group relative grid min-h-11 grid-cols-[24px_minmax(0,1fr)_24px] items-center gap-2 overflow-hidden rounded-[var(--radius-control)] border px-2.5 text-left text-sm transition-[border-color,background-color,color] before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 ${
               isActive
-                ? 'bg-[var(--accent)] text-white'
-                : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]'
+                ? 'border-[var(--accent)]/20 bg-[var(--surface-blush)]/55 text-[var(--foreground)] before:bg-[var(--accent)]'
+                : 'border-transparent text-[var(--muted-foreground)] before:bg-transparent hover:border-[var(--border)]/45 hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]'
             }`}
           >
-            <span className={`text-xs tabular-nums ${isActive ? 'text-white/75' : ''}`}>
+            <span
+              className={`text-xs tabular-nums ${isActive ? 'font-semibold text-[var(--accent)]' : ''}`}
+            >
               {String(index + 1).padStart(2, '0')}
             </span>
             <span className="truncate font-semibold">{section.label}</span>
@@ -467,7 +473,7 @@ function SectionNavigation({
                 <span
                   className={`inline-flex min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold ${
                     isActive
-                      ? 'bg-white text-[var(--destructive)]'
+                      ? 'bg-[var(--destructive-surface)] text-[var(--destructive)]'
                       : 'bg-[var(--destructive-surface)] text-[var(--destructive)]'
                   }`}
                 >
@@ -476,12 +482,12 @@ function SectionNavigation({
               ) : readiness[section.id] ? (
                 <Check
                   aria-label="Ready"
-                  className={`size-4 ${isActive ? 'text-white' : 'text-[var(--success)]'}`}
+                  className="size-4 text-[var(--success)]"
                 />
               ) : (
                 <span
                   aria-hidden="true"
-                  className={`size-1.5 rounded-full ${isActive ? 'bg-white/65' : 'bg-[var(--border)]'}`}
+                  className={`size-1.5 rounded-full ${isActive ? 'bg-[var(--accent)]/55' : 'bg-[var(--border)]'}`}
                 />
               )}
             </span>
@@ -851,7 +857,7 @@ export function ProductForm({
 
   return (
     <form
-      className="space-y-5 pb-24 lg:space-y-6 lg:pb-0"
+      className="space-y-4 pb-24 lg:pb-0"
       data-scrollspy-state={scrollspyState}
       data-scrollspy-target-offset={targetOffset}
       data-scrollspy-activation-bounds={activationBounds}
@@ -887,12 +893,12 @@ export function ProductForm({
       ) : null}
 
       <div ref={mobileNavigatorRef} className="sticky top-20 z-20 lg:hidden">
-        <div className="flex items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--border)]/80 bg-[var(--surface)]/95 p-2.5 shadow-[0_12px_30px_rgba(92,48,26,0.10)] backdrop-blur">
-          <div className="min-w-0 px-1">
-            <p className="truncate text-sm font-semibold">
+        <div className="flex items-center justify-between gap-2 rounded-[var(--radius-card)] border border-[var(--border)]/60 bg-[var(--surface-paper)]/95 p-2 shadow-[0_4px_14px_rgba(92,48,26,0.06)] backdrop-blur">
+          <div className="min-w-0 px-1.5">
+            <p className="truncate text-sm font-semibold leading-5">
               {editorSections[activeSectionIndex]?.label}
             </p>
-            <p className="text-xs text-[var(--muted-foreground)]">
+            <p className="text-[0.7rem] leading-4 text-[var(--muted-foreground)]">
               Section {activeSectionIndex + 1} of {editorSections.length}
             </p>
           </div>
@@ -903,10 +909,10 @@ export function ProductForm({
             title="Product editor"
             showTriggerLabel
             triggerIcon={<ListTree aria-hidden="true" className="size-4" />}
-            triggerClassName="min-h-10 shrink-0 px-3 text-sm"
-            bodyClassName="grid content-start gap-5"
+            triggerClassName="min-h-11 shrink-0 px-2.5 text-xs sm:px-3 sm:text-sm"
+            bodyClassName="grid content-start gap-4"
           >
-            <div className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-3 text-sm">
+            <div className="rounded-[var(--radius-control)] border border-[var(--border)]/55 bg-[var(--surface-paper)] p-3 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-semibold">{productId ? 'Saved draft' : 'New draft'}</span>
                 <span
@@ -929,8 +935,8 @@ export function ProductForm({
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-        <div className="space-y-5">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+        <div className="space-y-4">
           <EditorFormSection
             id="basics"
             index={1}
@@ -1406,14 +1412,14 @@ export function ProductForm({
         </div>
 
         <aside className="hidden lg:sticky lg:top-20 lg:block lg:h-[calc(100dvh-6rem)]">
-          <Card className="flex h-full max-h-full flex-col overflow-hidden p-0">
-            <div className="border-b border-[var(--border)]/65 bg-[var(--surface-muted)]/75 px-4 py-3.5">
+          <Card className="flex h-full max-h-full flex-col overflow-hidden border-[var(--border)]/60 bg-[var(--surface-paper)]/85 p-0 shadow-none">
+            <div className="border-b border-[var(--border)]/45 bg-transparent px-3.5 py-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-[var(--muted-foreground)]">
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-[var(--muted-foreground)]">
                     {productId ? 'Draft in progress' : 'New catalog item'}
                   </p>
-                  <CardTitle className="mt-1 truncate text-base">
+                  <CardTitle className="mt-1 truncate text-[0.95rem]">
                     {draft.translations.vi.title ||
                       draft.translations.en.title ||
                       'Untitled product'}
@@ -1429,7 +1435,7 @@ export function ProductForm({
                   {hasUnsavedChanges ? 'Unsaved' : 'Saved'}
                 </span>
               </div>
-              <div className="mt-3 flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
+              <div className="mt-2.5 flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
                 <span>{draft.productType === 'pdf_pattern' ? 'PDF pattern' : 'Handmade item'}</span>
                 <span aria-hidden="true">/</span>
                 <span className="tabular-nums">
@@ -1440,7 +1446,7 @@ export function ProductForm({
                     <span aria-hidden="true">/</span>
                     <button
                       type="button"
-                      className="font-semibold text-[var(--warning)]"
+                      className="rounded-sm font-semibold text-[var(--warning)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
                       onClick={() => navigateToSection('publish')}
                     >
                       {blockedIssues.length} blockers
@@ -1450,7 +1456,7 @@ export function ProductForm({
               </div>
             </div>
 
-            <CardContent className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3.5">
+            <CardContent className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-3">
               <SectionNavigation
                 activeSection={activeSection}
                 errorCounts={sectionErrorCounts}
@@ -1458,9 +1464,9 @@ export function ProductForm({
                 onNavigate={navigateToSection}
               />
 
-              <Separator />
+              <Separator className="border-[var(--border)]/50" />
 
-              <div className="flex flex-wrap gap-x-4 gap-y-2 px-1 text-sm">
+              <div className="flex flex-wrap gap-x-3 gap-y-1.5 px-1 text-xs">
                 {productId ? (
                   <>
                     <Link
@@ -1483,8 +1489,12 @@ export function ProductForm({
                 )}
               </div>
 
-              <div className="mt-auto grid gap-2 border-t border-[var(--border)]/65 pt-3">
-                <Button type="submit" disabled={isPending} className="gap-2 text-sm">
+              <div className="mt-auto grid gap-2 border-t border-[var(--border)]/45 pt-3">
+                <Button
+                  type="submit"
+                  disabled={isPending}
+                  className="min-h-11 gap-1.5 px-3 text-sm"
+                >
                   <Save aria-hidden="true" className="size-4" />
                   {isPending ? 'Saving...' : 'Save draft'}
                 </Button>
@@ -1493,7 +1503,7 @@ export function ProductForm({
                   variant="secondary"
                   disabled={isPending || !productId}
                   onClick={publishProduct}
-                  className="gap-2 text-sm"
+                  className="min-h-11 gap-1.5 px-3 text-sm"
                 >
                   <Send aria-hidden="true" className="size-4" />
                   Publish product
@@ -1504,9 +1514,13 @@ export function ProductForm({
         </aside>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)]/75 bg-[var(--surface)]/96 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 shadow-[0_-12px_30px_rgba(92,48,26,0.10)] backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)]/60 bg-[var(--surface-paper)]/96 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 shadow-[0_-4px_16px_rgba(92,48,26,0.07)] backdrop-blur lg:hidden">
         <div className="mx-auto grid max-w-xl grid-cols-2 gap-2">
-          <Button type="submit" disabled={isPending} className="gap-2 text-sm">
+          <Button
+            type="submit"
+            disabled={isPending}
+            className="min-h-11 gap-1.5 px-2.5 text-sm"
+          >
             <Save aria-hidden="true" className="size-4" />
             {isPending ? 'Saving...' : 'Save draft'}
           </Button>
@@ -1515,7 +1529,7 @@ export function ProductForm({
             variant="secondary"
             disabled={isPending || !productId}
             onClick={publishProduct}
-            className="gap-2 text-sm"
+            className="min-h-11 gap-1.5 px-2.5 text-sm"
           >
             <Send aria-hidden="true" className="size-4" />
             Publish
