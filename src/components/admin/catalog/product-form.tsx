@@ -1093,7 +1093,7 @@ export function ProductForm({
             isActive={activeSection === 'pricing'}
             errorCount={sectionErrorCounts.pricing}
           >
-            <div className="grid gap-3">
+            <div className="grid gap-2">
               {[
                 {
                   key: 'vn' as const,
@@ -1110,7 +1110,7 @@ export function ProductForm({
               ].map((market) => (
                 <div
                   key={market.key}
-                  className="grid gap-3 rounded-[var(--radius-control)] border border-[var(--border)]/45 bg-[var(--surface)]/25 p-3"
+                  className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)]/45 bg-[var(--surface)]/25 p-2.5"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
