@@ -33,6 +33,7 @@ export type MediaActionCode =
   | 'association_failed'
   | 'update_failed'
   | 'remove_failed'
+  | 'remove_incomplete'
   | 'reorder_failed';
 
 export type MediaActionResult =
@@ -424,9 +425,9 @@ export async function removeProductMediaAction(productId: string, mediaId: strin
       summary: 'Catalog media social image clear failed',
       productId: parsed.data.productId,
       referenceId: parsed.data.mediaId,
-      code: 'remove_failed'
+      code: 'remove_incomplete'
     });
-    return {status: 'error', code: 'remove_failed'};
+    return {status: 'error', code: 'remove_incomplete'};
   }
   const {error} = await supabase
     .from('product_media')
@@ -440,9 +441,9 @@ export async function removeProductMediaAction(productId: string, mediaId: strin
       summary: 'Catalog media remove failed',
       productId: parsed.data.productId,
       referenceId: parsed.data.mediaId,
-      code: 'remove_failed'
+      code: 'remove_incomplete'
     });
-    return {status: 'error', code: 'remove_failed'};
+    return {status: 'error', code: 'remove_incomplete'};
   }
 
   revalidateMedia(parsed.data.productId);
@@ -599,9 +600,9 @@ export async function removePatternPdfAction(productId: string): Promise<MediaAc
       errorCode: 'catalog_pattern_pdf_remove_failed',
       summary: 'Catalog pattern PDF remove failed',
       productId: parsed.data.productId,
-      code: 'remove_failed'
+      code: 'remove_incomplete'
     });
-    return {status: 'error', code: 'remove_failed'};
+    return {status: 'error', code: 'remove_incomplete'};
   }
 
   revalidateMedia(parsed.data.productId);

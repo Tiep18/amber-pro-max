@@ -24,9 +24,9 @@ import {
   setPrimaryProductImageAction,
   setProductSocialImageAction,
   updateProductMediaDetailsAction,
-  type MediaActionCode,
   type MediaActionResult
 } from '@/catalog/media-actions';
+import {mediaActionErrorText} from '@/catalog/media-action-feedback';
 import {MAX_PATTERN_PDF_BYTES, MAX_PRODUCT_IMAGE_BYTES, productImageMimeTypes} from '@/catalog/media-schemas';
 import {Alert} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
@@ -84,19 +84,6 @@ type MediaManagerProps = {
   asset: MediaManagerAsset | null;
 };
 
-const errorCopy: Record<MediaActionCode, string> = {
-  invalid_input: 'Check the fields and try again.',
-  invalid_file: 'Choose a supported file within the stated size limit.',
-  product_not_found: 'This product is no longer available. Return to the catalog and reopen it.',
-  not_pdf_product: 'Private PDFs can only be attached to PDF pattern products.',
-  media_not_found: 'This media record changed or was removed. Refresh the page and try again.',
-  upload_failed: 'The file could not be uploaded. Check your connection and try again.',
-  association_failed: 'The file uploaded, but could not be attached. Try again or contact support.',
-  update_failed: 'The change could not be saved. Refresh the page and try again.',
-  remove_failed: 'The file could not be removed safely. Nothing else was deleted; try again.',
-  reorder_failed: 'The gallery changed before this order was saved. The previous order was restored; refresh and try again.'
-};
-
 function resultVariant(result: MediaActionResult | null) {
   if (!result) return 'default' as const;
   if (result.status !== 'success') return 'destructive' as const;
@@ -110,7 +97,7 @@ function resultText(result: MediaActionResult | null) {
       ? 'The new PDF is active, but the previous storage object still needs cleanup. Customer access is not interrupted.'
       : result.message;
   }
-  return errorCopy[result.code];
+  return mediaActionErrorText(result.code);
 }
 
 function formatBytes(bytes: number) {
@@ -137,6 +124,23 @@ function operationLabel(operation: Operation | null) {
     case 'remove-image': return 'Removing image…';
     case 'upload-pdf': return 'Uploading private PDF…';
     case 'remove-pdf': return 'Removing private PDF…';
+  }
+}
+
+function unexpectedActionResult(operation: Operation): MediaActionResult {
+  switch (operation.kind) {
+    case 'upload-image':
+    case 'upload-pdf':
+      return {status: 'error', code: 'upload_failed'};
+    case 'reorder':
+      return {status: 'error', code: 'reorder_failed'};
+    case 'remove-image':
+    case 'remove-pdf':
+      return {status: 'error', code: 'remove_failed'};
+    case 'save-details':
+    case 'set-primary':
+    case 'set-social':
+      return {status: 'error', code: 'update_failed'};
   }
 }
 
@@ -180,10 +184,12 @@ export function MediaManager({productId, productType, productStatus, images, ass
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfFormRef = useRef<HTMLFormElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+  const operationSequenceRef = useRef(0);
+  const activeOperationRef = useRef<{token: number; operation: Operation} | null>(null);
   const [result, setResult] = useState<MediaActionResult | null>(null);
   const [clientMessage, setClientMessage] = useState<string | null>(null);
   const [operation, setOperation] = useState<Operation | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [orderedImages, setOrderedImages] = useState(images);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [altTextVi, setAltTextVi] = useState('');
@@ -221,18 +227,33 @@ export function MediaManager({productId, productType, productStatus, images, ass
     onSuccess?: () => void,
     onFailure?: () => void
   ) {
+    if (activeOperationRef.current) return;
+    const token = ++operationSequenceRef.current;
+    activeOperationRef.current = {token, operation: nextOperation};
     clearFeedback();
     setOperation(nextOperation);
     startTransition(async () => {
-      const actionResult = await action();
-      setResult(actionResult);
-      if (actionResult.status === 'success') {
-        onSuccess?.();
-        router.refresh();
-      } else {
-        onFailure?.();
+      let actionResult: MediaActionResult;
+      try {
+        actionResult = await action();
+      } catch {
+        actionResult = unexpectedActionResult(nextOperation);
       }
-      setOperation(null);
+      if (activeOperationRef.current?.token !== token) return;
+      setResult(actionResult);
+      try {
+        if (actionResult.status === 'success') {
+          onSuccess?.();
+          router.refresh();
+        } else {
+          onFailure?.();
+        }
+      } finally {
+        if (activeOperationRef.current?.token === token) {
+          activeOperationRef.current = null;
+          setOperation(null);
+        }
+      }
     });
   }
 
@@ -278,6 +299,7 @@ export function MediaManager({productId, productType, productStatus, images, ass
   }
 
   function moveImage(index: number, direction: -1 | 1) {
+    if (activeOperationRef.current) return;
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= orderedImages.length) return;
     const previous = orderedImages;
@@ -293,7 +315,7 @@ export function MediaManager({productId, productType, productStatus, images, ass
   }
 
   function confirmMutation() {
-    if (!confirmation) return;
+    if (!confirmation || activeOperationRef.current) return;
     if (confirmation.kind === 'remove-image') {
       const image = confirmation.image;
       runAction({kind: 'remove-image', mediaId: image.id}, () => removeProductMediaAction(productId, image.id), () => {
@@ -313,6 +335,7 @@ export function MediaManager({productId, productType, productStatus, images, ass
   }
 
   const activeLabel = operationLabel(operation);
+  const hasActiveOperation = operation !== null;
   const confirmationImage = confirmation?.kind === 'remove-image' ? confirmation.image : null;
   const confirmationRoles = confirmationImage ? imageRoles(confirmationImage) : [];
 
@@ -374,7 +397,7 @@ export function MediaManager({productId, productType, productStatus, images, ass
               <label className="space-y-2"><span className="text-sm font-semibold">Vietnamese alt text <span className="font-normal text-[var(--muted-foreground)]">(optional)</span></span><input className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3" name="altTextVi" maxLength={500} /></label>
               <label className="space-y-2"><span className="text-sm font-semibold">English alt text <span className="font-normal text-[var(--muted-foreground)]">(optional)</span></span><input className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] px-3" name="altTextEn" maxLength={500} /></label>
             </div>
-            <Button type="submit" className="w-full sm:w-fit" disabled={operation?.kind === 'upload-image'}>{operation?.kind === 'upload-image' ? 'Uploading image…' : 'Upload image'}</Button>
+            <Button type="submit" className="w-full sm:w-fit" disabled={hasActiveOperation}>{operation?.kind === 'upload-image' ? 'Uploading image…' : 'Upload image'}</Button>
           </form>
         </CardContent>
       </Card>
@@ -402,21 +425,21 @@ export function MediaManager({productId, productType, productStatus, images, ass
                       {roles.length ? roles.map((role) => <span key={role} className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-2 py-1 text-xs font-semibold">{role}</span>) : <span className="py-1 text-xs text-[var(--muted-foreground)]">No role assigned</span>}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button type="button" variant="secondary" className="min-h-11 flex-1 gap-2" disabled={Boolean(cardPending)} onClick={() => openInspector(image)}><Pencil aria-hidden="true" className="h-4 w-4" /> Edit details</Button>
+                      <Button type="button" variant="secondary" className="min-h-11 flex-1 gap-2" disabled={operation?.kind === 'save-details'} onClick={() => openInspector(image)}><Pencil aria-hidden="true" className="h-4 w-4" /> Edit details</Button>
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button type="button" variant="secondary" className="h-11 min-h-11 w-11 !px-0" disabled={Boolean(cardPending)}><MoreHorizontal aria-hidden="true" className="h-5 w-5" /><span className="sr-only">Actions for image {index + 1}</span></Button></DropdownMenuTrigger>
+                        <DropdownMenuTrigger asChild><Button type="button" variant="secondary" className="h-11 min-h-11 w-11 !px-0"><MoreHorizontal aria-hidden="true" className="h-5 w-5" /><span className="sr-only">Actions for image {index + 1}</span></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-64">
-                          <DropdownMenuItem className="min-h-11" disabled={image.isPrimary} onSelect={() => runAction({kind: 'set-primary', mediaId: image.id}, () => setPrimaryProductImageAction(productId, image.id))}><Check aria-hidden="true" /> Set as primary</DropdownMenuItem>
-                          <DropdownMenuItem className="min-h-11" disabled={image.socialLocales.includes('vi')} onSelect={() => runAction({kind: 'set-social', mediaId: image.id, locale: 'vi'}, () => setProductSocialImageAction(productId, image.id, 'vi'))}>Use for Social VI</DropdownMenuItem>
-                          <DropdownMenuItem className="min-h-11" disabled={image.socialLocales.includes('en')} onSelect={() => runAction({kind: 'set-social', mediaId: image.id, locale: 'en'}, () => setProductSocialImageAction(productId, image.id, 'en'))}>Use for Social EN</DropdownMenuItem>
+                          <DropdownMenuItem className="min-h-11" disabled={hasActiveOperation || image.isPrimary} onSelect={() => runAction({kind: 'set-primary', mediaId: image.id}, () => setPrimaryProductImageAction(productId, image.id))}><Check aria-hidden="true" /> Set as primary</DropdownMenuItem>
+                          <DropdownMenuItem className="min-h-11" disabled={hasActiveOperation || image.socialLocales.includes('vi')} onSelect={() => runAction({kind: 'set-social', mediaId: image.id, locale: 'vi'}, () => setProductSocialImageAction(productId, image.id, 'vi'))}>Use for Social VI</DropdownMenuItem>
+                          <DropdownMenuItem className="min-h-11" disabled={hasActiveOperation || image.socialLocales.includes('en')} onSelect={() => runAction({kind: 'set-social', mediaId: image.id, locale: 'en'}, () => setProductSocialImageAction(productId, image.id, 'en'))}>Use for Social EN</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="min-h-11" variant="destructive" onSelect={() => setConfirmation({kind: 'remove-image', image})}><Trash2 aria-hidden="true" /> Remove image</DropdownMenuItem>
+                          <DropdownMenuItem className="min-h-11" variant="destructive" disabled={hasActiveOperation} onSelect={() => setConfirmation({kind: 'remove-image', image})}><Trash2 aria-hidden="true" /> Remove image</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
                     <div className="grid grid-cols-2 gap-2" aria-label={`Reorder image ${index + 1}`}>
-                      <Button type="button" variant="ghost" className="min-h-11 gap-2" disabled={index === 0 || Boolean(operation?.kind === 'reorder')} onClick={() => moveImage(index, -1)}><ArrowUp aria-hidden="true" className="h-4 w-4" /> Earlier</Button>
-                      <Button type="button" variant="ghost" className="min-h-11 gap-2" disabled={index === orderedImages.length - 1 || Boolean(operation?.kind === 'reorder')} onClick={() => moveImage(index, 1)}><ArrowDown aria-hidden="true" className="h-4 w-4" /> Later</Button>
+                      <Button type="button" variant="ghost" className="min-h-11 gap-2" disabled={index === 0 || hasActiveOperation} onClick={() => moveImage(index, -1)}><ArrowUp aria-hidden="true" className="h-4 w-4" /> Earlier</Button>
+                      <Button type="button" variant="ghost" className="min-h-11 gap-2" disabled={index === orderedImages.length - 1 || hasActiveOperation} onClick={() => moveImage(index, 1)}><ArrowDown aria-hidden="true" className="h-4 w-4" /> Later</Button>
                     </div>
                     {cardPending ? <p className="text-xs font-semibold text-[var(--accent)]">{activeLabel}</p> : null}
                   </div>
@@ -442,7 +465,7 @@ export function MediaManager({productId, productType, productStatus, images, ass
                     <p className="mt-1 text-sm text-[var(--muted-foreground)]">{formatBytes(asset.byteSize)} · Updated {formatUpdatedAt(asset.updatedAt)} UTC</p>
                     <p className="mt-1 break-words font-mono text-xs text-[var(--muted-foreground)]">Integrity {asset.checksumSha256 ? `${asset.checksumSha256.slice(0, 8)}…${asset.checksumSha256.slice(-8)}` : 'not recorded'}</p>
                   </div>
-                  <Button type="button" variant="destructive" className="min-h-11 w-full sm:w-auto" disabled={operation?.kind === 'remove-pdf'} onClick={() => setConfirmation({kind: 'remove-pdf'})}>Remove PDF</Button>
+                  <Button type="button" variant="destructive" className="min-h-11 w-full sm:w-auto" disabled={hasActiveOperation} onClick={() => setConfirmation({kind: 'remove-pdf'})}>Remove PDF</Button>
                 </div>
               ) : (
                 <div className="rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 p-4"><p className="font-semibold">No protected PDF attached</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">A private PDF is required before this pattern can be published.</p></div>
@@ -462,7 +485,7 @@ export function MediaManager({productId, productType, productStatus, images, ass
                 <button type="button" className="flex min-h-24 w-full items-center gap-3 rounded-[var(--radius-control)] border border-dashed border-[var(--border)] p-4 text-left transition hover:bg-[var(--surface-muted)]/55 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]" onClick={() => pdfInputRef.current?.click()}>
                   <Upload aria-hidden="true" className="h-5 w-5 shrink-0" /><span className="min-w-0"><span className="block break-words font-semibold">{pdfFile ? pdfFile.name : 'Choose private PDF'}</span><span className="mt-1 block text-sm text-[var(--muted-foreground)]">PDF only · Maximum 50 MB · Never publicly linked</span></span>
                 </button>
-                <Button type="submit" className="w-full sm:w-fit" disabled={operation?.kind === 'upload-pdf'}>{operation?.kind === 'upload-pdf' ? 'Uploading private PDF…' : asset ? 'Replace PDF' : 'Upload private PDF'}</Button>
+                <Button type="submit" className="w-full sm:w-fit" disabled={hasActiveOperation}>{operation?.kind === 'upload-pdf' ? 'Uploading private PDF…' : asset ? 'Replace PDF' : 'Upload private PDF'}</Button>
               </form>
             </>
           )}
@@ -483,7 +506,7 @@ export function MediaManager({productId, productType, productStatus, images, ass
             <label className="space-y-2"><span className="text-sm font-semibold">Vietnamese alt text</span><textarea className="min-h-28 w-full resize-y rounded-[var(--radius-control)] border border-[var(--border)] p-3" name="altTextVi" maxLength={500} value={altTextVi} onChange={(event) => setAltTextVi(event.target.value)} /><span className="block text-right text-xs text-[var(--muted-foreground)]">{altTextVi.length}/500</span></label>
             <label className="space-y-2"><span className="text-sm font-semibold">English alt text</span><textarea className="min-h-28 w-full resize-y rounded-[var(--radius-control)] border border-[var(--border)] p-3" name="altTextEn" maxLength={500} value={altTextEn} onChange={(event) => setAltTextEn(event.target.value)} /><span className="block text-right text-xs text-[var(--muted-foreground)]">{altTextEn.length}/500</span></label>
             <p className="text-sm text-[var(--muted-foreground)]">Describe the visible subject and important details. Leave decorative context out.</p>
-            <Button type="submit" disabled={!inspectorDirty || operation?.kind === 'save-details'}>{operation?.kind === 'save-details' ? 'Saving details…' : inspectorDirty ? 'Save details' : 'No changes to save'}</Button>
+            <Button type="submit" disabled={!inspectorDirty || hasActiveOperation}>{operation?.kind === 'save-details' ? 'Saving details…' : inspectorDirty ? 'Save details' : 'No changes to save'}</Button>
           </form>
         ) : null}
       </Sheet>
@@ -495,7 +518,8 @@ export function MediaManager({productId, productType, productStatus, images, ass
         description={confirmation?.kind === 'remove-image' ? <div className="space-y-2"><p>This permanently removes the image{confirmationRoles.length ? ` and its ${confirmationRoles.join(', ')} role${confirmationRoles.length > 1 ? 's' : ''}` : ''}.</p>{confirmationRoles.length ? <p>If this product is published and a required role becomes missing, it automatically returns to draft.</p> : null}</div> : confirmation?.kind === 'replace-pdf' ? <div className="space-y-2"><p>The selected file will become the protected customer download.</p><p>Existing customer download requests will receive the replacement file.</p></div> : <div className="space-y-2"><p>This removes the protected customer-download file.</p><p>A PDF pattern without this asset cannot remain published and automatically returns to draft.</p></div>}
         confirmLabel={confirmation?.kind === 'remove-image' ? 'Remove image' : confirmation?.kind === 'replace-pdf' ? 'Replace PDF' : 'Remove PDF'}
         destructive={confirmation?.kind !== 'replace-pdf'}
-        pending={isPending && Boolean(operation)}
+        pending={hasActiveOperation}
+        pendingLabel={activeLabel ?? undefined}
         onConfirm={confirmMutation}
       />
     </div>

@@ -30,6 +30,7 @@ import {
   uploadProductImageAction
 } from '@/catalog/media-actions';
 import {MAX_PATTERN_PDF_BYTES, MAX_PRODUCT_IMAGE_BYTES} from '@/catalog/media-schemas';
+import {mediaActionErrorText} from '@/catalog/media-action-feedback';
 
 const productId = '11111111-1111-4111-8111-111111111111';
 const mediaId = '22222222-2222-4222-8222-222222222222';
@@ -227,6 +228,51 @@ describe('catalog media storage deletion outcomes', () => {
     expect(revalidatePathMock).toHaveBeenCalledTimes(2);
     expect(invalidateCatalogCacheMock).toHaveBeenCalledOnce();
     expect(recordOperationalFailureMock).not.toHaveBeenCalled();
+  });
+
+  it('reports incomplete cleanup when image storage succeeds but social metadata cleanup fails', async () => {
+    const remove = vi.fn(async () => ({error: null}));
+    const clearEqPath = vi.fn(async () => ({error: {message: 'private social cleanup failure'}}));
+    const clearEqProduct = vi.fn(() => ({eq: clearEqPath}));
+    const clearUpdate = vi.fn(() => ({eq: clearEqProduct}));
+    const deleteCall = vi.fn();
+    createSupabaseServerClientMock
+      .mockResolvedValueOnce(mediaLookupClient())
+      .mockResolvedValueOnce(storageRemovalClient(remove))
+      .mockResolvedValueOnce({
+        from: vi.fn((table: string) =>
+          table === 'product_translations' ? {update: clearUpdate} : {delete: deleteCall}
+        )
+      });
+
+    await expect(removeProductMediaAction(productId, mediaId)).resolves.toEqual({
+      status: 'error',
+      code: 'remove_incomplete'
+    });
+
+    expect(remove).toHaveBeenCalledWith([privateImagePath]);
+    expect(deleteCall).not.toHaveBeenCalled();
+    expect(recordOperationalFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorCode: 'catalog_media_social_clear_failed',
+        facts: expect.objectContaining({
+          action: 'media_remove_social_clear',
+          productId,
+          referenceId: mediaId,
+          code: 'remove_incomplete'
+        })
+      })
+    );
+    expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/private social cleanup|object_path/i);
+  });
+
+  it('maps storage and post-storage removal failures to accurate recovery copy', () => {
+    expect(mediaActionErrorText('remove_failed')).toBe(
+      'The file could not be removed. Refresh the page and try again.'
+    );
+    expect(mediaActionErrorText('remove_incomplete')).toBe(
+      'The file was removed from storage, but catalog cleanup did not finish. Retry the removal; contact support if it still fails.'
+    );
   });
 
   it('keeps PDF metadata when storage deletion fails', async () => {

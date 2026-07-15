@@ -10,6 +10,7 @@ export function ConfirmationDialog({
   title,
   description,
   confirmLabel,
+  pendingLabel,
   cancelLabel = 'Cancel',
   pending = false,
   destructive = false,
@@ -20,6 +21,7 @@ export function ConfirmationDialog({
   title: string;
   description: ReactNode;
   confirmLabel: string;
+  pendingLabel?: string;
   cancelLabel?: string;
   pending?: boolean;
   destructive?: boolean;
@@ -48,7 +50,7 @@ export function ConfirmationDialog({
               disabled={pending}
               onClick={onConfirm}
             >
-              {pending ? 'Working…' : confirmLabel}
+              {pending ? (pendingLabel ?? 'Working…') : confirmLabel}
             </Button>
           </div>
         </Dialog.Content>
