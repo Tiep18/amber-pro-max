@@ -4,7 +4,7 @@ import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
 import { useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, Check, ListTree, Save, Send } from 'lucide-react';
+import { AlertCircle, ArrowRight, Check, ImageIcon, ListTree, Package, Save, Send } from 'lucide-react';
 import {
   saveAndPublishProductAction,
   saveProductDraftAction,
@@ -218,15 +218,15 @@ function pathForPublishIssue(issue: {
 
 function OptionChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex min-h-11 items-center gap-1 rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface-paper)] pl-2.5 text-xs font-semibold">
+    <span className="inline-flex h-7 items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-paper)] pl-2.5 pr-1 text-xs font-medium">
       {label}
       <button
         type="button"
-        className="inline-flex size-11 shrink-0 items-center justify-center rounded-[var(--radius-control)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--destructive-surface)] hover:text-[var(--destructive)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-inset"
+        className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[var(--muted-foreground)] transition-colors hover:bg-[var(--destructive-surface)] hover:text-[var(--destructive)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         onClick={onRemove}
         aria-label={`Remove ${label}`}
       >
-        x
+        ×
       </button>
     </span>
   );
@@ -251,53 +251,53 @@ function OptionMultiSelect({
     .slice(0, 8);
 
   return (
-    <div className="grid content-start gap-2.5 rounded-[var(--radius-control)] border border-[var(--border)]/45 bg-[var(--surface)]/25 p-2.5 sm:p-3">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold">{label}</span>
-        <span className="text-xs font-semibold text-[var(--muted-foreground)]">
-          {selected.length} selected
-        </span>
-      </div>
-      <div className="grid gap-2.5">
-        <div className="flex min-h-11 flex-wrap items-center gap-2">
-          {selected.length ? (
-            selected.map((option) => (
-              <OptionChip
-                key={option.id}
-                label={option.label}
-                onRemove={() => onChange(selectedIds.filter((id) => id !== option.id))}
-              />
-            ))
-          ) : (
-            <span className="text-sm leading-5 text-[var(--muted-foreground)]">
-              No {label.toLowerCase()} selected
-            </span>
-          )}
-        </div>
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="min-h-11 text-sm"
-          placeholder={`Search ${label.toLowerCase()}`}
-        />
-        {available.length ? (
-          <div className="grid gap-1 border-t border-[var(--border)]/40 pt-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,7rem),1fr))]">
-            {available.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className="h-full min-h-11 rounded-[var(--radius-control)] border border-transparent px-2.5 py-2 text-left text-sm leading-5 transition-colors hover:border-[var(--border)]/45 hover:bg-[var(--surface-muted)]/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1"
-                onClick={() => {
-                  onChange([...selectedIds, option.id]);
-                  setQuery('');
-                }}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+    <div className="grid content-start gap-2">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold text-[var(--muted-foreground)]">{label}</span>
+        {selected.length ? (
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 text-[0.625rem] font-semibold text-white">
+            {selected.length}
+          </span>
         ) : null}
       </div>
+      <div className="flex min-h-[1.75rem] flex-wrap items-center gap-1.5">
+        {selected.length ? (
+          selected.map((option) => (
+            <OptionChip
+              key={option.id}
+              label={option.label}
+              onRemove={() => onChange(selectedIds.filter((id) => id !== option.id))}
+            />
+          ))
+        ) : (
+          <span className="text-xs text-[var(--muted-foreground)]">
+            None
+          </span>
+        )}
+      </div>
+      <Input
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        className="h-9 text-sm"
+        placeholder={`Add ${label.toLowerCase()}…`}
+      />
+      {available.length ? (
+        <div className="flex flex-wrap gap-1">
+          {available.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className="h-7 rounded-full border border-dashed border-[var(--border)] px-2.5 text-xs text-[var(--muted-foreground)] transition-colors hover:border-[var(--accent)]/50 hover:bg-[var(--surface-blush)]/40 hover:text-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+              onClick={() => {
+                onChange([...selectedIds, option.id]);
+                setQuery('');
+              }}
+            >
+              + {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -317,7 +317,7 @@ function LocaleTabs({
     <div
       role="tablist"
       aria-label="Content language"
-      className="inline-flex max-w-full rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface-muted)]/55 p-1"
+      className="inline-flex max-w-full rounded-[var(--radius-control)] border border-[var(--border)]/80 bg-[var(--surface-muted)]/70 p-1"
     >
       {(['vi', 'en'] as const).map((locale) => {
         const selected = value === locale;
@@ -392,19 +392,19 @@ function EditorFormSection({
       className="scroll-mt-[var(--product-form-anchor-offset)]"
     >
       <Card
-        className={`relative overflow-hidden bg-[var(--surface-paper)]/85 p-0 shadow-none transition-[border-color,background-color] duration-200 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:content-[''] ${
+        className={`relative overflow-hidden bg-[var(--surface-paper)] p-0 shadow-[0_1px_4px_rgba(92,48,26,0.05)] transition-[border-color,box-shadow] duration-200 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:content-[''] ${
           isActive
-            ? 'border-[var(--accent)]/45 bg-[var(--surface-paper)] before:bg-[var(--accent)]'
-            : 'border-[var(--border)]/60 before:bg-[var(--border)]/55'
+            ? 'border-[var(--accent)]/50 shadow-[0_2px_8px_rgba(169,71,52,0.08)] before:bg-[var(--accent)]'
+            : 'border-[var(--border)] before:bg-[var(--border)]/70'
         }`}
       >
-        <CardHeader className="mb-0 border-b border-[var(--border)]/45 px-4 py-3.5 sm:py-4">
+        <CardHeader className="mb-0 border-b border-[var(--border)]/60 bg-[var(--surface)]/30 px-4 py-4 sm:px-5 sm:py-5">
           <div className="flex min-w-0 items-start gap-2.5">
             <span
-              className={`flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-control)] border bg-transparent text-xs font-semibold tabular-nums transition-colors ${
+              className={`flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-control)] border text-xs font-semibold tabular-nums transition-colors ${
                 isActive
-                  ? 'border-[var(--accent)]/30 bg-[var(--surface-blush)]/55 text-[var(--accent)]'
-                  : 'border-[var(--border)]/65 text-[var(--muted-foreground)]'
+                  ? 'border-[var(--accent)]/40 bg-[var(--surface-blush)] text-[var(--accent)]'
+                  : 'border-[var(--border)] bg-[var(--surface-muted)]/50 text-[var(--muted-foreground)]'
               }`}
             >
               {String(index).padStart(2, '0')}
@@ -435,7 +435,7 @@ function EditorFormSection({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-4 p-3 sm:p-4">{children}</CardContent>
+        <CardContent className="grid gap-5 p-4 sm:p-5">{children}</CardContent>
       </Card>
     </section>
   );
@@ -465,8 +465,8 @@ function SectionNavigation({
             onClick={() => onNavigate(section.id)}
             className={`group relative grid min-h-11 grid-cols-[24px_minmax(0,1fr)_24px] items-center gap-2 overflow-hidden rounded-[var(--radius-control)] border px-2.5 text-left text-sm transition-[border-color,background-color,color] before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 ${
               isActive
-                ? 'border-[var(--accent)]/20 bg-[var(--surface-blush)]/55 text-[var(--foreground)] before:bg-[var(--accent)]'
-                : 'border-transparent text-[var(--muted-foreground)] before:bg-transparent hover:border-[var(--border)]/45 hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]'
+                ? 'border-[var(--accent)]/25 bg-[var(--surface-blush)]/70 text-[var(--foreground)] before:bg-[var(--accent)]'
+                : 'border-transparent text-[var(--muted-foreground)] before:bg-transparent hover:border-[var(--border)]/60 hover:bg-[var(--surface-muted)]/60 hover:text-[var(--foreground)]'
             }`}
           >
             <span
@@ -906,7 +906,7 @@ export function ProductForm({
       ) : null}
 
       <div ref={mobileNavigatorRef} className="sticky top-20 z-20 lg:hidden">
-        <div className="flex items-center justify-between gap-2 rounded-[var(--radius-card)] border border-[var(--border)]/60 bg-[var(--surface-paper)]/95 p-2 shadow-[0_4px_14px_rgba(92,48,26,0.06)] backdrop-blur">
+        <div className="flex items-center justify-between gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-paper)] p-2 shadow-[0_4px_14px_rgba(92,48,26,0.08)] backdrop-blur">
           <div className="min-w-0 px-1.5">
             <p className="truncate text-sm font-semibold leading-5">
               {editorSections[activeSectionIndex]?.label}
@@ -925,7 +925,7 @@ export function ProductForm({
             triggerClassName="min-h-11 shrink-0 px-2.5 text-xs sm:px-3 sm:text-sm"
             bodyClassName="grid content-start gap-4"
           >
-            <div className="rounded-[var(--radius-control)] border border-[var(--border)]/55 bg-[var(--surface-paper)] p-3 text-sm">
+            <div className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-paper)] p-3 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-semibold">{productId ? 'Saved draft' : 'New draft'}</span>
                 <span
@@ -959,36 +959,35 @@ export function ProductForm({
             isActive={activeSection === 'basics'}
             errorCount={sectionErrorCounts.basics}
           >
-            <div className="grid items-start gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
-              <div className="block space-y-2">
-                <Label htmlFor="product-type">Product type</Label>
-                <Select
-                  value={draft.productType}
-                  onValueChange={(value) =>
-                    setDraft((current) => ({
-                      ...current,
-                      productType: value as ProductType
-                    }))
-                  }
-                >
-                  <SelectTrigger id="product-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pdf_pattern">PDF pattern</SelectItem>
-                    <SelectItem value="physical_finished">Physical finished good</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface)]/30 p-3 text-sm">
-                <p className="font-semibold">{productId ? 'Saved draft' : 'New draft'}</p>
-                <p className="mt-1 text-[var(--muted-foreground)]">
-                  {initialProduct?.status
-                    ? `Current status: ${initialProduct.status}`
-                    : 'Save once to unlock media and inventory workflows.'}
-                </p>
-              </div>
-            </div>
+            <label className="grid gap-1.5">
+              <span className="text-sm font-semibold">Product type</span>
+              <Select
+                value={draft.productType}
+                onValueChange={(value) =>
+                  setDraft((current) => ({
+                    ...current,
+                    productType: value as ProductType
+                  }))
+                }
+              >
+                <SelectTrigger id="product-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pdf_pattern">PDF pattern</SelectItem>
+                  <SelectItem value="physical_finished">Physical finished good</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]">
+                <span
+                  aria-hidden="true"
+                  className={`size-1.5 rounded-full ${productId ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`}
+                />
+                {productId
+                  ? (initialProduct?.status ?? 'Draft saved')
+                  : 'Save to unlock media and inventory'}
+              </p>
+            </label>
           </EditorFormSection>
 
           <EditorFormSection
@@ -1020,9 +1019,9 @@ export function ProductForm({
                   aria-labelledby={`${locale}-content-tab`}
                   className={localizedPanelClassName}
                 >
-                  <div className="border-b border-[var(--border)]/45 pb-3">
+                  <div className="border-b border-[var(--border)]/60 pb-3.5">
                     <h3 className="text-[0.95rem] font-semibold">{label} content</h3>
-                    <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                    <p className="mt-1 text-sm leading-relaxed text-[var(--muted-foreground)]">
                       Product-facing copy and specification notes for this locale.
                     </p>
                   </div>
@@ -1093,75 +1092,92 @@ export function ProductForm({
             isActive={activeSection === 'pricing'}
             errorCount={sectionErrorCounts.pricing}
           >
-            <div className="grid gap-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {[
                 {
                   key: 'vn' as const,
                   label: 'Vietnam',
                   currency: 'VND',
+                  currencyLabel: '₫',
                   ready: vnOfferReady
                 },
                 {
                   key: 'intl' as const,
                   label: 'International',
                   currency: 'USD cents',
+                  currencyLabel: '¢',
                   ready: intlOfferReady
                 }
-              ].map((market) => (
-                <div
-                  key={market.key}
-                  className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)]/45 bg-[var(--surface)]/25 p-2.5"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{market.label}</p>
-                      <p className="text-sm text-[var(--muted-foreground)]">{market.currency}</p>
+              ].map((market) => {
+                const enabled = draft.offers[market.key].enabled;
+                return (
+                  <div
+                    key={market.key}
+                    className={`grid gap-3.5 rounded-[var(--radius-control)] border p-3.5 transition-colors ${
+                      enabled
+                        ? 'border-[var(--accent)]/30 bg-[var(--surface-blush)]/30'
+                        : 'border-[var(--border)]/80 bg-[var(--surface)]/40'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <p className="text-sm font-semibold">{market.label}</p>
+                        <span className="text-xs text-[var(--muted-foreground)]">{market.currency}</span>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold ${readinessTone(market.ready)}`}
+                      >
+                        {market.ready ? 'Ready' : 'Needs price'}
+                      </span>
                     </div>
-                    <span
-                      className={`shrink-0 rounded-[var(--radius-control)] px-2 py-1 text-xs font-semibold ${readinessTone(market.ready)}`}
-                    >
-                      {market.ready ? 'Ready' : 'Needs price'}
-                    </span>
-                  </div>
-                  <div className="grid items-start gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
                     <Toggle
-                      pressed={draft.offers[market.key].enabled}
+                      pressed={enabled}
                       onPressedChange={(pressed) => updateOffer(market.key, 'enabled', pressed)}
                       aria-label={`${market.label} market enabled`}
-                      className="min-h-11 justify-self-start border border-[var(--border)] px-3 text-sm data-[state=on]:border-[var(--accent)] data-[state=on]:bg-[var(--accent)] data-[state=on]:text-white"
+                      className={`h-9 w-full justify-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-sm transition-colors ${
+                        enabled
+                          ? 'border-[var(--accent)] bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]'
+                          : 'border-[var(--border)] bg-[var(--surface-paper)] text-[var(--muted-foreground)] hover:border-[var(--accent)]/50 hover:text-[var(--foreground)]'
+                      }`}
                     >
                       <Check
                         aria-hidden="true"
-                        className={`mr-2 size-4 ${
-                          draft.offers[market.key].enabled ? 'opacity-100' : 'opacity-0'
-                        }`}
+                        className={`size-3.5 ${enabled ? 'opacity-100' : 'opacity-0'}`}
                       />
-                      {draft.offers[market.key].enabled ? 'Enabled' : 'Enable'}
+                      {enabled ? 'Enabled' : 'Enable market'}
                     </Toggle>
                     <label className="grid gap-1.5">
-                      <span className="text-sm font-semibold">Price</span>
-                      <Input
-                        id={fieldDomId(`offers.${market.key}.priceMinor`)}
-                        aria-label={`${market.label} price in ${market.currency}`}
-                        type="number"
-                        min="0"
-                        aria-invalid={Boolean(fieldErrors[`offers.${market.key}.priceMinor`])}
-                        aria-describedby={
-                          fieldErrors[`offers.${market.key}.priceMinor`]
-                            ? `${fieldDomId(`offers.${market.key}.priceMinor`)}-error`
-                            : undefined
-                        }
-                        className={invalidFieldClass(`offers.${market.key}.priceMinor`, 'min-h-11')}
-                        value={draft.offers[market.key].priceMinor ?? ''}
-                        onChange={(event) =>
-                          updateOffer(market.key, 'priceMinor', numberOrNull(event.target.value))
-                        }
-                      />
+                      <span className="text-xs font-semibold text-[var(--muted-foreground)]">
+                        Price ({market.currency})
+                      </span>
+                      <div className="relative">
+                        <Input
+                          id={fieldDomId(`offers.${market.key}.priceMinor`)}
+                          aria-label={`${market.label} price in ${market.currency}`}
+                          type="number"
+                          min="0"
+                          aria-invalid={Boolean(fieldErrors[`offers.${market.key}.priceMinor`])}
+                          aria-describedby={
+                            fieldErrors[`offers.${market.key}.priceMinor`]
+                              ? `${fieldDomId(`offers.${market.key}.priceMinor`)}-error`
+                              : undefined
+                          }
+                          className={invalidFieldClass(`offers.${market.key}.priceMinor`, 'h-9 pr-8')}
+                          placeholder="0"
+                          value={draft.offers[market.key].priceMinor ?? ''}
+                          onChange={(event) =>
+                            updateOffer(market.key, 'priceMinor', numberOrNull(event.target.value))
+                          }
+                        />
+                        <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-xs font-semibold text-[var(--muted-foreground)]">
+                          {market.currencyLabel}
+                        </span>
+                      </div>
                       <FieldError path={`offers.${market.key}.priceMinor`} errors={fieldErrors} />
                     </label>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </EditorFormSection>
 
@@ -1173,7 +1189,7 @@ export function ProductForm({
             isActive={activeSection === 'taxonomy'}
             errorCount={sectionErrorCounts.taxonomy}
           >
-            <div className="grid gap-2.5 xl:grid-cols-2">
+            <div className="grid gap-5 sm:grid-cols-3">
               <OptionMultiSelect
                 label="Categories"
                 options={categories}
@@ -1190,16 +1206,14 @@ export function ProductForm({
                   setDraft((current) => ({ ...current, techniqueIds: nextIds }))
                 }
               />
-              <div className="xl:col-span-2">
-                <OptionMultiSelect
-                  label="Tags"
-                  options={tags}
-                  selectedIds={draft.tagIds}
-                  onChange={(nextIds) => setDraft((current) => ({ ...current, tagIds: nextIds }))}
-                />
-              </div>
+              <OptionMultiSelect
+                label="Tags"
+                options={tags}
+                selectedIds={draft.tagIds}
+                onChange={(nextIds) => setDraft((current) => ({ ...current, tagIds: nextIds }))}
+              />
             </div>
-            <div className="grid gap-2.5 border-t border-[var(--border)]/40 pt-3">
+            <div className="grid gap-3 border-t border-[var(--border)]/60 pt-5">
               <OptionMultiSelect
                 label="Collections"
                 options={collections}
@@ -1207,21 +1221,21 @@ export function ProductForm({
                 onChange={updateCollectionIds}
               />
               {draft.collections.length ? (
-                <div className="grid gap-2">
-                  <p className="text-sm font-semibold">Collection display order</p>
+                <div className="grid gap-1.5">
+                  <span className="text-xs font-semibold text-[var(--muted-foreground)]">Display order</span>
                   {draft.collections.map((collection) => {
                     const option = collections.find((item) => item.id === collection.collectionId);
                     return (
                       <label
                         key={collection.collectionId}
-                        className="grid items-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface)]/30 p-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+                        className="flex items-center gap-3 rounded-[var(--radius-control)] px-2.5 py-1.5 transition-colors hover:bg-[var(--surface-muted)]/40"
                       >
-                        <span className="font-semibold">{option?.label ?? 'Collection'}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm">{option?.label ?? 'Collection'}</span>
                         <Input
                           aria-label={`${option?.label ?? 'Collection'} display order`}
                           type="number"
                           min="0"
-                          className="min-h-11"
+                          className="h-8 w-20 shrink-0 text-center text-sm"
                           value={selectedCollections.get(collection.collectionId) ?? 0}
                           onChange={(event) =>
                             updateCollectionOrder(collection.collectionId, Number(event.target.value))
@@ -1264,10 +1278,10 @@ export function ProductForm({
                   aria-labelledby={`${locale}-seo-tab`}
                   className={localizedPanelClassName}
                 >
-                  <div className="grid gap-3 border-b border-[var(--border)]/45 pb-3">
+                  <div className="grid gap-3 border-b border-[var(--border)]/60 pb-4">
                     <div>
                       <h3 className="text-[0.95rem] font-semibold">{label} search preview</h3>
-                      <p className="mt-1 max-w-xl text-sm text-[var(--muted-foreground)]">
+                      <p className="mt-1 max-w-xl text-sm leading-relaxed text-[var(--muted-foreground)]">
                         Prepare the localized URL and search result without retyping product copy.
                       </p>
                     </div>
@@ -1360,56 +1374,39 @@ export function ProductForm({
             isActive={activeSection === 'publish'}
             errorCount={sectionErrorCounts.publish}
           >
-            <div className="grid gap-4 text-sm">
+            <div className="grid gap-5 text-sm">
               <FieldError path="productId" errors={fieldErrors} />
               <div className="grid gap-3">
-                <p className="text-[var(--muted-foreground)]">
+                <p className="leading-relaxed text-[var(--muted-foreground)]">
                   Use this checkpoint before publishing. Media, private PDF, and inventory stay in
                   their dedicated workflows so the main editor remains fast.
                 </p>
-                <div className="grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,7rem),1fr))]">
-                  <span
-                    className={`flex min-w-0 items-start gap-2 rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs font-semibold leading-5 ${readinessTone(viReady)}`}
-                  >
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    { label: 'Vietnamese content', ready: viReady, readyText: 'ready', pendingText: 'needs review' },
+                    { label: 'English content', ready: enReady, readyText: 'ready', pendingText: 'needs review' },
+                    { label: 'Vietnam offer', ready: vnOfferReady, readyText: 'ready', pendingText: 'off or missing price' },
+                    { label: 'International offer', ready: intlOfferReady, readyText: 'ready', pendingText: 'off or missing price' }
+                  ].map((item) => (
                     <span
-                      aria-hidden="true"
-                      className={`mt-1.5 size-1.5 shrink-0 rounded-full ${viReady ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`}
-                    />
-                    <span>Vietnamese content {viReady ? 'ready' : 'needs review'}</span>
-                  </span>
-                  <span
-                    className={`flex min-w-0 items-start gap-2 rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs font-semibold leading-5 ${readinessTone(enReady)}`}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`mt-1.5 size-1.5 shrink-0 rounded-full ${enReady ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`}
-                    />
-                    <span>English content {enReady ? 'ready' : 'needs review'}</span>
-                  </span>
-                  <span
-                    className={`flex min-w-0 items-start gap-2 rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs font-semibold leading-5 ${readinessTone(vnOfferReady)}`}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`mt-1.5 size-1.5 shrink-0 rounded-full ${vnOfferReady ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`}
-                    />
-                    <span>Vietnam offer {vnOfferReady ? 'ready' : 'off or missing price'}</span>
-                  </span>
-                  <span
-                    className={`flex min-w-0 items-start gap-2 rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs font-semibold leading-5 ${readinessTone(intlOfferReady)}`}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`mt-1.5 size-1.5 shrink-0 rounded-full ${intlOfferReady ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`}
-                    />
-                    <span>
-                      International offer {intlOfferReady ? 'ready' : 'off or missing price'}
+                      key={item.label}
+                      className={`flex items-center gap-2.5 rounded-[var(--radius-control)] border px-3 py-2.5 text-xs font-semibold leading-5 ${
+                        item.ready
+                          ? 'border-[var(--success)]/20 bg-[var(--success-surface)] text-[var(--success)]'
+                          : 'border-[var(--warning)]/20 bg-[var(--warning-surface)] text-[var(--warning)]'
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`size-2 shrink-0 rounded-full ${item.ready ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`}
+                      />
+                      <span>{item.label} {item.ready ? item.readyText : item.pendingText}</span>
                     </span>
-                  </span>
+                  ))}
                 </div>
               </div>
               {canAssignShipping && shippingAssignment ? (
-                <div className="border-t border-[var(--border)]/45 pt-4">
+                <div className="border-t border-[var(--border)]/60 pt-4">
                   <ShippingAssignmentSheet
                     owner={{ type: 'product', productId: productId as string }}
                     profiles={shippingProfiles}
@@ -1422,25 +1419,29 @@ export function ProductForm({
                   />
                 </div>
               ) : draft.productType === 'physical_finished' && !productId ? (
-                <div className="border-t border-[var(--border)]/45 pt-4">
-                  <div className="rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface)]/30 p-3 text-sm text-[var(--muted-foreground)]">
+                <div className="border-t border-[var(--border)]/60 pt-4">
+                  <div className="rounded-[var(--radius-control)] border border-[var(--border)]/80 bg-[var(--surface)]/50 p-3.5 text-sm text-[var(--muted-foreground)]">
                     Save the product once to choose a parcel profile.
                   </div>
                 </div>
               ) : null}
               {productId ? (
-                <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--border)]/45 pt-4">
+                <div className="grid gap-2 border-t border-[var(--border)]/60 pt-4 sm:grid-cols-2">
                   <Link
-                    className="font-semibold text-[var(--accent)]"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-paper)] px-3 text-sm font-semibold transition-colors hover:border-[var(--accent)]/50 hover:bg-[var(--surface-blush)]/40 hover:text-[var(--accent)]"
                     href={`/admin/catalog/${productId}/media`}
                   >
-                    Manage media and PDF
+                    <ImageIcon aria-hidden="true" className="size-4 text-[var(--muted-foreground)]" />
+                    Media and PDF
+                    <ArrowRight aria-hidden="true" className="ml-auto size-3.5 text-[var(--muted-foreground)]" />
                   </Link>
                   <Link
-                    className="font-semibold text-[var(--accent)]"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-paper)] px-3 text-sm font-semibold transition-colors hover:border-[var(--accent)]/50 hover:bg-[var(--surface-blush)]/40 hover:text-[var(--accent)]"
                     href={`/admin/catalog/${productId}/variants`}
                   >
-                    Manage variants and inventory
+                    <Package aria-hidden="true" className="size-4 text-[var(--muted-foreground)]" />
+                    Variants and inventory
+                    <ArrowRight aria-hidden="true" className="ml-auto size-3.5 text-[var(--muted-foreground)]" />
                   </Link>
                 </div>
               ) : null}
@@ -1449,8 +1450,8 @@ export function ProductForm({
         </div>
 
         <aside className="hidden lg:sticky lg:top-20 lg:block lg:h-[calc(100dvh-6rem)]">
-          <Card className="flex h-full max-h-full flex-col overflow-hidden border-[var(--border)]/60 bg-[var(--surface-paper)]/85 p-0 shadow-none">
-            <div className="border-b border-[var(--border)]/45 bg-transparent px-3.5 py-3">
+          <Card className="flex h-full max-h-full flex-col overflow-hidden border-[var(--border)] bg-[var(--surface-paper)] p-0 shadow-[0_1px_4px_rgba(92,48,26,0.05)]">
+            <div className="border-b border-[var(--border)]/60 bg-[var(--surface)]/30 px-3.5 py-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-[var(--muted-foreground)]">
@@ -1501,22 +1502,26 @@ export function ProductForm({
                 onNavigate={navigateToSection}
               />
 
-              <Separator className="border-[var(--border)]/50" />
+              <Separator className="border-[var(--border)]/60" />
 
-              <div className="flex flex-wrap gap-x-3 gap-y-1.5 px-1 text-xs">
+              <div className="grid gap-1.5">
                 {productId ? (
                   <>
                     <Link
-                      className="font-semibold text-[var(--muted-foreground)] transition-colors hover:text-[var(--accent)]"
+                      className="inline-flex items-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)]/70 bg-[var(--surface-paper)] px-2.5 py-1.5 text-xs font-semibold text-[var(--muted-foreground)] transition-colors hover:border-[var(--accent)]/40 hover:text-[var(--accent)]"
                       href={`/admin/catalog/${productId}/media`}
                     >
+                      <ImageIcon aria-hidden="true" className="size-3.5" />
                       Media and PDF
+                      <ArrowRight aria-hidden="true" className="ml-auto size-3" />
                     </Link>
                     <Link
-                      className="font-semibold text-[var(--muted-foreground)] transition-colors hover:text-[var(--accent)]"
+                      className="inline-flex items-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)]/70 bg-[var(--surface-paper)] px-2.5 py-1.5 text-xs font-semibold text-[var(--muted-foreground)] transition-colors hover:border-[var(--accent)]/40 hover:text-[var(--accent)]"
                       href={`/admin/catalog/${productId}/variants`}
                     >
+                      <Package aria-hidden="true" className="size-3.5" />
                       Variants and inventory
+                      <ArrowRight aria-hidden="true" className="ml-auto size-3" />
                     </Link>
                   </>
                 ) : (
@@ -1526,7 +1531,7 @@ export function ProductForm({
                 )}
               </div>
 
-              <div className="mt-auto grid gap-2 border-t border-[var(--border)]/45 pt-3">
+              <div className="mt-auto grid gap-2 border-t border-[var(--border)]/60 pt-3">
                 <Button
                   type="submit"
                   disabled={isPending}
@@ -1551,7 +1556,7 @@ export function ProductForm({
         </aside>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)]/60 bg-[var(--surface-paper)]/96 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 shadow-[0_-4px_16px_rgba(92,48,26,0.07)] backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--surface-paper)] px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2.5 shadow-[0_-4px_16px_rgba(92,48,26,0.09)] backdrop-blur lg:hidden">
         <div className="mx-auto grid max-w-xl grid-cols-2 gap-2">
           <Button
             type="submit"
