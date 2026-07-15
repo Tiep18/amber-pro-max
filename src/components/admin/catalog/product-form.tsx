@@ -251,14 +251,14 @@ function OptionMultiSelect({
     .slice(0, 8);
 
   return (
-    <div className="grid content-start gap-3 rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface)]/30 p-3">
+    <div className="grid content-start gap-2.5 rounded-[var(--radius-control)] border border-[var(--border)]/45 bg-[var(--surface)]/25 p-2.5 sm:p-3">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-semibold">{label}</span>
         <span className="text-xs font-semibold text-[var(--muted-foreground)]">
           {selected.length} selected
         </span>
       </div>
-      <div className="grid gap-3">
+      <div className="grid gap-2.5">
         <div className="flex min-h-11 flex-wrap items-center gap-2">
           {selected.length ? (
             selected.map((option) => (
@@ -281,12 +281,12 @@ function OptionMultiSelect({
           placeholder={`Search ${label.toLowerCase()}`}
         />
         {available.length ? (
-          <div className="grid gap-1 border-t border-[var(--border)]/45 pt-2">
+          <div className="grid gap-1 border-t border-[var(--border)]/40 pt-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr))]">
             {available.map((option) => (
               <button
                 key={option.id}
                 type="button"
-                className="min-h-11 rounded-[var(--radius-control)] border border-transparent px-3 py-2 text-left text-sm transition-colors hover:border-[var(--border)]/45 hover:bg-[var(--surface-muted)]/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1"
+                className="h-full min-h-11 rounded-[var(--radius-control)] border border-transparent px-2.5 py-2 text-left text-sm leading-5 transition-colors hover:border-[var(--border)]/45 hover:bg-[var(--surface-muted)]/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1"
                 onClick={() => {
                   onChange([...selectedIds, option.id]);
                   setQuery('');
@@ -350,25 +350,20 @@ function LocaleTabs({
   );
 }
 
-const localizedPanelClassName =
-  'grid gap-4 rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface)]/35 p-3.5 sm:p-4';
+const localizedPanelClassName = 'grid gap-3.5';
 const localizedFieldClassName = 'grid gap-1.5';
 
 function FieldError({ path, errors }: { path: string; errors: FieldErrors }) {
   const message = errors[path];
-  return (
-    <div className="min-h-5">
-      {message ? (
-        <p
-          id={`${fieldDomId(path)}-error`}
-          role="alert"
-          className="text-sm leading-5 text-[var(--destructive)]"
-        >
-          {message}
-        </p>
-      ) : null}
-    </div>
-  );
+  return message ? (
+    <p
+      id={`${fieldDomId(path)}-error`}
+      role="alert"
+      className="text-sm leading-5 text-[var(--destructive)]"
+    >
+      {message}
+    </p>
+  ) : null;
 }
 
 function EditorFormSection({
@@ -440,7 +435,7 @@ function EditorFormSection({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-4 p-4">{children}</CardContent>
+        <CardContent className="grid gap-4 p-3 sm:p-4">{children}</CardContent>
       </Card>
     </section>
   );
@@ -1109,52 +1104,56 @@ export function ProductForm({
               ].map((market) => (
                 <div
                   key={market.key}
-                  className="grid items-start gap-3 rounded-[var(--radius-control)] border border-[var(--border)]/50 bg-[var(--surface)]/30 p-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+                  className="grid gap-3 rounded-[var(--radius-control)] border border-[var(--border)]/45 bg-[var(--surface)]/25 p-3"
                 >
-                  <div>
-                    <p className="font-semibold">{market.label}</p>
-                    <p className="text-sm text-[var(--muted-foreground)]">{market.currency}</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{market.label}</p>
+                      <p className="text-sm text-[var(--muted-foreground)]">{market.currency}</p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-[var(--radius-control)] px-2 py-1 text-xs font-semibold ${readinessTone(market.ready)}`}
+                    >
+                      {market.ready ? 'Ready' : 'Needs price'}
+                    </span>
                   </div>
-                  <Toggle
-                    pressed={draft.offers[market.key].enabled}
-                    onPressedChange={(pressed) => updateOffer(market.key, 'enabled', pressed)}
-                    aria-label={`${market.label} market enabled`}
-                    className="min-h-11 justify-self-start border border-[var(--border)] px-3 text-sm data-[state=on]:border-[var(--accent)] data-[state=on]:bg-[var(--accent)] data-[state=on]:text-white"
-                  >
-                    <Check
-                      aria-hidden="true"
-                      className={`mr-2 size-4 ${
-                        draft.offers[market.key].enabled ? 'opacity-100' : 'opacity-0'
-                      }`}
-                    />
-                    {draft.offers[market.key].enabled ? 'Enabled' : 'Enable'}
-                  </Toggle>
-                  <label className="grid gap-1.5">
-                    <span className="text-sm font-semibold">Price</span>
-                    <Input
-                      id={fieldDomId(`offers.${market.key}.priceMinor`)}
-                      aria-label={`${market.label} price in ${market.currency}`}
-                      type="number"
-                      min="0"
-                      aria-invalid={Boolean(fieldErrors[`offers.${market.key}.priceMinor`])}
-                      aria-describedby={
-                        fieldErrors[`offers.${market.key}.priceMinor`]
-                          ? `${fieldDomId(`offers.${market.key}.priceMinor`)}-error`
-                          : undefined
-                      }
-                      className={invalidFieldClass(`offers.${market.key}.priceMinor`, 'min-h-11')}
-                      value={draft.offers[market.key].priceMinor ?? ''}
-                      onChange={(event) =>
-                        updateOffer(market.key, 'priceMinor', numberOrNull(event.target.value))
-                      }
-                    />
-                    <FieldError path={`offers.${market.key}.priceMinor`} errors={fieldErrors} />
-                  </label>
-                  <span
-                    className={`flex min-h-11 items-center rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold ${readinessTone(market.ready)}`}
-                  >
-                    {market.ready ? 'Ready' : 'Needs price'}
-                  </span>
+                  <div className="grid items-start gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
+                    <Toggle
+                      pressed={draft.offers[market.key].enabled}
+                      onPressedChange={(pressed) => updateOffer(market.key, 'enabled', pressed)}
+                      aria-label={`${market.label} market enabled`}
+                      className="min-h-11 justify-self-start border border-[var(--border)] px-3 text-sm data-[state=on]:border-[var(--accent)] data-[state=on]:bg-[var(--accent)] data-[state=on]:text-white"
+                    >
+                      <Check
+                        aria-hidden="true"
+                        className={`mr-2 size-4 ${
+                          draft.offers[market.key].enabled ? 'opacity-100' : 'opacity-0'
+                        }`}
+                      />
+                      {draft.offers[market.key].enabled ? 'Enabled' : 'Enable'}
+                    </Toggle>
+                    <label className="grid gap-1.5">
+                      <span className="text-sm font-semibold">Price</span>
+                      <Input
+                        id={fieldDomId(`offers.${market.key}.priceMinor`)}
+                        aria-label={`${market.label} price in ${market.currency}`}
+                        type="number"
+                        min="0"
+                        aria-invalid={Boolean(fieldErrors[`offers.${market.key}.priceMinor`])}
+                        aria-describedby={
+                          fieldErrors[`offers.${market.key}.priceMinor`]
+                            ? `${fieldDomId(`offers.${market.key}.priceMinor`)}-error`
+                            : undefined
+                        }
+                        className={invalidFieldClass(`offers.${market.key}.priceMinor`, 'min-h-11')}
+                        value={draft.offers[market.key].priceMinor ?? ''}
+                        onChange={(event) =>
+                          updateOffer(market.key, 'priceMinor', numberOrNull(event.target.value))
+                        }
+                      />
+                      <FieldError path={`offers.${market.key}.priceMinor`} errors={fieldErrors} />
+                    </label>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1168,7 +1167,7 @@ export function ProductForm({
             isActive={activeSection === 'taxonomy'}
             errorCount={sectionErrorCounts.taxonomy}
           >
-            <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
+            <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
               <OptionMultiSelect
                 label="Categories"
                 options={categories}
@@ -1192,7 +1191,7 @@ export function ProductForm({
                 onChange={(nextIds) => setDraft((current) => ({ ...current, tagIds: nextIds }))}
               />
             </div>
-            <div className="grid gap-3 border-t border-[var(--border)]/45 pt-4">
+            <div className="grid gap-2.5 border-t border-[var(--border)]/40 pt-3">
               <OptionMultiSelect
                 label="Collections"
                 options={collections}
@@ -1257,18 +1256,18 @@ export function ProductForm({
                   aria-labelledby={`${locale}-seo-tab`}
                   className={localizedPanelClassName}
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)]/45 pb-3">
-                    <div className="min-w-[min(100%,18rem)] flex-1">
+                  <div className="grid gap-3 border-b border-[var(--border)]/45 pb-3">
+                    <div>
                       <h3 className="text-[0.95rem] font-semibold">{label} search preview</h3>
                       <p className="mt-1 max-w-xl text-sm text-[var(--muted-foreground)]">
                         Prepare the localized URL and search result without retyping product copy.
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       <Button
                         type="button"
                         variant="secondary"
-                        className="min-h-11 px-3 text-xs"
+                        className="min-h-11 w-full px-2.5 text-xs"
                         onClick={() => generateSlug(locale)}
                       >
                         Generate slug
@@ -1276,7 +1275,7 @@ export function ProductForm({
                       <Button
                         type="button"
                         variant="secondary"
-                        className="min-h-11 px-3 text-xs"
+                        className="min-h-11 w-full px-2.5 text-xs"
                         onClick={() => copyTitleToSeo(locale)}
                       >
                         Use product title
@@ -1284,7 +1283,7 @@ export function ProductForm({
                       <Button
                         type="button"
                         variant="secondary"
-                        className="min-h-11 px-3 text-xs"
+                        className="col-span-2 min-h-11 w-full px-2.5 text-xs sm:col-span-1"
                         onClick={() => summarizeDescriptionToSeo(locale)}
                       >
                         Use summary
@@ -1360,26 +1359,44 @@ export function ProductForm({
                   Use this checkpoint before publishing. Media, private PDF, and inventory stay in
                   their dedicated workflows so the main editor remains fast.
                 </p>
-                <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr))]">
+                <div className="grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr))]">
                   <span
-                    className={`flex min-h-11 items-center rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(viReady)}`}
+                    className={`flex min-w-0 items-start gap-2 rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs font-semibold leading-5 ${readinessTone(viReady)}`}
                   >
-                    Vietnamese content {viReady ? 'ready' : 'needs review'}
+                    <span
+                      aria-hidden="true"
+                      className={`mt-1.5 size-1.5 shrink-0 rounded-full ${viReady ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`}
+                    />
+                    <span>Vietnamese content {viReady ? 'ready' : 'needs review'}</span>
                   </span>
                   <span
-                    className={`flex min-h-11 items-center rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(enReady)}`}
+                    className={`flex min-w-0 items-start gap-2 rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs font-semibold leading-5 ${readinessTone(enReady)}`}
                   >
-                    English content {enReady ? 'ready' : 'needs review'}
+                    <span
+                      aria-hidden="true"
+                      className={`mt-1.5 size-1.5 shrink-0 rounded-full ${enReady ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`}
+                    />
+                    <span>English content {enReady ? 'ready' : 'needs review'}</span>
                   </span>
                   <span
-                    className={`flex min-h-11 items-center rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(vnOfferReady)}`}
+                    className={`flex min-w-0 items-start gap-2 rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs font-semibold leading-5 ${readinessTone(vnOfferReady)}`}
                   >
-                    Vietnam offer {vnOfferReady ? 'ready' : 'off or missing price'}
+                    <span
+                      aria-hidden="true"
+                      className={`mt-1.5 size-1.5 shrink-0 rounded-full ${vnOfferReady ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`}
+                    />
+                    <span>Vietnam offer {vnOfferReady ? 'ready' : 'off or missing price'}</span>
                   </span>
                   <span
-                    className={`flex min-h-11 items-center rounded-[var(--radius-control)] px-3 py-2 font-semibold ${readinessTone(intlOfferReady)}`}
+                    className={`flex min-w-0 items-start gap-2 rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs font-semibold leading-5 ${readinessTone(intlOfferReady)}`}
                   >
-                    International offer {intlOfferReady ? 'ready' : 'off or missing price'}
+                    <span
+                      aria-hidden="true"
+                      className={`mt-1.5 size-1.5 shrink-0 rounded-full ${intlOfferReady ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`}
+                    />
+                    <span>
+                      International offer {intlOfferReady ? 'ready' : 'off or missing price'}
+                    </span>
                   </span>
                 </div>
               </div>
