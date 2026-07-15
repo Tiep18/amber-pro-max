@@ -112,6 +112,7 @@ export default async function ProductMediaPage({
       <MediaManager
         productId={product.id}
         productType={product.product_type}
+        productStatus={product.status}
         images={images}
         asset={asset}
       />
