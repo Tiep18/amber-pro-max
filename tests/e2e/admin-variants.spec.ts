@@ -154,22 +154,45 @@ async function expectVariantWorkspaceFits(page: Page, width: number, height: num
     const dock = button?.closest('[data-variant-action-dock]');
     const buttonRect = button?.getBoundingClientRect();
     const dockRect = dock?.getBoundingClientRect();
+    const overflowing = Array.from(document.querySelectorAll<HTMLElement>('body *'))
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          tag: element.tagName,
+          className: element.className,
+          text: element.textContent?.trim().slice(0, 80),
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+          width: Math.round(rect.width),
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth
+        };
+      })
+      .filter(
+        (item) =>
+          item.right > document.documentElement.clientWidth + 1 ||
+          item.left < -1 ||
+          item.scrollWidth > item.clientWidth + 1
+      )
+      .slice(0, 12);
     return {
       noDocumentOverflow:
         document.documentElement.scrollWidth <= document.documentElement.clientWidth,
       buttonHeight: buttonRect?.height ?? 0,
       buttonRight: buttonRect?.right ?? Number.POSITIVE_INFINITY,
+      buttonBottom: buttonRect?.bottom ?? Number.POSITIVE_INFINITY,
       dockBottom: dockRect?.bottom ?? Number.POSITIVE_INFINITY,
       dockTop: dockRect?.top ?? Number.NEGATIVE_INFINITY,
       viewportHeight: window.innerHeight,
-      viewportWidth: window.innerWidth
+      viewportWidth: window.innerWidth,
+      overflowing
     };
   });
-  expect(geometry.noDocumentOverflow).toBe(true);
+  expect(geometry.noDocumentOverflow, JSON.stringify(geometry.overflowing, null, 2)).toBe(true);
   expect(geometry.buttonHeight).toBeGreaterThanOrEqual(44);
   expect(geometry.buttonRight).toBeLessThanOrEqual(geometry.viewportWidth);
+  expect(geometry.buttonBottom).toBeLessThanOrEqual(geometry.viewportHeight + 1);
   expect(geometry.dockTop).toBeGreaterThanOrEqual(0);
-  expect(geometry.dockBottom).toBeLessThanOrEqual(geometry.viewportHeight + 1);
 }
 
 test.afterAll(async () => {

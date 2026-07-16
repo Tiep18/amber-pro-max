@@ -1088,7 +1088,7 @@ export function VariantEditor({
                 title="Inventory and merchandising"
                 description="Set sellable stock first, then control list order and the image that represents this option."
               >
-                <div className="grid min-w-0 gap-x-5 gap-y-1 md:grid-cols-2 xl:grid-cols-[minmax(14rem,1.1fr)_minmax(12rem,0.8fr)_minmax(14rem,1fr)]">
+                <div className="grid min-w-0 gap-x-5 gap-y-1 md:grid-cols-2 2xl:grid-cols-[minmax(14rem,1.1fr)_minmax(12rem,0.8fr)_minmax(14rem,1fr)]">
                   <NumericStepper
                     id="variant-quantity-on-hand"
                     label="Quantity on hand"
@@ -1132,7 +1132,7 @@ export function VariantEditor({
                         }));
                     }}
                   />
-                  <div className="md:col-span-2 xl:col-span-1">
+                  <div className="md:col-span-2 2xl:col-span-1">
                     <Field label="Variant image">
                       <div className="relative">
                         <ImageIcon
