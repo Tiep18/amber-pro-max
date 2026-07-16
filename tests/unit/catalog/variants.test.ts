@@ -414,7 +414,7 @@ describe('variant actions', () => {
     const draft: VariantEditorVariant = {
       id: variantId,
       sku: 'BEAR-S',
-      attributes: '{"size":"small"}',
+      attributes: {size: 'small'},
       displayOrder: 1,
       mediaId: null,
       quantityOnHand: 5,

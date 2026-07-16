@@ -10,6 +10,7 @@ import {
 } from '@/components/admin/catalog/variant-editor';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Json } from '@/types/supabase';
+import {normalizeVariantAttributes} from '@/catalog/variant-attributes';
 import { getCatalogShippingAssignmentData } from '../../shipping-assignment-data';
 
 export const dynamic = 'force-dynamic';
@@ -42,12 +43,6 @@ function titleFor(product: ProductRow) {
     product.product_translations[0]?.title ??
     'Untitled product'
   );
-}
-
-function attributesText(attributes: Json) {
-  return attributes && typeof attributes === 'object' && !Array.isArray(attributes)
-    ? JSON.stringify(attributes)
-    : '{}';
 }
 
 export default async function ProductVariantsPage({
@@ -147,7 +142,7 @@ export default async function ProductVariantsPage({
   const variants: VariantEditorVariant[] = variantRows.map((variant) => ({
     id: variant.id,
     sku: variant.sku,
-    attributes: attributesText(variant.attributes),
+    attributes: normalizeVariantAttributes(variant.attributes) ?? {},
     displayOrder: variant.display_order,
     mediaId: variant.media_id,
     quantityOnHand: inventoryByVariant.get(variant.id) ?? 0,
