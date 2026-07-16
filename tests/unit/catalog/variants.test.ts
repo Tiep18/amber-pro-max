@@ -25,6 +25,13 @@ import {
 } from '@/catalog/variant-actions';
 import { resolveEffectiveVariantPrice } from '@/catalog/variant-pricing';
 import {
+  formatMoneyDisplay,
+  formatMoneyInput,
+  parseMoneyText,
+  parseWholeNumberText,
+  stepWholeNumberText
+} from '@/catalog/variant-numeric';
+import {
   attributesToRows,
   canonicalAttributesText,
   normalizeVariantAttributes,
@@ -46,6 +53,75 @@ import {
 const productId = '11111111-1111-4111-8111-111111111111';
 const variantId = '22222222-2222-4222-8222-222222222222';
 const mediaId = '33333333-3333-4333-8333-333333333333';
+
+describe('variant numeric editor values', () => {
+  it.each([
+    ['0', 0, '0'],
+    ['00012', 12, '12'],
+    [' 42 ', 42, '42'],
+    [String(Number.MAX_SAFE_INTEGER), Number.MAX_SAFE_INTEGER, String(Number.MAX_SAFE_INTEGER)]
+  ])('parses whole-number text %j', (text, value, normalized) => {
+    expect(parseWholeNumberText(text)).toEqual({valid: true, value, normalized});
+  });
+
+  it.each(['', ' ', '-1', '+1', '1.5', '1e3', '12px', String(Number.MAX_SAFE_INTEGER + 1)])(
+    'rejects invalid whole-number text %j without coercing it to zero',
+    (text) => {
+      const result = parseWholeNumberText(text, 'a quantity');
+      expect(result.valid).toBe(false);
+      expect(result.value).toBeNull();
+      expect(result.valid ? '' : result.error).toMatch(/Enter|large/);
+    }
+  );
+
+  it('steps from valid text, clamps at zero, recovers invalid text, and respects the safe boundary', () => {
+    expect(stepWholeNumberText('3', -1)).toBe('2');
+    expect(stepWholeNumberText('0', -1)).toBe('0');
+    expect(stepWholeNumberText('', 1)).toBe('1');
+    expect(stepWholeNumberText('not a number', 5)).toBe('5');
+    expect(stepWholeNumberText('5', 10)).toBe('15');
+    expect(stepWholeNumberText(String(Number.MAX_SAFE_INTEGER), 1)).toBe(String(Number.MAX_SAFE_INTEGER));
+  });
+
+  it.each([
+    ['250000', 250000, '250,000'],
+    ['250,000', 250000, '250,000'],
+    ['0', 0, '0']
+  ])('parses VND whole-đồng text %j exactly', (text, value, normalized) => {
+    expect(parseMoneyText(text, 'VND')).toEqual({valid: true, value, normalized});
+  });
+
+  it.each([
+    ['18', 1800, '18.00'],
+    ['18.5', 1850, '18.50'],
+    ['18.50', 1850, '18.50'],
+    ['1,018.05', 101805, '1,018.05'],
+    ['0.01', 1, '0.01']
+  ])('converts USD dollar text %j to exact integer cents', (text, value, normalized) => {
+    expect(parseMoneyText(text, 'USD')).toEqual({valid: true, value, normalized});
+  });
+
+  it.each([
+    ['VND', '-1'],
+    ['VND', '1.5'],
+    ['VND', '1e3'],
+    ['VND', '25,00'],
+    ['USD', '-1'],
+    ['USD', '1e3'],
+    ['USD', '1.005'],
+    ['USD', '1,00.00'],
+    ['USD', '1.2.3']
+  ] as const)('rejects malformed %s money text %j', (currency, text) => {
+    expect(parseMoneyText(text, currency).valid).toBe(false);
+  });
+
+  it('formats persisted minor units for editing and effective-price display', () => {
+    expect(formatMoneyInput('VND', 250000)).toBe('250,000');
+    expect(formatMoneyInput('USD', 1800)).toBe('18.00');
+    expect(formatMoneyDisplay('VND', 250000)).toBe('VND 250,000');
+    expect(formatMoneyDisplay('USD', 1800)).toBe('$18.00');
+  });
+});
 
 function createFromMock() {
   const calls: Array<{ table: string; operation: string; payload?: unknown }> = [];
@@ -422,6 +498,9 @@ describe('variant actions', () => {
 
   it('lets the editor persist a variant through exactly one aggregate action call', async () => {
     const save = vi.fn(async () => ({status: 'success', message: 'Variant saved'} as const));
+    const usdPrice = parseMoneyText('18.50', 'USD');
+    expect(usdPrice.valid).toBe(true);
+    if (!usdPrice.valid) throw new Error('Expected a valid USD editor value');
     const draft: VariantEditorVariant = {
       id: variantId,
       sku: 'BEAR-S',
@@ -431,7 +510,7 @@ describe('variant actions', () => {
       quantityOnHand: 5,
       shippingProfileId: null,
       overrides: [
-        {marketCode: 'intl', enabled: false, currencyCode: 'USD', priceMinor: 900}
+        {marketCode: 'intl', enabled: true, currencyCode: 'USD', priceMinor: usdPrice.value}
       ]
     };
 
@@ -446,7 +525,7 @@ describe('variant actions', () => {
         variantId,
         quantityOnHand: 5,
         overrides: [
-          {marketCode: 'intl', enabled: false, currencyCode: 'USD', priceMinor: 900}
+          {marketCode: 'intl', enabled: true, currencyCode: 'USD', priceMinor: 1850}
         ]
       })
     );

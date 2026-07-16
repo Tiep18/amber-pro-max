@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useRef, useState, type Dispatch, type SetStateAction} from 'react';
 import {
   adjustInventoryAction,
   removeVariantAction,
@@ -14,6 +14,12 @@ import {
   type VariantAttributeRow,
   type VariantAttributes
 } from '@/catalog/variant-attributes';
+import {
+  formatMoneyDisplay,
+  formatMoneyInput,
+  parseMoneyText,
+  parseWholeNumberText
+} from '@/catalog/variant-numeric';
 import {resolveEffectiveVariantPrice, type VariantPriceRow} from '@/catalog/variant-pricing';
 import type {CurrencyCode, MarketCode} from '@/catalog/types';
 import {
@@ -26,6 +32,7 @@ import {Button} from '@/components/ui/button';
 import {ConfirmationDialog} from '@/components/ui/confirmation-dialog';
 import {Input} from '@/components/ui/input';
 import {cn} from '@/lib/utils';
+import {NumericStepper} from './numeric-stepper';
 
 type MediaOption = {id: string; label: string};
 
@@ -40,7 +47,12 @@ export type VariantEditorVariant = {
   shippingProfileId: string | null;
 };
 
-type VariantDraft = Omit<VariantEditorVariant, 'attributes'> & {attributeRows: VariantAttributeRow[]};
+type VariantDraft = Omit<VariantEditorVariant, 'attributes' | 'displayOrder' | 'quantityOnHand'> & {
+  attributeRows: VariantAttributeRow[];
+  displayOrderText: string;
+  quantityOnHandText: string;
+  priceText: Record<MarketCode, string>;
+};
 type MarketMode = 'inherit' | 'custom' | 'unavailable';
 type Operation = {token: number; type: 'save' | 'remove' | 'inventory'; targetId: string};
 type Message = {variant: 'success' | 'warning' | 'destructive'; text: string};
@@ -62,8 +74,8 @@ type VariantEditorProps = {
 };
 
 const markets: Array<{code: MarketCode; label: string; currency: CurrencyCode; help: string}> = [
-  {code: 'vn', label: 'Vietnam', currency: 'VND', help: 'Amount in đồng'},
-  {code: 'intl', label: 'International', currency: 'USD', help: 'Amount in USD cents'}
+  {code: 'vn', label: 'Vietnam', currency: 'VND', help: 'Whole đồng'},
+  {code: 'intl', label: 'International', currency: 'USD', help: 'Dollars, up to 2 decimals'}
 ];
 
 function newVariant(): VariantDraft {
@@ -71,47 +83,80 @@ function newVariant(): VariantDraft {
     id: crypto.randomUUID(),
     sku: '',
     attributeRows: [{id: crypto.randomUUID(), key: '', value: ''}],
-    displayOrder: 0,
+    displayOrderText: '0',
     mediaId: null,
-    quantityOnHand: 0,
+    quantityOnHandText: '0',
     overrides: [],
+    priceText: {vn: '0', intl: '0.00'},
     shippingProfileId: null
   };
 }
 
 function toDraft(variant: VariantEditorVariant): VariantDraft {
-  return {...variant, attributeRows: attributesToRows(variant.attributes)};
+  const priceText: Record<MarketCode, string> = {vn: '0', intl: '0.00'};
+  for (const override of variant.overrides) {
+    if (override.enabled && override.priceMinor !== null) {
+      priceText[override.marketCode] = formatMoneyInput(override.currencyCode, override.priceMinor);
+    }
+  }
+  return {
+    id: variant.id,
+    sku: variant.sku,
+    attributeRows: attributesToRows(variant.attributes),
+    displayOrderText: String(variant.displayOrder),
+    mediaId: variant.mediaId,
+    quantityOnHandText: String(variant.quantityOnHand),
+    overrides: variant.overrides,
+    priceText,
+    shippingProfileId: variant.shippingProfileId
+  };
 }
 
 function toVariant(draft: VariantDraft): VariantEditorVariant | null {
   const result = rowsToVariantAttributes(draft.attributeRows);
-  if (!result.attributes) return null;
+  const displayOrder = parseWholeNumberText(draft.displayOrderText, 'a display order');
+  const quantityOnHand = parseWholeNumberText(draft.quantityOnHandText, 'a quantity on hand');
+  if (!result.attributes || !displayOrder.valid || !quantityOnHand.valid) return null;
+
+  const overrides: VariantPriceRow[] = [];
+  for (const override of draft.overrides) {
+    if (!override.enabled) {
+      overrides.push({...override, priceMinor: 0});
+      continue;
+    }
+    const price = parseMoneyText(draft.priceText[override.marketCode], override.currencyCode);
+    if (!price.valid) return null;
+    overrides.push({...override, priceMinor: price.value});
+  }
   return {
     id: draft.id,
     sku: draft.sku,
     attributes: result.attributes,
-    displayOrder: draft.displayOrder,
+    displayOrder: displayOrder.value,
     mediaId: draft.mediaId,
-    quantityOnHand: draft.quantityOnHand,
-    overrides: draft.overrides,
+    quantityOnHand: quantityOnHand.value,
+    overrides,
     shippingProfileId: draft.shippingProfileId
   };
 }
 
 function canonicalDraft(draft: VariantDraft) {
   const variant = toVariant(draft);
-  if (!variant) return '';
+  if (!variant) {
+    return JSON.stringify({
+      invalid: true,
+      ...draft,
+      activePriceText: draft.overrides
+        .filter((override) => override.enabled)
+        .map((override) => [override.marketCode, draft.priceText[override.marketCode]])
+    });
+  }
   return JSON.stringify({
     ...variant,
     sku: variant.sku.trim(),
     attributes: canonicalAttributesText(variant.attributes),
     overrides: [...variant.overrides].sort((left, right) => left.marketCode.localeCompare(right.marketCode))
   });
-}
-
-function moneyText(currencyCode: CurrencyCode, priceMinor: number) {
-  if (currencyCode === 'VND') return `VND ${new Intl.NumberFormat('en-US').format(priceMinor)}`;
-  return new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(priceMinor / 100);
 }
 
 function resultText(result: VariantActionResult) {
@@ -138,7 +183,7 @@ function marketResult(code: MarketCode, parentOffers: VariantPriceRow[], overrid
   const price = resolveEffectiveVariantPrice({marketCode: code, parentOffers, variantOverrides: overrides});
   if (price.source === 'none') return {text: 'Unavailable', source: 'Variant blocks this market'};
   return {
-    text: moneyText(price.currencyCode, price.priceMinor),
+    text: formatMoneyDisplay(price.currencyCode, price.priceMinor),
     source: price.source === 'variant' ? 'Custom variant price' : 'Inherited from product'
   };
 }
@@ -176,24 +221,48 @@ function MarketEditor({
   market: (typeof markets)[number];
   draft: VariantDraft;
   parentOffers: VariantPriceRow[];
-  onChange: (overrides: VariantPriceRow[]) => void;
+  onChange: Dispatch<SetStateAction<VariantDraft>>;
 }) {
   const mode = marketMode(draft.overrides, market.code);
-  const row = draft.overrides.find((override) => override.marketCode === market.code);
-  const effective = marketResult(market.code, parentOffers, draft.overrides);
+  const price = parseMoneyText(draft.priceText[market.code], market.currency);
+  const priceError = mode === 'custom' && !price.valid ? price.error : undefined;
+  const effective = priceError
+    ? {text: 'Price needs attention', source: 'Fix the price before saving'}
+    : marketResult(market.code, parentOffers, draft.overrides);
+  const inputId = `variant-${market.code}-price`;
+  const errorId = `${inputId}-error`;
 
   function setMode(next: MarketMode) {
-    const rest = draft.overrides.filter((override) => override.marketCode !== market.code);
-    if (next === 'inherit') return onChange(rest);
-    onChange([
-      ...rest,
-      {
-        marketCode: market.code,
-        currencyCode: market.currency,
-        enabled: next === 'custom',
-        priceMinor: next === 'custom' ? (row?.priceMinor ?? 0) : 0
-      }
-    ]);
+    onChange((current) => {
+      const rest = current.overrides.filter((override) => override.marketCode !== market.code);
+      if (next === 'inherit') return {...current, overrides: rest};
+      const currentPrice = parseMoneyText(current.priceText[market.code], market.currency);
+      return {
+        ...current,
+        overrides: [
+          ...rest,
+          {
+            marketCode: market.code,
+            currencyCode: market.currency,
+            enabled: next === 'custom',
+            priceMinor: next === 'custom' && currentPrice.valid ? currentPrice.value : 0
+          }
+        ]
+      };
+    });
+  }
+
+  function setPriceText(next: string) {
+    const parsed = parseMoneyText(next, market.currency);
+    onChange((current) => ({
+      ...current,
+      overrides: parsed.valid
+        ? current.overrides.map((override) =>
+            override.marketCode === market.code ? {...override, priceMinor: parsed.value} : override
+          )
+        : current.overrides,
+      priceText: {...current.priceText, [market.code]: next}
+    }));
   }
 
   return (
@@ -226,28 +295,44 @@ function MarketEditor({
         ))}
       </div>
       {mode === 'custom' ? (
-        <div className="mt-4 max-w-sm">
-          <Field label={`${market.label} price · ${market.help}`}>
+        <div className="mt-4 grid max-w-md gap-1.5">
+          <label htmlFor={inputId} className="text-sm font-medium">
+            {market.label} price · {market.help}
+          </label>
+          <div className="relative min-w-0">
+            {market.currency === 'USD' ? (
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold text-[var(--muted-foreground)]">
+                $
+              </span>
+            ) : null}
             <Input
-              min="0"
-              step="1"
-              type="number"
-              inputMode="numeric"
-              className="tabular-nums"
-              value={row?.priceMinor ?? 0}
-              onChange={(event) =>
-                onChange([
-                  ...draft.overrides.filter((override) => override.marketCode !== market.code),
-                  {
-                    marketCode: market.code,
-                    currencyCode: market.currency,
-                    enabled: true,
-                    priceMinor: Math.max(0, Math.trunc(Number(event.target.value) || 0))
-                  }
-                ])
-              }
+              id={inputId}
+              type="text"
+              inputMode={market.currency === 'USD' ? 'decimal' : 'numeric'}
+              autoComplete="off"
+              className={cn('tabular-nums', market.currency === 'USD' ? 'pl-7 pr-14' : 'pr-16')}
+              value={draft.priceText[market.code]}
+              aria-invalid={Boolean(priceError)}
+              aria-describedby={errorId}
+              onChange={(event) => setPriceText(event.target.value)}
+              onBlur={() => {
+                const parsed = parseMoneyText(draft.priceText[market.code], market.currency);
+                if (parsed.valid) setPriceText(parsed.normalized);
+              }}
             />
-          </Field>
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold tracking-wide text-[var(--muted-foreground)]">
+              {market.currency}
+            </span>
+          </div>
+          <p
+            id={errorId}
+            className={cn(
+              'min-h-5 text-xs leading-5',
+              priceError ? 'text-[var(--destructive)]' : 'text-[var(--muted-foreground)]'
+            )}
+          >
+            {priceError ?? `Saved as ${market.currency === 'VND' ? 'whole đồng' : 'USD cents'} after validation.`}
+          </p>
         </div>
       ) : null}
     </fieldset>
@@ -298,7 +383,7 @@ export function VariantEditor({
   productShippingAssignment
 }: VariantEditorProps) {
   const [mode, setMode] = useState<'product' | 'variant'>(variants.length ? 'variant' : 'product');
-  const [productQuantity, setProductQuantity] = useState(productQuantityOnHand ?? 0);
+  const [productQuantityText, setProductQuantityText] = useState(String(productQuantityOnHand ?? 0));
   const [variantList, setVariantList] = useState(variants);
   const [draft, setDraft] = useState<VariantDraft>(() => (variants[0] ? toDraft(variants[0]) : newVariant()));
   const [baseline, setBaseline] = useState(() => canonicalDraft(variants[0] ? toDraft(variants[0]) : newVariant()));
@@ -311,7 +396,21 @@ export function VariantEditor({
   const savedDraft = variantList.some((variant) => variant.id === draft.id);
   const attributeResult = rowsToVariantAttributes(draft.attributeRows);
   const skuError = draft.sku.trim() ? undefined : 'Enter a SKU.';
-  const isValid = !skuError && Boolean(attributeResult.attributes);
+  const displayOrderResult = parseWholeNumberText(draft.displayOrderText, 'a display order');
+  const quantityResult = parseWholeNumberText(draft.quantityOnHandText, 'a quantity on hand');
+  const displayOrderError = displayOrderResult.valid ? undefined : displayOrderResult.error;
+  const quantityError = quantityResult.valid ? undefined : quantityResult.error;
+  const customPriceInvalid = draft.overrides.some(
+    (override) => override.enabled && !parseMoneyText(draft.priceText[override.marketCode], override.currencyCode).valid
+  );
+  const productQuantityResult = parseWholeNumberText(productQuantityText, 'a product stock quantity');
+  const productQuantityError = productQuantityResult.valid ? undefined : productQuantityResult.error;
+  const isValid =
+    !skuError &&
+    !displayOrderError &&
+    !quantityError &&
+    !customPriceInvalid &&
+    Boolean(attributeResult.attributes);
   const isDirty = canonicalDraft(draft) !== baseline;
   const totalStock = variantList.reduce((sum, variant) => sum + variant.quantityOnHand, 0);
   const unavailableCount = variantList.reduce(
@@ -358,6 +457,20 @@ export function VariantEditor({
   async function saveVariant() {
     const snapshot = toVariant(draft);
     if (!snapshot || !isValid || !isDirty || operation) return;
+    setDraft((current) => ({
+      ...current,
+      displayOrderText: String(snapshot.displayOrder),
+      quantityOnHandText: String(snapshot.quantityOnHand),
+      priceText: snapshot.overrides.reduce<Record<MarketCode, string>>(
+        (texts, override) => ({
+          ...texts,
+          [override.marketCode]: override.enabled
+            ? formatMoneyInput(override.currencyCode, override.priceMinor ?? 0)
+            : texts[override.marketCode]
+        }),
+        current.priceText
+      )
+    }));
     const started = beginOperation('save', snapshot.id);
     try {
       const result = await saveVariantEditorDraft(productId, snapshot);
@@ -391,7 +504,7 @@ export function VariantEditor({
         const remaining = current.filter((variant) => variant.id !== targetId);
         if (!remaining.length) {
           setMode('product');
-          setProductQuantity(0);
+          setProductQuantityText('0');
           const next = newVariant();
           setDraft(next);
           setBaseline(canonicalDraft(next));
@@ -412,10 +525,16 @@ export function VariantEditor({
   }
 
   async function saveProductInventory() {
-    if (operation) return;
+    const quantity = parseWholeNumberText(productQuantityText, 'a product stock quantity');
+    if (operation || !quantity.valid) return;
+    if (quantity.normalized !== productQuantityText) setProductQuantityText(quantity.normalized);
     const started = beginOperation('inventory', productId);
     try {
-      const result = await adjustInventoryAction({ownerType: 'product', productId, quantityOnHand: productQuantity});
+      const result = await adjustInventoryAction({
+        ownerType: 'product',
+        productId,
+        quantityOnHand: quantity.value
+      });
       if (operationToken.current === started.token) {
         setMessage({variant: result.status === 'success' ? 'success' : 'destructive', text: resultText(result)});
       }
@@ -451,12 +570,22 @@ export function VariantEditor({
             <Alert variant="warning" className="mt-4"><AlertTitle>Variant creation unavailable</AlertTitle>Current product stock is {productQuantityOnHand}. Resolve product-level inventory through the existing inventory policy before creating variants; stock is never copied automatically.</Alert>
           )}
           <div className="mt-5 max-w-sm">
-            <Field label="Product stock quantity">
-              <Input min="0" type="number" inputMode="numeric" className="tabular-nums" value={productQuantity} onChange={(event) => setProductQuantity(Math.max(0, Math.trunc(Number(event.target.value) || 0)))} />
-            </Field>
+            <NumericStepper
+              id="product-stock-quantity"
+              label="Product stock quantity"
+              value={productQuantityText}
+              error={productQuantityError}
+              disabled={operation?.type === 'inventory'}
+              quickSteps={[5, 10]}
+              onChange={setProductQuantityText}
+              onBlur={() => {
+                const parsed = parseWholeNumberText(productQuantityText, 'a product stock quantity');
+                if (parsed.valid) setProductQuantityText(parsed.normalized);
+              }}
+            />
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button disabled={Boolean(operation)} onClick={saveProductInventory}>{operation?.type === 'inventory' ? 'Saving inventory…' : 'Save product inventory'}</Button>
+            <Button disabled={Boolean(operation) || !productQuantityResult.valid} onClick={saveProductInventory}>{operation?.type === 'inventory' ? 'Saving inventory…' : 'Save product inventory'}</Button>
             <Button disabled={Boolean(operation) || productQuantityOnHand !== null} variant="secondary" onClick={() => {setMode('variant'); applySelection('new');}}>Use explicit variants</Button>
           </div>
         </section>
@@ -504,7 +633,18 @@ export function VariantEditor({
               <Section title="Basics" description="Identify this option and control how it is ordered and represented.">
                 <div className="grid min-w-0 gap-x-4 sm:grid-cols-2">
                   <Field label="Variant SKU" error={skuError}><Input value={draft.sku} aria-invalid={Boolean(skuError)} onChange={(event) => setDraft((current) => ({...current, sku: event.target.value}))} /></Field>
-                  <Field label="Display order"><Input min="0" type="number" inputMode="numeric" className="tabular-nums" value={draft.displayOrder} onChange={(event) => setDraft((current) => ({...current, displayOrder: Math.max(0, Math.trunc(Number(event.target.value) || 0))}))} /></Field>
+                  <NumericStepper
+                    id="variant-display-order"
+                    label="Variant display order"
+                    value={draft.displayOrderText}
+                    error={displayOrderError}
+                    disabled={Boolean(operation)}
+                    onChange={(value) => setDraft((current) => ({...current, displayOrderText: value}))}
+                    onBlur={() => {
+                      const parsed = parseWholeNumberText(draft.displayOrderText, 'a display order');
+                      if (parsed.valid) setDraft((current) => ({...current, displayOrderText: parsed.normalized}));
+                    }}
+                  />
                   <div className="sm:col-span-2"><Field label="Variant image"><select className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/30" value={draft.mediaId ?? ''} onChange={(event) => setDraft((current) => ({...current, mediaId: event.target.value || null}))}><option value="">No variant image</option>{mediaOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select></Field></div>
                 </div>
               </Section>
@@ -525,11 +665,25 @@ export function VariantEditor({
               </Section>
 
               <Section title="Inventory" description="Variant stock remains separate from product stock and is never inferred or copied.">
-                <div className="max-w-sm"><Field label="Quantity on hand"><Input min="0" type="number" inputMode="numeric" className="tabular-nums" value={draft.quantityOnHand} onChange={(event) => setDraft((current) => ({...current, quantityOnHand: Math.max(0, Math.trunc(Number(event.target.value) || 0))}))} /></Field></div>
+                <div className="max-w-sm">
+                  <NumericStepper
+                    id="variant-quantity-on-hand"
+                    label="Quantity on hand"
+                    value={draft.quantityOnHandText}
+                    error={quantityError}
+                    disabled={Boolean(operation)}
+                    quickSteps={[5, 10]}
+                    onChange={(value) => setDraft((current) => ({...current, quantityOnHandText: value}))}
+                    onBlur={() => {
+                      const parsed = parseWholeNumberText(draft.quantityOnHandText, 'a quantity on hand');
+                      if (parsed.valid) setDraft((current) => ({...current, quantityOnHandText: parsed.normalized}));
+                    }}
+                  />
+                </div>
               </Section>
 
               <Section title="Market availability and pricing" description="Choose inheritance, a custom price, or an explicit market block independently for each market.">
-                <div className="grid min-w-0 gap-3">{markets.map((market) => <MarketEditor key={market.code} market={market} draft={draft} parentOffers={parentOffers} onChange={(overrides) => setDraft((current) => ({...current, overrides}))} />)}</div>
+                <div className="grid min-w-0 gap-3">{markets.map((market) => <MarketEditor key={market.code} market={market} draft={draft} parentOffers={parentOffers} onChange={setDraft} />)}</div>
               </Section>
 
               <Section title="Parcel profile" description="A variant override wins; otherwise this variant inherits the product assignment, then the store default.">

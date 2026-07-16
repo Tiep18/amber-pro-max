@@ -11,7 +11,7 @@ const serviceHeaders = {
   'Content-Type': 'application/json'
 };
 
-test.describe.configure({mode: 'serial'});
+test.describe.configure({mode: 'serial', timeout: 60_000});
 
 const createdUserIds: string[] = [];
 const createdProductIds: string[] = [];
@@ -118,8 +118,11 @@ async function signIn(page: Page, user: {email: string; password: string}) {
   await page.getByLabel('Email').fill(user.email);
   await page.getByLabel('Password').fill(user.password);
   await page.getByRole('button', {name: 'Sign in'}).click();
-  await expect(page).toHaveURL(/\/admin\/catalog$/);
-  await expect(page.getByRole('heading', {name: 'Products', exact: true})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Signed in'})).toBeVisible();
+  await expect(async () => {
+    await page.goto('/admin/catalog');
+    await expect(page.getByRole('heading', {name: 'Products', exact: true})).toBeVisible();
+  }).toPass({timeout: 30_000});
 }
 
 async function rows<T>(path: string) {
@@ -158,10 +161,21 @@ test('admin edits product-level inventory for a physical product without variant
     await expect(page.getByRole('heading', {name: 'Variants and inventory'})).toBeVisible();
   }).toPass({timeout: 15_000});
   await expect(page.getByRole('heading', {name: 'Product inventory'})).toBeVisible();
-  await expect(page.getByLabel('Product stock quantity')).toBeVisible();
-  await expect(page.getByLabel('Variant stock quantity')).toHaveCount(0);
+  const productStock = page.getByRole('spinbutton', {name: 'Product stock quantity', exact: true});
+  await expect(productStock).toBeVisible();
+  await expect(page.getByRole('spinbutton', {name: 'Quantity on hand', exact: true})).toHaveCount(0);
 
-  await page.getByLabel('Product stock quantity').fill('4');
+  await productStock.fill('');
+  await expect(productStock).toHaveValue('');
+  await expect(page.getByText('Enter a product stock quantity.')).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Save product inventory'})).toBeDisabled();
+  await page.getByRole('button', {name: 'Increase Product stock quantity by 1', exact: true}).click();
+  await expect(productStock).toHaveValue('1');
+  await productStock.fill('0');
+  await expect(page.getByRole('button', {name: 'Decrease Product stock quantity by 1'})).toBeDisabled();
+  await productStock.press('ArrowUp');
+  await expect(productStock).toHaveValue('1');
+  await productStock.fill('4');
   await page.getByRole('button', {name: 'Save product inventory'}).click();
   await expect(page.getByText('Inventory saved')).toBeVisible();
   await page.reload();
@@ -187,21 +201,61 @@ test('admin creates, reorders, edits, removes variants, and manages variant stoc
   await page.getByRole('button', {name: 'Add attribute'}).click();
   await page.getByLabel('Attribute 2 name').fill('color');
   await page.getByLabel('Attribute 2 value').fill('brown');
-  await page.getByLabel('Variant display order').fill('2');
+  const displayOrder = page.getByRole('spinbutton', {name: 'Variant display order', exact: true});
+  const quantityOnHand = page.getByRole('spinbutton', {name: 'Quantity on hand', exact: true});
+  await displayOrder.fill('');
+  await expect(page.getByText('Enter a display order.')).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Save variant'})).toBeDisabled();
+  await page.getByRole('button', {name: 'Increase Variant display order by 1'}).click();
+  await expect(displayOrder).toHaveValue('1');
+  await displayOrder.press('ArrowUp');
+  await expect(displayOrder).toHaveValue('2');
+  await displayOrder.fill('2');
   await page.getByLabel('Variant image').selectOption(product.mediaId);
-  await page.getByLabel('Quantity on hand').fill('3');
+  await expect(page.getByRole('button', {name: 'Decrease Quantity on hand by 1'})).toBeDisabled();
+  await page.getByRole('button', {name: 'Increase Quantity on hand by 1', exact: true}).click();
+  await page.getByRole('button', {name: 'Increase Quantity on hand by 5'}).click();
+  await expect(quantityOnHand).toHaveValue('6');
+  await quantityOnHand.fill('3');
   await expect(page.getByText('VND 250,000')).toBeVisible();
   await expect(page.getByText('$18.00')).toBeVisible();
 
   const vietnam = page.getByRole('group', {name: 'Vietnam availability and pricing'});
   const international = page.getByRole('group', {name: 'International availability and pricing'});
   await vietnam.getByRole('radio', {name: 'Custom price'}).click();
-  await page.getByLabel('Vietnam price · Amount in đồng').fill('275000');
-  await international.getByRole('radio', {name: 'Unavailable'}).click();
+  await page.getByLabel('Vietnam price · Whole đồng').fill('275,000');
+  await page.getByLabel('Vietnam price · Whole đồng').blur();
+  await expect(page.getByLabel('Vietnam price · Whole đồng')).toHaveValue('275,000');
+  await international.getByRole('radio', {name: 'Custom price'}).click();
+  await page.getByLabel('International price · Dollars, up to 2 decimals').fill('18.5');
+  await page.getByLabel('International price · Dollars, up to 2 decimals').blur();
+  await expect(page.getByLabel('International price · Dollars, up to 2 decimals')).toHaveValue('18.50');
   await page.getByRole('button', {name: 'Save variant'}).click();
   await expect(page.getByText('Variant saved')).toBeVisible();
   await expect(vietnam.getByText('VND 275,000')).toBeVisible();
-  await expect(international.getByText('Unavailable', {exact: true})).toBeVisible();
+  await expect(international.getByText('$18.50')).toBeVisible();
+
+  const [initialBrownVariant] = await rows<{id: string}>(
+    `product_variants?product_id=eq.${product.id}&sku=eq.BEAR-BROWN-SMALL&select=id`
+  );
+  const initialOverrides = await rows<{
+    market_code: string;
+    enabled: boolean;
+    currency_code: string;
+    price_minor: number;
+  }>(
+    `variant_market_offers?variant_id=eq.${initialBrownVariant.id}&select=market_code,enabled,currency_code,price_minor&order=market_code`
+  );
+  expect(initialOverrides.find((override) => override.market_code === 'intl')).toMatchObject({
+    enabled: true,
+    currency_code: 'USD',
+    price_minor: 1850
+  });
+
+  await international.getByRole('radio', {name: 'Unavailable'}).click();
+  await page.getByRole('button', {name: 'Save variant'}).click();
+  await expect(page.getByText('Variant saved')).toBeVisible();
+  await expect(international.getByRole('radio', {name: 'Unavailable'})).toHaveAttribute('aria-checked', 'true');
 
   await page.getByLabel('Variant SKU').fill('BEAR-BROWN-DIRTY');
   expect(
@@ -224,8 +278,8 @@ test('admin creates, reorders, edits, removes variants, and manages variant stoc
   await page.getByLabel('Variant SKU').fill('BEAR-CREAM-MEDIUM');
   await page.getByLabel('Attribute 1 name').fill('color');
   await page.getByLabel('Attribute 1 value').fill('cream');
-  await page.getByLabel('Variant display order').fill('1');
-  await page.getByLabel('Quantity on hand').fill('5');
+  await displayOrder.fill('1');
+  await quantityOnHand.fill('5');
   await page.getByRole('button', {name: 'Save variant'}).click();
   await expect(page.getByText('Variant saved')).toBeVisible();
   expect(
@@ -241,7 +295,7 @@ test('admin creates, reorders, edits, removes variants, and manages variant stoc
   await page.getByRole('button', {name: 'BEAR-BROWN-SMALL'}).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('button', {name: 'BEAR-BROWN-SMALL'})).toHaveAttribute('aria-pressed', 'true');
-  await page.getByLabel('Variant display order').fill('0');
+  await displayOrder.fill('0');
   await page.getByRole('button', {name: 'Save variant'}).click();
   await expect(page.getByText('Variant saved')).toBeVisible();
 
@@ -267,7 +321,25 @@ test('admin creates, reorders, edits, removes variants, and manages variant stoc
     {market_code: 'vn', enabled: true, currency_code: 'VND', price_minor: 275000}
   ]);
 
-  await expect(page.getByLabel('Product stock quantity')).toHaveCount(0);
+  await page.setViewportSize({width: 375, height: 812});
+  await quantityOnHand.press('ArrowUp');
+  await expect(quantityOnHand).toHaveValue('4');
+  await quantityOnHand.press('ArrowDown');
+  await international.getByRole('radio', {name: 'Custom price'}).click();
+  const mobileUsdPrice = page.getByLabel('International price · Dollars, up to 2 decimals');
+  await mobileUsdPrice.fill('');
+  await expect(mobileUsdPrice).toBeFocused();
+  await expect(page.getByText('Enter the price in dollars.')).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Save variant'})).toBeDisabled();
+  await mobileUsdPrice.fill('18.5');
+  await mobileUsdPrice.blur();
+  await expect(mobileUsdPrice).toHaveValue('18.50');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.getByRole('button', {name: 'Reset'}).click();
+  await expect(international.getByRole('radio', {name: 'Unavailable'})).toHaveAttribute('aria-checked', 'true');
+  await page.setViewportSize({width: 1280, height: 900});
+
+  await expect(page.getByRole('spinbutton', {name: 'Product stock quantity', exact: true})).toHaveCount(0);
   await page.getByRole('button', {name: 'Remove', exact: true}).click();
   await expect(page.getByRole('heading', {name: 'Remove BEAR-BROWN-SMALL?'})).toBeVisible();
   await page.getByRole('button', {name: 'Remove variant'}).click();
@@ -277,7 +349,7 @@ test('admin creates, reorders, edits, removes variants, and manages variant stoc
   await page.getByRole('button', {name: 'Remove variant'}).click();
   await expect(page.getByText('Variant removed')).toBeVisible();
   await expect(page.getByRole('heading', {name: 'Product inventory'})).toBeVisible();
-  await expect(page.getByLabel('Product stock quantity')).toHaveValue('0');
+  await expect(page.getByRole('spinbutton', {name: 'Product stock quantity', exact: true})).toHaveValue('0');
 
   await page.setViewportSize({width: 375, height: 812});
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
