@@ -203,7 +203,24 @@ test('admin creates, reorders, edits, removes variants, and manages variant stoc
   await expect(vietnam.getByText('VND 275,000')).toBeVisible();
   await expect(international.getByText('Unavailable', {exact: true})).toBeVisible();
 
+  await page.getByLabel('Variant SKU').fill('BEAR-BROWN-DIRTY');
+  expect(
+    await page.evaluate(() => {
+      const event = new Event('beforeunload', {cancelable: true});
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    })
+  ).toBe(true);
   await page.getByRole('button', {name: '+ New variant'}).click();
+  await expect(page.getByRole('heading', {name: 'Discard unsaved changes?'})).toBeVisible();
+  await page.getByRole('button', {name: 'Cancel'}).click();
+  await expect(page.getByLabel('Variant SKU')).toHaveValue('BEAR-BROWN-DIRTY');
+  await page.getByRole('button', {name: '+ New variant'}).click();
+  await page.getByRole('button', {name: 'Discard changes'}).click();
+  await expect(page.getByText('Enter a SKU.')).toBeVisible();
+  await expect(page.getByText('Enter an attribute name.')).toBeVisible();
+  await expect(page.getByText('Enter an attribute value.')).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Save variant'})).toBeDisabled();
   await page.getByLabel('Variant SKU').fill('BEAR-CREAM-MEDIUM');
   await page.getByLabel('Attribute 1 name').fill('color');
   await page.getByLabel('Attribute 1 value').fill('cream');
@@ -211,10 +228,19 @@ test('admin creates, reorders, edits, removes variants, and manages variant stoc
   await page.getByLabel('Quantity on hand').fill('5');
   await page.getByRole('button', {name: 'Save variant'}).click();
   await expect(page.getByText('Variant saved')).toBeVisible();
+  expect(
+    await page.evaluate(() => {
+      const event = new Event('beforeunload', {cancelable: true});
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    })
+  ).toBe(false);
   await expect(page.getByRole('button', {name: 'BEAR-BROWN-SMALL'})).toBeVisible();
   await expect(page.getByRole('button', {name: 'BEAR-CREAM-MEDIUM'})).toBeVisible();
 
-  await page.getByRole('button', {name: 'BEAR-BROWN-SMALL'}).click();
+  await page.getByRole('button', {name: 'BEAR-BROWN-SMALL'}).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', {name: 'BEAR-BROWN-SMALL'})).toHaveAttribute('aria-pressed', 'true');
   await page.getByLabel('Variant display order').fill('0');
   await page.getByRole('button', {name: 'Save variant'}).click();
   await expect(page.getByText('Variant saved')).toBeVisible();
@@ -246,4 +272,13 @@ test('admin creates, reorders, edits, removes variants, and manages variant stoc
   await expect(page.getByRole('heading', {name: 'Remove BEAR-BROWN-SMALL?'})).toBeVisible();
   await page.getByRole('button', {name: 'Remove variant'}).click();
   await expect(page.getByText('Variant removed')).toBeVisible();
+
+  await page.getByRole('button', {name: 'Remove', exact: true}).click();
+  await page.getByRole('button', {name: 'Remove variant'}).click();
+  await expect(page.getByText('Variant removed')).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Product inventory'})).toBeVisible();
+  await expect(page.getByLabel('Product stock quantity')).toHaveValue('0');
+
+  await page.setViewportSize({width: 375, height: 812});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
