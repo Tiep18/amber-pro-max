@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(29);
+select plan(34);
 
 select has_function(
   'public',
@@ -203,6 +203,54 @@ select set_config('request.jwt.claim.sub', '02100000-0000-4000-8000-000000000002
 select throws_ok(
   $call$
     select public.admin_save_catalog_variant(
+      '{"product_id":"02100000-0000-4000-8000-000000000010","variant_id":"02100000-0000-4000-8000-000000000028","sku":"SPACE-KEY","attributes":{" size":"small"},"display_order":8,"media_id":null,"quantity_on_hand":1,"overrides":[]}'::jsonb
+    )
+  $call$,
+  'P2004',
+  'variant attributes must be a canonical non-empty string map',
+  'attribute keys with leading or trailing whitespace are rejected'
+);
+
+select throws_ok(
+  $call$
+    select public.admin_save_catalog_variant(
+      '{"product_id":"02100000-0000-4000-8000-000000000010","variant_id":"02100000-0000-4000-8000-000000000028","sku":"SPACE-VALUE","attributes":{"size":" small "},"display_order":8,"media_id":null,"quantity_on_hand":1,"overrides":[]}'::jsonb
+    )
+  $call$,
+  'P2004',
+  'variant attributes must be a canonical non-empty string map',
+  'attribute values with leading or trailing whitespace are rejected'
+);
+
+select throws_ok(
+  $call$
+    select public.admin_save_catalog_variant(
+      '{"product_id":"02100000-0000-4000-8000-000000000010","variant_id":"02100000-0000-4000-8000-000000000028","sku":"TRIM-COLLISION","attributes":{"size":"small"," size ":"large"},"display_order":8,"media_id":null,"quantity_on_hand":1,"overrides":[]}'::jsonb
+    )
+  $call$,
+  'P2004',
+  'variant attributes must be a canonical non-empty string map',
+  'attribute keys that collide after trimming are rejected'
+);
+
+select lives_ok(
+  $call$
+    select public.admin_save_catalog_variant(
+      '{"product_id":"02100000-0000-4000-8000-000000000010","variant_id":"02100000-0000-4000-8000-000000000028","sku":"CANONICAL-ATTRIBUTES","attributes":{"color":"brown","size":"small"},"display_order":8,"media_id":null,"quantity_on_hand":1,"overrides":[]}'::jsonb
+    )
+  $call$,
+  'canonical attribute records remain accepted'
+);
+
+select is(
+  (select attributes from public.product_variants where id = '02100000-0000-4000-8000-000000000028'),
+  '{"color":"brown","size":"small"}'::jsonb,
+  'canonical attributes persist without transformation'
+);
+
+select throws_ok(
+  $call$
+    select public.admin_save_catalog_variant(
       '{
         "product_id":"02100000-0000-4000-8000-000000000010",
         "variant_id":"02100000-0000-4000-8000-000000000026",
@@ -216,7 +264,7 @@ select throws_ok(
     )
   $call$,
   'P2004',
-  'variant attributes must be a non-empty string map',
+  'variant attributes must be a canonical non-empty string map',
   'numeric attribute values are rejected at the aggregate boundary'
 );
 
@@ -236,7 +284,7 @@ select throws_ok(
     )
   $call$,
   'P2004',
-  'variant attributes must be a non-empty string map',
+  'variant attributes must be a canonical non-empty string map',
   'empty attribute objects are rejected at the aggregate boundary'
 );
 
