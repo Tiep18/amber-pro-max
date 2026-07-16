@@ -2,6 +2,7 @@
 
 import {useMemo, useState} from 'react';
 import type {CurrencyCode} from '@/catalog/money';
+import {variantAttributesLabel} from '@/catalog/variant-attributes';
 
 export type PublicVariant = {
   variant_id: string;
@@ -15,8 +16,7 @@ export type PublicVariant = {
 };
 
 function variantLabel(variant: PublicVariant) {
-  const values = Object.values(variant.attributes);
-  return values.length ? values.join(' / ') : variant.sku;
+  return variantAttributesLabel(variant.attributes, variant.sku);
 }
 
 export function VariantSelector({

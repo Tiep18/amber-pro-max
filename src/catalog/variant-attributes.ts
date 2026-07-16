@@ -71,3 +71,8 @@ export function canonicalAttributesText(value: unknown) {
   const attributes = normalizeVariantAttributes(value);
   return attributes ? JSON.stringify(attributes) : '';
 }
+
+export function variantAttributesLabel(value: unknown, fallback: string) {
+  const attributes = normalizeVariantAttributes(value);
+  return attributes ? Object.values(attributes).join(' / ') : fallback;
+}

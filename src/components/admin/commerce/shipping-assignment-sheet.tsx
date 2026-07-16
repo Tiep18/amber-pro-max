@@ -57,7 +57,7 @@ type ShippingAssignmentSheetProps = {
   title?: string;
   description?: string;
   triggerClassName?: string;
-  onSaved?: (snapshot: ShippingAssignmentSnapshot) => void;
+  onSaved?: (snapshot: ShippingAssignmentSnapshot, owner: AssignmentOwner) => void;
 };
 
 function resultMessage(result: ProductShippingProfileResult | VariantShippingProfileResult) {
@@ -129,17 +129,20 @@ export function ShippingAssignmentSheet({
   }
 
   function saveAssignment() {
+    const ownerAtStart = owner;
+    const selectedProfileIdAtStart = selectedProfileId;
+    const selectedPreviewAtStart = selectedPreview;
     setMessage(null);
     startTransition(async () => {
       const result =
-        owner.type === 'product'
+        ownerAtStart.type === 'product'
           ? await saveProductShippingProfileAction({
-              productId: owner.productId,
-              shippingProfileId: selectedProfileId
+              productId: ownerAtStart.productId,
+              shippingProfileId: selectedProfileIdAtStart
             })
           : await saveVariantShippingProfileAction({
-              variantId: owner.variantId,
-              shippingProfileId: selectedProfileId
+              variantId: ownerAtStart.variantId,
+              shippingProfileId: selectedProfileIdAtStart
             });
       const error = resultMessage(result);
       if (error) {
@@ -148,13 +151,13 @@ export function ShippingAssignmentSheet({
       }
 
       const nextSnapshot: ShippingAssignmentSnapshot = {
-        explicitProfileId: selectedProfileId === 'store_default' ? null : selectedProfileId,
-        effectiveProfile: selectedPreview.effectiveProfile,
-        source: selectedPreview.source
+        explicitProfileId: selectedProfileIdAtStart === 'store_default' ? null : selectedProfileIdAtStart,
+        effectiveProfile: selectedPreviewAtStart.effectiveProfile,
+        source: selectedPreviewAtStart.source
       };
       setSnapshot(nextSnapshot);
       setSelectedProfileId(nextSnapshot.explicitProfileId ?? 'store_default');
-      onSaved?.(nextSnapshot);
+      onSaved?.(nextSnapshot, ownerAtStart);
       setOpen(false);
       router.refresh();
     });

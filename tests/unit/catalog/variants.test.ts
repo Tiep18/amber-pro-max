@@ -28,7 +28,8 @@ import {
   attributesToRows,
   canonicalAttributesText,
   normalizeVariantAttributes,
-  rowsToVariantAttributes
+  rowsToVariantAttributes,
+  variantAttributesLabel
 } from '@/catalog/variant-attributes';
 import {
   inventoryAdjustmentSchema,
@@ -36,7 +37,11 @@ import {
   variantDraftSchema,
   variantPriceOverrideSchema
 } from '@/catalog/variant-schemas';
-import {saveVariantEditorDraft, type VariantEditorVariant} from '@/components/admin/catalog/variant-editor';
+import {
+  applyVariantShippingProfile,
+  saveVariantEditorDraft,
+  type VariantEditorVariant
+} from '@/components/admin/catalog/variant-editor';
 
 const productId = '11111111-1111-4111-8111-111111111111';
 const variantId = '22222222-2222-4222-8222-222222222222';
@@ -189,6 +194,12 @@ describe('variant attribute records', () => {
       {id: 'a', key: 'color', value: 'brown'},
       {id: 'b', key: 'size', value: 'small'}
     ]);
+  });
+
+  it('uses canonical key order for storefront, cart, and checkout labels', () => {
+    expect(variantAttributesLabel({size: 'small', color: 'brown'}, 'SKU')).toBe('brown / small');
+    expect(variantAttributesLabel({color: 'brown', size: 'small'}, 'SKU')).toBe('brown / small');
+    expect(variantAttributesLabel({}, 'SKU')).toBe('SKU');
   });
 });
 
@@ -547,6 +558,25 @@ describe('variant actions', () => {
       status: 'error',
       code: 'remove_failed'
     });
+  });
+
+  it('applies a late shipping completion only to its operation-start variant', () => {
+    const first: VariantEditorVariant = {
+      id: variantId,
+      sku: 'BEAR-S',
+      attributes: {size: 'small'},
+      displayOrder: 0,
+      mediaId: null,
+      quantityOnHand: 2,
+      overrides: [],
+      shippingProfileId: null
+    };
+    const second = {...first, id: '44444444-4444-4444-8444-444444444444', sku: 'BEAR-M'};
+
+    expect(applyVariantShippingProfile([first, second], first.id, mediaId)).toEqual([
+      {...first, shippingProfileId: mediaId},
+      second
+    ]);
   });
 
   it('reports a stale exact variant removal as not found', async () => {

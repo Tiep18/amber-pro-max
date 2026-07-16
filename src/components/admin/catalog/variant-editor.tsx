@@ -276,6 +276,16 @@ export async function saveVariantEditorDraft(
   });
 }
 
+export function applyVariantShippingProfile(
+  variants: VariantEditorVariant[],
+  targetId: string,
+  shippingProfileId: string | null
+) {
+  return variants.map((variant) =>
+    variant.id === targetId ? {...variant, shippingProfileId} : variant
+  );
+}
+
 export function VariantEditor({
   productId,
   productType,
@@ -523,7 +533,7 @@ export function VariantEditor({
               </Section>
 
               <Section title="Parcel profile" description="A variant override wins; otherwise this variant inherits the product assignment, then the store default.">
-                {savedDraft ? <ShippingAssignmentSheet owner={{type: 'variant', variantId: draft.id}} profiles={shippingProfiles} explicitProfileId={draft.shippingProfileId} effectiveProfile={draftShippingProfile ?? productShippingAssignment?.effectiveProfile ?? null} effectiveSource={draftShippingProfile ? 'Variant override' : productShippingAssignment?.effectiveSource ?? 'Store default'} inheritedProfile={productShippingAssignment?.effectiveProfile ?? null} inheritedSource={productShippingAssignment?.effectiveSource ?? 'Store default'} title="Variant parcel profile" description="Change only this variant's package type or keep the inherited assignment." onSaved={(snapshot) => {const targetId = draft.id; setDraft((current) => current.id === targetId ? {...current, shippingProfileId: snapshot.explicitProfileId} : current); setVariantList((current) => current.map((variant) => variant.id === targetId ? {...variant, shippingProfileId: snapshot.explicitProfileId} : variant));}} /> : <div className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-4 text-sm text-[var(--muted-foreground)]">Save this variant once before choosing a parcel profile override.</div>}
+                {savedDraft ? <ShippingAssignmentSheet owner={{type: 'variant', variantId: draft.id}} profiles={shippingProfiles} explicitProfileId={draft.shippingProfileId} effectiveProfile={draftShippingProfile ?? productShippingAssignment?.effectiveProfile ?? null} effectiveSource={draftShippingProfile ? 'Variant override' : productShippingAssignment?.effectiveSource ?? 'Store default'} inheritedProfile={productShippingAssignment?.effectiveProfile ?? null} inheritedSource={productShippingAssignment?.effectiveSource ?? 'Store default'} title="Variant parcel profile" description="Change only this variant's package type or keep the inherited assignment." onSaved={(snapshot, savedOwner) => {if (savedOwner.type !== 'variant') return; const targetId = savedOwner.variantId; setDraft((current) => current.id === targetId ? {...current, shippingProfileId: snapshot.explicitProfileId} : current); setVariantList((current) => applyVariantShippingProfile(current, targetId, snapshot.explicitProfileId));}} /> : <div className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-4 text-sm text-[var(--muted-foreground)]">Save this variant once before choosing a parcel profile override.</div>}
               </Section>
 
               <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-3">

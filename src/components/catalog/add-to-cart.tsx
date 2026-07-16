@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {canAddToCart} from '@/catalog/add-to-cart-eligibility';
+import {variantAttributesLabel} from '@/catalog/variant-attributes';
 import {formatMoney, type CurrencyCode} from '@/catalog/money';
 import type {MarketCode} from '@/catalog/market';
 import type {Locale} from '@/i18n/routing';
@@ -39,8 +40,7 @@ function variantLabel(variant: PublicVariant | null) {
   if (!variant) {
     return null;
   }
-  const values = Object.values(variant.attributes);
-  return values.length ? values.join(' / ') : variant.sku;
+  return variantAttributesLabel(variant.attributes, variant.sku);
 }
 
 export function AddToCart({

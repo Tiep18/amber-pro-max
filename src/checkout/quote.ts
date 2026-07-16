@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { CurrencyCode } from '@/catalog/money';
 import { getCatalogProductBySlug, listCatalogProducts } from '@/catalog/queries';
 import type { Json } from '@/types/supabase';
+import {variantAttributesLabel} from '@/catalog/variant-attributes';
 import { cartIntentLineSchema, cartLineKey, type CartIntentLine } from '@/cart/types';
 import {
   validateDiscountCode,
@@ -87,11 +88,6 @@ function stringRecord(value: Json): Record<string, string> {
   );
 }
 
-function variantLabel(attributes: Record<string, string>, sku: string) {
-  const values = Object.values(attributes);
-  return values.length ? values.join(' / ') : sku;
-}
-
 function publicVariants(value: Json): QuoteCatalogVariant[] {
   if (!Array.isArray(value)) {
     return [];
@@ -114,7 +110,7 @@ function publicVariants(value: Json): QuoteCatalogVariant[] {
       {
         variantId: row.variant_id,
         sku: row.sku,
-        label: variantLabel(attributes, row.sku),
+        label: variantAttributesLabel(attributes, row.sku),
         enabled: row.enabled,
         inStock: row.stock,
         availableQuantity:
