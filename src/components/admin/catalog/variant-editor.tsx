@@ -1,6 +1,20 @@
 'use client';
 
-import {useEffect, useRef, useState, type Dispatch, type SetStateAction} from 'react';
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  AlertCircle,
+  Boxes,
+  Check,
+  CircleDot,
+  Globe2,
+  ImageIcon,
+  PackageOpen,
+  Plus,
+  Tag,
+  Trash2,
+  Truck,
+  Warehouse
+} from 'lucide-react';
 import {
   adjustInventoryAction,
   removeVariantAction,
@@ -20,21 +34,21 @@ import {
   parseMoneyText,
   parseWholeNumberText
 } from '@/catalog/variant-numeric';
-import {resolveEffectiveVariantPrice, type VariantPriceRow} from '@/catalog/variant-pricing';
-import type {CurrencyCode, MarketCode} from '@/catalog/types';
+import { resolveEffectiveVariantPrice, type VariantPriceRow } from '@/catalog/variant-pricing';
+import type { CurrencyCode, MarketCode } from '@/catalog/types';
 import {
   ShippingAssignmentSheet,
   type ShippingAssignmentProfile,
   type ShippingProfileOption
 } from '@/components/admin/commerce/shipping-assignment-sheet';
-import {Alert, AlertTitle} from '@/components/ui/alert';
-import {Button} from '@/components/ui/button';
-import {ConfirmationDialog} from '@/components/ui/confirmation-dialog';
-import {Input} from '@/components/ui/input';
-import {cn} from '@/lib/utils';
-import {NumericStepper} from './numeric-stepper';
+import { Alert, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import { NumericStepper } from './numeric-stepper';
 
-type MediaOption = {id: string; label: string};
+type MediaOption = { id: string; label: string };
 
 export type VariantEditorVariant = {
   id: string;
@@ -54,8 +68,8 @@ type VariantDraft = Omit<VariantEditorVariant, 'attributes' | 'displayOrder' | '
   priceText: Record<MarketCode, string>;
 };
 type MarketMode = 'inherit' | 'custom' | 'unavailable';
-type Operation = {token: number; type: 'save' | 'remove' | 'inventory'; targetId: string};
-type Message = {variant: 'success' | 'warning' | 'destructive'; text: string};
+type Operation = { token: number; type: 'save' | 'remove' | 'inventory'; targetId: string };
+type Message = { variant: 'success' | 'warning' | 'destructive'; text: string };
 
 type VariantEditorProps = {
   productId: string;
@@ -73,27 +87,27 @@ type VariantEditorProps = {
   };
 };
 
-const markets: Array<{code: MarketCode; label: string; currency: CurrencyCode; help: string}> = [
-  {code: 'vn', label: 'Vietnam', currency: 'VND', help: 'Whole đồng'},
-  {code: 'intl', label: 'International', currency: 'USD', help: 'Dollars, up to 2 decimals'}
+const markets: Array<{ code: MarketCode; label: string; currency: CurrencyCode; help: string }> = [
+  { code: 'vn', label: 'Vietnam', currency: 'VND', help: 'Whole đồng' },
+  { code: 'intl', label: 'International', currency: 'USD', help: 'Dollars, up to 2 decimals' }
 ];
 
 function newVariant(): VariantDraft {
   return {
     id: crypto.randomUUID(),
     sku: '',
-    attributeRows: [{id: crypto.randomUUID(), key: '', value: ''}],
+    attributeRows: [{ id: crypto.randomUUID(), key: '', value: '' }],
     displayOrderText: '0',
     mediaId: null,
     quantityOnHandText: '0',
     overrides: [],
-    priceText: {vn: '0', intl: '0.00'},
+    priceText: { vn: '0', intl: '0.00' },
     shippingProfileId: null
   };
 }
 
 function toDraft(variant: VariantEditorVariant): VariantDraft {
-  const priceText: Record<MarketCode, string> = {vn: '0', intl: '0.00'};
+  const priceText: Record<MarketCode, string> = { vn: '0', intl: '0.00' };
   for (const override of variant.overrides) {
     if (override.enabled && override.priceMinor !== null) {
       priceText[override.marketCode] = formatMoneyInput(override.currencyCode, override.priceMinor);
@@ -121,12 +135,12 @@ function toVariant(draft: VariantDraft): VariantEditorVariant | null {
   const overrides: VariantPriceRow[] = [];
   for (const override of draft.overrides) {
     if (!override.enabled) {
-      overrides.push({...override, priceMinor: 0});
+      overrides.push({ ...override, priceMinor: 0 });
       continue;
     }
     const price = parseMoneyText(draft.priceText[override.marketCode], override.currencyCode);
     if (!price.valid) return null;
-    overrides.push({...override, priceMinor: price.value});
+    overrides.push({ ...override, priceMinor: price.value });
   }
   return {
     id: draft.id,
@@ -155,7 +169,9 @@ function canonicalDraft(draft: VariantDraft) {
     ...variant,
     sku: variant.sku.trim(),
     attributes: canonicalAttributesText(variant.attributes),
-    overrides: [...variant.overrides].sort((left, right) => left.marketCode.localeCompare(right.marketCode))
+    overrides: [...variant.overrides].sort((left, right) =>
+      left.marketCode.localeCompare(right.marketCode)
+    )
   });
 }
 
@@ -167,7 +183,8 @@ function resultText(result: VariantActionResult) {
     variant_not_found: 'This variant no longer exists. Refresh and try again.',
     not_physical_product: 'Only physical products can use variants and inventory.',
     duplicate_sku: 'That SKU is already in use.',
-    wrong_inventory_owner: 'Product-level stock must be resolved before variants can own inventory.',
+    wrong_inventory_owner:
+      'Product-level stock must be resolved before variants can own inventory.',
     save_failed: 'Variant could not be saved.',
     remove_failed: 'Variant could not be removed.'
   }[result.code];
@@ -179,33 +196,77 @@ function marketMode(overrides: VariantPriceRow[], code: MarketCode): MarketMode 
   return row.enabled ? 'custom' : 'unavailable';
 }
 
-function marketResult(code: MarketCode, parentOffers: VariantPriceRow[], overrides: VariantPriceRow[]) {
-  const price = resolveEffectiveVariantPrice({marketCode: code, parentOffers, variantOverrides: overrides});
-  if (price.source === 'none') return {text: 'Unavailable', source: 'Variant blocks this market'};
+function marketResult(
+  code: MarketCode,
+  parentOffers: VariantPriceRow[],
+  overrides: VariantPriceRow[]
+) {
+  const price = resolveEffectiveVariantPrice({
+    marketCode: code,
+    parentOffers,
+    variantOverrides: overrides
+  });
+  if (price.source === 'none') return { text: 'Unavailable', source: 'Variant blocks this market' };
   return {
     text: formatMoneyDisplay(price.currencyCode, price.priceMinor),
     source: price.source === 'variant' ? 'Custom variant price' : 'Inherited from product'
   };
 }
 
-function Field({label, error, children}: {label: string; error?: string; children: React.ReactNode}) {
+function attributesSummary(attributes: VariantAttributes) {
+  return Object.entries(attributes)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(' · ');
+}
+
+function Field({
+  label,
+  error,
+  children
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="grid min-w-0 gap-1.5 text-sm font-medium">
       <span>{label}</span>
       {children}
-      <span className={cn('min-h-5 text-xs leading-5', error ? 'text-[var(--destructive)]' : 'text-transparent')}>
+      <span
+        className={cn(
+          'min-h-5 text-xs leading-5',
+          error ? 'text-[var(--destructive)]' : 'text-transparent'
+        )}
+      >
         {error ?? 'No error'}
       </span>
     </label>
   );
 }
 
-function Section({title, description, children}: {title: string; description: string; children: React.ReactNode}) {
+function EditorSection({
+  icon: Icon,
+  title,
+  description,
+  children
+}: {
+  icon: typeof Tag;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="border-b border-[var(--border)] py-6 first:pt-0 last:border-b-0 last:pb-0">
-      <div className="mb-4 grid gap-1">
-        <h3 className="text-base font-semibold tracking-[-0.01em]">{title}</h3>
-        <p className="max-w-[65ch] text-sm leading-6 text-[var(--muted-foreground)]">{description}</p>
+    <section className="border-b border-[var(--border)] px-4 py-6 last:border-b-0 sm:px-6 sm:py-7">
+      <div className="mb-5 flex items-start gap-3">
+        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--surface-muted)] text-[var(--accent)]">
+          <Icon aria-hidden="true" className="size-4" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold tracking-[-0.01em]">{title}</h3>
+          <p className="mt-0.5 max-w-[68ch] text-sm leading-5 text-[var(--muted-foreground)]">
+            {description}
+          </p>
+        </div>
       </div>
       {children}
     </section>
@@ -227,7 +288,7 @@ function MarketEditor({
   const price = parseMoneyText(draft.priceText[market.code], market.currency);
   const priceError = mode === 'custom' && !price.valid ? price.error : undefined;
   const effective = priceError
-    ? {text: 'Price needs attention', source: 'Fix the price before saving'}
+    ? { text: 'Price needs attention', source: 'Fix the price before saving' }
     : marketResult(market.code, parentOffers, draft.overrides);
   const inputId = `variant-${market.code}-price`;
   const errorId = `${inputId}-error`;
@@ -235,7 +296,7 @@ function MarketEditor({
   function setMode(next: MarketMode) {
     onChange((current) => {
       const rest = current.overrides.filter((override) => override.marketCode !== market.code);
-      if (next === 'inherit') return {...current, overrides: rest};
+      if (next === 'inherit') return { ...current, overrides: rest };
       const currentPrice = parseMoneyText(current.priceText[market.code], market.currency);
       return {
         ...current,
@@ -258,24 +319,44 @@ function MarketEditor({
       ...current,
       overrides: parsed.valid
         ? current.overrides.map((override) =>
-            override.marketCode === market.code ? {...override, priceMinor: parsed.value} : override
+            override.marketCode === market.code
+              ? { ...override, priceMinor: parsed.value }
+              : override
           )
         : current.overrides,
-      priceText: {...current.priceText, [market.code]: next}
+      priceText: { ...current.priceText, [market.code]: next }
     }));
   }
 
   return (
-    <fieldset className="min-w-0 rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-4">
+    <fieldset className="min-w-0 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
       <legend className="sr-only">{market.label} availability and pricing</legend>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="font-semibold">{market.label}</p>
-          <p className="mt-0.5 text-sm tabular-nums">{effective.text}</p>
+      <div className="flex min-w-0 items-start justify-between gap-3 border-b border-[var(--border)] pb-4">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--surface-muted)] text-[var(--accent)]">
+            <Globe2 aria-hidden="true" className="size-4" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-semibold">{market.label}</p>
+            <p
+              className={cn(
+                'mt-0.5 break-words text-sm font-semibold tabular-nums',
+                priceError && 'text-[var(--destructive)]'
+              )}
+            >
+              {effective.text}
+            </p>
+          </div>
         </div>
-        <span className="text-xs text-[var(--muted-foreground)]">{effective.source}</span>
+        <span className="max-w-[9rem] break-words text-right text-xs leading-5 text-[var(--muted-foreground)]">
+          {effective.source}
+        </span>
       </div>
-      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup" aria-label={`${market.label} market mode`}>
+      <div
+        className="mt-4 grid grid-cols-3 overflow-hidden rounded-[var(--radius-control)] border border-[var(--border)]"
+        role="radiogroup"
+        aria-label={`${market.label} market mode`}
+      >
         {(['inherit', 'custom', 'unavailable'] as const).map((option) => (
           <button
             key={option}
@@ -283,19 +364,23 @@ function MarketEditor({
             role="radio"
             aria-checked={mode === option}
             className={cn(
-              'min-h-11 rounded-[var(--radius-control)] border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/30',
+              'relative min-h-11 min-w-0 border-r border-[var(--border)] px-1.5 text-xs font-medium transition-colors last:border-r-0 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]/40 sm:px-2 sm:text-sm',
               mode === option
-                ? 'border-[var(--accent)] bg-[var(--surface)] text-[var(--accent)]'
-                : 'border-[var(--border)] bg-transparent text-[var(--muted-foreground)] hover:bg-[var(--surface)]'
+                ? 'bg-[var(--accent)] text-white'
+                : 'bg-[var(--surface-muted)] text-[var(--muted-foreground)] hover:bg-[var(--surface)]'
             )}
             onClick={() => setMode(option)}
           >
-            {option === 'inherit' ? 'Inherit product' : option === 'custom' ? 'Custom price' : 'Unavailable'}
+            {option === 'inherit'
+              ? 'Inherit product'
+              : option === 'custom'
+                ? 'Custom price'
+                : 'Unavailable'}
           </button>
         ))}
       </div>
       {mode === 'custom' ? (
-        <div className="mt-4 grid max-w-md gap-1.5">
+        <div className="mt-4 grid gap-1.5">
           <label htmlFor={inputId} className="text-sm font-medium">
             {market.label} price · {market.help}
           </label>
@@ -331,7 +416,8 @@ function MarketEditor({
               priceError ? 'text-[var(--destructive)]' : 'text-[var(--muted-foreground)]'
             )}
           >
-            {priceError ?? `Saved as ${market.currency === 'VND' ? 'whole đồng' : 'USD cents'} after validation.`}
+            {priceError ??
+              `Saved as ${market.currency === 'VND' ? 'whole đồng' : 'USD cents'} after validation.`}
           </p>
         </div>
       ) : null}
@@ -367,14 +453,13 @@ export function applyVariantShippingProfile(
   shippingProfileId: string | null
 ) {
   return variants.map((variant) =>
-    variant.id === targetId ? {...variant, shippingProfileId} : variant
+    variant.id === targetId ? { ...variant, shippingProfileId } : variant
   );
 }
 
 export function VariantEditor({
   productId,
   productType,
-  productTitle,
   parentOffers,
   productQuantityOnHand,
   variants,
@@ -383,10 +468,16 @@ export function VariantEditor({
   productShippingAssignment
 }: VariantEditorProps) {
   const [mode, setMode] = useState<'product' | 'variant'>(variants.length ? 'variant' : 'product');
-  const [productQuantityText, setProductQuantityText] = useState(String(productQuantityOnHand ?? 0));
+  const [productQuantityText, setProductQuantityText] = useState(
+    String(productQuantityOnHand ?? 0)
+  );
   const [variantList, setVariantList] = useState(variants);
-  const [draft, setDraft] = useState<VariantDraft>(() => (variants[0] ? toDraft(variants[0]) : newVariant()));
-  const [baseline, setBaseline] = useState(() => canonicalDraft(variants[0] ? toDraft(variants[0]) : newVariant()));
+  const [draft, setDraft] = useState<VariantDraft>(() =>
+    variants[0] ? toDraft(variants[0]) : newVariant()
+  );
+  const [baseline, setBaseline] = useState(() =>
+    canonicalDraft(variants[0] ? toDraft(variants[0]) : newVariant())
+  );
   const [message, setMessage] = useState<Message | null>(null);
   const [operation, setOperation] = useState<Operation | null>(null);
   const [switchTarget, setSwitchTarget] = useState<VariantEditorVariant | 'new' | null>(null);
@@ -401,10 +492,17 @@ export function VariantEditor({
   const displayOrderError = displayOrderResult.valid ? undefined : displayOrderResult.error;
   const quantityError = quantityResult.valid ? undefined : quantityResult.error;
   const customPriceInvalid = draft.overrides.some(
-    (override) => override.enabled && !parseMoneyText(draft.priceText[override.marketCode], override.currencyCode).valid
+    (override) =>
+      override.enabled &&
+      !parseMoneyText(draft.priceText[override.marketCode], override.currencyCode).valid
   );
-  const productQuantityResult = parseWholeNumberText(productQuantityText, 'a product stock quantity');
-  const productQuantityError = productQuantityResult.valid ? undefined : productQuantityResult.error;
+  const productQuantityResult = parseWholeNumberText(
+    productQuantityText,
+    'a product stock quantity'
+  );
+  const productQuantityError = productQuantityResult.valid
+    ? undefined
+    : productQuantityResult.error;
   const isValid =
     !skuError &&
     !displayOrderError &&
@@ -414,7 +512,12 @@ export function VariantEditor({
   const isDirty = canonicalDraft(draft) !== baseline;
   const totalStock = variantList.reduce((sum, variant) => sum + variant.quantityOnHand, 0);
   const unavailableCount = variantList.reduce(
-    (count, variant) => count + markets.filter((market) => marketResult(market.code, parentOffers, variant.overrides).text === 'Unavailable').length,
+    (count, variant) =>
+      count +
+      markets.filter(
+        (market) =>
+          marketResult(market.code, parentOffers, variant.overrides).text === 'Unavailable'
+      ).length,
     0
   );
 
@@ -426,11 +529,16 @@ export function VariantEditor({
   }, [isDirty]);
 
   if (productType !== 'physical_finished') {
-    return <Alert variant="warning"><AlertTitle>Variants are unavailable</AlertTitle>Only physical finished products can own variants or inventory.</Alert>;
+    return (
+      <Alert variant="warning">
+        <AlertTitle>Variants are unavailable</AlertTitle>Only physical finished products can own
+        variants or inventory.
+      </Alert>
+    );
   }
 
   function beginOperation(type: Operation['type'], targetId: string) {
-    const next = {token: ++operationToken.current, type, targetId};
+    const next = { token: ++operationToken.current, type, targetId };
     setOperation(next);
     setMessage(null);
     return next;
@@ -475,18 +583,21 @@ export function VariantEditor({
     try {
       const result = await saveVariantEditorDraft(productId, snapshot);
       if (operationToken.current !== started.token) return;
-      if (result.status !== 'success') return setMessage({variant: 'destructive', text: resultText(result)});
+      if (result.status !== 'success')
+        return setMessage({ variant: 'destructive', text: resultText(result) });
       setVariantList((current) =>
         [...current.filter((variant) => variant.id !== snapshot.id), snapshot].sort(
-          (left, right) => left.displayOrder - right.displayOrder || left.sku.localeCompare(right.sku)
+          (left, right) =>
+            left.displayOrder - right.displayOrder || left.sku.localeCompare(right.sku)
         )
       );
       const saved = toDraft(snapshot);
       setDraft(saved);
       setBaseline(canonicalDraft(saved));
-      setMessage({variant: 'success', text: result.message});
+      setMessage({ variant: 'success', text: result.message });
     } catch {
-      if (operationToken.current === started.token) setMessage({variant: 'destructive', text: 'Variant could not be saved.'});
+      if (operationToken.current === started.token)
+        setMessage({ variant: 'destructive', text: 'Variant could not be saved.' });
     } finally {
       finishOperation(started);
     }
@@ -497,9 +608,10 @@ export function VariantEditor({
     const targetId = draft.id;
     const started = beginOperation('remove', targetId);
     try {
-      const result = await removeVariantAction({productId, variantId: targetId});
+      const result = await removeVariantAction({ productId, variantId: targetId });
       if (operationToken.current !== started.token) return;
-      if (result.status !== 'success') return setMessage({variant: 'destructive', text: resultText(result)});
+      if (result.status !== 'success')
+        return setMessage({ variant: 'destructive', text: resultText(result) });
       setVariantList((current) => {
         const remaining = current.filter((variant) => variant.id !== targetId);
         if (!remaining.length) {
@@ -516,9 +628,10 @@ export function VariantEditor({
         return remaining;
       });
       setRemoveOpen(false);
-      setMessage({variant: 'success', text: result.message});
+      setMessage({ variant: 'success', text: result.message });
     } catch {
-      if (operationToken.current === started.token) setMessage({variant: 'destructive', text: 'Variant could not be removed.'});
+      if (operationToken.current === started.token)
+        setMessage({ variant: 'destructive', text: 'Variant could not be removed.' });
     } finally {
       finishOperation(started);
     }
@@ -536,136 +649,446 @@ export function VariantEditor({
         quantityOnHand: quantity.value
       });
       if (operationToken.current === started.token) {
-        setMessage({variant: result.status === 'success' ? 'success' : 'destructive', text: resultText(result)});
+        setMessage({
+          variant: result.status === 'success' ? 'success' : 'destructive',
+          text: resultText(result)
+        });
       }
     } catch {
-      if (operationToken.current === started.token) setMessage({variant: 'destructive', text: 'Inventory could not be saved.'});
+      if (operationToken.current === started.token)
+        setMessage({ variant: 'destructive', text: 'Inventory could not be saved.' });
     } finally {
       finishOperation(started);
     }
   }
 
   const draftShippingProfile = draft.shippingProfileId
-    ? shippingProfiles.find((profile) => profile.id === draft.shippingProfileId) ?? null
+    ? (shippingProfiles.find((profile) => profile.id === draft.shippingProfileId) ?? null)
     : null;
+  const operationTargetLabel = operation
+    ? operation.type === 'inventory'
+      ? 'product inventory'
+      : variantList.find((variant) => variant.id === operation.targetId)?.sku ||
+        (operation.targetId === draft.id ? draft.sku || 'new variant' : 'variant')
+    : null;
+  const dockStatus = operation
+    ? `${operation.type === 'remove' ? 'Removing' : 'Saving'} ${operationTargetLabel}…`
+    : !isValid
+      ? 'Review the highlighted fields before saving.'
+      : isDirty
+        ? 'Unsaved changes are ready to review.'
+        : 'All changes saved.';
 
   return (
-    <div className="space-y-5">
-      <div className="grid gap-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--accent)]">Physical finished good</p>
-        <h2 className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">{productTitle}</h2>
-      </div>
-
+    <div className="min-w-0 space-y-4">
       {message ? <Alert variant={message.variant}>{message.text}</Alert> : null}
 
       {mode === 'product' ? (
-        <section className="rounded-[var(--radius-card)] bg-[var(--surface)] p-5 sm:p-6">
-          <h3 className="text-lg font-semibold">Product inventory</h3>
-          <p className="mt-1 max-w-[65ch] text-sm leading-6 text-[var(--muted-foreground)]">
-            This product currently has no explicit variants. Save stock here, or choose variants while product stock is still unset.
-          </p>
-          {productQuantityOnHand === null ? (
-            <Alert variant="warning" className="mt-4"><AlertTitle>Publishing blocked</AlertTitle>Save product inventory or create explicit variants before publishing.</Alert>
-          ) : (
-            <Alert variant="warning" className="mt-4"><AlertTitle>Variant creation unavailable</AlertTitle>Current product stock is {productQuantityOnHand}. Resolve product-level inventory through the existing inventory policy before creating variants; stock is never copied automatically.</Alert>
-          )}
-          <div className="mt-5 max-w-sm">
-            <NumericStepper
-              id="product-stock-quantity"
-              label="Product stock quantity"
-              value={productQuantityText}
-              error={productQuantityError}
-              disabled={operation?.type === 'inventory'}
-              quickSteps={[5, 10]}
-              onChange={setProductQuantityText}
-              onBlur={() => {
-                const parsed = parseWholeNumberText(productQuantityText, 'a product stock quantity');
-                if (parsed.valid) setProductQuantityText(parsed.normalized);
-              }}
-            />
+        <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)]">
+          <div className="border-b border-[var(--border)] bg-[var(--surface-muted)] px-5 py-4 sm:flex sm:items-center sm:justify-between sm:gap-5 sm:px-6">
+            <div className="flex items-start gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--surface)] text-[var(--accent)]">
+                <PackageOpen aria-hidden="true" className="size-5" />
+              </span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--accent)]">
+                  Inventory mode
+                </p>
+                <h2 className="mt-0.5 text-lg font-semibold tracking-[-0.01em]">
+                  Product inventory
+                </h2>
+                <p className="mt-1 max-w-[65ch] text-sm leading-5 text-[var(--muted-foreground)]">
+                  Use one stock count for the whole product, or switch to explicit variants before
+                  product stock exists.
+                </p>
+              </div>
+            </div>
+            {productQuantityOnHand !== null ? (
+              <div className="mt-4 shrink-0 border-l-2 border-[var(--accent)] pl-3 sm:mt-0">
+                <p className="text-xs text-[var(--muted-foreground)]">Current product stock</p>
+                <p className="text-2xl font-semibold tabular-nums">{productQuantityOnHand}</p>
+              </div>
+            ) : null}
           </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Button disabled={Boolean(operation) || !productQuantityResult.valid} onClick={saveProductInventory}>{operation?.type === 'inventory' ? 'Saving inventory…' : 'Save product inventory'}</Button>
-            <Button disabled={Boolean(operation) || productQuantityOnHand !== null} variant="secondary" onClick={() => {setMode('variant'); applySelection('new');}}>Use explicit variants</Button>
+          <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.72fr)] lg:items-start">
+            <div>
+              {productQuantityOnHand === null ? (
+                <Alert variant="warning">
+                  <AlertTitle>Publishing blocked</AlertTitle>Save product inventory or create
+                  explicit variants before publishing.
+                </Alert>
+              ) : (
+                <Alert variant="warning">
+                  <AlertTitle>Variant creation unavailable</AlertTitle>Current product stock is{' '}
+                  {productQuantityOnHand}. Resolve product-level inventory before creating variants;
+                  stock is never copied automatically.
+                </Alert>
+              )}
+              <div className="mt-5 max-w-md">
+                <NumericStepper
+                  id="product-stock-quantity"
+                  label="Product stock quantity"
+                  value={productQuantityText}
+                  error={productQuantityError}
+                  disabled={operation?.type === 'inventory'}
+                  quickSteps={[5, 10]}
+                  onChange={setProductQuantityText}
+                  onBlur={() => {
+                    const parsed = parseWholeNumberText(
+                      productQuantityText,
+                      'a product stock quantity'
+                    );
+                    if (parsed.valid) setProductQuantityText(parsed.normalized);
+                  }}
+                />
+              </div>
+              <Button
+                className="mt-1 w-full sm:w-auto"
+                disabled={Boolean(operation) || !productQuantityResult.valid}
+                onClick={saveProductInventory}
+              >
+                {operation?.type === 'inventory' ? 'Saving inventory…' : 'Save product inventory'}
+              </Button>
+            </div>
+            <div className="rounded-[var(--radius-control)] border border-[var(--border)] p-4 sm:p-5">
+              <div className="flex items-start gap-3">
+                <Boxes aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-[var(--accent)]" />
+                <div>
+                  <h3 className="font-semibold">Need sizes, colors, or materials?</h3>
+                  <p className="mt-1 text-sm leading-5 text-[var(--muted-foreground)]">
+                    Explicit variants keep a separate SKU, stock count, price availability, image,
+                    and parcel profile for each option.
+                  </p>
+                </div>
+              </div>
+              <Button
+                className="mt-5 w-full"
+                disabled={Boolean(operation) || productQuantityOnHand !== null}
+                variant="secondary"
+                onClick={() => {
+                  setMode('variant');
+                  applySelection('new');
+                }}
+              >
+                Use explicit variants
+              </Button>
+              <p className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">
+                Stock is never transferred or inferred.
+              </p>
+            </div>
           </div>
         </section>
       ) : (
         <>
-          <section className="grid grid-cols-3 divide-x divide-[var(--border)] rounded-[var(--radius-card)] bg-[var(--surface-muted)] px-4 py-3 text-center sm:max-w-xl sm:text-left">
-            <div className="pr-3"><p className="text-lg font-semibold tabular-nums">{variantList.length}</p><p className="text-xs text-[var(--muted-foreground)]">Variants</p></div>
-            <div className="px-3"><p className="text-lg font-semibold tabular-nums">{totalStock}</p><p className="text-xs text-[var(--muted-foreground)]">Units in stock</p></div>
-            <div className="pl-3"><p className="text-lg font-semibold tabular-nums">{unavailableCount}</p><p className="text-xs text-[var(--muted-foreground)]">Unavailable markets</p></div>
+          <section
+            className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] px-4 py-4 sm:flex sm:items-center sm:justify-between sm:gap-5 sm:px-5"
+            aria-label="Variant workspace summary"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--surface-muted)] text-[var(--accent)]">
+                <Boxes aria-hidden="true" className="size-5" />
+              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <h2 className="font-semibold">Explicit variants</h2>
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 text-xs font-medium',
+                      isDirty ? 'text-[var(--warning-strong)]' : 'text-[var(--muted-foreground)]'
+                    )}
+                  >
+                    {isDirty ? (
+                      <CircleDot aria-hidden="true" className="size-3.5" />
+                    ) : (
+                      <Check aria-hidden="true" className="size-3.5" />
+                    )}
+                    {isDirty ? 'Unsaved changes' : 'Up to date'}
+                  </span>
+                </div>
+                <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--muted-foreground)]">
+                  <div className="flex gap-1">
+                    <dt>Saved</dt>
+                    <dd className="font-semibold tabular-nums text-[var(--foreground)]">
+                      {variantList.length}
+                    </dd>
+                  </div>
+                  <div className="flex gap-1">
+                    <dt>Stock</dt>
+                    <dd className="font-semibold tabular-nums text-[var(--foreground)]">
+                      {totalStock}
+                    </dd>
+                  </div>
+                  <div className="flex gap-1">
+                    <dt>Market issues</dt>
+                    <dd className="font-semibold tabular-nums text-[var(--foreground)]">
+                      {unavailableCount}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+            <Button
+              className="mt-4 w-full shrink-0 sm:mt-0 sm:w-auto"
+              disabled={Boolean(operation)}
+              onClick={() => selectVariant('new')}
+            >
+              <Plus aria-hidden="true" className="mr-2 size-4" />
+              New variant
+            </Button>
           </section>
 
-          <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(210px,0.32fr)_minmax(0,1fr)] lg:items-start">
-            <aside className="min-w-0 rounded-[var(--radius-card)] bg-[var(--surface-muted)] p-2 lg:sticky lg:top-5">
-              <div className="flex items-center justify-between gap-2 px-2 py-2">
-                <h3 className="text-sm font-semibold">Variant list</h3>
-                <span className={cn('text-xs', isDirty ? 'text-[var(--accent)]' : 'text-[var(--muted-foreground)]')}>{isDirty ? 'Unsaved' : 'Up to date'}</span>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+            <aside
+              className="min-w-0 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-muted)] p-2 lg:sticky lg:top-4"
+              aria-label="Saved variants"
+            >
+              <div className="flex items-center justify-between gap-2 px-2.5 py-2">
+                <div>
+                  <h3 className="text-sm font-semibold">Saved variants</h3>
+                  <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
+                    Sorted by display order
+                  </p>
+                </div>
+                <span className="rounded-[var(--radius-control)] bg-[var(--surface)] px-2 py-1 text-xs font-semibold tabular-nums">
+                  {variantList.length}
+                </span>
               </div>
-              <nav className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible" aria-label="Product variants">
-                {variantList.map((variant) => (
-                  <button
-                    key={variant.id}
-                    type="button"
-                    aria-pressed={variant.id === draft.id}
-                    disabled={Boolean(operation)}
-                    className={cn(
-                      'min-h-14 min-w-[170px] rounded-[var(--radius-control)] border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/30 lg:min-w-0',
-                      variant.id === draft.id ? 'border-[var(--accent)] bg-[var(--surface)]' : 'border-transparent hover:bg-[var(--surface)]'
-                    )}
-                    onClick={() => selectVariant(variant)}
-                  >
-                    <span className="block truncate text-sm font-semibold">{variant.sku}</span>
-                    <span className="mt-0.5 flex justify-between gap-3 text-xs text-[var(--muted-foreground)]"><span>Order {variant.displayOrder}</span><span className="tabular-nums">{variant.quantityOnHand} stock</span></span>
-                  </button>
-                ))}
-                <button type="button" disabled={Boolean(operation)} className="min-h-14 min-w-[150px] rounded-[var(--radius-control)] border border-dashed border-[var(--border)] px-3 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/30 lg:min-w-0" onClick={() => selectVariant('new')}>+ New variant</button>
+              <nav
+                className="grid max-h-[min(58vh,36rem)] gap-1 overflow-y-auto overscroll-contain pb-1"
+                aria-label="Product variants"
+              >
+                {variantList.map((variant) => {
+                  const vietnamResult = marketResult('vn', parentOffers, variant.overrides);
+                  const internationalResult = marketResult('intl', parentOffers, variant.overrides);
+                  const selected = variant.id === draft.id;
+                  const pending = operation?.targetId === variant.id;
+                  const dirtyTarget = selected && isDirty;
+                  const summary = attributesSummary(variant.attributes);
+                  return (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      aria-pressed={selected}
+                      aria-label={`${variant.sku}, ${summary}, order ${variant.displayOrder}, ${variant.quantityOnHand} stock, Vietnam ${vietnamResult.text}, International ${internationalResult.text}${dirtyTarget ? ', unsaved changes' : ''}${pending ? ', operation pending' : ''}`}
+                      disabled={Boolean(operation)}
+                      className={cn(
+                        'group min-h-11 min-w-0 rounded-[var(--radius-control)] border-l-2 px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/35',
+                        selected
+                          ? 'border-l-[var(--accent)] bg-[var(--surface)] shadow-sm'
+                          : 'border-l-transparent hover:bg-[var(--surface)]',
+                        pending && 'cursor-wait opacity-70'
+                      )}
+                      onClick={() => selectVariant(variant)}
+                    >
+                      <span className="flex min-w-0 items-center justify-between gap-2">
+                        <span className="min-w-0 truncate text-sm font-semibold">
+                          {variant.sku}
+                        </span>
+                        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--accent)]">
+                          {pending
+                            ? 'Pending'
+                            : dirtyTarget
+                              ? 'Unsaved'
+                              : selected
+                                ? 'Selected'
+                                : null}
+                        </span>
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-[var(--muted-foreground)]">
+                        {summary}
+                      </span>
+                      <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--muted-foreground)]">
+                        <span className="tabular-nums">Order {variant.displayOrder}</span>
+                        <span className="tabular-nums">{variant.quantityOnHand} stock</span>
+                      </span>
+                      <span className="mt-1.5 grid min-w-0 grid-cols-2 gap-1 text-[10px] font-medium">
+                        <span
+                          className={cn(
+                            'truncate',
+                            vietnamResult.text === 'Unavailable'
+                              ? 'text-[var(--destructive)]'
+                              : 'text-[var(--muted-foreground)]'
+                          )}
+                        >
+                          VN · {vietnamResult.text}
+                        </span>
+                        <span
+                          className={cn(
+                            'truncate',
+                            internationalResult.text === 'Unavailable'
+                              ? 'text-[var(--destructive)]'
+                              : 'text-[var(--muted-foreground)]'
+                          )}
+                        >
+                          INTL · {internationalResult.text}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+                {!variantList.length ? (
+                  <div className="rounded-[var(--radius-control)] bg-[var(--surface)] px-4 py-6 text-center">
+                    <PackageOpen
+                      aria-hidden="true"
+                      className="mx-auto size-7 text-[var(--accent)]"
+                    />
+                    <p className="mt-2 text-sm font-semibold">No saved variants yet</p>
+                    <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">
+                      Complete the new draft to create your first explicit stock option.
+                    </p>
+                  </div>
+                ) : null}
               </nav>
             </aside>
 
-            <article className="min-w-0 rounded-[var(--radius-card)] bg-[var(--surface)] p-5 sm:p-7">
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] pb-5">
-                <div><p className="text-xs font-medium text-[var(--muted-foreground)]">{savedDraft ? 'Editing variant' : 'New variant'}</p><h3 className="mt-1 text-lg font-semibold tracking-[-0.01em]">{draft.sku || 'Untitled variant'}</h3></div>
-                <span className={cn('rounded-[var(--radius-control)] px-2.5 py-1 text-xs font-medium', isDirty ? 'bg-[var(--warning-soft)] text-[var(--warning-strong)]' : 'bg-[var(--surface-muted)] text-[var(--muted-foreground)]')}>{isDirty ? 'Unsaved changes' : 'Saved'}</span>
+            <article className="min-w-0 overflow-visible rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)]">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-5 sm:px-6">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--accent)]">
+                    {savedDraft ? 'Editing variant' : 'New variant draft'}
+                  </p>
+                  <h2 className="mt-1 truncate text-xl font-semibold tracking-[-0.02em]">
+                    {draft.sku || 'Untitled variant'}
+                  </h2>
+                  <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                    {savedDraft
+                      ? 'Update this saved option and its selling rules.'
+                      : 'Define the first sellable option, then save once to unlock fulfillment.'}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs font-medium',
+                    isDirty
+                      ? 'bg-[var(--warning-soft)] text-[var(--warning-strong)]'
+                      : 'bg-[var(--surface-muted)] text-[var(--muted-foreground)]'
+                  )}
+                >
+                  {isDirty ? (
+                    <CircleDot aria-hidden="true" className="size-3.5" />
+                  ) : (
+                    <Check aria-hidden="true" className="size-3.5" />
+                  )}
+                  {isDirty ? 'Unsaved changes' : 'Saved'}
+                </span>
               </div>
 
-              <Section title="Basics" description="Identify this option and control how it is ordered and represented.">
-                <div className="grid min-w-0 gap-x-4 sm:grid-cols-2">
-                  <Field label="Variant SKU" error={skuError}><Input value={draft.sku} aria-invalid={Boolean(skuError)} onChange={(event) => setDraft((current) => ({...current, sku: event.target.value}))} /></Field>
-                  <NumericStepper
-                    id="variant-display-order"
-                    label="Variant display order"
-                    value={draft.displayOrderText}
-                    error={displayOrderError}
-                    disabled={Boolean(operation)}
-                    onChange={(value) => setDraft((current) => ({...current, displayOrderText: value}))}
-                    onBlur={() => {
-                      const parsed = parseWholeNumberText(draft.displayOrderText, 'a display order');
-                      if (parsed.valid) setDraft((current) => ({...current, displayOrderText: parsed.normalized}));
-                    }}
-                  />
-                  <div className="sm:col-span-2"><Field label="Variant image"><select className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/30" value={draft.mediaId ?? ''} onChange={(event) => setDraft((current) => ({...current, mediaId: event.target.value || null}))}><option value="">No variant image</option>{mediaOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select></Field></div>
+              <EditorSection
+                icon={Tag}
+                title="Identity and attributes"
+                description="Give this option a unique SKU and the attributes customers use to distinguish it."
+              >
+                <div className="max-w-xl">
+                  <Field label="Variant SKU" error={skuError}>
+                    <Input
+                      value={draft.sku}
+                      aria-invalid={Boolean(skuError)}
+                      onChange={(event) =>
+                        setDraft((current) => ({ ...current, sku: event.target.value }))
+                      }
+                    />
+                  </Field>
                 </div>
-              </Section>
 
-              <Section title="Attributes" description="Add at least one option as a clear name and value. Keys are saved in a stable order.">
-                <div className="grid gap-3">
+                <div className="mt-3 grid gap-2">
+                  <div className="hidden grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_44px] gap-3 px-3 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--muted-foreground)] sm:grid">
+                    <span>Attribute</span>
+                    <span>Value</span>
+                    <span className="sr-only">Actions</span>
+                  </div>
                   {draft.attributeRows.map((row, index) => {
-                    const keyError = attributeResult.issues.find((issue) => issue.index === index && issue.field === 'key')?.message;
-                    const valueError = attributeResult.issues.find((issue) => issue.index === index && issue.field === 'value')?.message;
-                    return <div key={row.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_44px] gap-x-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_44px]">
-                      <Field label={`Attribute ${index + 1} name`} error={keyError}><Input placeholder="e.g. color" aria-invalid={Boolean(keyError)} value={row.key} onChange={(event) => setDraft((current) => ({...current, attributeRows: current.attributeRows.map((item) => item.id === row.id ? {...item, key: event.target.value} : item)}))} /></Field>
-                      <div className="col-start-1 sm:col-start-2 sm:row-start-1"><Field label={`Attribute ${index + 1} value`} error={valueError}><Input placeholder="e.g. brown" aria-invalid={Boolean(valueError)} value={row.value} onChange={(event) => setDraft((current) => ({...current, attributeRows: current.attributeRows.map((item) => item.id === row.id ? {...item, value: event.target.value} : item)}))} /></Field></div>
-                      <Button type="button" variant="secondary" className="col-start-2 row-span-2 row-start-1 mt-[26px] min-h-11 px-0 sm:col-start-3" aria-label={`Remove attribute ${index + 1}`} disabled={draft.attributeRows.length === 1} onClick={() => setDraft((current) => ({...current, attributeRows: current.attributeRows.filter((item) => item.id !== row.id)}))}>×</Button>
-                    </div>;
+                    const keyError = attributeResult.issues.find(
+                      (issue) => issue.index === index && issue.field === 'key'
+                    )?.message;
+                    const valueError = attributeResult.issues.find(
+                      (issue) => issue.index === index && issue.field === 'value'
+                    )?.message;
+                    return (
+                      <div
+                        key={row.id}
+                        className="grid min-w-0 grid-cols-[minmax(0,1fr)_44px] gap-x-3 rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-3 pt-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_44px]"
+                      >
+                        <Field label={`Attribute ${index + 1} name`} error={keyError}>
+                          <Input
+                            placeholder="e.g. color"
+                            aria-invalid={Boolean(keyError)}
+                            value={row.key}
+                            onChange={(event) =>
+                              setDraft((current) => ({
+                                ...current,
+                                attributeRows: current.attributeRows.map((item) =>
+                                  item.id === row.id ? { ...item, key: event.target.value } : item
+                                )
+                              }))
+                            }
+                          />
+                        </Field>
+                        <div className="col-start-1 sm:col-start-2 sm:row-start-1">
+                          <Field label={`Attribute ${index + 1} value`} error={valueError}>
+                            <Input
+                              placeholder="e.g. brown"
+                              aria-invalid={Boolean(valueError)}
+                              value={row.value}
+                              onChange={(event) =>
+                                setDraft((current) => ({
+                                  ...current,
+                                  attributeRows: current.attributeRows.map((item) =>
+                                    item.id === row.id
+                                      ? { ...item, value: event.target.value }
+                                      : item
+                                  )
+                                }))
+                              }
+                            />
+                          </Field>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          title={`Remove attribute ${index + 1}`}
+                          className="col-start-2 row-span-2 row-start-1 mt-[26px] min-h-11 px-0 text-[var(--muted-foreground)] hover:text-[var(--destructive)] sm:col-start-3"
+                          aria-label={`Remove attribute ${index + 1}`}
+                          disabled={draft.attributeRows.length === 1}
+                          onClick={() =>
+                            setDraft((current) => ({
+                              ...current,
+                              attributeRows: current.attributeRows.filter(
+                                (item) => item.id !== row.id
+                              )
+                            }))
+                          }
+                        >
+                          <Trash2 aria-hidden="true" className="size-4" />
+                        </Button>
+                      </div>
+                    );
                   })}
-                  <Button type="button" variant="secondary" className="justify-self-start" onClick={() => setDraft((current) => ({...current, attributeRows: [...current.attributeRows, {id: crypto.randomUUID(), key: '', value: ''}]}))}>Add attribute</Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="justify-self-start px-2 text-sm text-[var(--accent)]"
+                    onClick={() =>
+                      setDraft((current) => ({
+                        ...current,
+                        attributeRows: [
+                          ...current.attributeRows,
+                          { id: crypto.randomUUID(), key: '', value: '' }
+                        ]
+                      }))
+                    }
+                  >
+                    <Plus aria-hidden="true" className="mr-2 size-4" />
+                    Add attribute
+                  </Button>
                 </div>
-              </Section>
+              </EditorSection>
 
-              <Section title="Inventory" description="Variant stock remains separate from product stock and is never inferred or copied.">
-                <div className="max-w-sm">
+              <EditorSection
+                icon={Warehouse}
+                title="Inventory and merchandising"
+                description="Set sellable stock first, then control list order and the image that represents this option."
+              >
+                <div className="grid min-w-0 gap-x-5 gap-y-1 md:grid-cols-2 xl:grid-cols-[minmax(14rem,1.1fr)_minmax(12rem,0.8fr)_minmax(14rem,1fr)]">
                   <NumericStepper
                     id="variant-quantity-on-hand"
                     label="Quantity on hand"
@@ -673,29 +1096,192 @@ export function VariantEditor({
                     error={quantityError}
                     disabled={Boolean(operation)}
                     quickSteps={[5, 10]}
-                    onChange={(value) => setDraft((current) => ({...current, quantityOnHandText: value}))}
+                    onChange={(value) =>
+                      setDraft((current) => ({ ...current, quantityOnHandText: value }))
+                    }
                     onBlur={() => {
-                      const parsed = parseWholeNumberText(draft.quantityOnHandText, 'a quantity on hand');
-                      if (parsed.valid) setDraft((current) => ({...current, quantityOnHandText: parsed.normalized}));
+                      const parsed = parseWholeNumberText(
+                        draft.quantityOnHandText,
+                        'a quantity on hand'
+                      );
+                      if (parsed.valid)
+                        setDraft((current) => ({
+                          ...current,
+                          quantityOnHandText: parsed.normalized
+                        }));
                     }}
                   />
+                  <NumericStepper
+                    id="variant-display-order"
+                    label="Variant display order"
+                    value={draft.displayOrderText}
+                    error={displayOrderError}
+                    disabled={Boolean(operation)}
+                    onChange={(value) =>
+                      setDraft((current) => ({ ...current, displayOrderText: value }))
+                    }
+                    onBlur={() => {
+                      const parsed = parseWholeNumberText(
+                        draft.displayOrderText,
+                        'a display order'
+                      );
+                      if (parsed.valid)
+                        setDraft((current) => ({
+                          ...current,
+                          displayOrderText: parsed.normalized
+                        }));
+                    }}
+                  />
+                  <div className="md:col-span-2 xl:col-span-1">
+                    <Field label="Variant image">
+                      <div className="relative">
+                        <ImageIcon
+                          aria-hidden="true"
+                          className="pointer-events-none absolute left-3 top-3.5 size-4 text-[var(--muted-foreground)]"
+                        />
+                        <select
+                          className="min-h-11 w-full min-w-0 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] py-2 pl-10 pr-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/30"
+                          value={draft.mediaId ?? ''}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              mediaId: event.target.value || null
+                            }))
+                          }
+                        >
+                          <option value="">No variant image</option>
+                          {mediaOptions.map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </Field>
+                  </div>
                 </div>
-              </Section>
+              </EditorSection>
 
-              <Section title="Market availability and pricing" description="Choose inheritance, a custom price, or an explicit market block independently for each market.">
-                <div className="grid min-w-0 gap-3">{markets.map((market) => <MarketEditor key={market.code} market={market} draft={draft} parentOffers={parentOffers} onChange={setDraft} />)}</div>
-              </Section>
+              <EditorSection
+                icon={Globe2}
+                title="Market availability and pricing"
+                description="Compare both markets, then inherit the product offer, set a fixed local price, or block availability."
+              >
+                <div className="grid min-w-0 gap-4 xl:grid-cols-2 xl:items-start">
+                  {markets.map((market) => (
+                    <MarketEditor
+                      key={market.code}
+                      market={market}
+                      draft={draft}
+                      parentOffers={parentOffers}
+                      onChange={setDraft}
+                    />
+                  ))}
+                </div>
+              </EditorSection>
 
-              <Section title="Parcel profile" description="A variant override wins; otherwise this variant inherits the product assignment, then the store default.">
-                {savedDraft ? <ShippingAssignmentSheet owner={{type: 'variant', variantId: draft.id}} profiles={shippingProfiles} explicitProfileId={draft.shippingProfileId} effectiveProfile={draftShippingProfile ?? productShippingAssignment?.effectiveProfile ?? null} effectiveSource={draftShippingProfile ? 'Variant override' : productShippingAssignment?.effectiveSource ?? 'Store default'} inheritedProfile={productShippingAssignment?.effectiveProfile ?? null} inheritedSource={productShippingAssignment?.effectiveSource ?? 'Store default'} title="Variant parcel profile" description="Change only this variant's package type or keep the inherited assignment." onSaved={(snapshot, savedOwner) => {if (savedOwner.type !== 'variant') return; const targetId = savedOwner.variantId; setDraft((current) => current.id === targetId ? {...current, shippingProfileId: snapshot.explicitProfileId} : current); setVariantList((current) => applyVariantShippingProfile(current, targetId, snapshot.explicitProfileId));}} /> : <div className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-4 text-sm text-[var(--muted-foreground)]">Save this variant once before choosing a parcel profile override.</div>}
-              </Section>
+              <EditorSection
+                icon={Truck}
+                title="Fulfillment"
+                description="A variant override wins; otherwise this option inherits the product assignment, then the store default."
+              >
+                {savedDraft ? (
+                  <ShippingAssignmentSheet
+                    owner={{ type: 'variant', variantId: draft.id }}
+                    profiles={shippingProfiles}
+                    explicitProfileId={draft.shippingProfileId}
+                    effectiveProfile={
+                      draftShippingProfile ?? productShippingAssignment?.effectiveProfile ?? null
+                    }
+                    effectiveSource={
+                      draftShippingProfile
+                        ? 'Variant override'
+                        : (productShippingAssignment?.effectiveSource ?? 'Store default')
+                    }
+                    inheritedProfile={productShippingAssignment?.effectiveProfile ?? null}
+                    inheritedSource={productShippingAssignment?.effectiveSource ?? 'Store default'}
+                    title="Variant parcel profile"
+                    description="Change only this variant's package type or keep the inherited assignment."
+                    onSaved={(snapshot, savedOwner) => {
+                      if (savedOwner.type !== 'variant') return;
+                      const targetId = savedOwner.variantId;
+                      setDraft((current) =>
+                        current.id === targetId
+                          ? { ...current, shippingProfileId: snapshot.explicitProfileId }
+                          : current
+                      );
+                      setVariantList((current) =>
+                        applyVariantShippingProfile(current, targetId, snapshot.explicitProfileId)
+                      );
+                    }}
+                  />
+                ) : (
+                  <div className="flex items-start gap-3 rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-4 text-sm text-[var(--muted-foreground)]">
+                    <Truck aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                    <div>
+                      <p className="font-semibold text-[var(--foreground)]">
+                        Fulfillment unlocks after the first save
+                      </p>
+                      <p className="mt-1 leading-5">
+                        Save this variant once before choosing its parcel profile override. No
+                        assignment is created until then.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </EditorSection>
 
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-3">
-                <div className="text-xs text-[var(--muted-foreground)]" aria-live="polite">{operation ? `${operation.type === 'remove' ? 'Removing' : 'Saving'} ${draft.sku || 'variant'}…` : isDirty ? 'Review and save your changes.' : 'No unsaved changes.'}</div>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="secondary" disabled={!isDirty || Boolean(operation)} onClick={() => {if (savedDraft) applySelection(variantList.find((variant) => variant.id === draft.id) ?? 'new'); else applySelection('new');}}>Reset</Button>
-                  {savedDraft ? <Button type="button" variant="destructive" disabled={Boolean(operation)} onClick={() => setRemoveOpen(true)}>Remove</Button> : null}
-                  <Button type="button" disabled={!isDirty || !isValid || Boolean(operation)} onClick={saveVariant}>{operation?.type === 'save' ? `Saving ${draft.sku || 'variant'}…` : 'Save variant'}</Button>
+              <div
+                data-variant-action-dock
+                className="sticky bottom-0 z-10 border-t border-[var(--border)] bg-[var(--surface)]/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:flex sm:items-center sm:justify-between sm:gap-4 sm:px-6"
+              >
+                <div
+                  className="flex min-w-0 items-start gap-2 text-xs leading-5 text-[var(--muted-foreground)]"
+                  aria-live="polite"
+                >
+                  {operation || !isValid ? (
+                    <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                  ) : (
+                    <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                  )}
+                  <span>{dockStatus}</span>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2 sm:mt-0 sm:shrink-0">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={!isDirty || Boolean(operation)}
+                    onClick={() => {
+                      if (savedDraft)
+                        applySelection(
+                          variantList.find((variant) => variant.id === draft.id) ?? 'new'
+                        );
+                      else applySelection('new');
+                    }}
+                  >
+                    Reset
+                  </Button>
+                  {savedDraft ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="mr-auto text-[var(--destructive)] hover:text-[var(--destructive)] sm:mr-2"
+                      disabled={Boolean(operation)}
+                      onClick={() => setRemoveOpen(true)}
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    className="ml-auto"
+                    disabled={!isDirty || !isValid || Boolean(operation)}
+                    onClick={saveVariant}
+                  >
+                    {operation?.type === 'save'
+                      ? `Saving ${operationTargetLabel}…`
+                      : 'Save variant'}
+                  </Button>
                 </div>
               </div>
             </article>
@@ -703,8 +1289,25 @@ export function VariantEditor({
         </>
       )}
 
-      <ConfirmationDialog open={Boolean(switchTarget)} onOpenChange={(open) => !open && setSwitchTarget(null)} title="Discard unsaved changes?" description="Your current variant draft has not been saved. Discard it and change selection?" confirmLabel="Discard changes" onConfirm={() => switchTarget && applySelection(switchTarget)} />
-      <ConfirmationDialog open={removeOpen} onOpenChange={setRemoveOpen} title={`Remove ${draft.sku || 'this variant'}?`} description="This removes the variant, its stock row, market overrides, and parcel override. Deleted stock is not transferred to the product." confirmLabel="Remove variant" pendingLabel="Removing variant…" pending={operation?.type === 'remove'} destructive onConfirm={removeVariant} />
+      <ConfirmationDialog
+        open={Boolean(switchTarget)}
+        onOpenChange={(open) => !open && setSwitchTarget(null)}
+        title="Discard unsaved changes?"
+        description="Your current variant draft has not been saved. Discard it and change selection?"
+        confirmLabel="Discard changes"
+        onConfirm={() => switchTarget && applySelection(switchTarget)}
+      />
+      <ConfirmationDialog
+        open={removeOpen}
+        onOpenChange={setRemoveOpen}
+        title={`Remove ${draft.sku || 'this variant'}?`}
+        description="This removes the variant, its stock row, market overrides, and parcel override. Deleted stock is not transferred to the product."
+        confirmLabel="Remove variant"
+        pendingLabel="Removing variant…"
+        pending={operation?.type === 'remove'}
+        destructive
+        onConfirm={removeVariant}
+      />
     </div>
   );
 }
