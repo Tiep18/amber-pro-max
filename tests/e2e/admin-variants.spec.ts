@@ -157,13 +157,16 @@ test('admin edits product-level inventory for a physical product without variant
     await page.goto(`/admin/catalog/${product.id}/variants`);
     await expect(page.getByRole('heading', {name: 'Variants and inventory'})).toBeVisible();
   }).toPass({timeout: 15_000});
-  await expect(page.getByText('Product-level inventory', {exact: true})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Product inventory'})).toBeVisible();
   await expect(page.getByLabel('Product stock quantity')).toBeVisible();
   await expect(page.getByLabel('Variant stock quantity')).toHaveCount(0);
 
   await page.getByLabel('Product stock quantity').fill('4');
   await page.getByRole('button', {name: 'Save product inventory'}).click();
   await expect(page.getByText('Inventory saved')).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('Current product stock is 4')).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Use explicit variants'})).toBeDisabled();
 
   const inventory = await rows<{product_id: string | null; variant_id: string | null; quantity_on_hand: number}>(
     `inventory_records?product_id=eq.${product.id}&select=product_id,variant_id,quantity_on_hand`
@@ -179,44 +182,68 @@ test('admin creates, reorders, edits, removes variants, and manages variant stoc
   await page.goto(`/admin/catalog/${product.id}/variants`);
   await page.getByRole('button', {name: 'Use explicit variants'}).click();
   await page.getByLabel('Variant SKU').fill('BEAR-BROWN-SMALL');
-  await page.getByLabel('Variant attributes JSON').fill('{"size":"small","color":"brown"}');
+  await page.getByLabel('Attribute 1 name').fill('size');
+  await page.getByLabel('Attribute 1 value').fill('small');
+  await page.getByRole('button', {name: 'Add attribute'}).click();
+  await page.getByLabel('Attribute 2 name').fill('color');
+  await page.getByLabel('Attribute 2 value').fill('brown');
   await page.getByLabel('Variant display order').fill('2');
   await page.getByLabel('Variant image').selectOption(product.mediaId);
-  await page.getByLabel('Variant stock quantity').fill('3');
-  await expect(page.getByText('VN effective price: VND 250,000 from parent')).toBeVisible();
-  await expect(page.getByText('INTL effective price: $18.00 from parent')).toBeVisible();
+  await page.getByLabel('Quantity on hand').fill('3');
+  await expect(page.getByText('VND 250,000')).toBeVisible();
+  await expect(page.getByText('$18.00')).toBeVisible();
 
-  await page.getByLabel('Override Vietnam price').check();
-  await page.getByLabel('Vietnam override in VND').fill('275000');
+  const vietnam = page.getByRole('group', {name: 'Vietnam availability and pricing'});
+  const international = page.getByRole('group', {name: 'International availability and pricing'});
+  await vietnam.getByRole('radio', {name: 'Custom price'}).click();
+  await page.getByLabel('Vietnam price · Amount in đồng').fill('275000');
+  await international.getByRole('radio', {name: 'Unavailable'}).click();
   await page.getByRole('button', {name: 'Save variant'}).click();
   await expect(page.getByText('Variant saved')).toBeVisible();
-  await expect(page.getByText('Price override saved')).toBeVisible();
-  await expect(page.getByText('Inventory saved')).toBeVisible();
-  await expect(page.getByText('VN effective price: VND 275,000 from variant')).toBeVisible();
-  await expect(page.getByText('INTL effective price: $18.00 from parent')).toBeVisible();
+  await expect(vietnam.getByText('VND 275,000')).toBeVisible();
+  await expect(international.getByText('Unavailable', {exact: true})).toBeVisible();
 
+  await page.getByRole('button', {name: '+ New variant'}).click();
+  await page.getByLabel('Variant SKU').fill('BEAR-CREAM-MEDIUM');
+  await page.getByLabel('Attribute 1 name').fill('color');
+  await page.getByLabel('Attribute 1 value').fill('cream');
   await page.getByLabel('Variant display order').fill('1');
+  await page.getByLabel('Quantity on hand').fill('5');
+  await page.getByRole('button', {name: 'Save variant'}).click();
+  await expect(page.getByText('Variant saved')).toBeVisible();
+  await expect(page.getByRole('button', {name: 'BEAR-BROWN-SMALL'})).toBeVisible();
+  await expect(page.getByRole('button', {name: 'BEAR-CREAM-MEDIUM'})).toBeVisible();
+
+  await page.getByRole('button', {name: 'BEAR-BROWN-SMALL'}).click();
+  await page.getByLabel('Variant display order').fill('0');
   await page.getByRole('button', {name: 'Save variant'}).click();
   await expect(page.getByText('Variant saved')).toBeVisible();
 
   const variants = await rows<{id: string; sku: string; display_order: number}>(
     `product_variants?product_id=eq.${product.id}&select=id,sku,display_order`
   );
-  expect(variants).toHaveLength(1);
-  expect(variants[0].sku).toBe('BEAR-BROWN-SMALL');
-  expect(variants[0].display_order).toBe(1);
+  expect(variants).toHaveLength(2);
+  expect(variants.find((variant) => variant.sku === 'BEAR-BROWN-SMALL')?.display_order).toBe(0);
+  expect(variants.find((variant) => variant.sku === 'BEAR-CREAM-MEDIUM')?.display_order).toBe(1);
+  const brownVariant = variants.find((variant) => variant.sku === 'BEAR-BROWN-SMALL');
+  expect(brownVariant).toBeDefined();
 
   const inventory = await rows<{product_id: string | null; variant_id: string | null; quantity_on_hand: number}>(
-    `inventory_records?variant_id=eq.${variants[0].id}&select=product_id,variant_id,quantity_on_hand`
+    `inventory_records?variant_id=eq.${brownVariant?.id}&select=product_id,variant_id,quantity_on_hand`
   );
-  expect(inventory).toEqual([{product_id: null, variant_id: variants[0].id, quantity_on_hand: 3}]);
+  expect(inventory).toEqual([{product_id: null, variant_id: brownVariant?.id, quantity_on_hand: 3}]);
 
-  const overrides = await rows<{market_code: string; currency_code: string; price_minor: number}>(
-    `variant_market_offers?variant_id=eq.${variants[0].id}&select=market_code,currency_code,price_minor`
+  const overrides = await rows<{market_code: string; enabled: boolean; currency_code: string; price_minor: number}>(
+    `variant_market_offers?variant_id=eq.${brownVariant?.id}&select=market_code,enabled,currency_code,price_minor&order=market_code`
   );
-  expect(overrides).toEqual([{market_code: 'vn', currency_code: 'VND', price_minor: 275000}]);
+  expect(overrides).toEqual([
+    {market_code: 'intl', enabled: false, currency_code: 'USD', price_minor: 0},
+    {market_code: 'vn', enabled: true, currency_code: 'VND', price_minor: 275000}
+  ]);
 
   await expect(page.getByLabel('Product stock quantity')).toHaveCount(0);
+  await page.getByRole('button', {name: 'Remove', exact: true}).click();
+  await expect(page.getByRole('heading', {name: 'Remove BEAR-BROWN-SMALL?'})).toBeVisible();
   await page.getByRole('button', {name: 'Remove variant'}).click();
   await expect(page.getByText('Variant removed')).toBeVisible();
 });
