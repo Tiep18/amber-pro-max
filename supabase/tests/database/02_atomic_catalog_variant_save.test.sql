@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(18);
+select plan(24);
 
 select has_function(
   'public',
@@ -76,14 +76,68 @@ reset role;
 insert into public.products (id, product_type)
 values
   ('02100000-0000-4000-8000-000000000010', 'physical_finished'),
-  ('02100000-0000-4000-8000-000000000011', 'physical_finished');
+  ('02100000-0000-4000-8000-000000000011', 'physical_finished'),
+  ('02100000-0000-4000-8000-000000000012', 'physical_finished'),
+  ('02100000-0000-4000-8000-000000000013', 'physical_finished');
+
+insert into public.product_translations (
+  product_id,
+  locale,
+  slug,
+  title,
+  description,
+  seo_title,
+  seo_description,
+  social_image_bucket,
+  social_image_path
+)
+values
+  (
+    '02100000-0000-4000-8000-000000000012', 'vi',
+    'atomic-published-valid-vi', 'Atomic published valid', '',
+    'Atomic published valid', 'Atomic published valid description',
+    'product-media', 'atomic/published-valid-social-vi.webp'
+  ),
+  (
+    '02100000-0000-4000-8000-000000000012', 'en',
+    'atomic-published-valid-en', 'Atomic published valid', '',
+    'Atomic published valid', 'Atomic published valid description',
+    'product-media', 'atomic/published-valid-social-en.webp'
+  ),
+  (
+    '02100000-0000-4000-8000-000000000013', 'vi',
+    'atomic-published-invalid-vi', 'Atomic published invalid', '',
+    'Atomic published invalid', 'Atomic published invalid description',
+    'product-media', 'atomic/published-invalid-social-vi.webp'
+  ),
+  (
+    '02100000-0000-4000-8000-000000000013', 'en',
+    'atomic-published-invalid-en', 'Atomic published invalid', '',
+    'Atomic published invalid', 'Atomic published invalid description',
+    'product-media', 'atomic/published-invalid-social-en.webp'
+  );
+
+insert into public.product_media (
+  product_id,
+  bucket_id,
+  object_path,
+  display_order,
+  is_primary
+)
+values
+  (
+    '02100000-0000-4000-8000-000000000012',
+    'product-media', 'atomic/published-valid-primary.webp', 0, true
+  );
 
 insert into public.product_market_offers (
   product_id, market_code, currency_code, enabled, price_minor
 )
 values
   ('02100000-0000-4000-8000-000000000010', 'vn', 'VND', true, 100000),
-  ('02100000-0000-4000-8000-000000000010', 'intl', 'USD', true, 700);
+  ('02100000-0000-4000-8000-000000000010', 'intl', 'USD', true, 700),
+  ('02100000-0000-4000-8000-000000000012', 'vn', 'VND', true, 100000),
+  ('02100000-0000-4000-8000-000000000013', 'vn', 'VND', true, 100000);
 
 insert into public.product_variants (
   id, product_id, sku, attributes, display_order
@@ -100,6 +154,18 @@ values (
   'OTHER-PRODUCT-VARIANT',
   '{"size":"other"}'::jsonb,
   1
+), (
+  '02100000-0000-4000-8000-000000000022',
+  '02100000-0000-4000-8000-000000000012',
+  'PUBLISHED-EXISTING',
+  '{"size":"existing"}'::jsonb,
+  0
+), (
+  '02100000-0000-4000-8000-000000000025',
+  '02100000-0000-4000-8000-000000000013',
+  'PUBLISHED-INVALID-EXISTING',
+  '{"size":"existing-invalid"}'::jsonb,
+  0
 );
 
 insert into public.variant_market_offers (
@@ -114,7 +180,17 @@ values (
 );
 
 insert into public.inventory_records (variant_id, quantity_on_hand)
-values ('02100000-0000-4000-8000-000000000020', 4);
+values
+  ('02100000-0000-4000-8000-000000000020', 4),
+  ('02100000-0000-4000-8000-000000000022', 2),
+  ('02100000-0000-4000-8000-000000000025', 2);
+
+update public.products
+set status = 'published', published_at = now()
+where id in (
+  '02100000-0000-4000-8000-000000000012',
+  '02100000-0000-4000-8000-000000000013'
+);
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -235,6 +311,78 @@ select is(
   (select quantity_on_hand from public.inventory_records where variant_id = '02100000-0000-4000-8000-000000000020'),
   8,
   'successful aggregate save commits inventory'
+);
+
+select lives_ok(
+  $call$
+    select public.admin_save_catalog_variant(
+      '{
+        "product_id":"02100000-0000-4000-8000-000000000012",
+        "variant_id":"02100000-0000-4000-8000-000000000023",
+        "sku":"PUBLISHED-NEW-VALID",
+        "attributes":{"size":"new-valid"},
+        "display_order":1,
+        "media_id":null,
+        "quantity_on_hand":5,
+        "overrides":[]
+      }'::jsonb
+    )
+  $call$,
+  'a complete new variant can be added to a published product'
+);
+
+select is(
+  (
+    select status from public.products
+    where id = '02100000-0000-4000-8000-000000000012'
+  ),
+  'published',
+  'a valid final variant aggregate preserves the published product status'
+);
+
+select is(
+  (
+    select status from public.products
+    where id = '02100000-0000-4000-8000-000000000013'
+  ),
+  'published',
+  'the invalid fixture enters the aggregate RPC as a published product'
+);
+
+select lives_ok(
+  $call$
+    select public.admin_save_catalog_variant(
+      '{
+        "product_id":"02100000-0000-4000-8000-000000000013",
+        "variant_id":"02100000-0000-4000-8000-000000000025",
+        "sku":"PUBLISHED-INVALID-UPDATED",
+        "attributes":{"size":"updated-invalid"},
+        "display_order":0,
+        "media_id":null,
+        "quantity_on_hand":5,
+        "overrides":[]
+      }'::jsonb
+    )
+  $call$,
+  'an aggregate save against an invalid published catalog state completes safely'
+);
+
+select is(
+  (
+    select status from public.products
+    where id = '02100000-0000-4000-8000-000000000013'
+  ),
+  'draft',
+  'an invalid final variant aggregate remains safely demoted'
+);
+
+select ok(
+  exists (
+    select 1
+    from public.catalog_publish_issues('02100000-0000-4000-8000-000000000013')
+    where issue_code = 'missing_primary_image'
+  ),
+  'the invalid final aggregate reports its remaining publish issue'
 );
 
 select finish();
