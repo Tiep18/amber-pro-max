@@ -1,24 +1,17 @@
 import {z} from 'zod';
 import type {CurrencyCode, MarketCode} from './types';
+import {normalizeVariantAttributes} from './variant-attributes';
 
 const uuidSchema = z.uuid();
 
-const attributesSchema = z
-  .string()
-  .trim()
-  .transform((value, context) => {
-    try {
-      const parsed = JSON.parse(value);
-      if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
-        context.addIssue({code: 'custom', message: 'attributes_must_be_non_empty_object'});
-        return z.NEVER;
-      }
-      return parsed as Record<string, string>;
-    } catch {
-      context.addIssue({code: 'custom', message: 'attributes_must_be_json'});
-      return z.NEVER;
-    }
-  });
+const attributesSchema = z.unknown().transform((value, context) => {
+  const attributes = normalizeVariantAttributes(value);
+  if (!attributes) {
+    context.addIssue({code: 'custom', message: 'attributes_must_be_non_empty_string_record'});
+    return z.NEVER;
+  }
+  return attributes;
+});
 
 export const variantDraftSchema = z.object({
   productId: uuidSchema,

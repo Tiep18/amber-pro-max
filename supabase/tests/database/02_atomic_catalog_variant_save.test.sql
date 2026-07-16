@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(24);
+select plan(29);
 
 select has_function(
   'public',
@@ -78,7 +78,8 @@ values
   ('02100000-0000-4000-8000-000000000010', 'physical_finished'),
   ('02100000-0000-4000-8000-000000000011', 'physical_finished'),
   ('02100000-0000-4000-8000-000000000012', 'physical_finished'),
-  ('02100000-0000-4000-8000-000000000013', 'physical_finished');
+  ('02100000-0000-4000-8000-000000000013', 'physical_finished'),
+  ('02100000-0000-4000-8000-000000000014', 'physical_finished');
 
 insert into public.product_translations (
   product_id,
@@ -185,6 +186,9 @@ values
   ('02100000-0000-4000-8000-000000000022', 2),
   ('02100000-0000-4000-8000-000000000025', 2);
 
+insert into public.inventory_records (product_id, quantity_on_hand)
+values ('02100000-0000-4000-8000-000000000014', 9);
+
 update public.products
 set status = 'published', published_at = now()
 where id in (
@@ -195,6 +199,78 @@ where id in (
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
 select set_config('request.jwt.claim.sub', '02100000-0000-4000-8000-000000000002', true);
+
+select throws_ok(
+  $call$
+    select public.admin_save_catalog_variant(
+      '{
+        "product_id":"02100000-0000-4000-8000-000000000010",
+        "variant_id":"02100000-0000-4000-8000-000000000026",
+        "sku":"MALFORMED-ATTRIBUTES",
+        "attributes":{"size":2},
+        "display_order":1,
+        "media_id":null,
+        "quantity_on_hand":1,
+        "overrides":[]
+      }'::jsonb
+    )
+  $call$,
+  'P2004',
+  'variant attributes must be a non-empty string map',
+  'numeric attribute values are rejected at the aggregate boundary'
+);
+
+select throws_ok(
+  $call$
+    select public.admin_save_catalog_variant(
+      '{
+        "product_id":"02100000-0000-4000-8000-000000000010",
+        "variant_id":"02100000-0000-4000-8000-000000000026",
+        "sku":"EMPTY-ATTRIBUTES",
+        "attributes":{},
+        "display_order":1,
+        "media_id":null,
+        "quantity_on_hand":1,
+        "overrides":[]
+      }'::jsonb
+    )
+  $call$,
+  'P2004',
+  'variant attributes must be a non-empty string map',
+  'empty attribute objects are rejected at the aggregate boundary'
+);
+
+select is(
+  (select count(*) from public.product_variants where id = '02100000-0000-4000-8000-000000000026'),
+  0::bigint,
+  'malformed attributes perform no base variant write'
+);
+
+select throws_ok(
+  $call$
+    select public.admin_save_catalog_variant(
+      '{
+        "product_id":"02100000-0000-4000-8000-000000000014",
+        "variant_id":"02100000-0000-4000-8000-000000000027",
+        "sku":"PRODUCT-STOCK-BLOCKED",
+        "attributes":{"size":"small"},
+        "display_order":0,
+        "media_id":null,
+        "quantity_on_hand":1,
+        "overrides":[]
+      }'::jsonb
+    )
+  $call$,
+  '23514',
+  null,
+  'existing product-level inventory still blocks explicit variant ownership'
+);
+
+select is(
+  (select quantity_on_hand from public.inventory_records where product_id = '02100000-0000-4000-8000-000000000014'),
+  9,
+  'wrong inventory owner failure preserves product-level stock'
+);
 
 select throws_ok(
   $call$

@@ -25,6 +25,12 @@ import {
 } from '@/catalog/variant-actions';
 import { resolveEffectiveVariantPrice } from '@/catalog/variant-pricing';
 import {
+  attributesToRows,
+  canonicalAttributesText,
+  normalizeVariantAttributes,
+  rowsToVariantAttributes
+} from '@/catalog/variant-attributes';
+import {
   inventoryAdjustmentSchema,
   variantAggregateDraftSchema,
   variantDraftSchema,
@@ -78,7 +84,7 @@ describe('variant schemas', () => {
       productId,
       variantId,
       sku: 'BEAR-BROWN-SMALL',
-      attributes: '{"size":"small","color":"brown"}',
+      attributes: {size: 'small', color: 'brown'},
       displayOrder: 2,
       mediaId
     });
@@ -92,7 +98,7 @@ describe('variant schemas', () => {
         productId,
         variantId,
         sku: 'BEAR-BLANK',
-        attributes: '{}',
+        attributes: {},
         displayOrder: 0,
         mediaId: null
       }).success
@@ -114,6 +120,17 @@ describe('variant schemas', () => {
         priceMinor: 1200
       }).success
     ).toBe(false);
+
+    expect(
+      variantDraftSchema.safeParse({
+        productId,
+        variantId,
+        sku: 'BEAR-NUMERIC',
+        attributes: {size: 2},
+        displayOrder: 0,
+        mediaId: null
+      }).success
+    ).toBe(false);
   });
 
   it('validates the complete variant aggregate and rejects duplicate override markets', () => {
@@ -121,7 +138,7 @@ describe('variant schemas', () => {
       productId,
       variantId,
       sku: 'BEAR-S',
-      attributes: '{"size":"small"}',
+      attributes: {size: 'small'},
       displayOrder: 0,
       mediaId: null,
       quantityOnHand: 3,
@@ -137,6 +154,41 @@ describe('variant schemas', () => {
         overrides: [...input.overrides, {...input.overrides[0], priceMinor: 130000}]
       }).success
     ).toBe(false);
+  });
+});
+
+describe('variant attribute records', () => {
+  it('trims and sorts string entries deterministically', () => {
+    expect(normalizeVariantAttributes({size: ' small ', color: ' brown '})).toEqual({color: 'brown', size: 'small'});
+    expect(canonicalAttributesText({size: 'small', color: 'brown'})).toBe('{"color":"brown","size":"small"}');
+  });
+
+  it.each([{size: 2}, {size: false}, {size: {}}, {size: []}, {size: '  '}, {}])(
+    'rejects malformed attribute record %j',
+    (attributes) => expect(normalizeVariantAttributes(attributes)).toBeNull()
+  );
+
+  it('reports row-local blanks and duplicate trimmed keys', () => {
+    expect(
+      rowsToVariantAttributes([
+        {id: '1', key: ' size ', value: 'small'},
+        {id: '2', key: 'size', value: ''}
+      ])
+    ).toEqual({
+      attributes: null,
+      issues: [
+        {index: 1, field: 'value', message: 'Enter an attribute value.'},
+        {index: 1, field: 'key', message: 'Attribute names must be unique.'}
+      ]
+    });
+  });
+
+  it('converts canonical records into ordered editor rows', () => {
+    const ids = ['a', 'b'];
+    expect(attributesToRows({size: 'small', color: 'brown'}, () => ids.shift() ?? 'x')).toEqual([
+      {id: 'a', key: 'color', value: 'brown'},
+      {id: 'b', key: 'size', value: 'small'}
+    ]);
   });
 });
 
@@ -206,7 +258,7 @@ describe('variant actions', () => {
           productId,
           variantId,
           sku: 'BEAR-S',
-          attributes: '{"size":"small"}',
+          attributes: {size: 'small'},
           displayOrder: 0,
           mediaId: null
         })
@@ -233,7 +285,7 @@ describe('variant actions', () => {
           productId,
           variantId,
           sku: 'BEAR-S',
-          attributes: '{"size":"small"}',
+          attributes: {size: 'small'},
           displayOrder: 0,
           mediaId: null,
           quantityOnHand: 3,
@@ -262,7 +314,7 @@ describe('variant actions', () => {
       productId,
       variantId,
       sku: 'PDF-SKU',
-      attributes: '{"size":"small"}',
+      attributes: {size: 'small'},
       displayOrder: 0,
       mediaId: null
     });
@@ -288,7 +340,7 @@ describe('variant actions', () => {
         productId,
         variantId,
         sku: 'BEAR-S',
-        attributes: '{"size":"small"}',
+        attributes: {size: 'small'},
         displayOrder: 0,
         mediaId: null
       })
@@ -304,7 +356,7 @@ describe('variant actions', () => {
         productId,
         variantId,
         sku: 'BEAR-S',
-        attributes: '{"size":"small"}',
+        attributes: {size: 'small'},
         displayOrder: 2,
         mediaId: null,
         quantityOnHand: 3,
@@ -335,6 +387,7 @@ describe('variant actions', () => {
     ['P2001', 'product_not_found'],
     ['P2002', 'not_physical_product'],
     ['P2003', 'wrong_inventory_owner'],
+    ['P2004', 'invalid_input'],
     ['23505', 'duplicate_sku'],
     ['23514', 'wrong_inventory_owner']
   ] as const)('maps aggregate database code %s to %s', async (databaseCode, expectedCode) => {
@@ -347,7 +400,7 @@ describe('variant actions', () => {
         productId,
         variantId,
         sku: 'BEAR-S',
-        attributes: '{"size":"small"}',
+        attributes: {size: 'small'},
         displayOrder: 0,
         mediaId: null,
         quantityOnHand: 3,
@@ -405,7 +458,7 @@ describe('variant actions', () => {
         productId,
         variantId,
         sku: 'SECRET-SKU',
-        attributes: '{"size":"small","private":"do-not-log"}',
+        attributes: {size: 'small', private: 'do-not-log'},
         displayOrder: 0,
         mediaId: null
       })
@@ -429,9 +482,9 @@ describe('variant actions', () => {
   });
 
   it('records variant remove failures with only product and variant references', async () => {
-    const deleteEqProduct = vi.fn(() => Promise.resolve({ error: { message: 'private remove detail' } }));
+    const deleteEqProduct = vi.fn(() => Promise.resolve({data: null, error: {message: 'private remove detail'}}));
     const deleteEqId = vi.fn(() => ({ eq: deleteEqProduct }));
-    const deleteCall = vi.fn(() => ({ eq: deleteEqId }));
+    const deleteCall = vi.fn(() => ({select: () => ({eq: deleteEqId})}));
     createSupabaseServerClient.mockResolvedValue({
       from: vi.fn(() => ({ delete: deleteCall }))
     });
@@ -477,15 +530,15 @@ describe('variant actions', () => {
         productId,
         variantId,
         sku: 'BEAR-S',
-        attributes: '{"size":"small"}',
+        attributes: {size: 'small'},
         displayOrder: 0,
         mediaId: null
       })
     ).resolves.toEqual({ status: 'error', code: 'save_failed' });
 
-    const deleteEqProduct = vi.fn(() => Promise.resolve({ error: { message: 'remove failed' } }));
+    const deleteEqProduct = vi.fn(() => Promise.resolve({data: null, error: {message: 'remove failed'}}));
     const deleteEqId = vi.fn(() => ({ eq: deleteEqProduct }));
-    const deleteCall = vi.fn(() => ({ eq: deleteEqId }));
+    const deleteCall = vi.fn(() => ({select: () => ({eq: deleteEqId})}));
     createSupabaseServerClient.mockResolvedValueOnce({
       from: vi.fn(() => ({ delete: deleteCall }))
     });
@@ -494,6 +547,20 @@ describe('variant actions', () => {
       status: 'error',
       code: 'remove_failed'
     });
+  });
+
+  it('reports a stale exact variant removal as not found', async () => {
+    const deleteEqProduct = vi.fn(() => Promise.resolve({data: [], error: null}));
+    const deleteEqId = vi.fn(() => ({eq: deleteEqProduct}));
+    createSupabaseServerClient.mockResolvedValue({
+      from: vi.fn(() => ({delete: () => ({select: () => ({eq: deleteEqId})})}))
+    });
+
+    await expect(removeVariantAction({productId, variantId})).resolves.toEqual({
+      status: 'invalid',
+      code: 'variant_not_found'
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 
   it('stores product-level inventory only for non-variant physical products', async () => {

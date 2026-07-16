@@ -109,6 +109,9 @@ async function mapWriteError(
   if (code === 'P2003') {
     return {status: 'invalid', code: 'wrong_inventory_owner'};
   }
+  if (code === 'P2004') {
+    return {status: 'invalid', code: 'invalid_input'};
+  }
   if (code === '23505') {
     return {status: 'invalid', code: 'duplicate_sku'};
   }
@@ -245,9 +248,10 @@ export async function removeVariantAction(input: RemoveVariantInput): Promise<Va
   }
 
   const supabase = await createSupabaseServerClient();
-  const {error} = await supabase
+  const {data, error} = await supabase
     .from('product_variants')
     .delete()
+    .select('id')
     .eq('id', parsed.data.variantId)
     .eq('product_id', parsed.data.productId);
   if (error) {
@@ -258,6 +262,9 @@ export async function removeVariantAction(input: RemoveVariantInput): Promise<Va
       code: 'remove_failed',
       summary: 'Catalog variant remove failed'
     });
+  }
+  if (!data?.length) {
+    return {status: 'invalid', code: 'variant_not_found'};
   }
 
   revalidateVariants(parsed.data.productId);
