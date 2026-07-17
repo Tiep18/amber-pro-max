@@ -1,19 +1,19 @@
 'use server';
 
-import {revalidatePath} from 'next/cache';
-import {requireAdmin} from '@/auth/guards';
-import {createSupabaseAdminClient} from '@/lib/supabase/admin';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {sanitizeOperationalErrorInput} from './redaction';
+import { revalidatePath } from 'next/cache';
+import { requireAdmin } from '@/auth/guards';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { sanitizeOperationalErrorInput } from './redaction';
 
 export type RecordOperationalErrorResult =
-  | {status: 'recorded'; errorId: string}
-  | {status: 'error'; code: 'operational_error_record_failed'};
+  | { status: 'recorded'; errorId: string }
+  | { status: 'error'; code: 'operational_error_record_failed' };
 
 export type MarkOperationalErrorResolvedResult =
-  | {status: 'resolved'; errorId: string}
-  | {status: 'invalid'; code: 'invalid_error_id'}
-  | {status: 'error'; code: 'operational_error_resolve_failed'};
+  | { status: 'resolved'; errorId: string }
+  | { status: 'invalid'; code: 'invalid_error_id' }
+  | { status: 'error'; code: 'operational_error_resolve_failed' };
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -39,7 +39,7 @@ export async function recordOperationalError(input: {
 }): Promise<RecordOperationalErrorResult> {
   const sanitized = sanitizeOperationalErrorInput(input);
   const client = createSupabaseAdminClient();
-  const {data, error} = await client
+  const { data, error } = await client
     .from('operational_errors')
     .insert({
       area: sanitized.area,
@@ -52,10 +52,10 @@ export async function recordOperationalError(input: {
     .single();
 
   if (error || !data) {
-    return {status: 'error', code: 'operational_error_record_failed'};
+    return { status: 'error', code: 'operational_error_record_failed' };
   }
 
-  return {status: 'recorded', errorId: data.id};
+  return { status: 'recorded', errorId: data.id };
 }
 
 export async function recordOperationalFailure(input: {
@@ -74,18 +74,20 @@ export async function recordOperationalFailure(input: {
     return result;
   } catch {
     logOperationalRecordFailure(sanitized);
-    return {status: 'error', code: 'operational_error_record_failed'};
+    return { status: 'error', code: 'operational_error_record_failed' };
   }
 }
 
-export async function markOperationalErrorResolved(errorId: string): Promise<MarkOperationalErrorResolvedResult> {
+export async function markOperationalErrorResolved(
+  errorId: string
+): Promise<MarkOperationalErrorResolvedResult> {
   const admin = await requireAdmin();
   if (!uuidPattern.test(errorId)) {
-    return {status: 'invalid', code: 'invalid_error_id'};
+    return { status: 'invalid', code: 'invalid_error_id' };
   }
 
   const client = await createSupabaseServerClient();
-  const {error} = await client
+  const { error } = await client
     .from('operational_errors')
     .update({
       status: 'resolved',
@@ -95,17 +97,19 @@ export async function markOperationalErrorResolved(errorId: string): Promise<Mar
     .eq('id', errorId);
 
   if (error) {
-    return {status: 'error', code: 'operational_error_resolve_failed'};
+    return { status: 'error', code: 'operational_error_resolve_failed' };
   }
 
   revalidatePath('/admin/operations');
-  return {status: 'resolved', errorId};
+  return { status: 'resolved', errorId };
 }
 
-export async function markOperationalErrorResolvedAction(formData: FormData) {
+export async function markOperationalErrorResolvedAction(
+  formData: FormData
+): Promise<MarkOperationalErrorResolvedResult> {
   const errorId = formData.get('errorId');
   if (typeof errorId !== 'string') {
-    return;
+    return { status: 'invalid', code: 'invalid_error_id' };
   }
-  await markOperationalErrorResolved(errorId);
+  return markOperationalErrorResolved(errorId);
 }
