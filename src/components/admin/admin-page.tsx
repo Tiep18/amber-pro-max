@@ -1,5 +1,6 @@
 import type { HTMLAttributes, ReactNode } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 
@@ -13,19 +14,25 @@ export function AdminPageHeader({
   eyebrow,
   title,
   description,
-  action
+  action,
+  backHref,
+  backLabel
 }: {
   eyebrow: string;
   title: string;
   description?: string;
   action?: ReactNode;
+  backHref?: string;
+  backLabel?: string;
 }) {
   return (
     <header className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] pb-3">
       <div className="flex min-w-0 items-center gap-3">
-        <p className="hidden shrink-0 text-xs font-semibold uppercase text-[var(--accent)] xl:block">
-          {eyebrow}
-        </p>
+        {eyebrow ? (
+          <p className="hidden shrink-0 text-xs font-semibold uppercase text-[var(--accent)] xl:block">
+            {eyebrow}
+          </p>
+        ) : null}
         <h1 className="shrink-0 truncate text-xl font-semibold leading-none sm:text-2xl">
           {title}
         </h1>
@@ -35,7 +42,20 @@ export function AdminPageHeader({
           </p>
         ) : null}
       </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
+      {action || backHref ? (
+        <div className="flex items-center gap-2 shrink-0">
+          {backHref ? (
+            <Link
+              href={backHref}
+              className="group inline-flex h-9 items-center gap-2 rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-3 text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/30"
+            >
+              <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-1" />
+              <span>{backLabel ?? 'Back'}</span>
+            </Link>
+          ) : null}
+          {action}
+        </div>
+      ) : null}
     </header>
   );
 }

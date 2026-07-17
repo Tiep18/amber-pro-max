@@ -222,15 +222,17 @@ function attributesSummary(attributes: VariantAttributes) {
 function Field({
   label,
   error,
+  labelClassName,
   children
 }: {
   label: string;
   error?: string;
+  labelClassName?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className="grid min-w-0 gap-1.5 text-sm font-medium">
-      <span>{label}</span>
+      <span className={labelClassName}>{label}</span>
       {children}
       <span
         className={cn(
@@ -978,9 +980,14 @@ export function VariantEditor({
                 title="Identity and attributes"
                 description="Give this option a unique SKU and the attributes customers use to distinguish it."
               >
-                <div className="max-w-xl">
+                <div>
                   <Field label="Variant SKU" error={skuError}>
-                    <Input
+                    <input
+                      type="text"
+                      className={cn(
+                        'flex h-9 w-full rounded-[var(--radius-control)] border bg-[var(--surface)] px-2.5 py-1 text-sm placeholder:text-[var(--muted-foreground)] focus-visible:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/20 disabled:cursor-not-allowed disabled:opacity-50',
+                        skuError ? 'border-[var(--destructive)]' : 'border-[var(--border)]'
+                      )}
                       value={draft.sku}
                       aria-invalid={Boolean(skuError)}
                       onChange={(event) =>
@@ -990,83 +997,105 @@ export function VariantEditor({
                   </Field>
                 </div>
 
-                <div className="mt-3 grid gap-2">
-                  <div className="hidden grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_44px] gap-3 px-3 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--muted-foreground)] sm:grid">
-                    <span>Attribute</span>
-                    <span>Value</span>
-                    <span className="sr-only">Actions</span>
-                  </div>
-                  {draft.attributeRows.map((row, index) => {
-                    const keyError = attributeResult.issues.find(
-                      (issue) => issue.index === index && issue.field === 'key'
-                    )?.message;
-                    const valueError = attributeResult.issues.find(
-                      (issue) => issue.index === index && issue.field === 'value'
-                    )?.message;
-                    return (
-                      <div
-                        key={row.id}
-                        className="grid min-w-0 grid-cols-[minmax(0,1fr)_44px] gap-x-3 rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-3 pt-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_44px]"
-                      >
-                        <Field label={`Attribute ${index + 1} name`} error={keyError}>
-                          <Input
-                            placeholder="e.g. color"
-                            aria-invalid={Boolean(keyError)}
-                            value={row.key}
-                            onChange={(event) =>
-                              setDraft((current) => ({
-                                ...current,
-                                attributeRows: current.attributeRows.map((item) =>
-                                  item.id === row.id ? { ...item, key: event.target.value } : item
-                                )
-                              }))
-                            }
-                          />
-                        </Field>
-                        <div className="col-start-1 sm:col-start-2 sm:row-start-1">
-                          <Field label={`Attribute ${index + 1} value`} error={valueError}>
-                            <Input
-                              placeholder="e.g. brown"
-                              aria-invalid={Boolean(valueError)}
-                              value={row.value}
-                              onChange={(event) =>
+                <div className="mt-4">
+                  <div className="overflow-hidden rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)]">
+                    {/* Table Header */}
+                    <div className="grid grid-cols-[1fr_1.2fr_36px] gap-2 sm:grid-cols-[1fr_1.2fr_40px] sm:gap-3 bg-[var(--surface-muted)]/60 px-3 py-2 sm:px-4 sm:py-2.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.06em] text-[var(--muted-foreground)] border-b border-[var(--border)]">
+                      <span>Attribute</span>
+                      <span>Value</span>
+                      <span className="sr-only">Actions</span>
+                    </div>
+
+                    {/* Table Body */}
+                    <div className="divide-y divide-[var(--border)]">
+                      {draft.attributeRows.map((row, index) => {
+                        const keyError = attributeResult.issues.find(
+                          (issue) => issue.index === index && issue.field === 'key'
+                        )?.message;
+                        const valueError = attributeResult.issues.find(
+                          (issue) => issue.index === index && issue.field === 'value'
+                        )?.message;
+                        return (
+                          <div
+                            key={row.id}
+                            className="group relative grid grid-cols-[1fr_1.2fr_36px] gap-2 px-3 py-2 items-start transition-colors hover:bg-[var(--surface-muted)]/20 sm:grid-cols-[1fr_1.2fr_40px] sm:gap-3 sm:px-4 sm:py-2.5"
+                          >
+                            <div className="grid gap-1 min-w-0">
+                              <input
+                                type="text"
+                                placeholder="e.g. color"
+                                aria-label={`Attribute ${index + 1} name`}
+                                className={cn(
+                                  'flex h-9 w-full rounded-[var(--radius-control)] border bg-[var(--surface)] px-2.5 py-1 text-sm placeholder:text-[var(--muted-foreground)] focus-visible:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/20 disabled:cursor-not-allowed disabled:opacity-50 transition-colors',
+                                  keyError ? 'border-[var(--destructive)]' : 'border-[var(--border)]'
+                                )}
+                                value={row.key}
+                                onChange={(event) =>
+                                  setDraft((current) => ({
+                                    ...current,
+                                    attributeRows: current.attributeRows.map((item) =>
+                                      item.id === row.id ? { ...item, key: event.target.value } : item
+                                    )
+                                  }))
+                                }
+                              />
+                              {keyError && (
+                                <span className="text-[11px] leading-none text-[var(--destructive)] mt-0.5">
+                                  {keyError}
+                                </span>
+                              )}
+                            </div>
+                            <div className="grid gap-1 min-w-0">
+                              <input
+                                type="text"
+                                placeholder="e.g. brown"
+                                aria-label={`Attribute ${index + 1} value`}
+                                className={cn(
+                                  'flex h-9 w-full rounded-[var(--radius-control)] border bg-[var(--surface)] px-2.5 py-1 text-sm placeholder:text-[var(--muted-foreground)] focus-visible:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/20 disabled:cursor-not-allowed disabled:opacity-50 transition-colors',
+                                  valueError ? 'border-[var(--destructive)]' : 'border-[var(--border)]'
+                                )}
+                                value={row.value}
+                                onChange={(event) =>
+                                  setDraft((current) => ({
+                                    ...current,
+                                    attributeRows: current.attributeRows.map((item) =>
+                                      item.id === row.id ? { ...item, value: event.target.value } : item
+                                    )
+                                  }))
+                                }
+                              />
+                              {valueError && (
+                                <span className="text-[11px] leading-none text-[var(--destructive)] mt-0.5">
+                                  {valueError}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              title={`Remove attribute ${index + 1}`}
+                              className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-control)] text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] hover:text-[var(--destructive)] disabled:opacity-50 transition-colors cursor-pointer self-start"
+                              aria-label={`Remove attribute ${index + 1}`}
+                              disabled={draft.attributeRows.length === 1}
+                              onClick={() =>
                                 setDraft((current) => ({
                                   ...current,
-                                  attributeRows: current.attributeRows.map((item) =>
-                                    item.id === row.id
-                                      ? { ...item, value: event.target.value }
-                                      : item
+                                  attributeRows: current.attributeRows.filter(
+                                    (item) => item.id !== row.id
                                   )
                                 }))
                               }
-                            />
-                          </Field>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          title={`Remove attribute ${index + 1}`}
-                          className="col-start-2 row-span-2 row-start-1 mt-[26px] min-h-11 px-0 text-[var(--muted-foreground)] hover:text-[var(--destructive)] sm:col-start-3"
-                          aria-label={`Remove attribute ${index + 1}`}
-                          disabled={draft.attributeRows.length === 1}
-                          onClick={() =>
-                            setDraft((current) => ({
-                              ...current,
-                              attributeRows: current.attributeRows.filter(
-                                (item) => item.id !== row.id
-                              )
-                            }))
-                          }
-                        >
-                          <Trash2 aria-hidden="true" className="size-4" />
-                        </Button>
-                      </div>
-                    );
-                  })}
+                            >
+                              <Trash2 aria-hidden="true" className="size-5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
-                    className="justify-self-start px-2 text-sm text-[var(--accent)]"
+                    className="mt-3 justify-self-start h-8 px-2.5 text-xs text-[var(--accent)] hover:bg-[var(--accent-soft)]"
                     onClick={() =>
                       setDraft((current) => ({
                         ...current,
@@ -1077,7 +1106,7 @@ export function VariantEditor({
                       }))
                     }
                   >
-                    <Plus aria-hidden="true" className="mr-2 size-4" />
+                    <Plus aria-hidden="true" className="mr-2 size-3.5" />
                     Add attribute
                   </Button>
                 </div>
@@ -1088,7 +1117,7 @@ export function VariantEditor({
                 title="Inventory and merchandising"
                 description="Set sellable stock first, then control list order and the image that represents this option."
               >
-                <div className="grid min-w-0 gap-x-5 gap-y-1 md:grid-cols-2 2xl:grid-cols-[minmax(14rem,1.1fr)_minmax(12rem,0.8fr)_minmax(14rem,1fr)]">
+                <div className="grid min-w-0 gap-x-5 gap-y-1 sm:grid-cols-3">
                   <NumericStepper
                     id="variant-quantity-on-hand"
                     label="Quantity on hand"
@@ -1132,7 +1161,7 @@ export function VariantEditor({
                         }));
                     }}
                   />
-                  <div className="md:col-span-2 2xl:col-span-1">
+                  <div>
                     <Field label="Variant image">
                       <div className="relative">
                         <ImageIcon

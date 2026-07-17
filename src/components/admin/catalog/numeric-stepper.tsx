@@ -36,9 +36,27 @@ export function NumericStepper({
 
   return (
     <div className="grid min-w-0 gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
+      <div className="flex items-center justify-between min-h-5">
+        <label htmlFor={id} className="text-sm font-medium">
+          {label}
+        </label>
+        {quickSteps.length ? (
+          <div className="flex items-center gap-1.5" aria-label={`${label} quick adjustments`}>
+            {quickSteps.map((delta) => (
+              <button
+                key={delta}
+                type="button"
+                className="inline-flex h-5 items-center justify-center rounded bg-[var(--surface-muted)] px-1.5 text-[10px] font-bold text-[var(--muted-foreground)] border border-[var(--border)] transition-colors hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] disabled:opacity-50 cursor-pointer"
+                aria-label={`Increase ${label} by ${delta}`}
+                disabled={disabled || (parsed.valid && parsed.value === Number.MAX_SAFE_INTEGER)}
+                onClick={() => step(delta)}
+              >
+                +{delta}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <div className="grid min-w-0 grid-cols-[44px_minmax(0,1fr)_44px] overflow-hidden rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/25">
         <Button
           type="button"
@@ -82,23 +100,6 @@ export function NumericStepper({
           <Plus aria-hidden="true" className="size-4" />
         </Button>
       </div>
-      {quickSteps.length ? (
-        <div className="flex flex-wrap gap-2" aria-label={`${label} quick adjustments`}>
-          {quickSteps.map((delta) => (
-            <Button
-              key={delta}
-              type="button"
-              variant="secondary"
-              className="min-h-11 min-w-11 px-3 text-sm tabular-nums"
-              aria-label={`Increase ${label} by ${delta}`}
-              disabled={disabled || (parsed.valid && parsed.value === Number.MAX_SAFE_INTEGER)}
-              onClick={() => step(delta)}
-            >
-              +{delta}
-            </Button>
-          ))}
-        </div>
-      ) : null}
       <p
         id={errorId}
         className={cn('min-h-5 text-xs leading-5', error ? 'text-[var(--destructive)]' : 'text-transparent')}

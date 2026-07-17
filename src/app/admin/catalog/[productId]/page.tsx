@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { requireAdmin } from '@/auth/guards';
 import { AdminPageHeader, AdminPageShell } from '@/components/admin/admin-page';
 import { ProductForm } from '@/components/admin/catalog/product-form';
@@ -25,16 +24,12 @@ export default async function EditProductPage({
 
   return (
     <AdminPageShell className="mx-auto max-w-[1280px]">
-      <Link
-        href="/admin/catalog"
-        className="mb-4 inline-flex text-sm font-semibold text-[var(--accent)]"
-      >
-        Back to products
-      </Link>
       <AdminPageHeader
         eyebrow={initialProduct.status ?? 'draft'}
         title="Edit product"
         description="Update product content, taxonomy, market offers, and storefront metadata."
+        backHref="/admin/catalog"
+        backLabel="Back to products"
       />
       <ProductForm
         {...options}

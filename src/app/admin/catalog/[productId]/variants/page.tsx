@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAdmin } from '@/auth/guards';
 import { productIdSchema } from '@/catalog/schemas';
@@ -157,16 +156,12 @@ export default async function ProductVariantsPage({
 
   return (
     <AdminPageShell className="mx-auto max-w-[1280px]">
-      <Link
-        href={`/admin/catalog/${product.id}`}
-        className="mb-4 inline-flex text-sm font-semibold text-[var(--accent)]"
-      >
-        Back to product
-      </Link>
       <AdminPageHeader
         eyebrow={product.status}
         title="Variants and inventory"
         description={titleFor(product)}
+        backHref={`/admin/catalog/${product.id}`}
+        backLabel="Back to product"
       />
       <VariantEditor
         productId={product.id}
