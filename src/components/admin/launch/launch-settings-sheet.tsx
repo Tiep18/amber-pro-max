@@ -3,9 +3,9 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, FileCheck2, Settings2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { saveLaunchSettingsAction } from '@/launch/actions';
 import type { LaunchSettingsSnapshot } from '@/launch/gates';
-import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -16,12 +16,10 @@ export function LaunchSettingsSheet({ settings }: { settings: LaunchSettingsSnap
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [saveFailed, setSaveFailed] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function openSheet() {
     setSaved(false);
-    setSaveFailed(false);
     setOpen(true);
   }
 
@@ -55,25 +53,21 @@ export function LaunchSettingsSheet({ settings }: { settings: LaunchSettingsSnap
           onSubmit={(event) => {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
-            setSaveFailed(false);
             startTransition(async () => {
               const result = await saveLaunchSettingsAction(formData);
               if (result.status === 'error') {
-                setSaveFailed(true);
+                toast.error(
+                  'Launch settings could not be saved. Check the connection and try again.'
+                );
                 return;
               }
               setSaved(true);
+              toast.success('Launch settings saved.');
               setOpen(false);
               router.refresh();
             });
           }}
         >
-          {saveFailed ? (
-            <Alert variant="destructive">
-              <AlertTitle>Launch settings could not be saved.</AlertTitle>
-              <p className="mt-1 text-sm">Check the connection and try again.</p>
-            </Alert>
-          ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-2 text-sm font-semibold">
               Brand name

@@ -2,6 +2,7 @@
 
 import { type ChangeEvent, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Check, Clock3, Languages, Search, Send, Save, Settings2 } from 'lucide-react';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -157,20 +158,10 @@ function TranslationField({
   );
 }
 
-export function BlogPostForm({
-  categories,
-  tags,
-  products,
-  initialPost,
-  initialNotice
-}: BlogPostFormProps) {
+export function BlogPostForm({ categories, tags, products, initialPost }: BlogPostFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [postId, setPostId] = useState(initialPost?.postId);
-  const [notice, setNotice] = useState<string | null>(
-    initialNotice === 'saved' ? 'Draft saved' : null
-  );
-  const [error, setError] = useState<string | null>(null);
   const [blockers, setBlockers] = useState<BlogPublishBlocker[]>([]);
   const [categoryId, setCategoryId] = useState(initialPost?.categoryId ?? '');
   const [publishedAt, setPublishedAt] = useState(toDateTimeInput(initialPost?.publishedAt));
@@ -274,17 +265,15 @@ export function BlogPostForm({
   }
 
   function saveDraft() {
-    setNotice(null);
-    setError(null);
     setBlockers([]);
     startTransition(async () => {
       const result = await saveBlogPostDraftAction(draftPayload());
       if (result.status === 'saved') {
         setFieldErrors({});
         setPostId(result.postId);
-        setNotice('Draft saved');
+        toast.success('Draft saved.');
         if (!postId) {
-          router.replace(`/admin/blog/${result.postId}?saved=1`);
+          router.replace(`/admin/blog/${result.postId}`);
         } else {
           router.refresh();
         }
@@ -295,7 +284,7 @@ export function BlogPostForm({
         setFieldErrors(mapped.fields);
         if (mapped.firstLocale) setLocale(mapped.firstLocale);
         const firstMessage = mapped.firstPath ? mapped.fields[mapped.firstPath] : null;
-        setError(
+        toast.error(
           firstMessage
             ? `Review the highlighted fields. First issue: ${firstMessage}`
             : 'Review the highlighted fields before saving the draft.'
@@ -305,85 +294,79 @@ export function BlogPostForm({
         }
         return;
       }
-      setError('Draft could not be saved.');
+      toast.error('Draft could not be saved.');
     });
   }
 
   function publishNow() {
     if (!postId) {
-      setError('Save the draft before publishing.');
+      toast.error('Save the draft before publishing.');
       return;
     }
-    setNotice(null);
-    setError(null);
     setBlockers([]);
     startTransition(async () => {
       const result = await publishBlogPostAction(postId);
       if (result.status === 'published') {
-        setNotice('Post published');
+        toast.success('Post published.');
         router.refresh();
         return;
       }
       if (result.status === 'blocked') {
         setBlockers(result.issues);
+        toast.warning('Publishing blocked. Review the checklist.');
         return;
       }
-      setError('Post could not be published.');
+      toast.error('Post could not be published.');
     });
   }
 
   function schedule() {
     if (!postId) {
-      setError('Save the draft before scheduling.');
+      toast.error('Save the draft before scheduling.');
       return;
     }
     if (!publishedAt) {
-      setError('Choose a publish date and time.');
+      toast.error('Choose a publish date and time.');
       return;
     }
     const scheduledAt = new Date(publishedAt).toISOString();
-    setNotice(null);
-    setError(null);
     setBlockers([]);
     startTransition(async () => {
       const result = await scheduleBlogPostAction(postId, scheduledAt);
       if (result.status === 'scheduled') {
-        setNotice('Post scheduled');
+        toast.success('Post scheduled.');
         router.refresh();
         return;
       }
       if (result.status === 'blocked') {
         setBlockers(result.issues);
+        toast.warning('Scheduling blocked. Review the checklist.');
         return;
       }
-      setError('Post could not be scheduled.');
+      toast.error('Post could not be scheduled.');
     });
   }
 
   function unpublish() {
     if (!postId) {
-      setError('Save the draft first.');
+      toast.error('Save the draft first.');
       return;
     }
-    setNotice(null);
-    setError(null);
     setBlockers([]);
     startTransition(async () => {
       const result = await unpublishBlogPostAction(postId);
       if (result.status === 'unpublished') {
-        setNotice('Post unpublished');
+        toast.success('Post unpublished.');
         router.refresh();
         return;
       }
-      setError('Post could not be unpublished.');
+      toast.error('Post could not be unpublished.');
     });
   }
 
   return (
     <div className="grid gap-4 pb-24 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
       <div className="grid min-w-0 gap-4">
-        {notice ? <Alert variant="success">{notice}</Alert> : null}
-        {error ? <Alert variant="destructive">{error}</Alert> : null}
         {blockers.length ? (
           <Alert variant="warning">
             <AlertTitle>Publishing blocked</AlertTitle>

@@ -3,11 +3,8 @@
 import { type FormEvent, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { BadgeDollarSign, Loader2, Percent, Plus } from 'lucide-react';
-import {
-  createDiscountCodeAction,
-  type CreateDiscountCodeResult
-} from '@/checkout/admin-discount-actions';
-import { Alert } from '@/components/ui/alert';
+import { toast } from 'sonner';
+import { createDiscountCodeAction } from '@/checkout/admin-discount-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -38,7 +35,6 @@ export function DiscountCodeForm({
   onCreated?: (discount: { id: string; code: string }) => void;
 }) {
   const router = useRouter();
-  const [result, setResult] = useState<CreateDiscountCodeResult | null>(null);
   const [pending, startTransition] = useTransition();
   const [discountType, setDiscountType] = useState<DiscountType>('percentage');
   const [market, setMarket] = useState<Market>('all');
@@ -90,7 +86,6 @@ export function DiscountCodeForm({
       delete next[field];
       return next;
     });
-    setResult(null);
   };
 
   const validate = () => {
@@ -115,13 +110,16 @@ export function DiscountCodeForm({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!validate()) return;
+    if (!validate()) {
+      toast.error('Review the highlighted discount fields.');
+      return;
+    }
     const form = event.currentTarget;
     const formData = new FormData(form);
     startTransition(async () => {
       const actionResult = await createDiscountCodeAction(formData);
-      setResult(actionResult);
       if (actionResult.status === 'created') {
+        toast.success('Discount code created.');
         const createdCode = code;
         form.reset();
         setCode('');
@@ -131,25 +129,18 @@ export function DiscountCodeForm({
         setUsageLimit('');
         router.refresh();
         if (onCreated) {
-          setResult(null);
           onCreated({ id: actionResult.discountId, code: createdCode });
         }
+      } else if (actionResult.status === 'invalid') {
+        toast.error('Review the highlighted discount fields.');
+      } else {
+        toast.error('Discount code could not be created.');
       }
     });
   };
 
   return (
     <form className="grid gap-5" noValidate onSubmit={submit}>
-      {result?.status === 'created' ? (
-        <Alert variant="success">Discount code created.</Alert>
-      ) : null}
-      {result?.status === 'invalid' ? (
-        <Alert variant="destructive">Review the highlighted discount fields.</Alert>
-      ) : null}
-      {result?.status === 'error' ? (
-        <Alert variant="destructive">Discount code could not be created.</Alert>
-      ) : null}
-
       <div className="grid gap-4">
         <label className="grid gap-1.5">
           <span className="flex items-center justify-between text-sm font-semibold">
@@ -204,7 +195,6 @@ export function DiscountCodeForm({
                     setMinimumSubtotal('');
                   }
                   setErrors({});
-                  setResult(null);
                 }}
                 className={cn(
                   'flex min-h-10 items-center justify-center gap-2 rounded-[calc(var(--radius-control)-3px)] px-3 text-sm font-semibold transition-colors',

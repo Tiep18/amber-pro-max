@@ -2,11 +2,8 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  saveShippingProfileAction,
-  type ShippingAdminActionResult
-} from '@/checkout/admin-shipping-actions';
-import { Alert } from '@/components/ui/alert';
+import { toast } from 'sonner';
+import { saveShippingProfileAction } from '@/checkout/admin-shipping-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -45,7 +42,6 @@ export function ShippingProfileForm({
 }) {
   const router = useRouter();
   const nameRef = useRef<HTMLInputElement>(null);
-  const [result, setResult] = useState<ShippingAdminActionResult | null>(null);
   const [nameError, setNameError] = useState<string>();
   const [active, setActive] = useState(profile?.active ?? true);
   const [pending, startTransition] = useTransition();
@@ -53,7 +49,6 @@ export function ShippingProfileForm({
 
   function markDirty() {
     onDirtyChange?.(true);
-    setResult(null);
   }
 
   return (
@@ -69,6 +64,7 @@ export function ShippingProfileForm({
         if (!name) {
           setNameError('Enter a package type name.');
           nameRef.current?.focus();
+          toast.error('Review the highlighted package fields.');
           return;
         }
         setNameError(undefined);
@@ -79,22 +75,21 @@ export function ShippingProfileForm({
             description: String(formData.get('description') ?? ''),
             active
           });
-          setResult(actionResult);
           if (actionResult.status === 'saved' || actionResult.status === 'updated') {
+            toast.success(
+              actionResult.status === 'saved' ? 'Package type created.' : 'Package type updated.'
+            );
             onDirtyChange?.(false);
             router.refresh();
             onSaved?.(actionResult.status === 'saved' ? actionResult.id : profile!.id);
+          } else if (actionResult.status === 'invalid') {
+            toast.error('Review the highlighted package fields.');
+          } else {
+            toast.error('Package type could not be saved. Try again.');
           }
         });
       }}
     >
-      {result?.status === 'invalid' ? (
-        <Alert variant="destructive">Review the highlighted package fields.</Alert>
-      ) : null}
-      {result?.status === 'error' ? (
-        <Alert variant="destructive">Package type could not be saved. Try again.</Alert>
-      ) : null}
-
       <label className="grid gap-1.5">
         <span className="flex items-center justify-between gap-2 text-sm font-semibold">
           Package type name

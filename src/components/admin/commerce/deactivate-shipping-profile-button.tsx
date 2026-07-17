@@ -3,10 +3,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Power, RotateCcw } from 'lucide-react';
-import {
-  setShippingProfileActiveAction,
-  type DeactivateShippingProfileResult
-} from '@/checkout/admin-shipping-actions';
+import { toast } from 'sonner';
+import { setShippingProfileActiveAction } from '@/checkout/admin-shipping-actions';
 import { Button } from '@/components/ui/button';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
@@ -33,17 +31,26 @@ export function DeactivateShippingProfileButton({
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<DeactivateShippingProfileResult | null>(null);
   const active = activeProp ?? !disabled;
   const nextActive = !active;
 
   function updateAvailability() {
     startTransition(async () => {
       const actionResult = await setShippingProfileActiveAction(profileId, nextActive);
-      setResult(actionResult);
       if (actionResult.status === 'activated' || actionResult.status === 'deactivated') {
+        toast.success(
+          actionResult.status === 'activated'
+            ? 'Package type reactivated.'
+            : 'Package type deactivated.'
+        );
         setConfirmOpen(false);
         router.refresh();
+      } else {
+        toast.error(
+          nextActive
+            ? 'Package type could not be reactivated.'
+            : 'Package type could not be deactivated. Choose another default first and try again.'
+        );
       }
     });
   }
@@ -61,11 +68,6 @@ export function DeactivateShippingProfileButton({
           <RotateCcw className="size-4" aria-hidden="true" />
           {pending ? 'Reactivating…' : 'Reactivate'}
         </Button>
-        {result?.status === 'error' ? (
-          <p role="alert" className="text-sm text-[var(--destructive)]">
-            Package type could not be reactivated.
-          </p>
-        ) : null}
       </div>
     );
   }
@@ -85,11 +87,6 @@ export function DeactivateShippingProfileButton({
       </Button>
       {blockedReason && !compact ? (
         <p className="max-w-72 text-sm text-[var(--muted-foreground)]">{blockedReason}</p>
-      ) : null}
-      {result?.status === 'error' || result?.status === 'invalid' ? (
-        <p role="alert" className="text-sm text-[var(--destructive)]">
-          Package type could not be deactivated. Choose another default first and try again.
-        </p>
       ) : null}
       <ConfirmationDialog
         open={confirmOpen}

@@ -1,7 +1,9 @@
 'use client';
 
-import { type FormEvent, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { usePathname, useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import {
   AlertCircle,
   Check,
@@ -544,6 +546,8 @@ export function TaxonomyManager({
   invalid?: boolean;
   error?: boolean;
 }) {
+  const pathname = usePathname();
+  const router = useRouter();
   const firstSection = sections[0];
   const [activeSectionKey, setActiveSectionKey] = useState(firstSection?.config.key ?? '');
   const [activeTermId, setActiveTermId] = useState<string | undefined>(firstSection?.terms[0]?.id);
@@ -581,17 +585,25 @@ export function TaxonomyManager({
     setMobileBrowserOpen(false);
   };
 
-  const notice = saved
-    ? { tone: 'success', text: 'Taxonomy item saved.' }
-    : deleted
-      ? { tone: 'success', text: 'Taxonomy item deleted.' }
-      : blocked
-        ? { tone: 'warning', text: 'This item is still in use. Review its usage before deleting.' }
-        : invalid
-          ? { tone: 'warning', text: 'Some required values are missing or a slug is invalid.' }
-          : error
-            ? { tone: 'error', text: 'Taxonomy could not be saved. Try again.' }
-            : null;
+  useEffect(() => {
+    if (saved) toast.success('Taxonomy item saved.', { id: `taxonomy-${pathname}-saved` });
+    else if (deleted)
+      toast.success('Taxonomy item deleted.', { id: `taxonomy-${pathname}-deleted` });
+    else if (invalid)
+      toast.warning('Some required values are missing or a slug is invalid.', {
+        id: `taxonomy-${pathname}-invalid`
+      });
+    else if (error)
+      toast.error('Taxonomy could not be saved. Try again.', {
+        id: `taxonomy-${pathname}-error`
+      });
+    else return;
+
+    const params = new URLSearchParams(window.location.search);
+    for (const key of ['saved', 'deleted', 'invalid', 'error']) params.delete(key);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [deleted, error, invalid, pathname, router, saved]);
 
   if (!activeSection) return null;
 
@@ -656,25 +668,13 @@ export function TaxonomyManager({
         })}
       </section>
 
-      {notice ? (
+      {blocked ? (
         <div
           role="status"
-          className={cn(
-            'flex min-h-12 items-center gap-3 rounded-[var(--radius-control)] border px-4 py-3 text-sm font-semibold',
-            notice.tone === 'success' &&
-              'border-[var(--success)] bg-[var(--success-surface)] text-[var(--success)]',
-            notice.tone === 'warning' &&
-              'border-[var(--warning)] bg-[var(--warning-surface)] text-[var(--warning)]',
-            notice.tone === 'error' &&
-              'border-[var(--destructive)] bg-[var(--destructive-surface)] text-[var(--destructive)]'
-          )}
+          className="flex min-h-12 items-center gap-3 rounded-[var(--radius-control)] border border-[var(--warning)] bg-[var(--warning-surface)] px-4 py-3 text-sm font-semibold text-[var(--warning)]"
         >
-          {notice.tone === 'success' ? (
-            <Check className="size-4" />
-          ) : (
-            <AlertCircle className="size-4" />
-          )}
-          {notice.text}
+          <AlertCircle className="size-4" />
+          This item is still in use. Review its usage before deleting.
         </div>
       ) : null}
 

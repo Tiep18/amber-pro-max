@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { toast } from 'sonner';
 import {
   AlertCircle,
   Boxes,
@@ -69,7 +70,6 @@ type VariantDraft = Omit<VariantEditorVariant, 'attributes' | 'displayOrder' | '
 };
 type MarketMode = 'inherit' | 'custom' | 'unavailable';
 type Operation = { token: number; type: 'save' | 'remove' | 'inventory'; targetId: string };
-type Message = { variant: 'success' | 'warning' | 'destructive'; text: string };
 
 type VariantEditorProps = {
   productId: string;
@@ -480,7 +480,6 @@ export function VariantEditor({
   const [baseline, setBaseline] = useState(() =>
     canonicalDraft(variants[0] ? toDraft(variants[0]) : newVariant())
   );
-  const [message, setMessage] = useState<Message | null>(null);
   const [operation, setOperation] = useState<Operation | null>(null);
   const [switchTarget, setSwitchTarget] = useState<VariantEditorVariant | 'new' | null>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
@@ -542,7 +541,6 @@ export function VariantEditor({
   function beginOperation(type: Operation['type'], targetId: string) {
     const next = { token: ++operationToken.current, type, targetId };
     setOperation(next);
-    setMessage(null);
     return next;
   }
 
@@ -560,7 +558,6 @@ export function VariantEditor({
     const next = target === 'new' ? newVariant() : toDraft(target);
     setDraft(next);
     setBaseline(canonicalDraft(next));
-    setMessage(null);
     setSwitchTarget(null);
   }
 
@@ -585,8 +582,10 @@ export function VariantEditor({
     try {
       const result = await saveVariantEditorDraft(productId, snapshot);
       if (operationToken.current !== started.token) return;
-      if (result.status !== 'success')
-        return setMessage({ variant: 'destructive', text: resultText(result) });
+      if (result.status !== 'success') {
+        toast.error(resultText(result));
+        return;
+      }
       setVariantList((current) =>
         [...current.filter((variant) => variant.id !== snapshot.id), snapshot].sort(
           (left, right) =>
@@ -596,10 +595,9 @@ export function VariantEditor({
       const saved = toDraft(snapshot);
       setDraft(saved);
       setBaseline(canonicalDraft(saved));
-      setMessage({ variant: 'success', text: result.message });
+      toast.success(result.message);
     } catch {
-      if (operationToken.current === started.token)
-        setMessage({ variant: 'destructive', text: 'Variant could not be saved.' });
+      if (operationToken.current === started.token) toast.error('Variant could not be saved.');
     } finally {
       finishOperation(started);
     }
@@ -612,8 +610,10 @@ export function VariantEditor({
     try {
       const result = await removeVariantAction({ productId, variantId: targetId });
       if (operationToken.current !== started.token) return;
-      if (result.status !== 'success')
-        return setMessage({ variant: 'destructive', text: resultText(result) });
+      if (result.status !== 'success') {
+        toast.error(resultText(result));
+        return;
+      }
       setVariantList((current) => {
         const remaining = current.filter((variant) => variant.id !== targetId);
         if (!remaining.length) {
@@ -630,10 +630,9 @@ export function VariantEditor({
         return remaining;
       });
       setRemoveOpen(false);
-      setMessage({ variant: 'success', text: result.message });
+      toast.success(result.message);
     } catch {
-      if (operationToken.current === started.token)
-        setMessage({ variant: 'destructive', text: 'Variant could not be removed.' });
+      if (operationToken.current === started.token) toast.error('Variant could not be removed.');
     } finally {
       finishOperation(started);
     }
@@ -651,14 +650,11 @@ export function VariantEditor({
         quantityOnHand: quantity.value
       });
       if (operationToken.current === started.token) {
-        setMessage({
-          variant: result.status === 'success' ? 'success' : 'destructive',
-          text: resultText(result)
-        });
+        if (result.status === 'success') toast.success(result.message);
+        else toast.error(resultText(result));
       }
     } catch {
-      if (operationToken.current === started.token)
-        setMessage({ variant: 'destructive', text: 'Inventory could not be saved.' });
+      if (operationToken.current === started.token) toast.error('Inventory could not be saved.');
     } finally {
       finishOperation(started);
     }
@@ -683,8 +679,6 @@ export function VariantEditor({
 
   return (
     <div className="min-w-0 space-y-4">
-      {message ? <Alert variant={message.variant}>{message.text}</Alert> : null}
-
       {mode === 'product' ? (
         <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)]">
           <div className="border-b border-[var(--border)] bg-[var(--surface-muted)] px-5 py-4 sm:flex sm:items-center sm:justify-between sm:gap-5 sm:px-6">
@@ -1027,14 +1021,18 @@ export function VariantEditor({
                                 aria-label={`Attribute ${index + 1} name`}
                                 className={cn(
                                   'flex h-9 w-full rounded-[var(--radius-control)] border bg-[var(--surface)] px-2.5 py-1 text-sm placeholder:text-[var(--muted-foreground)] focus-visible:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/20 disabled:cursor-not-allowed disabled:opacity-50 transition-colors',
-                                  keyError ? 'border-[var(--destructive)]' : 'border-[var(--border)]'
+                                  keyError
+                                    ? 'border-[var(--destructive)]'
+                                    : 'border-[var(--border)]'
                                 )}
                                 value={row.key}
                                 onChange={(event) =>
                                   setDraft((current) => ({
                                     ...current,
                                     attributeRows: current.attributeRows.map((item) =>
-                                      item.id === row.id ? { ...item, key: event.target.value } : item
+                                      item.id === row.id
+                                        ? { ...item, key: event.target.value }
+                                        : item
                                     )
                                   }))
                                 }
@@ -1052,14 +1050,18 @@ export function VariantEditor({
                                 aria-label={`Attribute ${index + 1} value`}
                                 className={cn(
                                   'flex h-9 w-full rounded-[var(--radius-control)] border bg-[var(--surface)] px-2.5 py-1 text-sm placeholder:text-[var(--muted-foreground)] focus-visible:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/20 disabled:cursor-not-allowed disabled:opacity-50 transition-colors',
-                                  valueError ? 'border-[var(--destructive)]' : 'border-[var(--border)]'
+                                  valueError
+                                    ? 'border-[var(--destructive)]'
+                                    : 'border-[var(--border)]'
                                 )}
                                 value={row.value}
                                 onChange={(event) =>
                                   setDraft((current) => ({
                                     ...current,
                                     attributeRows: current.attributeRows.map((item) =>
-                                      item.id === row.id ? { ...item, value: event.target.value } : item
+                                      item.id === row.id
+                                        ? { ...item, value: event.target.value }
+                                        : item
                                     )
                                   }))
                                 }

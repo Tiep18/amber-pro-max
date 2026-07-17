@@ -4,7 +4,17 @@ import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
 import { useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, ArrowRight, Check, ImageIcon, ListTree, Package, Save, Send } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowRight,
+  Check,
+  ImageIcon,
+  ListTree,
+  Package,
+  Save,
+  Send
+} from 'lucide-react';
+import { toast } from 'sonner';
 import {
   saveAndPublishProductAction,
   saveProductDraftAction,
@@ -26,7 +36,6 @@ import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -190,7 +199,8 @@ function validationMessage(code: string, path: string) {
     missing_social_image: 'Add a social image in the media workflow.',
     missing_primary_image: 'Add a primary image in the media workflow.',
     missing_private_pdf: 'Upload the protected PDF in the media workflow.',
-    incompatible_product_data: 'Remove variants, inventory, shipping, or PDF data owned by the previous product type.',
+    incompatible_product_data:
+      'Remove variants, inventory, shipping, or PDF data owned by the previous product type.',
     invalid_inventory: 'Check variants and inventory before publishing.',
     publish_requirement: 'Complete this publishing requirement.'
   };
@@ -270,9 +280,7 @@ function OptionMultiSelect({
             />
           ))
         ) : (
-          <span className="text-xs text-[var(--muted-foreground)]">
-            None
-          </span>
+          <span className="text-xs text-[var(--muted-foreground)]">None</span>
         )}
       </div>
       <Input
@@ -487,10 +495,7 @@ function SectionNavigation({
                   {errorCount}
                 </span>
               ) : readiness[section.id] ? (
-                <Check
-                  aria-label="Ready"
-                  className="size-4 text-[var(--success)]"
-                />
+                <Check aria-label="Ready" className="size-4 text-[var(--success)]" />
               ) : (
                 <span
                   aria-hidden="true"
@@ -812,6 +817,7 @@ export function ProductForm({
       }));
       setResult({ status: 'invalid', issues });
       showValidationIssues(issues);
+      toast.error('Check the highlighted catalog fields.');
       return;
     }
 
@@ -820,16 +826,21 @@ export function ProductForm({
       setResult(actionResult);
       if (actionResult.status === 'invalid') {
         showValidationIssues(actionResult.issues);
+        toast.error('Check the highlighted catalog fields.');
       }
       if (actionResult.status === 'saved') {
+        toast.success('Draft saved.');
         setFieldErrors({});
         setSavedSignature(JSON.stringify(draft));
         if (!draft.productId) {
           setDraft((current) => ({ ...current, productId: actionResult.productId }));
-          window.location.assign(`/admin/catalog/${actionResult.productId}?saved=1`);
+          router.replace(`/admin/catalog/${actionResult.productId}`);
         } else {
           router.refresh();
         }
+      }
+      if (actionResult.status === 'error') {
+        toast.error('The catalog action could not be completed.');
       }
     });
   }
@@ -841,6 +852,7 @@ export function ProductForm({
         issues: [{ path: 'productId', code: 'save_before_publish' }]
       });
       showValidationIssues([{ path: 'productId', code: 'save_before_publish' }]);
+      toast.error('Save the draft before publishing.');
       return;
     }
     const submittedDraft = draft;
@@ -850,8 +862,10 @@ export function ProductForm({
       setResult(actionResult);
       if (actionResult.status === 'invalid' && 'issues' in actionResult) {
         showValidationIssues(actionResult.issues);
+        toast.error('Check the highlighted catalog fields.');
       }
       if (actionResult.status === 'blocked') {
+        toast.warning('Publishing blocked. Review the checklist.');
         setSavedSignature(submittedSignature);
         showValidationIssues(
           actionResult.issues.map((issue) => ({
@@ -861,8 +875,12 @@ export function ProductForm({
         );
       }
       if (actionResult.status === 'published') {
+        toast.success('Product published.');
         setSavedSignature(submittedSignature);
         setFieldErrors({});
+      }
+      if (actionResult.status === 'error') {
+        toast.error('The catalog action could not be completed.');
       }
       router.refresh();
     });
@@ -884,14 +902,6 @@ export function ProductForm({
         saveDraft();
       }}
     >
-      {result?.status === 'saved' ? <Alert variant="success">Draft saved</Alert> : null}
-      {result?.status === 'published' ? <Alert variant="success">Product published</Alert> : null}
-      {result?.status === 'invalid' ? (
-        <Alert variant="destructive">Check the highlighted catalog fields.</Alert>
-      ) : null}
-      {result?.status === 'error' ? (
-        <Alert variant="destructive">The catalog action could not be completed.</Alert>
-      ) : null}
       {result?.status === 'blocked' ? (
         <Alert variant="warning">
           <AlertTitle>Publishing blocked</AlertTitle>
@@ -1122,7 +1132,9 @@ export function ProductForm({
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5">
                         <p className="text-sm font-semibold">{market.label}</p>
-                        <span className="text-xs text-[var(--muted-foreground)]">{market.currency}</span>
+                        <span className="text-xs text-[var(--muted-foreground)]">
+                          {market.currency}
+                        </span>
                       </div>
                       <span
                         className={`shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold ${readinessTone(market.ready)}`}
@@ -1162,7 +1174,10 @@ export function ProductForm({
                               ? `${fieldDomId(`offers.${market.key}.priceMinor`)}-error`
                               : undefined
                           }
-                          className={invalidFieldClass(`offers.${market.key}.priceMinor`, 'h-9 pr-8')}
+                          className={invalidFieldClass(
+                            `offers.${market.key}.priceMinor`,
+                            'h-9 pr-8'
+                          )}
                           placeholder="0"
                           value={draft.offers[market.key].priceMinor ?? ''}
                           onChange={(event) =>
@@ -1222,7 +1237,9 @@ export function ProductForm({
               />
               {draft.collections.length ? (
                 <div className="grid gap-1.5">
-                  <span className="text-xs font-semibold text-[var(--muted-foreground)]">Display order</span>
+                  <span className="text-xs font-semibold text-[var(--muted-foreground)]">
+                    Display order
+                  </span>
                   {draft.collections.map((collection) => {
                     const option = collections.find((item) => item.id === collection.collectionId);
                     return (
@@ -1230,7 +1247,9 @@ export function ProductForm({
                         key={collection.collectionId}
                         className="flex items-center gap-3 rounded-[var(--radius-control)] px-2.5 py-1.5 transition-colors hover:bg-[var(--surface-muted)]/40"
                       >
-                        <span className="min-w-0 flex-1 truncate text-sm">{option?.label ?? 'Collection'}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm">
+                          {option?.label ?? 'Collection'}
+                        </span>
                         <Input
                           aria-label={`${option?.label ?? 'Collection'} display order`}
                           type="number"
@@ -1238,7 +1257,10 @@ export function ProductForm({
                           className="h-8 w-20 shrink-0 text-center text-sm"
                           value={selectedCollections.get(collection.collectionId) ?? 0}
                           onChange={(event) =>
-                            updateCollectionOrder(collection.collectionId, Number(event.target.value))
+                            updateCollectionOrder(
+                              collection.collectionId,
+                              Number(event.target.value)
+                            )
                           }
                         />
                       </label>
@@ -1383,10 +1405,30 @@ export function ProductForm({
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {[
-                    { label: 'Vietnamese content', ready: viReady, readyText: 'ready', pendingText: 'needs review' },
-                    { label: 'English content', ready: enReady, readyText: 'ready', pendingText: 'needs review' },
-                    { label: 'Vietnam offer', ready: vnOfferReady, readyText: 'ready', pendingText: 'off or missing price' },
-                    { label: 'International offer', ready: intlOfferReady, readyText: 'ready', pendingText: 'off or missing price' }
+                    {
+                      label: 'Vietnamese content',
+                      ready: viReady,
+                      readyText: 'ready',
+                      pendingText: 'needs review'
+                    },
+                    {
+                      label: 'English content',
+                      ready: enReady,
+                      readyText: 'ready',
+                      pendingText: 'needs review'
+                    },
+                    {
+                      label: 'Vietnam offer',
+                      ready: vnOfferReady,
+                      readyText: 'ready',
+                      pendingText: 'off or missing price'
+                    },
+                    {
+                      label: 'International offer',
+                      ready: intlOfferReady,
+                      readyText: 'ready',
+                      pendingText: 'off or missing price'
+                    }
                   ].map((item) => (
                     <span
                       key={item.label}
@@ -1400,7 +1442,9 @@ export function ProductForm({
                         aria-hidden="true"
                         className={`size-2 shrink-0 rounded-full ${item.ready ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`}
                       />
-                      <span>{item.label} {item.ready ? item.readyText : item.pendingText}</span>
+                      <span>
+                        {item.label} {item.ready ? item.readyText : item.pendingText}
+                      </span>
                     </span>
                   ))}
                 </div>
@@ -1431,9 +1475,15 @@ export function ProductForm({
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-paper)] px-3 text-sm font-semibold transition-colors hover:border-[var(--accent)]/50 hover:bg-[var(--surface-blush)]/40 hover:text-[var(--accent)]"
                     href={`/admin/catalog/${productId}/media`}
                   >
-                    <ImageIcon aria-hidden="true" className="size-4 text-[var(--muted-foreground)]" />
+                    <ImageIcon
+                      aria-hidden="true"
+                      className="size-4 text-[var(--muted-foreground)]"
+                    />
                     Media and PDF
-                    <ArrowRight aria-hidden="true" className="ml-auto size-3.5 text-[var(--muted-foreground)]" />
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="ml-auto size-3.5 text-[var(--muted-foreground)]"
+                    />
                   </Link>
                   <Link
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-paper)] px-3 text-sm font-semibold transition-colors hover:border-[var(--accent)]/50 hover:bg-[var(--surface-blush)]/40 hover:text-[var(--accent)]"
@@ -1441,7 +1491,10 @@ export function ProductForm({
                   >
                     <Package aria-hidden="true" className="size-4 text-[var(--muted-foreground)]" />
                     Variants and inventory
-                    <ArrowRight aria-hidden="true" className="ml-auto size-3.5 text-[var(--muted-foreground)]" />
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="ml-auto size-3.5 text-[var(--muted-foreground)]"
+                    />
                   </Link>
                 </div>
               ) : null}
@@ -1558,11 +1611,7 @@ export function ProductForm({
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--surface-paper)] px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2.5 shadow-[0_-4px_16px_rgba(92,48,26,0.09)] backdrop-blur lg:hidden">
         <div className="mx-auto grid max-w-xl grid-cols-2 gap-2">
-          <Button
-            type="submit"
-            disabled={isPending}
-            className="min-h-11 gap-1.5 px-2.5 text-sm"
-          >
+          <Button type="submit" disabled={isPending} className="min-h-11 gap-1.5 px-2.5 text-sm">
             <Save aria-hidden="true" className="size-4" />
             {isPending ? 'Saving...' : 'Save draft'}
           </Button>

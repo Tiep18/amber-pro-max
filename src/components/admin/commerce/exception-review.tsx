@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import {
   approveExceptionRequestAction,
   rejectExceptionRequestAction,
@@ -12,9 +13,7 @@ import { Button } from '@/components/ui/button';
 
 export function ExceptionReview({ requestId }: { requestId: string }) {
   const router = useRouter();
-  const [result, setResult] = useState<
-    ApproveExceptionRequestResult | { status: 'rejected' } | null
-  >(null);
+  const [result, setResult] = useState<ApproveExceptionRequestResult | null>(null);
   const [pending, startTransition] = useTransition();
 
   return (
@@ -24,7 +23,6 @@ export function ExceptionReview({ requestId }: { requestId: string }) {
           Approved. Token: <span className="break-all font-mono">{result.token}</span>
         </Alert>
       ) : null}
-      {result?.status === 'rejected' ? <Alert variant="success">Rejected.</Alert> : null}
       <div className="flex flex-wrap justify-end gap-2">
         <Button
           className="min-h-9 px-3 text-sm"
@@ -36,8 +34,13 @@ export function ExceptionReview({ requestId }: { requestId: string }) {
                 shippingFeeMinor: 0,
                 currencyCode: 'USD'
               });
-              setResult(actionResult);
-              router.refresh();
+              if (actionResult.status === 'approved') {
+                setResult(actionResult);
+                toast.success('Exception request approved.');
+                router.refresh();
+              } else {
+                toast.error('Exception request could not be approved.');
+              }
             })
           }
         >
@@ -53,8 +56,13 @@ export function ExceptionReview({ requestId }: { requestId: string }) {
                 requestId,
                 reason: 'Unavailable for this destination'
               });
-              setResult(actionResult);
-              router.refresh();
+              if (actionResult.status === 'rejected') {
+                setResult(null);
+                toast.success('Exception request rejected.');
+                router.refresh();
+              } else {
+                toast.error('Exception request could not be rejected.');
+              }
             })
           }
         >

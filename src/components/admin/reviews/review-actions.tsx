@@ -1,8 +1,9 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Check, EyeOff, MessageSquare, Settings2, Star, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   approveProductReviewAction,
   hideProductReviewAction,
@@ -30,6 +31,26 @@ function resultText(result: ReviewAdminActionResult) {
   if (result.status === 'not_found') return 'Review no longer exists.';
   if (result.status === 'invalid') return 'Check the action fields and try again.';
   return 'The review action failed. Try again.';
+}
+
+function useReviewActionToast(reviewId: string, action: string, result: ReviewAdminActionResult) {
+  useEffect(() => {
+    const message = resultText(result);
+    if (!message) return;
+    const id = `review-${reviewId}-${action}-${JSON.stringify(result)}`;
+    if (
+      result.status === 'approved' ||
+      result.status === 'hidden' ||
+      result.status === 'saved' ||
+      result.status === 'removed'
+    ) {
+      toast.success(message, { id });
+    } else if (result.status === 'stale') {
+      toast.warning(message, { id });
+    } else {
+      toast.error(message, { id });
+    }
+  }, [action, result, reviewId]);
 }
 
 function PendingButton({
@@ -77,9 +98,10 @@ export function ReviewActions({ review }: { review: AdminProductReview }) {
   const [hideState, hideAction] = useActionState(hideProductReviewAction, initialState);
   const [replyState, replyAction] = useActionState(upsertReviewReplyAction, initialState);
   const [removeState, removeAction] = useActionState(removeReviewReplyAction, initialState);
-  const visibleResult = [removeState, replyState, hideState, approveState].find(
-    (result) => result.status !== 'idle'
-  );
+  useReviewActionToast(review.reviewId, 'approve', approveState);
+  useReviewActionToast(review.reviewId, 'hide', hideState);
+  useReviewActionToast(review.reviewId, 'reply', replyState);
+  useReviewActionToast(review.reviewId, 'remove-reply', removeState);
 
   return (
     <div className="flex justify-end">
@@ -221,15 +243,6 @@ export function ReviewActions({ review }: { review: AdminProductReview }) {
                 </form>
               ) : null}
             </section>
-          ) : null}
-
-          {visibleResult ? (
-            <p
-              role="status"
-              className="rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--muted-foreground)]"
-            >
-              {resultText(visibleResult)}
-            </p>
           ) : null}
         </div>
       </Sheet>

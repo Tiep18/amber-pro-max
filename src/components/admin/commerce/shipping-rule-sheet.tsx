@@ -3,8 +3,8 @@
 import { useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Pencil, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { saveShippingRuleAction } from '@/checkout/admin-shipping-actions';
-import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { Input } from '@/components/ui/input';
@@ -123,7 +123,6 @@ export function ShippingRuleSheet({
   const [errors, setErrors] = useState<
     Partial<Record<'profile' | 'country' | 'first' | 'additional', string>>
   >({});
-  const [result, setResult] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const editing = Boolean(rule);
   const profileLocked = Boolean(rule || presetProfileId);
@@ -146,7 +145,6 @@ export function ShippingRuleSheet({
 
   function markDirty() {
     setDirty(true);
-    setResult(null);
   }
 
   function amountToMinor(value: string) {
@@ -182,7 +180,6 @@ export function ShippingRuleSheet({
     );
     setActive(rule?.active ?? true);
     setErrors({});
-    setResult(null);
     setDirty(false);
   }
 
@@ -229,7 +226,10 @@ export function ShippingRuleSheet({
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
-            if (!validate()) return;
+            if (!validate()) {
+              toast.error('Review the highlighted shipping rate fields.');
+              return;
+            }
             const normalizedCountry =
               destinationChoice === 'custom'
                 ? countryCode.trim().toUpperCase()
@@ -248,12 +248,15 @@ export function ShippingRuleSheet({
                 active
               });
               if (action.status === 'saved' || action.status === 'updated') {
+                toast.success(
+                  action.status === 'saved' ? 'Shipping rate created.' : 'Shipping rate updated.'
+                );
                 setDirty(false);
                 setOpen(false);
                 router.refresh();
                 return;
               }
-              setResult(
+              toast.error(
                 action.status === 'invalid'
                   ? 'This package already has that destination and currency, or a field is invalid. Edit the existing rate instead.'
                   : 'The shipping rate could not be saved. Try again.'
@@ -261,8 +264,6 @@ export function ShippingRuleSheet({
             });
           }}
         >
-          {result ? <Alert variant="destructive">{result}</Alert> : null}
-
           {profileLocked ? (
             <ContextField label="Package type" value={selectedProfileName} />
           ) : (

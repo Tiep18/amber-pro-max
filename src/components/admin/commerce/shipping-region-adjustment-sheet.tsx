@@ -3,8 +3,8 @@
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Pencil, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { saveShippingRegionAdjustmentAction } from '@/checkout/admin-shipping-actions';
-import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { Input } from '@/components/ui/input';
@@ -135,7 +135,6 @@ export function ShippingRegionAdjustmentSheet({
   const [errors, setErrors] = useState<
     Partial<Record<'rule' | 'region' | 'first' | 'additional', string>>
   >({});
-  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const editing = Boolean(adjustment);
   const eligibleRules = rules.filter(
@@ -148,7 +147,6 @@ export function ShippingRegionAdjustmentSheet({
 
   function markDirty() {
     setDirty(true);
-    setError(null);
   }
 
   function fee(value: string) {
@@ -175,7 +173,6 @@ export function ShippingRegionAdjustmentSheet({
     setAdditionalItemFee(adjustment ? (adjustment.additional_item_fee_minor / 100).toFixed(2) : '');
     setActive(adjustment?.active ?? true);
     setErrors({});
-    setError(null);
     setDirty(false);
   }
 
@@ -222,7 +219,10 @@ export function ShippingRegionAdjustmentSheet({
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
-            if (!validate()) return;
+            if (!validate()) {
+              toast.error('Review the highlighted US adjustment fields.');
+              return;
+            }
             startTransition(async () => {
               const result = await saveShippingRegionAdjustmentAction({
                 adjustmentId: adjustment?.id,
@@ -235,12 +235,17 @@ export function ShippingRegionAdjustmentSheet({
                 active
               });
               if (result.status === 'saved' || result.status === 'updated') {
+                toast.success(
+                  result.status === 'saved'
+                    ? 'State shipping adjustment created.'
+                    : 'State shipping adjustment updated.'
+                );
                 setDirty(false);
                 setOpen(false);
                 router.refresh();
                 return;
               }
-              setError(
+              toast.error(
                 result.status === 'invalid'
                   ? 'That state already has an active adjustment for this rate, or a field is invalid.'
                   : 'The US adjustment could not be saved. Try again.'
@@ -248,8 +253,6 @@ export function ShippingRegionAdjustmentSheet({
             });
           }}
         >
-          {error ? <Alert variant="destructive">{error}</Alert> : null}
-
           {ruleLocked ? (
             <div className="grid gap-1.5">
               <span className="text-sm font-semibold">United States shipping rate</span>

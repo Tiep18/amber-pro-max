@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -187,18 +188,17 @@ function SetDefaultProfileButton({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
   function setDefault() {
-    setError(null);
     startTransition(async () => {
       const result = await setStoreDefaultShippingProfileAction(profile.id);
       if (result.status === 'updated') {
         setOpen(false);
+        toast.success('Default package type updated.');
         router.refresh();
         return;
       }
-      setError('Default package type could not be changed.');
+      toast.error('Default package type could not be changed.');
     });
   }
 
@@ -213,11 +213,6 @@ function SetDefaultProfileButton({
       >
         Set default
       </Button>
-      {error ? (
-        <p role="alert" className="text-sm text-[var(--destructive)]">
-          {error}
-        </p>
-      ) : null}
       <ConfirmationDialog
         open={open}
         onOpenChange={setOpen}

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Nunito } from 'next/font/google';
+import { Toaster } from '@/components/ui/sonner';
 import { defaultLocale } from '@/i18n/routing';
 import './globals.css';
 
@@ -27,7 +28,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: localeLangScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }

@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Truck } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   saveProductShippingProfileAction,
   type ProductShippingProfileResult
@@ -11,7 +12,6 @@ import {
   saveVariantShippingProfileAction,
   type VariantShippingProfileResult
 } from '@/catalog/variant-actions';
-import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -99,7 +99,6 @@ export function ShippingAssignmentSheet({
     effectiveProfile,
     source: effectiveSource
   });
-  const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const selectedPreview = useMemo<{
@@ -116,7 +115,14 @@ export function ShippingAssignmentSheet({
       effectiveProfile: profiles.find((profile) => profile.id === selectedProfileId) ?? null,
       source: owner.type === 'variant' ? 'Variant override' : 'Product'
     };
-  }, [inheritedProfile, inheritedSource, owner.type, profiles, selectedProfileId, storeDefaultProfile]);
+  }, [
+    inheritedProfile,
+    inheritedSource,
+    owner.type,
+    profiles,
+    selectedProfileId,
+    storeDefaultProfile
+  ]);
 
   const optionLabel =
     owner.type === 'variant' ? 'Inherit product / Store default' : 'Store default';
@@ -125,14 +131,12 @@ export function ShippingAssignmentSheet({
 
   function resetDraft() {
     setSelectedProfileId(snapshot.explicitProfileId ?? 'store_default');
-    setMessage(null);
   }
 
   function saveAssignment() {
     const ownerAtStart = owner;
     const selectedProfileIdAtStart = selectedProfileId;
     const selectedPreviewAtStart = selectedPreview;
-    setMessage(null);
     startTransition(async () => {
       const result =
         ownerAtStart.type === 'product'
@@ -146,18 +150,20 @@ export function ShippingAssignmentSheet({
             });
       const error = resultMessage(result);
       if (error) {
-        setMessage(error);
+        toast.error(error);
         return;
       }
 
       const nextSnapshot: ShippingAssignmentSnapshot = {
-        explicitProfileId: selectedProfileIdAtStart === 'store_default' ? null : selectedProfileIdAtStart,
+        explicitProfileId:
+          selectedProfileIdAtStart === 'store_default' ? null : selectedProfileIdAtStart,
         effectiveProfile: selectedPreviewAtStart.effectiveProfile,
         source: selectedPreviewAtStart.source
       };
       setSnapshot(nextSnapshot);
       setSelectedProfileId(nextSnapshot.explicitProfileId ?? 'store_default');
       onSaved?.(nextSnapshot, ownerAtStart);
+      toast.success('Package type assignment updated.');
       setOpen(false);
       router.refresh();
     });
@@ -167,9 +173,7 @@ export function ShippingAssignmentSheet({
     <div className="grid gap-3 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] p-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase text-[var(--muted-foreground)]">
-            {title}
-          </p>
+          <p className="text-xs font-semibold uppercase text-[var(--muted-foreground)]">{title}</p>
           <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
             <p className="truncate text-base font-semibold">{currentProfileLabel}</p>
             <span
@@ -204,8 +208,6 @@ export function ShippingAssignmentSheet({
             <span className="text-[var(--muted-foreground)]">Source: {snapshot.source}</span>
           </div>
 
-          {message ? <Alert variant="destructive">{message}</Alert> : null}
-
           <label className="grid gap-2">
             <span className="text-sm font-semibold">Assignment</span>
             <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
@@ -226,13 +228,16 @@ export function ShippingAssignmentSheet({
           <div className="grid gap-1 rounded-[var(--radius-control)] border border-[var(--border)] p-3 text-sm">
             <span className="font-semibold">Preview after save</span>
             <span>{previewProfileLabel}</span>
-            <span className="text-[var(--muted-foreground)]">
-              Source: {selectedPreview.source}
-            </span>
+            <span className="text-[var(--muted-foreground)]">Source: {selectedPreview.source}</span>
           </div>
 
           <div className="sticky bottom-0 -mx-5 mt-2 flex flex-col gap-2 border-t border-[var(--border)] bg-[var(--surface)] px-5 py-4 sm:flex-row sm:justify-end">
-            <Button type="button" variant="secondary" disabled={pending} onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={pending}
+              onClick={() => setOpen(false)}
+            >
               Keep current assignment
             </Button>
             <Button type="button" disabled={pending} onClick={saveAssignment}>

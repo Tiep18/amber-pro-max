@@ -2,6 +2,7 @@
 
 import { type ChangeEvent, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Check, FileCheck2, Languages, Save, Send } from 'lucide-react';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -128,8 +129,6 @@ export function PolicyForm({
   const [policyId, setPolicyId] = useState(initialPolicy?.policyId);
   const [status, setStatus] = useState(initialPolicy?.status ?? 'draft');
   const [locale, setLocale] = useState<PolicyLocale>('vi');
-  const [notice, setNotice] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [blockers, setBlockers] = useState<PolicyPublishBlocker[]>([]);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [translations, setTranslations] = useState<Record<PolicyLocale, TranslationState>>(
@@ -168,8 +167,6 @@ export function PolicyForm({
     }
   });
   const resetFeedback = () => {
-    setNotice(null);
-    setError(null);
     setBlockers([]);
   };
 
@@ -180,7 +177,7 @@ export function PolicyForm({
       if (result.status === 'saved') {
         setPolicyId(result.policyId);
         setFieldErrors({});
-        setNotice('Policy saved');
+        toast.success('Policy saved.');
         router.refresh();
         return;
       }
@@ -189,7 +186,7 @@ export function PolicyForm({
         setFieldErrors(mapped.fields);
         if (mapped.firstLocale) setLocale(mapped.firstLocale);
         const firstMessage = mapped.firstPath ? mapped.fields[mapped.firstPath] : null;
-        setError(
+        toast.error(
           firstMessage
             ? `Review the highlighted fields. First issue: ${firstMessage}`
             : 'Review the highlighted fields.'
@@ -200,12 +197,12 @@ export function PolicyForm({
           );
         return;
       }
-      setError('This content could not be saved.');
+      toast.error('This content could not be saved.');
     });
   };
   const publish = () => {
     if (!policyId) {
-      setError('Save the policy before publishing.');
+      toast.error('Save the policy before publishing.');
       return;
     }
     resetFeedback();
@@ -213,16 +210,17 @@ export function PolicyForm({
       const result = await publishPolicyAction(policyId);
       if (result.status === 'published') {
         setStatus('published');
-        setNotice('Policy published');
+        toast.success('Policy published.');
         router.refresh();
         return;
       }
       if (result.status === 'blocked') {
         setBlockers(result.issues);
         if (result.issues[0]?.locale) setLocale(result.issues[0].locale);
+        toast.warning('Publishing blocked. Review the checklist.');
         return;
       }
-      setError('This content could not be published.');
+      toast.error('This content could not be published.');
     });
   };
   const unpublish = () => {
@@ -232,11 +230,11 @@ export function PolicyForm({
       const result = await unpublishPolicyAction(policyId);
       if (result.status === 'unpublished') {
         setStatus('draft');
-        setNotice('Policy unpublished');
+        toast.success('Policy unpublished.');
         router.refresh();
         return;
       }
-      setError('This content could not be unpublished.');
+      toast.error('This content could not be unpublished.');
     });
   };
 
@@ -296,8 +294,6 @@ export function PolicyForm({
         ))}
       </div>
       <div className="grid gap-4 p-5 sm:p-6">
-        {notice ? <Alert variant="success">{notice}</Alert> : null}
-        {error ? <Alert variant="destructive">{error}</Alert> : null}
         {blockers.length ? (
           <Alert variant="warning">
             <AlertTitle>Publishing blocked</AlertTitle>

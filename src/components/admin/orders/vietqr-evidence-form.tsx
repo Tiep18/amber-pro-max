@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useState } from 'react';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
@@ -21,11 +22,43 @@ function idempotencyKey(orderNumber: string, action: string) {
 }
 
 async function confirmAction(_: FormState, formData: FormData): Promise<FormState> {
-  return confirmVietQrPaymentAction(formData);
+  const result = await confirmVietQrPaymentAction(formData);
+  notifyVietQrResult(result, 'confirm');
+  return result;
 }
 
 async function rejectAction(_: FormState, formData: FormData): Promise<FormState> {
-  return rejectVietQrPaymentAction(formData);
+  const result = await rejectVietQrPaymentAction(formData);
+  notifyVietQrResult(result, 'reject');
+  return result;
+}
+
+function notifyVietQrResult(result: VietQrAdminActionResult, action: 'confirm' | 'reject') {
+  if (result.status === 'confirmed') {
+    toast.success('Payment confirmed successfully.');
+    return;
+  }
+  if (result.status === 'rejected') {
+    toast.success('Payment evidence rejected successfully.');
+    return;
+  }
+  if (result.status === 'duplicate') {
+    toast.info('This payment decision was already recorded.');
+    return;
+  }
+  if (result.status === 'stale') {
+    toast.warning('Payment state changed. Refresh and review the latest evidence.');
+    return;
+  }
+  if (result.status === 'invalid') {
+    toast.error(
+      action === 'confirm'
+        ? 'Review the payment confirmation evidence.'
+        : 'Review the payment rejection details.'
+    );
+    return;
+  }
+  toast.error('The VietQR payment decision could not be completed.');
 }
 
 function ResultMessage({ state }: { state: FormState }) {

@@ -1,12 +1,10 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Ban, Loader2 } from 'lucide-react';
-import {
-  disableDiscountCodeAction,
-  type DisableDiscountCodeResult
-} from '@/checkout/admin-discount-actions';
+import { toast } from 'sonner';
+import { disableDiscountCodeAction } from '@/checkout/admin-discount-actions';
 import { Button } from '@/components/ui/button';
 
 type DisableDiscountCodeButtonProps = {
@@ -22,7 +20,6 @@ export function DisableDiscountCodeButton({
 }: DisableDiscountCodeButtonProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<DisableDiscountCodeResult | null>(null);
 
   return (
     <div className="grid justify-items-end gap-1.5">
@@ -40,9 +37,11 @@ export function DisableDiscountCodeButton({
           }
           startTransition(async () => {
             const actionResult = await disableDiscountCodeAction(discountId);
-            setResult(actionResult);
             if (actionResult.status === 'disabled') {
+              toast.success('Discount code disabled.');
               router.refresh();
+            } else {
+              toast.error('Discount code could not be disabled.');
             }
           });
         }}
@@ -54,9 +53,6 @@ export function DisableDiscountCodeButton({
         )}
         {disabled ? 'Inactive' : pending ? 'Disabling...' : 'Disable'}
       </Button>
-      {result?.status === 'error' ? (
-        <p className="text-sm text-[var(--destructive)]">Discount code could not be disabled.</p>
-      ) : null}
     </div>
   );
 }
