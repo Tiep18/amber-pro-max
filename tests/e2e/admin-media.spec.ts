@@ -1,5 +1,5 @@
-import {expect, test} from '@playwright/test';
-import type {Page} from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:55431';
 const serviceRoleKey =
@@ -11,16 +11,16 @@ const serviceHeaders = {
   'Content-Type': 'application/json'
 };
 
-test.describe.configure({mode: 'serial'});
+test.describe.configure({ mode: 'serial' });
 
 const createdUserIds: string[] = [];
 const createdProductIds: string[] = [];
-const createdObjects: Array<{bucket: 'product-media' | 'pattern-pdfs'; path: string}> = [];
+const createdObjects: Array<{ bucket: 'product-media' | 'pattern-pdfs'; path: string }> = [];
 
 async function rest(path: string, init?: RequestInit) {
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
     ...init,
-    headers: {...serviceHeaders, ...init?.headers}
+    headers: { ...serviceHeaders, ...init?.headers }
   });
   if (!response.ok) {
     throw new Error(`${path} failed: ${response.status} ${await response.text()}`);
@@ -34,32 +34,32 @@ async function createConfirmedUser(role?: 'admin') {
   const response = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
     method: 'POST',
     headers: serviceHeaders,
-    body: JSON.stringify({email, password, email_confirm: true})
+    body: JSON.stringify({ email, password, email_confirm: true })
   });
   if (!response.ok) {
     throw new Error(`User creation failed: ${response.status} ${await response.text()}`);
   }
 
-  const user = (await response.json()) as {id: string};
+  const user = (await response.json()) as { id: string };
   createdUserIds.push(user.id);
   if (role === 'admin') {
     await rest('user_roles', {
       method: 'POST',
-      headers: {Prefer: 'resolution=merge-duplicates'},
-      body: JSON.stringify({user_id: user.id, role: 'admin', note: 'E2E media admin'})
+      headers: { Prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({ user_id: user.id, role: 'admin', note: 'E2E media admin' })
     });
   }
-  return {email, password};
+  return { email, password };
 }
 
 async function createPdfProduct() {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   const productResponse = await rest('products', {
     method: 'POST',
-    headers: {Prefer: 'return=representation'},
-    body: JSON.stringify({product_type: 'pdf_pattern'})
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ product_type: 'pdf_pattern' })
   });
-  const [{id}] = (await productResponse.json()) as Array<{id: string}>;
+  const [{ id }] = (await productResponse.json()) as Array<{ id: string }>;
   createdProductIds.push(id);
 
   await rest('product_translations', {
@@ -70,7 +70,7 @@ async function createPdfProduct() {
         locale: 'vi',
         title: 'Mau tho co kinh',
         description: 'Huong dan moc tho co kinh.',
-        specifications: {difficulty: 'easy'},
+        specifications: { difficulty: 'easy' },
         slug: `mau-tho-co-kinh-${suffix}`,
         seo_title: 'Mau tho co kinh',
         seo_description: 'Tai mau moc tho co kinh.'
@@ -80,7 +80,7 @@ async function createPdfProduct() {
         locale: 'en',
         title: 'Classic bunny pattern',
         description: 'Crochet a classic bunny.',
-        specifications: {difficulty: 'easy'},
+        specifications: { difficulty: 'easy' },
         slug: `classic-bunny-pattern-${suffix}`,
         seo_title: 'Classic bunny pattern',
         seo_description: 'Download the classic bunny crochet pattern.'
@@ -91,23 +91,29 @@ async function createPdfProduct() {
   await rest('product_market_offers', {
     method: 'POST',
     body: JSON.stringify([
-      {product_id: id, market_code: 'vn', currency_code: 'VND', enabled: true, price_minor: 125000},
-      {product_id: id, market_code: 'intl', currency_code: 'USD', enabled: true, price_minor: 700}
+      {
+        product_id: id,
+        market_code: 'vn',
+        currency_code: 'VND',
+        enabled: true,
+        price_minor: 125000
+      },
+      { product_id: id, market_code: 'intl', currency_code: 'USD', enabled: true, price_minor: 700 }
     ])
   });
 
   return id;
 }
 
-async function signIn(page: Page, user: {email: string; password: string}) {
+async function signIn(page: Page, user: { email: string; password: string }) {
   await page.goto('/en/sign-in?next=/admin/catalog');
   await page.getByLabel('Email').fill(user.email);
   await page.getByLabel('Password').fill(user.password);
-  await page.getByRole('button', {name: 'Sign in'}).click();
+  await page.getByRole('button', { name: 'Sign in' }).click();
 }
 
 function statusMessage(page: Page, message: string) {
-  return page.getByRole('status').filter({hasText: message});
+  return page.locator('[data-sonner-toast]').filter({ hasText: message });
 }
 
 async function fetchDigitalAsset(productId: string) {
@@ -126,7 +132,9 @@ async function fetchDigitalAsset(productId: string) {
 }
 
 async function fetchMedia(productId: string) {
-  const response = await rest(`product_media?product_id=eq.${productId}&select=id,bucket_id,object_path,is_primary,display_order,alt_text_en&order=display_order.asc`);
+  const response = await rest(
+    `product_media?product_id=eq.${productId}&select=id,bucket_id,object_path,is_primary,display_order,alt_text_en&order=display_order.asc`
+  );
   const rows = (await response.json()) as Array<{
     id: string;
     bucket_id: 'product-media';
@@ -146,7 +154,7 @@ test.afterAll(async () => {
     });
   }
   for (const productId of createdProductIds) {
-    await rest(`products?id=eq.${productId}`, {method: 'DELETE'});
+    await rest(`products?id=eq.${productId}`, { method: 'DELETE' });
   }
   for (const userId of createdUserIds) {
     const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
@@ -159,18 +167,20 @@ test.afterAll(async () => {
   }
 });
 
-test('admin uploads product images, selects social images, uploads a private PDF, and publishes', async ({page}) => {
+test('admin uploads product images, selects social images, uploads a private PDF, and publishes', async ({
+  page
+}) => {
   test.setTimeout(120_000);
   const productId = await createPdfProduct();
   const admin = await createConfirmedUser('admin');
 
   await signIn(page, admin);
   await expect(page).toHaveURL(/\/admin\/catalog$/);
-  await expect(page.getByRole('heading', {name: 'Products', exact: true})).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Products', exact: true })).toBeVisible();
   await expect(async () => {
     await page.goto(`/admin/catalog/${productId}/media`);
-    await expect(page.getByRole('heading', {name: 'Media and private PDF'})).toBeVisible();
-  }).toPass({timeout: 15_000});
+    await expect(page.getByRole('heading', { name: 'Media and private PDF' })).toBeVisible();
+  }).toPass({ timeout: 15_000 });
 
   const png = {
     name: 'bunny.png',
@@ -181,44 +191,54 @@ test('admin uploads product images, selects social images, uploads a private PDF
     )
   };
   await page.locator('input[name="image"]').setInputFiles(png);
-  await page.getByLabel(/Vietnamese alt text/).first().fill('Tho len mau xanh');
-  await page.getByLabel(/English alt text/).first().fill('Blue crochet bunny');
-  await page.getByRole('button', {name: 'Upload image'}).click();
-  await expect(statusMessage(page, 'Image uploaded')).toBeVisible({timeout: 15_000});
+  await page
+    .getByLabel(/Vietnamese alt text/)
+    .first()
+    .fill('Tho len mau xanh');
+  await page
+    .getByLabel(/English alt text/)
+    .first()
+    .fill('Blue crochet bunny');
+  await page.getByRole('button', { name: 'Upload image' }).click();
+  await expect(statusMessage(page, 'Image uploaded')).toBeVisible({ timeout: 15_000 });
 
   for (const name of ['bunny-side.png', 'bunny-detail.png']) {
-    await page.locator('input[name="image"]').setInputFiles({...png, name});
-    await page.getByRole('button', {name: 'Upload image'}).click();
-    await expect(statusMessage(page, 'Image uploaded')).toBeVisible({timeout: 15_000});
+    await page.locator('input[name="image"]').setInputFiles({ ...png, name });
+    await page.getByRole('button', { name: 'Upload image' }).click();
+    await expect(statusMessage(page, 'Image uploaded')).toBeVisible({ timeout: 15_000 });
   }
   await expect(page.getByText('3 total')).toBeVisible();
 
-  await page.getByRole('button', {name: 'Edit details'}).first().click();
+  await page.getByRole('button', { name: 'Edit details' }).first().click();
   await page.getByLabel('English alt text').last().fill('Blue crochet bunny pattern cover');
-  await page.getByRole('button', {name: 'Save details'}).click();
-  await expect(statusMessage(page, 'Image details saved')).toBeVisible({timeout: 15_000});
+  await page.getByRole('button', { name: 'Save details' }).click();
+  await expect(statusMessage(page, 'Image details saved')).toBeVisible({ timeout: 15_000 });
 
-  await page.getByRole('button', {name: 'Actions for image 1'}).click();
-  await page.getByRole('menuitem', {name: 'Set as primary'}).click();
-  await expect(statusMessage(page, 'Primary image selected')).toBeVisible({timeout: 15_000});
-  await page.getByRole('button', {name: 'Actions for image 1'}).click();
-  await page.getByRole('menuitem', {name: 'Use for Social VI'}).click();
-  await expect(statusMessage(page, 'Vietnamese social image selected')).toBeVisible({timeout: 15_000});
-  await page.getByRole('button', {name: 'Actions for image 1'}).click();
-  await page.getByRole('menuitem', {name: 'Use for Social EN'}).click();
-  await expect(statusMessage(page, 'English social image selected')).toBeVisible({timeout: 15_000});
+  await page.getByRole('button', { name: 'Actions for image 1' }).click();
+  await page.getByRole('menuitem', { name: 'Set as primary' }).click();
+  await expect(statusMessage(page, 'Primary image selected')).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Actions for image 1' }).click();
+  await page.getByRole('menuitem', { name: 'Use for Social VI' }).click();
+  await expect(statusMessage(page, 'Vietnamese social image selected')).toBeVisible({
+    timeout: 15_000
+  });
+  await page.getByRole('button', { name: 'Actions for image 1' }).click();
+  await page.getByRole('menuitem', { name: 'Use for Social EN' }).click();
+  await expect(statusMessage(page, 'English social image selected')).toBeVisible({
+    timeout: 15_000
+  });
 
-  await page.getByRole('button', {name: 'Later'}).first().click();
-  await expect(statusMessage(page, 'Image order saved')).toBeVisible({timeout: 15_000});
+  await page.getByRole('button', { name: 'Later' }).first().click();
+  await expect(statusMessage(page, 'Image order saved')).toBeVisible({ timeout: 15_000 });
   await page.reload();
   const reorderedMedia = await fetchMedia(productId);
   expect(reorderedMedia.map((item) => item.display_order)).toEqual([0, 1, 2]);
   expect(reorderedMedia[1].alt_text_en).toBe('Blue crochet bunny pattern cover');
 
-  await page.getByRole('button', {name: 'Actions for image 2'}).click();
-  await page.getByRole('menuitem', {name: 'Remove image'}).click();
-  await expect(page.getByRole('heading', {name: 'Remove this image?'})).toBeVisible();
-  await page.getByRole('button', {name: 'Cancel'}).click();
+  await page.getByRole('button', { name: 'Actions for image 2' }).click();
+  await page.getByRole('menuitem', { name: 'Remove image' }).click();
+  await expect(page.getByRole('heading', { name: 'Remove this image?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByText('3 total')).toBeVisible();
 
   await page.locator('input[name="pdf"]').setInputFiles({
@@ -226,8 +246,8 @@ test('admin uploads product images, selects social images, uploads a private PDF
     mimeType: 'application/pdf',
     buffer: Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF')
   });
-  await page.getByRole('button', {name: 'Upload private PDF'}).click();
-  await expect(statusMessage(page, 'Private PDF associated')).toBeVisible({timeout: 15_000});
+  await page.getByRole('button', { name: 'Upload private PDF' }).click();
+  await expect(statusMessage(page, 'Private PDF associated')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('classic-bunny.pdf')).toBeVisible();
   await expect(page.locator('a[href*="pattern-pdfs"]')).toHaveCount(0);
 
@@ -235,37 +255,45 @@ test('admin uploads product images, selects social images, uploads a private PDF
   const media = mediaRows.find((row) => row.is_primary)!;
   expect(media.bucket_id).toBe('product-media');
   expect(media.is_primary).toBe(true);
-  createdObjects.push(...mediaRows.map((row) => ({bucket: row.bucket_id, path: row.object_path})));
+  createdObjects.push(
+    ...mediaRows.map((row) => ({ bucket: row.bucket_id, path: row.object_path }))
+  );
 
   const asset = await fetchDigitalAsset(productId);
   expect(asset.bucket_id).toBe('pattern-pdfs');
   expect(asset.content_type).toBe('application/pdf');
   expect(asset.checksum_sha256).toMatch(/^[a-f0-9]{64}$/);
-  createdObjects.push({bucket: 'pattern-pdfs', path: asset.object_path});
+  createdObjects.push({ bucket: 'pattern-pdfs', path: asset.object_path });
 
-  const publicPdfResponse = await page.request.get(`${supabaseUrl}/storage/v1/object/pattern-pdfs/${asset.object_path}`);
+  const publicPdfResponse = await page.request.get(
+    `${supabaseUrl}/storage/v1/object/pattern-pdfs/${asset.object_path}`
+  );
   expect(publicPdfResponse.ok()).toBe(false);
 
-  await page.setViewportSize({width: 375, height: 812});
+  await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(`/admin/catalog/${productId}/media`);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  await page.getByRole('button', {name: 'Edit details'}).first().click();
-  await expect(page.getByRole('heading', {name: /Image \d details/})).toBeVisible();
-  await page.getByRole('button', {name: 'Close menu'}).click();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+    )
+  ).toBe(true);
+  await page.getByRole('button', { name: 'Edit details' }).first().click();
+  await expect(page.getByRole('heading', { name: /Image \d details/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Close menu' }).click();
 
-  await page.setViewportSize({width: 1280, height: 900});
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`/admin/catalog/${productId}`);
-  await page.getByRole('button', {name: 'Publish product'}).click();
-  await expect(statusMessage(page, 'Product published')).toBeVisible({timeout: 15_000});
+  await page.getByRole('button', { name: 'Publish product' }).click();
+  await expect(statusMessage(page, 'Product published')).toBeVisible({ timeout: 15_000 });
 });
 
-test('customer cannot open the media admin page', async ({page}) => {
+test('customer cannot open the media admin page', async ({ page }) => {
   const productId = await createPdfProduct();
   const customer = await createConfirmedUser();
 
   await signIn(page, customer);
-  await expect(page).toHaveURL(/\/admin(?:\/catalog|\/forbidden)$/, {timeout: 15_000});
+  await expect(page).toHaveURL(/\/admin(?:\/catalog|\/forbidden)$/, { timeout: 15_000 });
   await page.goto(`/admin/catalog/${productId}/media`);
   await expect(page).toHaveURL(/(?:\/admin\/forbidden|\/[a-z]{2}\/sign-in\?next=%2Fadmin)$/);
-  await expect(page.getByRole('heading', {name: 'Media and private PDF'})).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Media and private PDF' })).toHaveCount(0);
 });

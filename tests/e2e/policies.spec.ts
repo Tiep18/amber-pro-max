@@ -72,7 +72,9 @@ test.describe('policy publishing (LEGAL-01, D-13, D-16)', () => {
     await privacy.getByLabel('English body').fill('Privacy policy body for customers.');
 
     await privacy.getByRole('button', { name: 'Save policy' }).click();
-    await expect(privacy.getByText('Policy saved')).toBeVisible();
+    await expect(
+      page.locator('[data-sonner-toast]').filter({ hasText: 'Policy saved.' })
+    ).toBeVisible();
     await rememberPolicyBySlug(enSlug);
 
     await page.goto(`/en/policies/${enSlug}`);

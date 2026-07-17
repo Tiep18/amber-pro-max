@@ -72,6 +72,11 @@ test.describe('admin operations error queue (OPS-03, D-11, D-12)', () => {
     );
 
     await page.getByRole('button', { name: 'Mark error resolved' }).click();
+    await expect(
+      page.locator('[data-sonner-toast]').filter({
+        hasText: 'Operational error marked as resolved.'
+      })
+    ).toBeVisible();
     await expect(page.getByText('No unresolved operational errors')).toBeVisible();
 
     await page.goto('/admin/operations?status=resolved&area=payment');

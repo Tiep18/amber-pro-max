@@ -78,8 +78,14 @@ test('admin searches, validates, creates, and reopens a bilingual taxonomy item'
   await page.getByLabel('Slug').fill(`seasonal-friends-${suffix}`);
   await page.getByRole('button', { name: 'Create item' }).click();
 
-  await expect(page).toHaveURL(/\/admin\/catalog\/taxonomy\?saved=1$/);
-  await expect(page.getByRole('status')).toContainText('Taxonomy item saved.');
+  await expect(page).toHaveURL(/\/admin\/catalog\/taxonomy$/);
+  await expect(
+    page.locator('[data-sonner-toast]').filter({ hasText: 'Taxonomy item saved.' })
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.locator('[data-sonner-toast]').filter({ hasText: 'Taxonomy item saved.' })
+  ).toHaveCount(0);
 
   const lookup = await rest(
     `category_translations?locale=eq.en&slug=eq.seasonal-friends-${suffix}&select=category_id`

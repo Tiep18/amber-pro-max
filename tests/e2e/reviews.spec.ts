@@ -91,10 +91,10 @@ test.describe('admin review moderation and shop reply (REV-02, D-12)', () => {
     const moderationSheet = page.getByRole('dialog', { name: /review moderation/i });
     await moderationSheet.getByLabel(/shop reply/i).fill('Temporary reply for workflow coverage.');
     await moderationSheet.getByRole('button', { name: /save reply/i }).click();
-    await expect(moderationSheet.getByRole('status')).toContainText(/reply saved/i);
+    await expect(page.locator('[data-sonner-toast]')).toContainText(/reply saved/i);
     page.once('dialog', async (dialog) => dialog.accept());
     await moderationSheet.getByRole('button', { name: /remove reply/i }).click();
-    await expect(moderationSheet.getByRole('status')).toContainText(/reply removed|state changed/i);
+    await expect(page.locator('[data-sonner-toast]')).toContainText(/reply removed|state changed/i);
   });
 
   test('approved product review shows one public shop reply and hidden content disappears', async ({
