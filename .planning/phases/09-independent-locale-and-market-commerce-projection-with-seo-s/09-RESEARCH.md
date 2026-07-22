@@ -517,17 +517,17 @@ The server-resolved market overrides any caller claim; locale/filter/sort inputs
 |---|-------|---------|---------------|
 | — | No unverified factual claims are used as implementation decisions. | All | All recommendations are grounded in locked context, repository evidence, production build output, environment probes, or official documentation. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Does CAT-05 require dedicated public technique and tag routes in this phase?**
+1. **RESOLVED — CAT-05 requires dedicated public technique and tag routes in this phase.**
    - What we know: The requirement explicitly says product, category, technique, tag, and collection pages. Product/category/collection routes exist; database queries accept technique/tag IDs, but public route directories and catalog list state do not expose technique/tag browsing. [VERIFIED: codebase]
    - What's unclear: The locked Phase 09 surface list names homepage/catalog/category/collection/product, and CAT-05 is marked complete upstream despite the missing route evidence. [VERIFIED: codebase; VERIFIED: CONTEXT.md]
-   - Recommendation: Planner must create a Wave 0 scope checkpoint. At minimum add active-market technique/tag filters to catalog; if “pages” is literal acceptance, include localized technique/tag route slices before claiming CAT-05 coverage. [VERIFIED: requirements]
+   - Resolution: D-27 interprets CAT-05 literally and requires localized, indexable technique and tag discovery pages using the same static locale-default shell plus private active-market projection contract as category and collection pages. [VERIFIED: CONTEXT.md]
 
-2. **How should query-variant robots directives behave after catalog becomes ISR?**
+2. **RESOLVED — catalog query variants use deterministic base metadata and canonical consolidation.**
    - What we know: Current dynamic metadata marks any catalog query `noindex`; making metadata query-dependent keeps the route dynamic, while the locked contract requires ISR. The canonical URL already points at the base localized catalog. [VERIFIED: codebase; VERIFIED: `npm run build`]
    - What's unclear: CONTEXT.md locks deterministic metadata but does not explicitly choose between canonical-only consolidation and retaining query-specific `noindex`. [VERIFIED: CONTEXT.md]
-   - Recommendation: Prioritize the locked static/ISR gate: use deterministic base metadata and canonical, and do not reintroduce server `searchParams`. Record canonical-only query handling in the plan acceptance criteria. [VERIFIED: CONTEXT.md]
+   - Resolution: D-28 keeps deterministic base-page metadata and canonical consolidation, moves allowlisted search/filter/sort state into the client projection, and forbids server-side `searchParams` access for query-dependent metadata. [VERIFIED: CONTEXT.md]
 
 ## Environment Availability
 
