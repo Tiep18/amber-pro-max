@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 09 UI-SPEC approved
-last_updated: "2026-07-22T17:12:53.866Z"
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-07-22T17:27:37.916Z"
 last_activity: 2026-07-22 -- Phase 09 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 86
-  completed_plans: 72
+  completed_plans: 73
   percent: 78
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 09 (independent-locale-and-market-commerce-projection-with-seo-s) — EXECUTING
-Plan: 2 of 15
+Plan: 3 of 15
 Status: Ready to execute
 Last activity: 2026-07-22 -- Phase 09 execution started
 
@@ -94,6 +94,7 @@ Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; P
 | Phase 08 P01 | 34 min | 3 tasks | 5 files |
 | Phase 08 P02 | 56 min | 2 tasks | 7 files |
 | Phase 09 P01 | 20 min | 2 tasks | 4 files |
+| Phase 09 P02 | 11min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -154,6 +155,9 @@ Recent decisions affecting current work:
 - [Phase 09]: Wave 0 runtime gaps use owner-tagged expected-failure annotations; supported behavior remains executable with no skip or fixme cases. — Keeps current risks visible and gives later owner plans promotion-ready contracts.
 - [Phase 09]: Localization browser assertions use stable URL, html language, and HttpOnly market-cookie outcomes rather than mutable copy. — Characterizes locale and market axes without coupling to presentation text or legacy paired controls.
 - [Phase 09]: Cross-tab context contracts accept invalidation/version signals only and require authoritative server refetch before market state changes. — Prevents forged tab payloads from becoming commerce authority.
+- [Phase 09]: Projection contracts stay explicitly expected-red until Plan 09-06 promotes their implementation imports. — Wave 0 records executable behavior without pretending future modules already exist.
+- [Phase 09]: Static/ISR release truth comes from the production Next.js route table. — Dynamic and missing localized discovery routes must fail even when source appears request-clean.
+- [Phase 09]: Future-owned security gates activate conditionally when Plan 09-04 and Plan 09-06 establish their source boundaries. — The current wave stays green while future unsafe implementations are still rejected automatically.
 
 ### Pending Todos
 
@@ -309,6 +313,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-22T17:12:34.570Z
-Stopped at: Phase 09 UI-SPEC approved
-Resume file: .planning/phases/09-independent-locale-and-market-commerce-projection-with-seo-s/09-UI-SPEC.md
+Last session: 2026-07-22T17:27:37.785Z
+Stopped at: Completed 09-02-PLAN.md
+Resume file: None

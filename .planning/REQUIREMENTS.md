@@ -104,9 +104,9 @@
 - [ ] **BLOG-01**: Admin can create, edit, preview, publish, unpublish, and schedule bilingual blog posts.
 - [ ] **BLOG-02**: Admin can organize blog posts by categories and tags and link posts to related products.
 - [x] **SEO-01**: Admin can manage localized slugs, titles, descriptions, canonical URLs, and social sharing images.
-- [ ] **SEO-02**: Public localized pages emit correct language alternates using `hreflang`.
-- [ ] **SEO-03**: Product and blog pages emit valid Product and Article structured data.
-- [ ] **SEO-04**: System publishes localized sitemaps and an appropriate robots file.
+- [x] **SEO-02**: Public localized pages emit correct language alternates using `hreflang`.
+- [x] **SEO-03**: Product and blog pages emit valid Product and Article structured data.
+- [x] **SEO-04**: System publishes localized sitemaps and an appropriate robots file.
 
 ### Administration, Security, and Operations
 
@@ -222,9 +222,9 @@
 | BLOG-01 | Phase 7 | Pending |
 | BLOG-02 | Phase 7 | Pending |
 | SEO-01 | Phase 2 | Complete |
-| SEO-02 | Phase 7 | Pending |
-| SEO-03 | Phase 7 | Pending |
-| SEO-04 | Phase 7 | Pending |
+| SEO-02 | Phase 7 | Complete |
+| SEO-03 | Phase 7 | Complete |
+| SEO-04 | Phase 7 | Complete |
 | ADM-01 | Phase 7 | Pending |
 | ADM-02 | Phase 1 | Complete |
 | SEC-01 | Phase 1 | Complete |

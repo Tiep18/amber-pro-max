@@ -429,7 +429,7 @@ Plans:
 **UI hint:** yes
 **Requirements**: MKT-01, MKT-02, MKT-03, MKT-04, MKT-05, MKT-06, CAT-05, CAT-06, CAT-08, CART-03, CART-05, SEO-02, SEO-03, SEO-04, OPS-04
 **Depends on:** Phase 8
-**Plans:** 1/15 plans executed
+**Plans:** 2/15 plans executed
 
 **Success Criteria**:
 
@@ -442,7 +442,7 @@ Plans:
 Plans:
 
 - [x] 09-01-PLAN.md — Characterize locale routing, market resolution, and client-lifecycle invariants (Wave 1)
-- [ ] 09-02-PLAN.md — Lock projection, product-commerce, build, and security contracts (Wave 1)
+- [x] 09-02-PLAN.md — Lock projection, product-commerce, build, and security contracts (Wave 1)
 - [ ] 09-03-PLAN.md — Lock cart synchronization, cache isolation, and browser-test contracts (Wave 1)
 - [ ] 09-04-PLAN.md — Implement server market resolution, routing preservation, and context API (Wave 2)
 - [ ] 09-06-PLAN.md — Build private market-aware projections and commerce DTOs (Wave 2)
