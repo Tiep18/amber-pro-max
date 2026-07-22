@@ -59,6 +59,8 @@ rules. Existing VND/VietQR and USD/PayPal behavior remains authoritative.
 - **D-24:** Static/ISR preservation is a release gate verified from a production build and response/cache behavior, not inferred only from source inspection. SEO output is compared across cookie/IP variants to prove determinism.
 - **D-25:** Checkout regression coverage includes digital-only, physical-only, mixed cart, guest, signed-in, VN-to-US and US-to-VN destination changes, unavailable offers, discount revalidation, shipping changes, PayPal, VietQR, and submit-time stale quote rejection.
 - **D-26:** Rollout is incremental: establish contracts/tests first, add projection APIs, migrate product commerce, migrate catalog/list surfaces, synchronize cart/context, then run SEO/build/checkout gates. Each migration slice retains a safe fail-closed fallback and can be independently verified.
+- **D-27:** CAT-05 is interpreted literally: Phase 09 includes localized, indexable technique and tag discovery pages rather than claiming coverage from internal RPC/filter support alone. These pages follow the same static locale-default shell plus private active-market projection contract as category and collection pages.
+- **D-28:** Catalog query variants use deterministic base-page metadata and canonical consolidation without server-side `searchParams` access. Search/filter/sort state is allowlisted and resolved by the client projection; query-dependent server metadata must not keep the catalog route dynamic.
 
 ### the agent's Discretion
 - Exact endpoint names, projection DTO names, component boundaries, cache-tag layout, loading visuals, and migration slice count may be chosen during research/planning.
