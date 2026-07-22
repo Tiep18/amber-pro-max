@@ -422,3 +422,23 @@ Plans:
 - [x] 08-09-PLAN.md - Wire localized checkout UI, material confirmation, unsupported recovery, full regression/security/Playwright, and UAT
 
 **Out of scope:** dual-market PayPal/VietQR FX, carrier rate APIs, ZIP-code remote-area tables, label purchasing, customs automation, and multi-package fulfillment.
+
+### Phase 9: Independent locale and market commerce projection with SEO-safe ISR and checkout preservation
+
+**Goal:** Let customers choose Vietnamese or English independently from Vietnam or international commerce behavior while preserving the existing indexable localized URLs, ISR/public caching, stable SEO metadata, and server-authoritative checkout invariants.
+**UI hint:** yes
+**Requirements**: MKT-01, MKT-02, MKT-03, MKT-04, MKT-05, MKT-06, CAT-05, CAT-06, CAT-08, CART-03, CART-05, SEO-02, SEO-03, SEO-04, OPS-04
+**Depends on:** Phase 8
+**Plans:** 0 plans
+
+**Success Criteria**:
+
+1. All four locale/market combinations (`vi+vn`, `vi+intl`, `en+vn`, `en+intl`) show the correct localized content and complete market-specific catalog, offers, variants, price, currency, availability, and add-to-cart behavior.
+2. Homepage, catalog, category, collection, product, metadata, JSON-LD, sitemap, and robots surfaces retain stable localized canonical URLs and verified static/ISR behavior; request cookies or headers do not enter the public page render path.
+3. Market changes keep the current locale and safe route/query state, refresh every market-sensitive surface and cart quote, and never permit adding an unresolved or stale offer.
+4. Checkout continues to derive the final physical-order market from destination, recalculate authoritative totals, require material-change acceptance, enforce market/currency/payment invariants, and snapshot immutable order evidence.
+5. Unit, integration, security, build/static-render assertions, and Playwright coverage prove cache isolation, all four locale/market combinations, failure states, cart requotes, destination changes, payment selection, and no SEO/ISR regression.
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 9 to break down)

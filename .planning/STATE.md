@@ -99,6 +99,7 @@ Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; P
 ### Roadmap Evolution
 
 - Phase 8 added: Shipping profile fallbacks, destination zones, and US region surcharges.
+- Phase 9 added: Independent locale and market commerce projection with SEO-safe ISR and checkout preservation.
 
 ### Decisions
 
