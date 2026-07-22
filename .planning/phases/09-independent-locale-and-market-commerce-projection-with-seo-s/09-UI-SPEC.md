@@ -1,10 +1,11 @@
 ---
 phase: 09
 slug: independent-locale-and-market-commerce-projection-with-seo-safe-isr-and-checkout-preservation
-status: draft
+status: approved
 shadcn_initialized: true
 preset: new-york / neutral / radix / lucide
 created: 2026-07-22
+reviewed_at: 2026-07-22
 ---
 
 # Phase 09 — UI Design Contract
