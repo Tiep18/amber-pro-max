@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
+status: executing
 stopped_at: Phase 09 UI-SPEC approved
-last_updated: "2026-07-22T16:47:31.771Z"
-last_activity: 2026-07-12 -- Phase 08 Plan 09 completed and all phase gates recorded
+last_updated: "2026-07-22T17:12:53.866Z"
+last_activity: 2026-07-22 -- Phase 09 execution started
 progress:
   total_phases: 9
   completed_phases: 7
-  total_plans: 71
-  completed_plans: 71
+  total_plans: 86
+  completed_plans: 72
   percent: 78
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** Customers in Vietnam and international markets can reliably discover, purchase, pay for, and receive eligible digital and physical products through one branded storefront.
-**Current focus:** Phase 08 — shipping-profile-fallbacks-destination-zones-and-us-region-s
+**Current focus:** Phase 09 — independent-locale-and-market-commerce-projection-with-seo-s
 
 ## Current Position
 
-Phase: 08 (shipping-profile-fallbacks-destination-zones-and-us-region-s) — EXECUTING
-Plan: 9 of 9
-Status: Complete
-Last activity: 2026-07-12 -- Phase 08 Plan 09 completed and all phase gates recorded
+Phase: 09 (independent-locale-and-market-commerce-projection-with-seo-s) — EXECUTING
+Plan: 2 of 15
+Status: Ready to execute
+Last activity: 2026-07-22 -- Phase 09 execution started
 
 Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; Plan 09 checkout UI integration is in progress.
 
@@ -93,6 +93,7 @@ Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; P
 | Phase 06 P09 | 48 min | 2 tasks | 9 files |
 | Phase 08 P01 | 34 min | 3 tasks | 5 files |
 | Phase 08 P02 | 56 min | 2 tasks | 7 files |
+| Phase 09 P01 | 20 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,9 @@ Recent decisions affecting current work:
 - [Phase 08 Plan 06]: Product-level shipping profiles remain valid for products with variants. â€” Variants without overrides inherit product assignment before the store default, so the legacy trigger that blocked product assignment after variants existed was replaced.
 - [Phase 08 Plan 06]: Catalog assignment UI uses server-projected effective state and existing Plan 08-04 actions only. â€” Keeps admin authorization and profile allowlisting server-owned while avoiding client database access.
 - [Phase 08 Plan 06]: Product Store default preview uses the active store default profile, not the current product effective profile. â€” Prevents the Sheet from displaying stale product assignment as the default after an in-place change.
+- [Phase 09]: Wave 0 runtime gaps use owner-tagged expected-failure annotations; supported behavior remains executable with no skip or fixme cases. — Keeps current risks visible and gives later owner plans promotion-ready contracts.
+- [Phase 09]: Localization browser assertions use stable URL, html language, and HttpOnly market-cookie outcomes rather than mutable copy. — Characterizes locale and market axes without coupling to presentation text or legacy paired controls.
+- [Phase 09]: Cross-tab context contracts accept invalidation/version signals only and require authoritative server refetch before market state changes. — Prevents forged tab payloads from becoming commerce authority.
 
 ### Pending Todos
 
@@ -305,6 +309,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-22T15:58:34.146Z
+Last session: 2026-07-22T17:12:34.570Z
 Stopped at: Phase 09 UI-SPEC approved
 Resume file: .planning/phases/09-independent-locale-and-market-commerce-projection-with-seo-s/09-UI-SPEC.md

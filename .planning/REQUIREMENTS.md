@@ -118,7 +118,7 @@
 - [x] **OPS-01**: Transactional email requests are stored durably and retried safely after transient failures.
 - [x] **OPS-02**: Admin can inspect failed transactional emails and trigger a controlled resend.
 - [ ] **OPS-03**: System captures and reports application, payment, email, and fulfillment errors without logging secrets or unnecessary personal data.
-- [ ] **OPS-04**: Critical guest/account checkout, payment, inventory, download, tracking, localization, and authorization flows have automated verification.
+- [x] **OPS-04**: Critical guest/account checkout, payment, inventory, download, tracking, localization, and authorization flows have automated verification.
 - [ ] **LEGAL-01**: Store publishes Vietnamese and English privacy, terms of sale, physical return, and digital-download policies.
 - [ ] **LEGAL-02**: Launch configuration explicitly records enabled destination countries and the seller-approved tax and consumer-policy decisions.
 
@@ -233,7 +233,7 @@
 | OPS-01 | Phase 5 | Complete |
 | OPS-02 | Phase 5 | Complete |
 | OPS-03 | Phase 7 | Pending |
-| OPS-04 | Phase 7 | Pending |
+| OPS-04 | Phase 7 | Complete |
 | LEGAL-01 | Phase 7 | Pending |
 | LEGAL-02 | Phase 7 | Pending |
 
