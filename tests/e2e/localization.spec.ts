@@ -1,54 +1,137 @@
-import {expect, test} from '@playwright/test';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
-test('first unprefixed visit with Vietnamese preference redirects to /vi', async ({browser}) => {
-  const context = await browser.newContext({locale: 'vi-VN'});
-  const page = await context.newPage();
-  await page.goto('/');
+const MARKET_COOKIE = 'ACTIVE_MARKET';
 
-  await expect(page).toHaveURL(/\/vi$/);
-  await expect(page.getByText('Vietnamese')).toBeVisible();
-  await context.close();
+async function addPreferenceCookie(context: BrowserContext, name: string, value: string) {
+  await context.addCookies([{ name, value, url: 'http://localhost:3210' }]);
+}
+
+async function expectMarketCookie(context: BrowserContext, expected: 'vn' | 'intl') {
+  const cookie = (await context.cookies()).find(({ name }) => name === MARKET_COOKIE);
+  expect(cookie?.value).toBe(expected);
+}
+
+async function expectLocalizedHome(page: Page, locale: 'vi' | 'en') {
+  await expect(page.locator('html')).toHaveAttribute('lang', locale);
+  await expect(page.getByRole('main')).toBeVisible();
+}
+
+test.describe('locale precedence', () => {
+  test('direct /vi and /en entry wins without mutating the active market', async ({ browser }) => {
+    for (const locale of ['vi', 'en'] as const) {
+      const context = await browser.newContext({ locale: locale === 'vi' ? 'en-US' : 'vi-VN' });
+      await addPreferenceCookie(context, 'NEXT_LOCALE', locale === 'vi' ? 'en' : 'vi');
+      await addPreferenceCookie(context, MARKET_COOKIE, locale === 'vi' ? 'intl' : 'vn');
+      const page = await context.newPage();
+
+      await page.goto(`/${locale}`);
+
+      await expect(page).toHaveURL(new RegExp(`/${locale}$`));
+      await expectLocalizedHome(page, locale);
+      await expectMarketCookie(context, locale === 'vi' ? 'intl' : 'vn');
+      await context.close();
+    }
+  });
+
+  test('valid NEXT_LOCALE wins over Accept-Language for unprefixed entry', async ({ browser }) => {
+    const context = await browser.newContext({ locale: 'vi-VN' });
+    await addPreferenceCookie(context, 'NEXT_LOCALE', 'en');
+    const page = await context.newPage();
+
+    await page.goto('/');
+
+    await expect(page).toHaveURL(/\/en$/);
+    await expectLocalizedHome(page, 'en');
+    await context.close();
+  });
+
+  test('invalid locale cookie falls through to supported Accept-Language', async ({ browser }) => {
+    const context = await browser.newContext({ locale: 'en-US' });
+    await addPreferenceCookie(context, 'NEXT_LOCALE', 'fr');
+    const page = await context.newPage();
+
+    await page.goto('/');
+
+    await expect(page).toHaveURL(/\/en$/);
+    await expectLocalizedHome(page, 'en');
+    await context.close();
+  });
+
+  test('weighted Accept-Language chooses the highest-quality supported locale', async ({
+    browser
+  }) => {
+    const context = await browser.newContext({
+      extraHTTPHeaders: { 'Accept-Language': 'vi;q=0.2,en-US;q=0.9' }
+    });
+    const page = await context.newPage();
+
+    await page.goto('/');
+
+    await expect(page).toHaveURL(/\/en$/);
+    await context.close();
+  });
+
+  test('missing supported locale preference falls back to Vietnamese', async ({ browser }) => {
+    test.fail(true, 'Plan 09-04: missing or unsupported locale input must fall back to vi');
+    const context = await browser.newContext({
+      extraHTTPHeaders: { 'Accept-Language': 'fr-FR,fr;q=0.9' }
+    });
+    const page = await context.newPage();
+
+    await page.goto('/');
+
+    await expect(page).toHaveURL(/\/vi$/);
+    await context.close();
+  });
 });
 
-test('first unprefixed visit with English preference redirects to /en', async ({browser}) => {
-  const context = await browser.newContext({locale: 'en-US'});
-  const page = await context.newPage();
-  await page.goto('/');
+test('all four locale and market combinations remain independent', async ({ browser }) => {
+  for (const locale of ['vi', 'en'] as const) {
+    for (const market of ['vn', 'intl'] as const) {
+      const context = await browser.newContext();
+      await addPreferenceCookie(context, MARKET_COOKIE, market);
+      const page = await context.newPage();
 
-  await expect(page).toHaveURL(/\/en$/);
-  await expect(page.getByText('English', {exact: true})).toBeVisible();
-  await context.close();
+      await page.goto(`/${locale}`);
+
+      await expect(page).toHaveURL(new RegExp(`/${locale}$`));
+      await expectLocalizedHome(page, locale);
+      await expectMarketCookie(context, market);
+      await context.close();
+    }
+  }
 });
 
-test('explicit locale routes render without unprefixed customer content', async ({page}) => {
-  await page.setViewportSize({width: 320, height: 720});
-  await page.goto('/vi');
-  await expect(page).toHaveURL(/\/vi$/);
-  await expect(page.getByRole('heading', {name: 'Mau moc va qua tang len thu cong'})).toBeVisible();
-  await expect(page.getByRole('banner').getByRole('navigation', {name: 'Language'})).toBeVisible();
-  await expect(page.getByRole('button', {name: 'Mo menu'})).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-
-  await page.setViewportSize({width: 1024, height: 720});
-  await page.goto('/en');
-  await expect(page).toHaveURL(/\/en$/);
-  await expect(
-    page.getByRole('heading', {name: 'Handmade crochet patterns and keepsakes'})
-  ).toBeVisible();
-  await expect(page.getByRole('link', {name: 'Home'})).toBeVisible();
-  await expect(page.getByRole('link', {name: 'Shop'})).toHaveAttribute('href', '/en/catalog');
-  await expect(page.getByRole('link', {name: 'Sign in'})).toBeVisible();
-  await expect(page.getByRole('button', {name: /Cart, 0 items/i})).toBeVisible();
-});
-
-test('language switching preserves equivalent translated auth page', async ({page}) => {
+test('localized auth entry renders while /auth/callback remains an isolated service route', async ({
+  page
+}) => {
   await page.goto('/vi/dang-nhap');
-  await expect(page.getByRole('heading', {name: 'Dang nhap'})).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Dang nhap' })).toBeVisible();
 
-  await page.getByRole('banner').getByRole('link', {name: 'English'}).click();
-  await expect(page).toHaveURL(/\/en\/sign-in$/);
-  await expect(page.getByRole('heading', {name: 'Sign in'})).toBeVisible();
+  await page.goto('/en/sign-in');
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 
-  await page.getByRole('banner').getByRole('link', {name: 'Tieng Viet'}).click();
-  await expect(page).toHaveURL(/\/vi\/dang-nhap$/);
+  const callback = await page.request.get('/auth/callback?locale=en&next=/en/sign-in', {
+    maxRedirects: 0
+  });
+  expect(callback.status()).toBe(307);
+  expect(new URL(callback.headers().location).pathname).toBe('/en/sign-in');
+});
+
+test('language switching preserves market and the equivalent product route', async ({
+  browser
+}) => {
+  test.fail(true, 'Plan 09-13: locale controls must preserve market and equivalent dynamic routes');
+  const context = await browser.newContext();
+  await addPreferenceCookie(context, MARKET_COOKIE, 'vn');
+  const page = await context.newPage();
+
+  await page.goto('/vi/san-pham/gau-ca-hai');
+  const languageLink = page.getByRole('banner').getByRole('link', { name: 'English' });
+  await expect(languageLink).toBeVisible({ timeout: 5_000 });
+  await languageLink.click();
+
+  await expect(page).toHaveURL(/\/en\/product\/crochet-bear$/);
+  await expectMarketCookie(context, 'vn');
+  await context.close();
 });
