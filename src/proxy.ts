@@ -1,35 +1,21 @@
 import createMiddleware from 'next-intl/middleware';
 import {NextRequest, NextResponse} from 'next/server';
 import {applyMarketSuggestionCookie} from './catalog/market';
-import {isLocale, preferredLocale, routing} from './i18n/routing';
+import {routing} from './i18n/routing';
 import {updateSession} from './lib/supabase/proxy';
-import {isUnprefixedCustomerPath} from './proxy-paths';
 
 const intlMiddleware = createMiddleware(routing);
-const localizedAuthPathPattern =
-  /^\/(?:en|vi)\/(?:sign-in|register|forgot-password|reset-password|dang-nhap|dang-ky|quen-mat-khau|dat-lai-mat-khau)(?:\/|$)/;
 
 export default async function proxy(request: NextRequest) {
-  const {pathname, search} = request.nextUrl;
+  const {pathname} = request.nextUrl;
 
   if (
     pathname.startsWith('/sitemaps') ||
     pathname.startsWith('/admin') ||
-    pathname.startsWith('/auth') ||
-    localizedAuthPathPattern.test(pathname)
+    pathname === '/auth/callback' ||
+    pathname.startsWith('/auth/callback/')
   ) {
     return updateSession(request, NextResponse.next());
-  }
-
-  if (isUnprefixedCustomerPath(pathname)) {
-    const savedLocale = request.cookies.get('NEXT_LOCALE')?.value;
-    const locale = isLocale(savedLocale)
-      ? savedLocale
-      : preferredLocale(request.headers.get('accept-language'));
-    const url = request.nextUrl.clone();
-    url.pathname = `/${locale}${pathname === '/' ? '' : pathname}`;
-    url.search = search;
-    return updateSession(request, applyMarketSuggestionCookie(request, NextResponse.redirect(url)));
   }
 
   return updateSession(request, applyMarketSuggestionCookie(request, intlMiddleware(request)));

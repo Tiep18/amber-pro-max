@@ -55,6 +55,14 @@ export const pathnames = {
     vi: '/bo-suu-tap/[collectionSlug]',
     en: '/collection/[collectionSlug]'
   },
+  '/technique/[techniqueSlug]': {
+    vi: '/ky-thuat/[techniqueSlug]',
+    en: '/technique/[techniqueSlug]'
+  },
+  '/tag/[tagSlug]': {
+    vi: '/the/[tagSlug]',
+    en: '/tag/[tagSlug]'
+  },
   '/product/[productSlug]': {
     vi: '/san-pham/[productSlug]',
     en: '/product/[productSlug]'
@@ -100,7 +108,7 @@ export const routing = defineRouting({
   defaultLocale,
   localePrefix: 'always',
   pathnames,
-  localeDetection: false
+  localeDetection: true
 });
 
 export function isLocale(value: string | undefined): value is Locale {
@@ -109,10 +117,30 @@ export function isLocale(value: string | undefined): value is Locale {
 
 export function preferredLocale(acceptLanguage: string | null): Locale {
   if (!acceptLanguage) {
-    return 'en';
+    return defaultLocale;
   }
 
-  return /\bvi(?:-|;|,|$)/i.test(acceptLanguage) ? 'vi' : 'en';
+  const preferences = acceptLanguage
+    .split(',')
+    .map((part, index) => {
+      const [languageTag = '', ...parameters] = part.trim().split(';');
+      const qualityParameter = parameters.find((parameter) => parameter.trim().startsWith('q='));
+      const quality = qualityParameter
+        ? Number.parseFloat(qualityParameter.trim().slice(2))
+        : 1;
+      return {languageTag, quality: Number.isFinite(quality) ? quality : 0, index};
+    })
+    .filter(({quality}) => quality > 0)
+    .sort((left, right) => right.quality - left.quality || left.index - right.index);
+
+  for (const {languageTag} of preferences) {
+    const language = languageTag.toLowerCase().split('-')[0];
+    if (isLocale(language)) {
+      return language;
+    }
+  }
+
+  return defaultLocale;
 }
 
 export function getLocalizedPath(pathname: InternalPathname, locale: Locale): `/${Locale}${string}` {
@@ -187,10 +215,29 @@ export function getGuestOrderPath(locale: Locale): `/${Locale}${string}` {
 
 export function getEquivalentLocalizedPath(
   currentPath: string,
-  targetLocale: Locale
+  targetLocale: Locale,
+  localizedSlugs?: Record<Locale, string>
 ): `/${Locale}${string}` {
   const [, currentLocale, ...segments] = currentPath.split('/');
   const currentSuffix = `/${segments.join('/')}`.replace(/\/$/, '') || '/';
+
+  if (isLocale(currentLocale) && localizedSlugs) {
+    for (const internalPathname of Object.keys(pathnames) as InternalPathname[]) {
+      const value = pathnames[internalPathname];
+      if (typeof value === 'string' || !internalPathname.includes('[')) {
+        continue;
+      }
+
+      const currentTemplate = value[currentLocale];
+      const parameterStart = currentTemplate.indexOf('[');
+      const currentPrefix = currentTemplate.slice(0, parameterStart);
+      if (currentSuffix.startsWith(currentPrefix) && currentSuffix.slice(currentPrefix.length)) {
+        const targetTemplate = value[targetLocale];
+        const targetPrefix = targetTemplate.slice(0, targetTemplate.indexOf('['));
+        return `/${targetLocale}${targetPrefix}${encodeURIComponent(localizedSlugs[targetLocale])}`;
+      }
+    }
+  }
 
   for (const internalPathname of Object.keys(pathnames) as InternalPathname[]) {
     const value = pathnames[internalPathname];
@@ -208,4 +255,51 @@ export function getEquivalentLocalizedPath(
   }
 
   return `/${targetLocale}`;
+}
+
+export type RouteQueryKind = 'catalog' | 'auth' | 'other';
+
+const catalogQueryKeys = ['search', 'type', 'category', 'technique', 'tag', 'sort'] as const;
+
+function isSafeLocalizedInternalPath(value: string) {
+  if (!value.startsWith('/') || value.startsWith('//') || value.includes('\\')) {
+    return false;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value, 'https://local.invalid');
+  } catch {
+    return false;
+  }
+
+  const [, locale] = parsed.pathname.split('/');
+  return (
+    parsed.origin === 'https://local.invalid' &&
+    isLocale(locale) &&
+    parsed.search === '' &&
+    parsed.hash === ''
+  );
+}
+
+export function allowlistedRouteQuery(routeKind: RouteQueryKind, searchParams: URLSearchParams) {
+  const result = new URLSearchParams();
+
+  if (routeKind === 'catalog') {
+    for (const key of catalogQueryKeys) {
+      const values = searchParams.getAll(key);
+      if (values.length === 1 && values[0]) {
+        result.set(key, values[0]);
+      }
+    }
+  } else if (routeKind === 'auth') {
+    const values = searchParams.getAll('next');
+    const hasOnlyNext = [...searchParams.keys()].every((key) => key === 'next');
+    if (values.length === 1 && hasOnlyNext && isSafeLocalizedInternalPath(values[0])) {
+      result.set('next', values[0]);
+    }
+  }
+
+  const query = result.toString();
+  return query ? `?${query}` : '';
 }

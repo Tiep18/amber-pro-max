@@ -9,7 +9,10 @@ const {applyMarketSuggestionCookie, intlMiddleware, updateSession} = vi.hoisted(
   }),
   intlMiddleware: vi.fn((request: NextRequest) =>
     request.nextUrl.pathname === '/'
-      ? Response.redirect(new URL('/from-next-intl', request.url), 307)
+      ? new Response(null, {
+          status: 307,
+          headers: {location: new URL('/from-next-intl', request.url).toString()}
+        })
       : new Response(null, {status: 200})
   ),
   updateSession: vi.fn(async (_request: NextRequest, response: Response) => {
