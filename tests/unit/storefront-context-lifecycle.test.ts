@@ -72,7 +72,7 @@ async function readyState(overrides: Partial<StorefrontContextState> = {}) {
 }
 
 describe('storefront context lifecycle contract', () => {
-  it.fails(
+  it(
     'Plan 09-05: starts resolving with no locale-derived market and purchase unsafe',
     async () => {
       const lifecycle = await loadLifecycle();
@@ -92,7 +92,7 @@ describe('storefront context lifecycle contract', () => {
     }
   );
 
-  it.fails('Plan 09-05: assigns increasing generations for A then B then A intent', async () => {
+  it('Plan 09-05: assigns increasing generations for A then B then A intent', async () => {
     const { lifecycle, state: committed } = await readyState();
     const first = lifecycle.beginContextRequest(committed, {
       reason: 'market_change',
@@ -121,7 +121,7 @@ describe('storefront context lifecycle contract', () => {
     expect(lifecycle.isStorefrontContextPurchaseSafe(second.state)).toBe(false);
   });
 
-  it.fails(
+  it(
     'Plan 09-05: stale and aborted completions are full object-identity no-ops',
     async () => {
       const { lifecycle, state: committed } = await readyState();
@@ -148,7 +148,7 @@ describe('storefront context lifecycle contract', () => {
     }
   );
 
-  it.fails(
+  it(
     'Plan 09-05: mutation failure rolls back and retry alone restores purchase safety',
     async () => {
       const { lifecycle, state: committed } = await readyState();
@@ -194,7 +194,7 @@ describe('storefront context lifecycle contract', () => {
     }
   );
 
-  it.fails('Plan 09-05: same-version focus refresh avoids loader and version churn', async () => {
+  it('Plan 09-05: same-version focus refresh avoids loader and version churn', async () => {
     const { lifecycle, state: committed } = await readyState();
     const focus = lifecycle.beginContextRequest(committed, { reason: 'focus' });
 
@@ -214,7 +214,7 @@ describe('storefront context lifecycle contract', () => {
     expect(lifecycle.isStorefrontContextPurchaseSafe(unchanged)).toBe(true);
   });
 
-  it.fails(
+  it(
     'Plan 09-05: authoritative invalidation resolves again and commits only the latest version',
     async () => {
       const { lifecycle, state: committed } = await readyState();
@@ -241,7 +241,7 @@ describe('storefront context lifecycle contract', () => {
     }
   );
 
-  it.fails('Plan 09-05: hidden visibility events are gated without timers', () => {
+  it('Plan 09-05: hidden visibility events are gated without timers', () => {
     const shouldRevalidate = shouldRevalidateStorefrontContext as unknown as (
       lastValidatedAt: number | null,
       now: number,
@@ -253,7 +253,7 @@ describe('storefront context lifecycle contract', () => {
     expect(shouldRevalidate(301_000, 301_001, 'visible')).toBe(false);
   });
 
-  it.fails(
+  it(
     'Plan 09-05: cross-tab payloads invalidate only and never become market authority',
     async () => {
       const { lifecycle, state: committed } = await readyState();

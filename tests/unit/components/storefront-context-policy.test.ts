@@ -10,4 +10,9 @@ describe('storefront context revalidation policy', () => {
     expect(shouldRevalidateStorefrontContext(null, 60_000)).toBe(true);
     expect(shouldRevalidateStorefrontContext(1_000, 301_001)).toBe(true);
   });
+
+  it('revalidates stale context only while the document is visible', () => {
+    expect(shouldRevalidateStorefrontContext(1_000, 301_001, 'hidden')).toBe(false);
+    expect(shouldRevalidateStorefrontContext(1_000, 301_001, 'visible')).toBe(true);
+  });
 });
