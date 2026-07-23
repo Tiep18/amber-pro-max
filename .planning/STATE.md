@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-02-PLAN.md
-last_updated: "2026-07-22T17:27:37.916Z"
+stopped_at: Completed 09-03-PLAN.md
+last_updated: "2026-07-23T00:30:51.973Z"
 last_activity: 2026-07-22 -- Phase 09 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 86
-  completed_plans: 73
+  completed_plans: 74
   percent: 78
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 09 (independent-locale-and-market-commerce-projection-with-seo-s) — EXECUTING
-Plan: 3 of 15
+Plan: 4 of 15
 Status: Ready to execute
 Last activity: 2026-07-22 -- Phase 09 execution started
 
@@ -95,6 +95,7 @@ Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; P
 | Phase 08 P02 | 56 min | 2 tasks | 7 files |
 | Phase 09 P01 | 20 min | 2 tasks | 4 files |
 | Phase 09 P02 | 11min | 2 tasks | 4 files |
+| Phase 09 P03 | 421min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,9 @@ Recent decisions affecting current work:
 - [Phase 09]: Projection contracts stay explicitly expected-red until Plan 09-06 promotes their implementation imports. — Wave 0 records executable behavior without pretending future modules already exist.
 - [Phase 09]: Static/ISR release truth comes from the production Next.js route table. — Dynamic and missing localized discovery routes must fail even when source appears request-clean.
 - [Phase 09]: Future-owned security gates activate conditionally when Plan 09-04 and Plan 09-06 establish their source boundaries. — The current wave stays green while future unsafe implementations are still rejected automatically.
+- [Phase 09]: Cart synchronization contracts remain expected-red until Plan 09-12 creates the runtime coordinator. — Wave 0 specifies latest-wins, cache identity, material changes, rollback, and retry without pretending runtime behavior exists.
+- [Phase 09]: Cross-tab market messages are invalidation-only and require authoritative server refetch. — Forged market, price, and quote fields from another tab must never become commerce authority.
+- [Phase 09]: Runtime-dependent browser contracts are individually owned by Plan 09-12 or Plan 09-13. — Fixture behavior stays green while later plans have explicit promotion-ready coverage.
 
 ### Pending Todos
 
@@ -313,6 +317,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-22T17:27:37.785Z
-Stopped at: Completed 09-02-PLAN.md
+Last session: 2026-07-23T00:30:18.069Z
+Stopped at: Completed 09-03-PLAN.md
 Resume file: None
