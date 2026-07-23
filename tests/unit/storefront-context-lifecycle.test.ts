@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { shouldRevalidateStorefrontContext } from '@/components/storefront-context-policy';
 import type { MarketCode } from '@/catalog/market';
 
@@ -45,6 +46,9 @@ type LifecycleModule = {
     input: { code: ContextIssueCode; cause?: unknown }
   ) => StorefrontContextState;
   invalidateContext: (state: StorefrontContextState, signal: unknown) => StorefrontContextState;
+  toContextInvalidationSignal: (
+    signal: unknown
+  ) => { schemaVersion: 1; invalidationVersion: number } | null;
   isStorefrontContextPurchaseSafe: (state: StorefrontContextState) => boolean;
 };
 
@@ -279,4 +283,37 @@ describe('storefront context lifecycle contract', () => {
       expect(lifecycle.isStorefrontContextPurchaseSafe(invalidated)).toBe(false);
     }
   );
+
+  it('Plan 09-05: sanitizes invalidation payloads to version facts only', async () => {
+    const lifecycle = await loadLifecycle();
+
+    expect(
+      lifecycle.toContextInvalidationSignal({
+        schemaVersion: 1,
+        invalidationVersion: 9,
+        market: 'intl',
+        user: { email: 'forged@example.com', isAdmin: true },
+        priceMinor: 1,
+        quote: { hash: 'untrusted' }
+      })
+    ).toEqual({ schemaVersion: 1, invalidationVersion: 9 });
+    expect(
+      lifecycle.toContextInvalidationSignal({ schemaVersion: 2, invalidationVersion: 10 })
+    ).toBeNull();
+  });
+
+  it('Plan 09-05: provider uses abortable no-store authority without locale guessing', () => {
+    const source = readFileSync(
+      new URL('../../src/components/storefront-context.tsx', import.meta.url),
+      'utf8'
+    );
+
+    expect(source).toMatch(/commitActiveMarketAction/);
+    expect(source).toMatch(/AbortController/);
+    expect(source).toMatch(/cache:\s*['"]no-store['"]/);
+    expect(source).toMatch(/BroadcastChannel/);
+    expect(source).toMatch(/storage/);
+    expect(source).not.toMatch(/locale\s*===\s*['"]vi['"]/);
+    expect(source).not.toMatch(/\.\.\.detail/);
+  });
 });
