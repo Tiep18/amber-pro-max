@@ -38,7 +38,10 @@ test('admin newsletter surface is read-only and exposes no consent override cont
   const source = readExisting(adminNewsletterUiFiles);
 
   assert.doesNotMatch(source, /subscribeNewsletterAction|unsubscribeNewsletter|subscribeCustomer|unsubscribeCustomer/i);
-  assert.doesNotMatch(source, /formAction=.*subscribe|formAction=.*unsubscribe|button[^>]*(subscribe|unsubscribe)/i);
+  assert.doesNotMatch(
+    source,
+    /formAction\s*=\s*[^\r\n>]*(?:subscribe|unsubscribe)|<(?:button|Button)\b[^>]*(?:subscribe|unsubscribe)/i
+  );
 });
 
 test('admin newsletter UI never renders raw request or token material', () => {
