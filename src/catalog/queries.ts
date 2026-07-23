@@ -1,9 +1,9 @@
-import type {SupabaseClient} from '@supabase/supabase-js';
-import type {Locale} from '@/i18n/routing';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {runMonitoredThrowingQuery} from '@/operations/monitoring';
-import type {Database} from '@/types/supabase';
-import type {MarketCode} from './market';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Locale } from '@/i18n/routing';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { runMonitoredThrowingQuery } from '@/operations/monitoring';
+import type { Database } from '@/types/supabase';
+import type { MarketCode } from './market';
 
 export const catalogSorts = ['newest', 'price_asc', 'price_desc', 'title'] as const;
 export type CatalogSort = (typeof catalogSorts)[number];
@@ -14,9 +14,13 @@ type CatalogFunctions = Database['public']['Functions'];
 
 export type CatalogProduct = CatalogFunctions['list_catalog_products']['Returns'][number];
 export type CatalogFacet = CatalogFunctions['list_catalog_facets']['Returns'][number];
-export type CatalogProductDetail = CatalogFunctions['get_catalog_product_by_slug']['Returns'][number];
+export type CatalogProductDetail =
+  CatalogFunctions['get_catalog_product_by_slug']['Returns'][number];
+export type CatalogProductCommerceDetail =
+  CatalogFunctions['get_catalog_product_commerce_by_slug']['Returns'][number];
 export type CatalogCategory = CatalogFunctions['get_catalog_category_by_slug']['Returns'][number];
-export type CatalogCollection = CatalogFunctions['get_catalog_collection_by_slug']['Returns'][number];
+export type CatalogCollection =
+  CatalogFunctions['get_catalog_collection_by_slug']['Returns'][number];
 
 export type CatalogListInput = {
   locale: Locale;
@@ -28,6 +32,17 @@ export type CatalogListInput = {
   tagId?: string | null;
   sort?: CatalogSort;
   collectionSlug?: string | null;
+};
+
+export type CatalogFacetListInput = {
+  locale: Locale;
+  market: MarketCode;
+  search?: string | null;
+  productType?: CatalogProductType | null;
+  categorySlug?: string | null;
+  collectionSlug?: string | null;
+  techniqueSlug?: string | null;
+  tagSlug?: string | null;
 };
 
 async function getClient(client?: CatalogClient) {
@@ -47,7 +62,12 @@ function catalogQueryFailureInput({
   market,
   summary
 }: {
-  action: 'catalog_products' | 'catalog_facets' | 'catalog_product_detail' | 'catalog_category_detail' | 'catalog_collection_detail';
+  action:
+    | 'catalog_products'
+    | 'catalog_facets'
+    | 'catalog_product_detail'
+    | 'catalog_category_detail'
+    | 'catalog_collection_detail';
   market: MarketCode;
   summary: string;
 }) {
@@ -75,7 +95,7 @@ export async function listCatalogProducts(input: CatalogListInput, client?: Cata
       summary: 'Storefront catalog product list query failed'
     }),
     query: async () => {
-      const {data, error} = await supabase.rpc('list_catalog_products', {
+      const { data, error } = await supabase.rpc('list_catalog_products', {
         p_locale: input.locale,
         p_market: input.market,
         p_search: cleanOptional(input.search),
@@ -92,7 +112,7 @@ export async function listCatalogProducts(input: CatalogListInput, client?: Cata
 }
 
 export async function listCatalogFacets(
-  input: {locale: Locale; market: MarketCode},
+  input: { locale: Locale; market: MarketCode },
   client?: CatalogClient
 ) {
   const supabase = await getClient(client);
@@ -103,7 +123,7 @@ export async function listCatalogFacets(
       summary: 'Storefront catalog facets query failed'
     }),
     query: async () => {
-      const {data, error} = await supabase.rpc('list_catalog_facets', {
+      const { data, error } = await supabase.rpc('list_catalog_facets', {
         p_locale: input.locale,
         p_market: input.market
       });
@@ -113,8 +133,36 @@ export async function listCatalogFacets(
   });
 }
 
+export async function listCatalogFacetsFiltered(
+  input: CatalogFacetListInput,
+  client?: CatalogClient
+) {
+  const supabase = await getClient(client);
+  return runMonitoredThrowingQuery({
+    ...catalogQueryFailureInput({
+      action: 'catalog_facets',
+      market: input.market,
+      summary: 'Storefront filtered catalog facets query failed'
+    }),
+    query: async () => {
+      const { data, error } = await supabase.rpc('list_catalog_facets_filtered', {
+        p_locale: input.locale,
+        p_market: input.market,
+        p_search: cleanOptional(input.search),
+        p_product_type: input.productType ?? undefined,
+        p_category_slug: cleanOptional(input.categorySlug),
+        p_collection_slug: cleanOptional(input.collectionSlug),
+        p_technique_slug: cleanOptional(input.techniqueSlug),
+        p_tag_slug: cleanOptional(input.tagSlug)
+      });
+      if (error) throw error;
+      return data ?? [];
+    }
+  });
+}
+
 export async function getCatalogProductBySlug(
-  input: {locale: Locale; market: MarketCode; slug: string},
+  input: { locale: Locale; market: MarketCode; slug: string },
   client?: CatalogClient
 ) {
   const supabase = await getClient(client);
@@ -130,7 +178,35 @@ export async function getCatalogProductBySlug(
       summary: 'Storefront catalog product detail query failed'
     }),
     query: async () => {
-      const {data, error} = await supabase.rpc('get_catalog_product_by_slug', {
+      const { data, error } = await supabase.rpc('get_catalog_product_by_slug', {
+        p_locale: input.locale,
+        p_market: input.market,
+        p_slug: slug
+      });
+      if (error) throw error;
+      return data?.[0] ?? null;
+    }
+  });
+}
+
+export async function getCatalogProductCommerceBySlug(
+  input: { locale: Locale; market: MarketCode; slug: string },
+  client?: CatalogClient
+) {
+  const supabase = await getClient(client);
+  const slug = cleanOptional(input.slug);
+  if (!slug) {
+    return null;
+  }
+
+  return runMonitoredThrowingQuery({
+    ...catalogQueryFailureInput({
+      action: 'catalog_product_detail',
+      market: input.market,
+      summary: 'Storefront product commerce query failed'
+    }),
+    query: async () => {
+      const { data, error } = await supabase.rpc('get_catalog_product_commerce_by_slug', {
         p_locale: input.locale,
         p_market: input.market,
         p_slug: slug
@@ -142,7 +218,7 @@ export async function getCatalogProductBySlug(
 }
 
 export async function getCatalogCategoryBySlug(
-  input: {locale: Locale; market: MarketCode; slug: string},
+  input: { locale: Locale; market: MarketCode; slug: string },
   client?: CatalogClient
 ) {
   const supabase = await getClient(client);
@@ -158,7 +234,7 @@ export async function getCatalogCategoryBySlug(
       summary: 'Storefront catalog category detail query failed'
     }),
     query: async () => {
-      const {data, error} = await supabase.rpc('get_catalog_category_by_slug', {
+      const { data, error } = await supabase.rpc('get_catalog_category_by_slug', {
         p_locale: input.locale,
         p_market: input.market,
         p_slug: slug
@@ -170,7 +246,7 @@ export async function getCatalogCategoryBySlug(
 }
 
 export async function getCatalogCollectionBySlug(
-  input: {locale: Locale; market: MarketCode; slug: string},
+  input: { locale: Locale; market: MarketCode; slug: string },
   client?: CatalogClient
 ) {
   const supabase = await getClient(client);
@@ -186,7 +262,7 @@ export async function getCatalogCollectionBySlug(
       summary: 'Storefront catalog collection detail query failed'
     }),
     query: async () => {
-      const {data, error} = await supabase.rpc('get_catalog_collection_by_slug', {
+      const { data, error } = await supabase.rpc('get_catalog_collection_by_slug', {
         p_locale: input.locale,
         p_market: input.market,
         p_slug: slug

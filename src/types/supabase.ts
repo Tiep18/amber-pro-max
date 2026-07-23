@@ -3569,6 +3569,23 @@ export type Database = {
           variants: Json
         }[]
       }
+      get_catalog_product_commerce_by_slug: {
+        Args: { p_locale: string; p_market: string; p_slug: string }
+        Returns: {
+          available: boolean
+          currency_code: string
+          in_stock: boolean
+          locale: string
+          market: string
+          other_market_available: boolean
+          other_market_code: string
+          price_minor: number
+          product_id: string
+          product_type: string
+          slug: string
+          variants: Json
+        }[]
+      }
       get_checkout_discount_code: {
         Args: { p_code: string }
         Returns: {
@@ -3685,6 +3702,25 @@ export type Database = {
       }
       list_catalog_facets: {
         Args: { p_locale: string; p_market: string }
+        Returns: {
+          facet_type: string
+          id: string
+          label: string
+          product_count: number
+          slug: string
+        }[]
+      }
+      list_catalog_facets_filtered: {
+        Args: {
+          p_category_slug?: string
+          p_collection_slug?: string
+          p_locale: string
+          p_market: string
+          p_product_type?: string
+          p_search?: string
+          p_tag_slug?: string
+          p_technique_slug?: string
+        }
         Returns: {
           facet_type: string
           id: string
