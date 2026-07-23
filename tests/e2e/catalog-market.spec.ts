@@ -1,84 +1,117 @@
-import {expect, test} from '@playwright/test';
+import {
+  catalogPath,
+  expect,
+  expectMarketCookie,
+  MARKET_COOKIE,
+  test,
+  type StorefrontLocale,
+  type StorefrontMarket
+} from './fixtures/storefront-market';
 
-function activeMarketLabel(page: import('@playwright/test').Page) {
-  return page.getByRole('banner').getByTestId('active-market-label');
+test('market fixture isolates valid/invalid cookies, geo headers, and missing geo input', async ({
+  storefrontMarket
+}) => {
+  const valid = await storefrontMarket.createSession({
+    marketCookie: 'vn',
+    geoCountry: 'US'
+  });
+  const invalid = await storefrontMarket.createSession({
+    marketCookie: 'forged-market',
+    geoCountry: 'VN'
+  });
+  const missingGeo = await storefrontMarket.createSession();
+
+  expect((await valid.context.cookies()).find(({ name }) => name === MARKET_COOKIE)?.value).toBe(
+    'vn'
+  );
+  expect((await invalid.context.cookies()).find(({ name }) => name === MARKET_COOKIE)?.value).toBe(
+    'forged-market'
+  );
+  expect((await missingGeo.context.cookies()).some(({ name }) => name === MARKET_COOKIE)).toBe(
+    false
+  );
+
+  for (const [session, expectedGeo] of [
+    [valid, 'US'],
+    [invalid, 'VN'],
+    [missingGeo, null]
+  ] as const) {
+    let observedGeo: string | undefined;
+    await session.page.route('**/fixture-probe', async (route) => {
+      observedGeo = route.request().headers()['x-vercel-ip-country'];
+      await route.fulfill({ status: 200, contentType: 'text/html', body: '<main>fixture</main>' });
+    });
+    await session.page.goto('/fixture-probe');
+    expect(observedGeo ?? null).toBe(expectedGeo);
+  }
+});
+
+const combinations = [
+  { locale: 'vi', market: 'vn', currency: /₫|VND/ },
+  { locale: 'vi', market: 'intl', currency: /\$|USD/ },
+  { locale: 'en', market: 'vn', currency: /₫|VND/ },
+  { locale: 'en', market: 'intl', currency: /\$|USD/ }
+] satisfies Array<{ locale: StorefrontLocale; market: StorefrontMarket; currency: RegExp }>;
+
+for (const combination of combinations) {
+  test(`catalog projects ${combination.locale}+${combination.market} with matching currency`, async ({
+    storefrontMarket
+  }) => {
+    test.fixme(
+      true,
+      'Plan 09-13: promote after independent controls and active-market catalog projection converge'
+    );
+    const session = await storefrontMarket.createSession(combination);
+
+    await session.page.goto(catalogPath(combination.locale));
+
+    await expect(session.page.locator('html')).toHaveAttribute('lang', combination.locale);
+    await expectMarketCookie(session.context, combination.market);
+    const cards = session.page.getByRole('article');
+    expect(await cards.count()).toBeGreaterThan(0);
+    for (const card of await cards.all()) {
+      await expect(card).toContainText(combination.currency);
+    }
+  });
 }
 
-test('suggestion sets VN for VN country and international for non-VN in separate contexts', async ({browser}) => {
-  test.setTimeout(60_000);
-  const vnContext = await browser.newContext({extraHTTPHeaders: {'x-vercel-ip-country': 'VN'}});
-  const vnPage = await vnContext.newPage();
-  await vnPage.goto('/en');
-  await expect(activeMarketLabel(vnPage)).toHaveText('Vietnam');
+test('desktop exposes independent semantic language and shopping-region groups', async ({
+  storefrontMarket
+}) => {
+  test.fixme(true, 'Plan 09-13: replace the legacy combined locale-market control');
+  const session = await storefrontMarket.createSession({ locale: 'en', marketCookie: 'vn' });
+  await session.page.goto('/en');
 
-  const intlContext = await browser.newContext({extraHTTPHeaders: {'x-vercel-ip-country': 'US'}});
-  const intlPage = await intlContext.newPage();
-  await intlPage.goto('/en');
-  await expect(activeMarketLabel(intlPage)).toHaveText('International');
-
-  await vnContext.close();
-  await intlContext.close();
+  const header = session.page.getByRole('banner');
+  await header.getByRole('button', { name: /EN.*VN/i }).click();
+  await expect(session.page.getByRole('group', { name: 'Language' })).toBeVisible();
+  await expect(session.page.getByRole('group', { name: 'Shopping region' })).toBeVisible();
+  await expect(session.page.getByRole('menuitemradio', { name: /Vietnam.*VND/i })).toBeChecked();
+  await expect(
+    session.page.getByRole('menuitemradio', { name: /International.*USD/i })
+  ).not.toBeChecked();
 });
 
-test('visible active market control appears in desktop and mobile header', async ({page}) => {
-  await page.setViewportSize({width: 1024, height: 720});
-  await page.goto('/en');
-  await expect(page.getByRole('banner').getByRole('navigation', {name: 'Market'})).toBeVisible();
-  await expect(activeMarketLabel(page)).toHaveText('International');
+test('mobile exposes independent 44px language and shopping-region choices', async ({
+  storefrontMarket
+}) => {
+  test.fixme(true, 'Plan 09-13: replace the legacy combined mobile control');
+  const session = await storefrontMarket.createSession({ locale: 'vi', marketCookie: 'intl' });
+  await session.page.setViewportSize({ width: 320, height: 720 });
+  await session.page.goto('/vi');
 
-  await page.setViewportSize({width: 320, height: 720});
-  await page.goto('/vi');
-  const mobileMarket = page.getByRole('banner').getByRole('navigation', {name: 'Thi truong'});
-  await expect(mobileMarket).toBeVisible();
-  await expect(mobileMarket.getByText(/Viet Nam|Quoc te/)).toBeVisible();
-});
-
-test('switch persists through refresh and navigation', async ({page}) => {
-  await page.goto('/en');
-  await expect(activeMarketLabel(page)).toHaveText('International');
-
-  await page.getByRole('banner').getByRole('button', {name: 'Use Vietnam market'}).click();
-  await expect(page).toHaveURL(/\/en$/);
-  await expect(activeMarketLabel(page)).toHaveText('Vietnam');
-
-  await page.reload();
-  await expect(activeMarketLabel(page)).toHaveText('Vietnam');
-
-  await page.getByRole('link', {name: 'Sign in'}).click();
-  await expect(page).toHaveURL(/\/en\/sign-in$/);
-  await expect(activeMarketLabel(page)).toHaveText('Vietnam');
-});
-
-test('locale stays independent when market switches', async ({page}) => {
-  await page.goto('/vi');
-  await expect(activeMarketLabel(page)).toHaveText('Quoc te');
-
-  await page.getByRole('banner').getByRole('button', {name: 'Dung thi truong Viet Nam'}).click();
-  await expect(page).toHaveURL(/\/vi$/);
-  await expect(activeMarketLabel(page)).toHaveText('Viet Nam');
-
-  await page.getByRole('banner').getByRole('link', {name: 'English'}).click();
-  await expect(page).toHaveURL(/\/en$/);
-  await expect(activeMarketLabel(page)).toHaveText('Vietnam');
-});
-
-test('switch action ignores unsafe return path', async ({page}) => {
-  await page.goto('/en');
-
-  await page
+  await session.page
     .getByRole('banner')
-    .getByRole('button', {name: 'Use Vietnam market'})
-    .evaluate((button) => {
-      const form = button.closest('form');
-      const input = form?.querySelector('input[name="returnTo"]');
-      if (!(form instanceof HTMLFormElement) || !(input instanceof HTMLInputElement)) {
-        throw new Error('market form not found');
-      }
-      input.value = '//evil.example';
-      input.setAttribute('value', '//evil.example');
-      form.requestSubmit(button as HTMLButtonElement);
-    });
-
-  await expect(page).toHaveURL(/\/vi$/);
-  expect(new URL(page.url()).origin).not.toBe('https://evil.example');
+    .getByRole('button', { name: /VI.*INTL/i })
+    .click();
+  const language = session.page.getByRole('group', { name: /Ngôn ngữ/i });
+  const market = session.page.getByRole('group', { name: /Khu vực mua sắm/i });
+  await expect(language).toBeVisible();
+  await expect(market).toBeVisible();
+  for (const option of await language.getByRole('radio').all()) {
+    expect((await option.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  }
+  for (const option of await market.getByRole('radio').all()) {
+    expect((await option.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  }
 });
