@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 09-04-PLAN.md
-last_updated: "2026-07-23T00:45:51.903Z"
+last_updated: "2026-07-23T12:44:11.609Z"
 last_activity: 2026-07-22 -- Phase 09 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 86
-  completed_plans: 75
+  completed_plans: 76
   percent: 78
 ---
 
@@ -97,6 +97,7 @@ Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; P
 | Phase 09 P02 | 11min | 2 tasks | 4 files |
 | Phase 09 P03 | 421min | 2 tasks | 5 files |
 | Phase 09 P04 | 9min | 2 tasks | 7 files |
+| Phase 09 P06 | 29min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -166,6 +167,10 @@ Recent decisions affecting current work:
 - [Phase 09]: Unprefixed and localized-auth requests use next-intl as the sole locale negotiator; only system callbacks, admin, sitemaps, APIs, and assets remain outside that path.
 - [Phase 09]: Browsing-market mutation returns only the server-accepted enum or a stable error and never invalidates shared storefront paths.
 - [Phase 09]: Storefront context failures return a bounded context_unavailable code with HTTP 503 and the same private, no-store policy as successful responses.
+- [Phase 09]: Missing projection facts use bounded security-definer RPCs while catalog base tables remain private to browser roles. — Exact inventory, price provenance, and filter-aware counts were unavailable from existing RPCs.
+- [Phase 09]: Technique and tag facets use stable entity UUIDs as public slugs because their translations have no authored slug field. — Avoids fabricating mutable localized slugs in TypeScript.
+- [Phase 09]: Disabled variants expose null effective price provenance; TypeScript never fabricates parent fallback facts. — Only an enabled effective offer has an authoritative price source.
+- [Phase 09]: Projection fingerprints are presentation identity only and never enter cart, checkout, payment, or order authority. — Server quote and submit validation remain the commerce authority.
 
 ### Pending Todos
 
@@ -321,6 +326,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-23T00:45:51.861Z
+Last session: 2026-07-23T12:43:42.456Z
 Stopped at: Completed 09-04-PLAN.md
 Resume file: None
