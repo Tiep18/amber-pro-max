@@ -2,16 +2,38 @@
 
 import {cookies} from 'next/headers';
 import {redirect} from 'next/navigation';
-import {revalidatePath} from 'next/cache';
 import {MARKET_COOKIE, isMarketCode, marketCookieOptions, safeMarketReturnPath} from './market';
 
-export async function setActiveMarketAction(formData: FormData) {
-  const marketValue = formData.get('market');
-  const market = isMarketCode(marketValue) ? marketValue : 'intl';
-  const returnTo = safeMarketReturnPath(formData.get('returnTo'));
-  const cookieStore = await cookies();
+export type MarketMutationResult =
+  | {status: 'success'; market: 'vn' | 'intl'}
+  | {status: 'error'; code: 'invalid_market' | 'mutation_failed'};
 
-  cookieStore.set(MARKET_COOKIE, market, marketCookieOptions());
-  revalidatePath(returnTo);
+function marketFromInput(input: unknown) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return null;
+  }
+
+  const market = (input as {market?: unknown}).market;
+  return isMarketCode(market) ? market : null;
+}
+
+export async function commitActiveMarketAction(input: unknown): Promise<MarketMutationResult> {
+  const market = marketFromInput(input);
+  if (!market) {
+    return {status: 'error', code: 'invalid_market'};
+  }
+
+  try {
+    const cookieStore = await cookies();
+    await cookieStore.set(MARKET_COOKIE, market, marketCookieOptions());
+    return {status: 'success', market};
+  } catch {
+    return {status: 'error', code: 'mutation_failed'};
+  }
+}
+
+export async function setActiveMarketAction(formData: FormData) {
+  const returnTo = safeMarketReturnPath(formData.get('returnTo'));
+  await commitActiveMarketAction({market: formData.get('market')});
   redirect(returnTo);
 }
