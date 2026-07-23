@@ -31,6 +31,7 @@ describe('localized routing contract', () => {
   it('uses only explicit Vietnamese and English locale prefixes', () => {
     expect(routing.locales).toEqual(['vi', 'en']);
     expect(routing.localePrefix).toBe('always');
+    expect(routing.localeDetection).toBe(true);
     expect(getLocalizedPath('/', 'vi')).toBe('/vi');
     expect(getLocalizedPath('/', 'en')).toBe('/en');
   });
@@ -61,17 +62,17 @@ describe('localized routing contract', () => {
     expect(preferredLocale(header)).toBe(expected);
   });
 
-  it.fails('Plan 09-04: honors weighted Accept-Language quality before language order', () => {
+  it('honors weighted Accept-Language quality before language order', () => {
     expect(preferredLocale('vi;q=0.2,en-US;q=0.9')).toBe('en');
   });
 
-  it.fails('Plan 09-04: falls back to vi when Accept-Language is absent or unsupported', () => {
+  it('falls back to vi when Accept-Language is absent or unsupported', () => {
     expect(preferredLocale(null)).toBe('vi');
     expect(preferredLocale('fr-FR,fr;q=0.9')).toBe('vi');
   });
 
-  it.fails(
-    'Plan 09-04: maps product, category, and collection paths using supplied localized slugs',
+  it(
+    'maps product, category, and collection paths using supplied localized slugs',
     () => {
       const cases = [
         ['/vi/san-pham/gau-len', '/en/product/crochet-bear'],
@@ -92,7 +93,7 @@ describe('localized routing contract', () => {
     }
   );
 
-  it.fails('Plan 09-04: supports future technique and tag equivalent route kinds', () => {
+  it('supports technique and tag equivalent route kinds', () => {
     expect(
       futureRouting.getEquivalentLocalizedPath('/vi/ky-thuat/moc', 'en', {
         vi: 'moc',
@@ -107,7 +108,7 @@ describe('localized routing contract', () => {
     ).toBe('/vi/the/ngay-le');
   });
 
-  it.fails('Plan 09-04: preserves only the catalog query allowlist', () => {
+  it('preserves only the catalog query allowlist', () => {
     const query = new URLSearchParams([
       ['search', 'bear'],
       ['type', 'physical'],
@@ -124,7 +125,7 @@ describe('localized routing contract', () => {
     );
   });
 
-  it.fails('Plan 09-04: preserves only one validated internal auth next path', () => {
+  it('preserves only one validated internal auth next path', () => {
     const allow = futureRouting.allowlistedRouteQuery;
     expect(allow?.('auth', new URLSearchParams('next=%2Fen%2Fcheckout'))).toBe(
       '?next=%2Fen%2Fcheckout'
