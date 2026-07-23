@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-const PLAN_09_06 = 'expected red: Plan 09-06 owns product commerce projection';
-
 async function productCommerceModule() {
-  // @ts-expect-error -- Plan 09-06 creates this module and promotes these expected-red contracts.
   return import('@/catalog/projections');
 }
 
@@ -58,7 +55,7 @@ const variantOverrideProduct = {
 } as const;
 
 describe('product commerce projection contracts', () => {
-  it.fails(`${PLAN_09_06}; DTO exposes complete public offer facts`, async () => {
+  it('DTO exposes complete public offer facts', async () => {
     const { projectProductCommerce } = await productCommerceModule();
     const projection = projectProductCommerce(parentPriceProduct);
 
@@ -80,7 +77,7 @@ describe('product commerce projection contracts', () => {
     ]);
   });
 
-  it.fails(`${PLAN_09_06}; parent prices and variant overrides remain independent`, async () => {
+  it('parent prices and variant overrides remain independent', async () => {
     const { projectProductCommerce } = await productCommerceModule();
     const inherited = projectProductCommerce(parentPriceProduct);
     const overridden = projectProductCommerce(variantOverrideProduct);
@@ -111,7 +108,7 @@ describe('product commerce projection contracts', () => {
     ]);
   });
 
-  it.fails(`${PLAN_09_06}; unavailable and market-exclusive products fail closed`, async () => {
+  it('unavailable and market-exclusive products fail closed', async () => {
     const { projectProductCommerce } = await productCommerceModule();
     const unavailable = projectProductCommerce({
       ...parentPriceProduct,
@@ -138,8 +135,8 @@ describe('product commerce projection contracts', () => {
     ).toBe(true);
   });
 
-  it.fails(
-    `${PLAN_09_06}; fingerprint is deterministic and changes only with public offer facts`,
+  it(
+    'fingerprint is deterministic and changes only with public offer facts',
     async () => {
       const { projectProductCommerce } = await productCommerceModule();
       const first = projectProductCommerce(parentPriceProduct);
@@ -160,7 +157,7 @@ describe('product commerce projection contracts', () => {
     }
   );
 
-  it.fails(`${PLAN_09_06}; Add to Cart requires exact ready agreement`, async () => {
+  it('Add to Cart requires exact ready agreement', async () => {
     const { isProductCommerceAgreement, projectProductCommerce } = await productCommerceModule();
     const projection = { ...projectProductCommerce(variantOverrideProduct), generation: 7 };
     const exact = {

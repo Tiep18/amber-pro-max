@@ -1,7 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const PLAN_09_06 = 'expected red: Plan 09-06 owns projection implementation';
-
 const vnOnlyProduct = {
   productId: 'product-vn',
   slug: 'gau-vang',
@@ -53,16 +51,14 @@ const intlFacets = [
 ] as const;
 
 async function projectionModules() {
-  // @ts-expect-error -- Plan 09-06 creates this module and promotes these expected-red contracts.
   const schemas = await import('@/catalog/projection-schemas');
-  // @ts-expect-error -- Plan 09-06 creates this module and promotes these expected-red contracts.
   const projections = await import('@/catalog/projections');
   return { ...schemas, ...projections };
 }
 
 describe('storefront catalog projection contracts', () => {
   describe('strict public input boundary', () => {
-    it.fails(PLAN_09_06, async () => {
+    it('normalizes supported projection inputs', async () => {
       const { catalogProjectionQuerySchema } = await projectionModules();
       const input = {
         locale: ' en ',
@@ -91,7 +87,7 @@ describe('storefront catalog projection contracts', () => {
       });
     });
 
-    it.fails(PLAN_09_06, async () => {
+    it('accepts every supported locale, surface, and sort combination', async () => {
       const { catalogProjectionQuerySchema } = await projectionModules();
       const validLocales = ['vi', 'en'];
       const validSurfaces = ['home', 'catalog', 'category', 'collection', 'technique', 'tag'];
@@ -108,7 +104,7 @@ describe('storefront catalog projection contracts', () => {
       }
     });
 
-    it.fails(PLAN_09_06, async () => {
+    it('rejects malformed, oversized, caller-market, and unknown inputs', async () => {
       const { catalogProjectionQuerySchema } = await projectionModules();
       const invalidInputs = [
         { locale: 'fr', surface: 'catalog' },
@@ -135,8 +131,8 @@ describe('storefront catalog projection contracts', () => {
     });
   });
 
-  it.fails(
-    `${PLAN_09_06}; active-market products and facets replace the SEO shell atomically`,
+  it(
+    'active-market products and facets replace the SEO shell atomically',
     async () => {
       const { projectCatalog } = await projectionModules();
       const loadProducts = vi.fn(async ({ market }: { market: 'vn' | 'intl' }) =>
@@ -186,8 +182,8 @@ describe('storefront catalog projection contracts', () => {
     }
   );
 
-  it.fails(
-    `${PLAN_09_06}; every shaping dimension participates in reusable cache calls`,
+  it(
+    'every shaping dimension participates in reusable cache calls',
     async () => {
       const { projectCatalog } = await projectionModules();
       const base = {
