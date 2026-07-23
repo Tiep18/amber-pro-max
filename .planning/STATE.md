@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-04-PLAN.md
-last_updated: "2026-07-23T12:44:11.609Z"
+stopped_at: Completed 09-05-PLAN.md
+last_updated: "2026-07-23T13:01:04.860Z"
 last_activity: 2026-07-22 -- Phase 09 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 86
-  completed_plans: 76
+  completed_plans: 77
   percent: 78
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 09 (independent-locale-and-market-commerce-projection-with-seo-s) — EXECUTING
-Plan: 5 of 15
+Plan: 7 of 15
 Status: Ready to execute
 Last activity: 2026-07-22 -- Phase 09 execution started
 
@@ -98,6 +98,7 @@ Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; P
 | Phase 09 P03 | 421min | 2 tasks | 5 files |
 | Phase 09 P04 | 9min | 2 tasks | 7 files |
 | Phase 09 P06 | 29min | 2 tasks | 12 files |
+| Phase 09 P05 | 10min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -171,6 +172,9 @@ Recent decisions affecting current work:
 - [Phase 09]: Technique and tag facets use stable entity UUIDs as public slugs because their translations have no authored slug field. — Avoids fabricating mutable localized slugs in TypeScript.
 - [Phase 09]: Disabled variants expose null effective price provenance; TypeScript never fabricates parent fallback facts. — Only an enabled effective offer has an authoritative price source.
 - [Phase 09]: Projection fingerprints are presentation identity only and never enter cart, checkout, payment, or order authority. — Server quote and submit validation remain the commerce authority.
+- [Phase 09]: Storefront context begins resolving with a null market; locale never supplies a temporary commerce authority.
+- [Phase 09]: Market mutation keeps the committed label until the strict server action succeeds, then invalidates and refetches the private context.
+- [Phase 09]: Legacy auth/context notifications retain their event semantics but their caller detail is ignored and replaced by authoritative refetch.
 
 ### Pending Todos
 
@@ -326,6 +330,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-23T12:43:42.456Z
-Stopped at: Completed 09-04-PLAN.md
+Last session: 2026-07-23T13:01:03.997Z
+Stopped at: Completed 09-05-PLAN.md
 Resume file: None
