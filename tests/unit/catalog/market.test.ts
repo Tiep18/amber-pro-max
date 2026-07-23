@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { cookies, redirect, revalidatePath } = vi.hoisted(() => ({
+const { cookies, getRequestHeaderUser, getRequestMarket, redirect, revalidatePath } = vi.hoisted(() => ({
   cookies: vi.fn(),
+  getRequestHeaderUser: vi.fn(),
+  getRequestMarket: vi.fn(),
   revalidatePath: vi.fn(),
   redirect: vi.fn()
 }));
@@ -9,8 +11,11 @@ const { cookies, redirect, revalidatePath } = vi.hoisted(() => ({
 vi.mock('next/headers', () => ({ cookies }));
 vi.mock('next/navigation', () => ({ redirect }));
 vi.mock('next/cache', () => ({ revalidatePath }));
+vi.mock('@/auth/request-user', () => ({ getRequestHeaderUser }));
+vi.mock('@/catalog/page-context', () => ({ getRequestMarket }));
 
 import * as marketActions from '@/catalog/market-actions';
+import { GET as getStorefrontContext } from '@/app/api/storefront-context/route';
 import {
   MARKET_COOKIE,
   resolveActiveMarket,
@@ -92,11 +97,13 @@ describe('strict market mutation result contract', () => {
     cookies.mockReset();
     redirect.mockReset();
     revalidatePath.mockReset();
+    getRequestHeaderUser.mockReset();
+    getRequestMarket.mockReset();
     cookies.mockResolvedValue({ set });
     vi.stubEnv('NODE_ENV', 'development');
   });
 
-  it.fails('Plan 09-04: commits a valid market and returns only the accepted enum', async () => {
+  it('commits a valid market and returns only the accepted enum', async () => {
     const result = await futureMarketActions.commitActiveMarketAction?.({ market: 'vn' });
 
     expect(result).toEqual({ status: 'success', market: 'vn' });
@@ -111,8 +118,8 @@ describe('strict market mutation result contract', () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
-  it.fails(
-    'Plan 09-04: rejects invalid market input without cookie mutation or shared invalidation',
+  it(
+    'rejects invalid market input without cookie mutation or shared invalidation',
     async () => {
       const result = await futureMarketActions.commitActiveMarketAction?.({
         market: 'https://evil.example'
@@ -124,4 +131,72 @@ describe('strict market mutation result contract', () => {
       expect(revalidatePath).not.toHaveBeenCalled();
     }
   );
+
+  it('returns a stable error when cookie persistence fails', async () => {
+    set.mockRejectedValueOnce(new Error('raw persistence detail'));
+
+    const result = await futureMarketActions.commitActiveMarketAction?.({ market: 'intl' });
+
+    expect(result).toEqual({ status: 'error', code: 'mutation_failed' });
+    expect(redirect).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('keeps the legacy form adapter strict and redirects only to a safe internal path', async () => {
+    const formData = new FormData();
+    formData.set('market', 'vn');
+    formData.set('returnTo', '/en/catalog?search=bear');
+
+    await marketActions.setActiveMarketAction(formData);
+
+    expect(set).toHaveBeenCalledWith(MARKET_COOKIE, 'vn', expect.any(Object));
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(redirect).toHaveBeenCalledWith('/en/catalog');
+  });
+
+  it('does not let invalid legacy form input change market authority', async () => {
+    const formData = new FormData();
+    formData.set('market', 'VN');
+    formData.set('returnTo', '//evil.example');
+
+    await marketActions.setActiveMarketAction(formData);
+
+    expect(set).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(redirect).toHaveBeenCalledWith('/vi');
+  });
+});
+
+describe('private storefront context delivery', () => {
+  beforeEach(() => {
+    getRequestHeaderUser.mockReset();
+    getRequestMarket.mockReset();
+  });
+
+  it('returns only resolved market and the minimal user DTO as private no-store', async () => {
+    getRequestMarket.mockResolvedValue('vn');
+    getRequestHeaderUser.mockResolvedValue({ email: 'shopper@example.com', isAdmin: false });
+
+    const response = await getStorefrontContext();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('private, no-store');
+    expect(await response.json()).toEqual({
+      market: 'vn',
+      user: { email: 'shopper@example.com', isAdmin: false }
+    });
+  });
+
+  it('sanitizes failures and still prevents intermediary caching', async () => {
+    getRequestMarket.mockRejectedValue(new Error('raw cookie and header detail'));
+    getRequestHeaderUser.mockResolvedValue(null);
+
+    const response = await getStorefrontContext();
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get('cache-control')).toBe('private, no-store');
+    expect(body).toEqual({ status: 'error', code: 'context_unavailable' });
+    expect(JSON.stringify(body)).not.toContain('raw cookie and header detail');
+  });
 });
