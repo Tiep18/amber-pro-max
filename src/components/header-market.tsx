@@ -20,6 +20,7 @@ export function HeaderMarket({
   className?: string;
 }) {
   const { market } = useStorefrontContext();
+  if (!market) return null;
 
   return (
     <CommerceContextSwitcher

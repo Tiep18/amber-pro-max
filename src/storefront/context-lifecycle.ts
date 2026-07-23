@@ -34,7 +34,7 @@ export type StorefrontContextValue = {
   contextVersion: number;
 };
 
-type ContextInvalidationSignal = {
+export type ContextInvalidationSignal = {
   schemaVersion: 1;
   invalidationVersion: number;
 };
@@ -126,14 +126,15 @@ export function invalidateContext(
   state: StorefrontContextState,
   signal: unknown
 ): StorefrontContextState {
-  if (!isContextInvalidationSignal(signal) || signal.invalidationVersion <= state.contextVersion) {
+  const invalidation = toContextInvalidationSignal(signal);
+  if (!invalidation || invalidation.invalidationVersion <= state.contextVersion) {
     return state;
   }
 
   return {
     ...state,
     status: 'resolving',
-    contextVersion: signal.invalidationVersion,
+    contextVersion: invalidation.invalidationVersion,
     activeGeneration: null,
     pendingMarket: null,
     issue: null
@@ -144,15 +145,17 @@ export function isStorefrontContextPurchaseSafe(state: StorefrontContextState) {
   return state.status === 'ready' && state.market !== null;
 }
 
-function isContextInvalidationSignal(value: unknown): value is ContextInvalidationSignal {
+export function toContextInvalidationSignal(value: unknown): ContextInvalidationSignal | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return false;
+    return null;
   }
 
   const candidate = value as Partial<ContextInvalidationSignal>;
-  return (
+  const valid =
     candidate.schemaVersion === 1 &&
     Number.isSafeInteger(candidate.invalidationVersion) &&
-    (candidate.invalidationVersion ?? 0) >= 0
-  );
+    (candidate.invalidationVersion ?? 0) >= 0;
+  return valid
+    ? {schemaVersion: 1, invalidationVersion: candidate.invalidationVersion as number}
+    : null;
 }
