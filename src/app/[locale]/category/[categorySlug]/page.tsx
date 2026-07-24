@@ -1,15 +1,20 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { localizedMetadata, publicStorageUrl } from '@/catalog/metadata';
 import { marketForLocale } from '@/catalog/seo-market';
 import { getCachedCatalogCategory, getCachedCatalogFacets, getCachedCatalogProducts } from '@/catalog/public-cache';
-import { ProductCard } from '@/components/catalog/product-card';
-import { getCatalogPath, getCategoryPath, type Locale } from '@/i18n/routing';
+import { CatalogCommerce } from '@/components/catalog/catalog-commerce';
+import {
+  getTaxonomyCommerceLabels,
+  TaxonomyCommercePending
+} from '@/components/catalog/taxonomy-commerce';
+import { getCatalogPath, getCategoryPath, getProductPath, type Locale } from '@/i18n/routing';
 import type { Json } from '@/types/supabase';
 import { JsonLd, breadcrumbJsonLd, itemListJsonLd } from '@/content/seo/json-ld';
 import Link from 'next/link';
-import { ArrowLeft, PackageSearch, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles } from 'lucide-react';
 
 type Params = Promise<{ locale: Locale; categorySlug: string }>;
 
@@ -67,10 +72,16 @@ export async function generateStaticParams() {
   const locales: Locale[] = ['vi', 'en'];
   const entries = await Promise.all(
     locales.map(async (locale) => {
-      const facets = await getCachedCatalogFacets(locale, marketForLocale(locale));
-      return facets
+      const [vnFacets, intlFacets] = await Promise.all([
+        getCachedCatalogFacets(locale, 'vn'),
+        getCachedCatalogFacets(locale, 'intl')
+      ]);
+      const facets = new Map(
+        [...vnFacets, ...intlFacets]
         .filter((facet) => facet.facet_type === 'category')
-        .map((facet) => ({ locale, categorySlug: facet.slug }));
+          .map((facet) => [facet.slug, facet] as const)
+      );
+      return [...facets.values()].map((facet) => ({ locale, categorySlug: facet.slug }));
     })
   );
   return entries.flat();
@@ -88,6 +99,7 @@ export default async function CategoryPage({ params }: { params: Params }) {
     notFound();
   }
   const t = copy[locale];
+  const labels = await getTaxonomyCommerceLabels(locale);
 
   return (
     <main className="container grid gap-8 py-10 sm:py-12">
@@ -97,7 +109,12 @@ export default async function CategoryPage({ params }: { params: Params }) {
             { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
             { name: category.name, path: getCategoryPath(locale, category.slug) }
           ]),
-          itemListJsonLd(products.map((product) => ({ name: product.title, path: `/${locale}/${locale === 'vi' ? 'san-pham' : 'product'}/${product.slug}` })))
+          itemListJsonLd(
+            products.map((product) => ({
+              name: product.title,
+              path: getProductPath(locale, product.slug)
+            }))
+          )
         ]}
       />
       <header className="grid gap-6 rounded-[24px] bg-[var(--surface-muted)] p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.32fr)] lg:items-end">
@@ -120,24 +137,19 @@ export default async function CategoryPage({ params }: { params: Params }) {
           <p className="leading-6 text-[var(--muted-foreground)]">{t.market}</p>
         </aside>
       </header>
-      {products.length ? (
-        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((product) => (
-            <ProductCard
-              key={product.product_id}
-              product={product}
-              locale={locale}
-            />
-          ))}
-        </section>
-      ) : (
-        <div className="grid min-h-56 place-items-center rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
-          <div className="grid max-w-[360px] justify-items-center gap-3">
-            <PackageSearch className="h-8 w-8 text-[var(--accent)]" aria-hidden="true" />
-            <p className="text-sm leading-6 text-[var(--muted-foreground)]">{t.empty}</p>
-          </div>
-        </div>
-      )}
+      <Suspense
+        fallback={
+          <TaxonomyCommercePending locale={locale} products={products} labels={labels} />
+        }
+      >
+        <CatalogCommerce
+          locale={locale}
+          surface="category"
+          seoProducts={products}
+          labels={labels}
+          fixedFilters={{ categorySlug }}
+        />
+      </Suspense>
     </main>
   );
 }
