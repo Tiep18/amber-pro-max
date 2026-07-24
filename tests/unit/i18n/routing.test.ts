@@ -8,6 +8,8 @@ const { getEquivalentLocalizedPath, getLocalizedPath, pathnames, preferredLocale
 
 type FutureRoutingModule = typeof routingModule & {
   allowlistedRouteQuery?: (kind: 'catalog' | 'auth' | 'other', query: URLSearchParams) => string;
+  getTechniquePath?: (locale: 'vi' | 'en', slug: string) => string;
+  getTagPath?: (locale: 'vi' | 'en', slug: string) => string;
   getEquivalentLocalizedPath: (
     currentPath: string,
     targetLocale: 'vi' | 'en',
@@ -94,6 +96,15 @@ describe('localized routing contract', () => {
   );
 
   it('supports technique and tag equivalent route kinds', () => {
+    expect(futureRouting.getTechniquePath?.('vi', 'moc-thu-bong')).toBe(
+      '/vi/ky-thuat/moc-thu-bong'
+    );
+    expect(futureRouting.getTechniquePath?.('en', 'crochet')).toBe(
+      '/en/technique/crochet'
+    );
+    expect(futureRouting.getTagPath?.('vi', 'qua-tang')).toBe('/vi/the/qua-tang');
+    expect(futureRouting.getTagPath?.('en', 'gift')).toBe('/en/tag/gift');
+
     expect(
       futureRouting.getEquivalentLocalizedPath('/vi/ky-thuat/moc', 'en', {
         vi: 'moc',

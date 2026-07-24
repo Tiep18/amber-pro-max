@@ -9,6 +9,10 @@ const categoryPagePath =
   '../../../src/app/[locale]/category/[categorySlug]/page.tsx';
 const collectionPagePath =
   '../../../src/app/[locale]/collection/[collectionSlug]/page.tsx';
+const techniquePagePath =
+  '../../../src/app/[locale]/technique/[techniqueSlug]/page.tsx';
+const tagPagePath =
+  '../../../src/app/[locale]/tag/[tagSlug]/page.tsx';
 
 describe('static taxonomy route contract', () => {
   it.each([
@@ -40,6 +44,43 @@ describe('static taxonomy route contract', () => {
 
       expect(page).toMatch(/getCachedCatalogFacets\(locale,\s*'vn'\)/);
       expect(page).toMatch(/getCachedCatalogFacets\(locale,\s*'intl'\)/);
+      expect(page).toContain('new Map');
+    }
+  );
+
+  it.each([
+    ['technique', techniquePagePath, 'techniqueSlug', 'getTechniquePath'],
+    ['tag', tagPagePath, 'tagSlug', 'getTagPath']
+  ])(
+    'ships an indexable static %s page with a fixed private projection',
+    async (surface, path, slugKey, pathHelper) => {
+      const page = await source(path);
+
+      expect(page).toContain("dynamic = 'force-static'");
+      expect(page).toContain('revalidate = 300');
+      expect(page).toContain('setRequestLocale(locale)');
+      expect(page).not.toMatch(/\b(?:cookies|headers)\s*\(/);
+      expect(page).not.toContain('searchParams');
+      expect(page).toContain(`surface="${surface}"`);
+      expect(page).toContain(`fixedFilters={{ ${slugKey} }}`);
+      expect(page).toContain(pathHelper);
+      expect(page).toContain('localizedMetadata');
+      expect(page).toContain('breadcrumbJsonLd');
+      expect(page).toContain('itemListJsonLd');
+    }
+  );
+
+  it.each([
+    ['technique', techniquePagePath],
+    ['tag', tagPagePath]
+  ])(
+    'unions locale-stable Vietnam and international %s facet identities',
+    async (surface, path) => {
+      const page = await source(path);
+
+      expect(page).toContain("market: 'vn'");
+      expect(page).toContain("market: 'intl'");
+      expect(page).toContain(`surface: '${surface}'`);
       expect(page).toContain('new Map');
     }
   );
