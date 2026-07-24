@@ -1,32 +1,29 @@
 'use client';
 
-import {useEffect, useMemo, useRef, useState} from 'react';
-import {usePathname, useSearchParams} from 'next/navigation';
-import {Alert, AlertTitle} from '@/components/ui/alert';
-import {Button} from '@/components/ui/button';
-import {Skeleton} from '@/components/ui/skeleton';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { Alert, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   catalogListStateFromSearchParams,
+  hasCatalogFilters,
   type CatalogListState
 } from '@/catalog/list-state';
-import type {CatalogFacet, CatalogProduct, CatalogProductType} from '@/catalog/queries';
-import type {
-  CatalogProjection,
-  CatalogProjectionInput
-} from '@/catalog/projections';
-import type {MarketCode} from '@/catalog/market';
-import type {Locale} from '@/i18n/routing';
+import type { CatalogFacet, CatalogProduct, CatalogProductType } from '@/catalog/queries';
+import type { CatalogProjection, CatalogProjectionInput } from '@/catalog/projections';
+import type { MarketCode } from '@/catalog/market';
+import type { Locale } from '@/i18n/routing';
 import {
   CatalogFilterContent,
   type CatalogFilterLabels
 } from '@/components/catalog/catalog-filter-content';
-import {CatalogControlsClient} from '@/components/catalog/catalog-controls-client';
-import {CatalogResultGrid} from '@/components/catalog/catalog-result-grid';
-import {
-  ProductCardView,
-  type ProductCardLabels
-} from '@/components/catalog/product-card-view';
-import {useStorefrontContext} from '@/components/storefront-context';
+import { CatalogControlsClient } from '@/components/catalog/catalog-controls-client';
+import { CatalogMobileFilters } from '@/components/catalog/catalog-mobile-filters';
+import { CatalogResultGrid } from '@/components/catalog/catalog-result-grid';
+import { ProductCardView, type ProductCardLabels } from '@/components/catalog/product-card-view';
+import { useStorefrontContext } from '@/components/storefront-context';
 
 type CatalogSurface = CatalogProjectionInput['surface'];
 
@@ -55,9 +52,7 @@ export type CatalogCommerceState = {
   issue: 'context_unavailable' | 'projection_unavailable' | null;
 };
 
-export function createCatalogCommerceState(
-  seedProducts: readonly unknown[]
-): CatalogCommerceState {
+export function createCatalogCommerceState(seedProducts: readonly unknown[]): CatalogCommerceState {
   return {
     status: 'resolving',
     seedProducts,
@@ -89,14 +84,11 @@ export function beginCatalogCommerceRequest(
       identity,
       issue: null
     },
-    request: {generation, identity}
+    request: { generation, identity }
   };
 }
 
-function sameIdentity(
-  left: CatalogCommerceIdentity | null,
-  right: CatalogCommerceIdentity
-) {
+function sameIdentity(left: CatalogCommerceIdentity | null, right: CatalogCommerceIdentity) {
   return (
     left?.locale === right.locale &&
     left.market === right.market &&
@@ -170,10 +162,30 @@ type CatalogControlLabels = {
   titleSort: string;
 };
 
+type CatalogShellLabels = {
+  productType: string;
+  allTypes: string;
+  handmadeTab: string;
+  patternsTab: string;
+  filtersTitle: string;
+  openFilters: string;
+  closeFilters: string;
+  resultCount: string;
+  activeFilters: string;
+  clearFilters: string;
+  filterSearch: string;
+  filterType: string;
+  filterCategory: string;
+  filterTechnique: string;
+  filterTag: string;
+  filterSort: string;
+};
+
 export type CatalogCommerceLabels = {
   card: ProductCardLabels;
   filters: CatalogFilterLabels;
   controls?: CatalogControlLabels;
+  shell?: CatalogShellLabels;
   resolving: string;
   loaded: string;
   showing: string;
@@ -312,6 +324,39 @@ function replaceTokens(template: string, values: Record<string, string | number>
   );
 }
 
+type CatalogHrefOverrides = {
+  search?: string | null;
+  productType?: CatalogListState['productType'] | null;
+  categorySlug?: string | null;
+  techniqueSlug?: string | null;
+  tagSlug?: string | null;
+  sort?: CatalogListState['sort'] | null;
+};
+
+function catalogHref(
+  basePath: string,
+  state: CatalogListState,
+  overrides: CatalogHrefOverrides = {}
+) {
+  const params = new URLSearchParams();
+  const search = 'search' in overrides ? overrides.search : state.search;
+  const productType = 'productType' in overrides ? overrides.productType : state.productType;
+  const categorySlug = 'categorySlug' in overrides ? overrides.categorySlug : state.categorySlug;
+  const techniqueSlug =
+    'techniqueSlug' in overrides ? overrides.techniqueSlug : state.techniqueSlug;
+  const tagSlug = 'tagSlug' in overrides ? overrides.tagSlug : state.tagSlug;
+  const sort = 'sort' in overrides ? overrides.sort : state.sort;
+
+  if (search) params.set('search', search);
+  if (productType) params.set('type', productType);
+  if (categorySlug) params.set('category', categorySlug);
+  if (techniqueSlug) params.set('technique', techniqueSlug);
+  if (tagSlug) params.set('tag', tagSlug);
+  if (sort && sort !== 'newest') params.set('sort', sort);
+  const query = params.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
+
 function CatalogFacetSkeletons() {
   return (
     <div aria-hidden="true" className="grid gap-6">
@@ -351,8 +396,8 @@ export function CatalogCommerce({
   const query = projectionQuery(locale, surface, normalizedState, fixedFilters, safeLimit);
   const queryKey = query.toString();
   const [retryVersion, setRetryVersion] = useState(0);
-  const [state, setState] = useState<CatalogCommerceState>(
-    () => createCatalogCommerceState(seoProducts)
+  const [state, setState] = useState<CatalogCommerceState>(() =>
+    createCatalogCommerceState(seoProducts)
   );
   const stateRef = useRef(state);
   const controllerRef = useRef<AbortController | null>(null);
@@ -415,11 +460,7 @@ export function CatalogCommerce({
         const settled = settleCatalogCommerceRequest(current, begun.request, projection);
         if (settled === current && current.activeGeneration === begun.request.generation) {
           commitState(
-            failCatalogCommerceRequest(
-              current,
-              begun.request.generation,
-              'projection_unavailable'
-            )
+            failCatalogCommerceRequest(current, begun.request.generation, 'projection_unavailable')
           );
           return;
         }
@@ -463,8 +504,7 @@ export function CatalogCommerce({
   const products = state.products as readonly CatalogProduct[];
   const facets = state.facets as readonly CatalogFacet[];
   const groups = useMemo(() => facetGroups(facets), [facets]);
-  const marketName =
-    context.market === null ? '' : labels.marketNames[context.market];
+  const marketName = context.market === null ? '' : labels.marketNames[context.market];
   const filterSummary =
     [
       normalizedState.search,
@@ -480,6 +520,92 @@ export function CatalogCommerce({
   const resultKey = state.identity
     ? `${state.identity.market}:${state.identity.contextGeneration}:${state.identity.contextVersion}:${state.identity.queryKey}`
     : `pending:${queryKey}`;
+  const productTypeTabs = labels.shell
+    ? [
+        { label: labels.shell.allTypes, productType: undefined },
+        { label: labels.shell.handmadeTab, productType: 'physical_finished' as const },
+        { label: labels.shell.patternsTab, productType: 'pdf_pattern' as const }
+      ]
+    : [];
+  const facetLabel = (kind: 'category' | 'technique' | 'tag', slug: string) => {
+    const source =
+      kind === 'category'
+        ? groups.categories
+        : kind === 'technique'
+          ? groups.techniques
+          : groups.tags;
+    return source.find((facet) => facet.slug === slug)?.label ?? slug;
+  };
+  const sortLabel =
+    labels.controls && normalizedState.sort !== 'newest'
+      ? {
+          price_asc: labels.controls.priceAsc,
+          price_desc: labels.controls.priceDesc,
+          title: labels.controls.titleSort,
+          newest: labels.controls.newest
+        }[normalizedState.sort]
+      : normalizedState.sort;
+  const activeFilters =
+    labels.shell === undefined
+      ? []
+      : [
+          normalizedState.search
+            ? {
+                key: 'search',
+                label: replaceTokens(labels.shell.filterSearch, {
+                  value: normalizedState.search
+                }),
+                href: catalogHref(pathname, normalizedState, { search: null })
+              }
+            : null,
+          normalizedState.productType
+            ? {
+                key: 'type',
+                label: replaceTokens(labels.shell.filterType, {
+                  value:
+                    productTypeTabs.find((tab) => tab.productType === normalizedState.productType)
+                      ?.label ?? normalizedState.productType
+                }),
+                href: catalogHref(pathname, normalizedState, { productType: null })
+              }
+            : null,
+          normalizedState.categorySlug
+            ? {
+                key: 'category',
+                label: replaceTokens(labels.shell.filterCategory, {
+                  value: facetLabel('category', normalizedState.categorySlug)
+                }),
+                href: catalogHref(pathname, normalizedState, { categorySlug: null })
+              }
+            : null,
+          normalizedState.techniqueSlug
+            ? {
+                key: 'technique',
+                label: replaceTokens(labels.shell.filterTechnique, {
+                  value: facetLabel('technique', normalizedState.techniqueSlug)
+                }),
+                href: catalogHref(pathname, normalizedState, { techniqueSlug: null })
+              }
+            : null,
+          normalizedState.tagSlug
+            ? {
+                key: 'tag',
+                label: replaceTokens(labels.shell.filterTag, {
+                  value: facetLabel('tag', normalizedState.tagSlug)
+                }),
+                href: catalogHref(pathname, normalizedState, { tagSlug: null })
+              }
+            : null,
+          normalizedState.sort !== 'newest'
+            ? {
+                key: 'sort',
+                label: replaceTokens(labels.shell.filterSort, { value: sortLabel }),
+                href: catalogHref(pathname, normalizedState, { sort: 'newest' })
+              }
+            : null
+        ].filter(
+          (filter): filter is { key: string; label: string; href: string } => filter !== null
+        );
 
   async function retry() {
     if (state.issue === 'context_unavailable') {
@@ -489,11 +615,75 @@ export function CatalogCommerce({
     setRetryVersion((version) => version + 1);
   }
 
+  const filterContent =
+    state.status === 'ready' ? (
+      <CatalogFilterContent
+        basePath={pathname}
+        state={normalizedState}
+        categories={groups.categories}
+        techniques={groups.techniques}
+        tags={groups.tags}
+        labels={labels.filters}
+      />
+    ) : (
+      <CatalogFacetSkeletons />
+    );
+  const resultContent =
+    state.status === 'error' ? (
+      <Alert variant="destructive" className="grid gap-3">
+        <AlertTitle>{labels.errorTitle}</AlertTitle>
+        <p>{labels.errorBody}</p>
+        <div>
+          <Button type="button" variant="secondary" onClick={() => void retry()}>
+            {labels.retry}
+          </Button>
+        </div>
+      </Alert>
+    ) : (
+      <div className="min-w-0">
+        <h2 tabIndex={-1} className="sr-only">
+          {state.status === 'ready'
+            ? replaceTokens(labels.loaded, {
+                market: marketName,
+                count: products.length
+              })
+            : labels.resolving}
+        </h2>
+        {state.status === 'ready' && products.length === 0 ? (
+          <div className="grid min-h-48 place-content-center gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
+            <h3 className="text-xl font-semibold">{labels.emptyTitle}</h3>
+            <p className="max-w-xl text-[var(--muted-foreground)]">
+              {replaceTokens(labels.emptyBody, {
+                market: marketName,
+                filters: filterSummary
+              })}
+            </p>
+          </div>
+        ) : (
+          <CatalogResultGrid
+            resultKey={resultKey}
+            labels={{ showing: labels.showing, loadMore: labels.loadMore }}
+          >
+            {products.map((product, index) => (
+              <ProductCardView
+                key={product.product_id}
+                product={product}
+                locale={locale}
+                labels={labels.card}
+                commerceState={state.status === 'ready' ? 'ready' : 'pending'}
+                eagerImage={index === 0}
+              />
+            ))}
+          </CatalogResultGrid>
+        )}
+      </div>
+    );
+
   return (
     <section
       aria-busy={state.status === 'resolving'}
       aria-describedby="catalog-commerce-status"
-      className="grid gap-6"
+      className="grid gap-4"
     >
       <p
         id="catalog-commerce-status"
@@ -512,77 +702,106 @@ export function CatalogCommerce({
             : ''}
       </p>
 
-      {showControls && labels.controls ? (
-        <CatalogControlsClient state={normalizedState} labels={labels.controls} />
-      ) : null}
-
-      {state.status === 'error' ? (
-        <Alert variant="destructive" className="grid gap-3">
-          <AlertTitle>{labels.errorTitle}</AlertTitle>
-          <p>{labels.errorBody}</p>
-          <div>
-            <Button type="button" variant="secondary" onClick={() => void retry()}>
-              {labels.retry}
-            </Button>
-          </div>
-        </Alert>
-      ) : (
-        <div className={showControls ? 'grid gap-6 md:grid-cols-[220px_minmax(0,1fr)]' : ''}>
-          {showControls ? (
-            <aside aria-label={labels.filters.category}>
-              {state.status === 'ready' ? (
-                <CatalogFilterContent
-                  basePath={pathname}
-                  state={normalizedState}
-                  categories={groups.categories}
-                  techniques={groups.techniques}
-                  tags={groups.tags}
-                  labels={labels.filters}
-                />
-              ) : (
-                <CatalogFacetSkeletons />
-              )}
-            </aside>
-          ) : null}
-
-          <div className="min-w-0">
-            <h2 tabIndex={-1} className="sr-only">
-              {state.status === 'ready'
-                ? replaceTokens(labels.loaded, {
-                    market: marketName,
-                    count: products.length
-                  })
-                : labels.resolving}
-            </h2>
-            {state.status === 'ready' && products.length === 0 ? (
-              <div className="grid min-h-48 place-content-center gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
-                <h3 className="text-xl font-semibold">{labels.emptyTitle}</h3>
-                <p className="max-w-xl text-[var(--muted-foreground)]">
-                  {replaceTokens(labels.emptyBody, {
-                    market: marketName,
-                    filters: filterSummary
+      {showControls && labels.controls && labels.shell ? (
+        <>
+          <nav
+            className="flex gap-1 overflow-x-auto border-b border-[var(--border)]"
+            aria-label={labels.shell.productType}
+          >
+            {productTypeTabs.map((tab) => {
+              const active = normalizedState.productType === tab.productType;
+              return (
+                <Link
+                  key={tab.label}
+                  href={catalogHref(pathname, normalizedState, {
+                    productType: tab.productType ?? null
                   })}
-                </p>
+                  aria-current={active ? 'page' : undefined}
+                  transitionTypes={active ? undefined : ['catalog-filter']}
+                  className="shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm font-semibold aria-[current=page]:border-[var(--accent)] aria-[current=page]:text-[var(--accent)] sm:px-4"
+                >
+                  {tab.label}
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-6">
+            <aside
+              className="hidden self-start border-r border-[var(--border)]/70 pr-5 lg:sticky lg:top-24 lg:block"
+              aria-label={labels.shell.filtersTitle}
+            >
+              {filterContent}
+            </aside>
+            <div className="grid min-w-0 content-start gap-4">
+              <div className="grid gap-2 lg:sticky lg:top-20 lg:z-20 lg:-mx-2 lg:bg-[var(--background)]/94 lg:px-2 lg:py-2 lg:backdrop-blur-md">
+                <div className="flex min-w-0 items-end gap-2">
+                  <div className="min-w-0 flex-1">
+                    <CatalogControlsClient state={normalizedState} labels={labels.controls} />
+                  </div>
+                  <div className="shrink-0 lg:hidden">
+                    <CatalogMobileFilters
+                      triggerLabel={labels.shell.openFilters}
+                      title={labels.shell.filtersTitle}
+                      closeLabel={labels.shell.closeFilters}
+                    >
+                      {filterContent}
+                    </CatalogMobileFilters>
+                  </div>
+                </div>
+                {activeFilters.length ? (
+                  <section
+                    aria-label={labels.shell.activeFilters}
+                    className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1"
+                  >
+                    {activeFilters.map((filter) => (
+                      <Link
+                        key={filter.key}
+                        href={filter.href}
+                        transitionTypes={['catalog-filter']}
+                        className="inline-flex min-h-7 max-w-[16rem] shrink-0 items-center rounded-full bg-[var(--surface-muted)]/58 px-2.5 py-1 text-xs font-semibold text-[var(--muted-foreground)] transition duration-200 hover:bg-[var(--surface-blush)] hover:text-[var(--accent)] active:scale-[0.98]"
+                      >
+                        <span className="min-w-0 truncate">{filter.label}</span>
+                        <span aria-hidden="true" className="ml-1.5 text-[var(--accent)]">
+                          x
+                        </span>
+                      </Link>
+                    ))}
+                    {hasCatalogFilters(normalizedState) ? (
+                      <Link
+                        href={pathname}
+                        transitionTypes={['catalog-filter']}
+                        className="inline-flex min-h-7 shrink-0 items-center px-1 text-xs font-semibold text-[var(--accent)] transition duration-200 hover:text-[var(--accent-hover)]"
+                      >
+                        {labels.shell.clearFilters}
+                      </Link>
+                    ) : null}
+                  </section>
+                ) : null}
               </div>
-            ) : (
-              <CatalogResultGrid
-                resultKey={resultKey}
-                labels={{showing: labels.showing, loadMore: labels.loadMore}}
+              <p
+                data-testid="catalog-result-count"
+                className="text-sm text-[var(--muted-foreground)]"
               >
-                {products.map((product, index) => (
-                  <ProductCardView
-                    key={product.product_id}
-                    product={product}
-                    locale={locale}
-                    labels={labels.card}
-                    commerceState={state.status === 'ready' ? 'ready' : 'pending'}
-                    eagerImage={index === 0}
-                  />
-                ))}
-              </CatalogResultGrid>
-            )}
+                {replaceTokens(labels.shell.resultCount, { count: products.length })}
+              </p>
+              {resultContent}
+            </div>
           </div>
-        </div>
+        </>
+      ) : (
+        <>
+          {showControls && labels.controls ? (
+            <CatalogControlsClient state={normalizedState} labels={labels.controls} />
+          ) : null}
+          {showControls && state.status !== 'error' ? (
+            <div className="grid gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
+              <aside aria-label={labels.filters.category}>{filterContent}</aside>
+              {resultContent}
+            </div>
+          ) : (
+            resultContent
+          )}
+        </>
       )}
     </section>
   );

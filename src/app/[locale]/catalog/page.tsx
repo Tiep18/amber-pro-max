@@ -1,146 +1,199 @@
+import { Suspense } from 'react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { CatalogControls } from '@/components/catalog/catalog-controls';
-import { CatalogFilterContent } from '@/components/catalog/catalog-filter-content';
-import { CatalogMobileFilters } from '@/components/catalog/catalog-mobile-filters';
+import { CatalogCommerce, type CatalogCommerceLabels } from '@/components/catalog/catalog-commerce';
 import { CatalogResultGrid } from '@/components/catalog/catalog-result-grid';
-import { ProductCard } from '@/components/catalog/product-card';
+import { ProductCardView } from '@/components/catalog/product-card-view';
 import { localizedMetadata } from '@/catalog/metadata';
 import { marketForLocale } from '@/catalog/seo-market';
-import { catalogListState, hasCatalogFilters, type CatalogListState } from '@/catalog/list-state';
-import { getCachedCatalogFacets, getCachedCatalogProducts } from '@/catalog/public-cache';
+import { getCachedCatalogProducts } from '@/catalog/public-cache';
 import { JsonLd, breadcrumbJsonLd, itemListJsonLd } from '@/content/seo/json-ld';
-import { getCatalogPath, type Locale } from '@/i18n/routing';
+import { getCatalogPath, getProductPath, type Locale } from '@/i18n/routing';
+import type { CatalogProduct } from '@/catalog/queries';
 
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
+export const dynamic = 'force-static';
 export const revalidate = 300;
 
-type CatalogHrefOverrides = {
-  search?: string | null;
-  type?: CatalogListState['productType'] | null;
-  categorySlug?: string | null;
-  sort?: CatalogListState['sort'] | null;
-};
-
-function catalogHref(
-  basePath: string,
-  state: CatalogListState,
-  overrides: CatalogHrefOverrides = {}
-) {
-  const params = new URLSearchParams();
-  const search = 'search' in overrides ? overrides.search : state.search;
-  const type = 'type' in overrides ? overrides.type : state.productType;
-  const categorySlug = 'categorySlug' in overrides ? overrides.categorySlug : state.categorySlug;
-  const sort = 'sort' in overrides ? overrides.sort : state.sort;
-
-  if (search) params.set('search', search);
-  if (type) params.set('type', type);
-  if (categorySlug) params.set('category', categorySlug);
-  if (sort && sort !== 'newest') params.set('sort', sort);
-  const query = params.toString();
-  return query ? `${basePath}?${query}` : basePath;
-}
-
 export async function generateMetadata({
-  params,
-  searchParams
+  params
 }: {
   params: Promise<{ locale: Locale }>;
-  searchParams: SearchParams;
 }): Promise<Metadata> {
-  const [{ locale }, query] = await Promise.all([params, searchParams]);
-  const hasFacets = Object.keys(query).length > 0;
+  const { locale } = await params;
+  return localizedMetadata({
+    title:
+      locale === 'vi' ? 'Cua hang amigurumi | Ambertinybear' : 'Amigurumi shop | Ambertinybear',
+    description:
+      locale === 'vi'
+        ? 'Kham pha mau PDF crochet va san pham amigurumi thu cong trong cua hang Ambertinybear.'
+        : 'Browse crochet PDF patterns and handmade amigurumi products from Ambertinybear.',
+    canonicalPath: getCatalogPath(locale),
+    alternatePaths: {
+      vi: getCatalogPath('vi'),
+      en: getCatalogPath('en')
+    }
+  });
+}
+
+function catalogCommerceLabels(
+  locale: Locale,
+  t: Awaited<ReturnType<typeof getTranslations<'catalog'>>>
+): CatalogCommerceLabels {
+  const copy =
+    locale === 'vi'
+      ? {
+          technique: 'Ky thuat',
+          allTechniques: 'Tat ca ky thuat',
+          tag: 'The',
+          allTags: 'Tat ca the',
+          resultCount: '{count} san pham',
+          filterTechnique: 'Ky thuat: {value}',
+          filterTag: 'The: {value}',
+          resolving: 'Dang tai cua hang...',
+          loaded: 'Da tai cua hang {market}. {count} san pham.',
+          errorTitle: 'Khong the cap nhat cua hang.',
+          errorBody: 'Gia va tinh trang hang co the da cu. Hay thu lai truoc khi mua.',
+          retry: 'Thu lai',
+          emptyTitle: 'Khong co san pham phu hop voi khu vuc va bo loc nay.',
+          emptyBody: 'Hay doi bo loc hoac chon khu vuc mua sam khac de xem them san pham.',
+          noFilters: 'khong co bo loc',
+          marketNames: { vn: 'Viet Nam', intl: 'quoc te' },
+          saveWishlist: 'Luu san pham vao yeu thich',
+          removeWishlist: 'Xoa san pham khoi yeu thich',
+          placeholderStatus: 'Dang cap nhat anh'
+        }
+      : {
+          technique: 'Technique',
+          allTechniques: 'All techniques',
+          tag: 'Tag',
+          allTags: 'All tags',
+          resultCount: '{count} products',
+          filterTechnique: 'Technique: {value}',
+          filterTag: 'Tag: {value}',
+          resolving: 'Loading store...',
+          loaded: '{market} store loaded. {count} products.',
+          errorTitle: 'We could not update this store.',
+          errorBody: 'Prices and availability may be out of date. Try again before shopping.',
+          retry: 'Try again',
+          emptyTitle: 'No products match this market and filters.',
+          emptyBody: 'Change a filter or choose another shopping region to see more products.',
+          noFilters: 'no filters',
+          marketNames: { vn: 'Vietnam', intl: 'International' },
+          saveWishlist: 'Save product to wishlist',
+          removeWishlist: 'Remove product from wishlist',
+          placeholderStatus: 'Image coming soon'
+        };
+
   return {
-    ...localizedMetadata({
-      title: locale === 'vi' ? 'Cua hang amigurumi | Ambertinybear' : 'Amigurumi shop | Ambertinybear',
-      description:
-        locale === 'vi'
-          ? 'Kham pha mau PDF crochet va san pham amigurumi thu cong trong cua hang Ambertinybear.'
-          : 'Browse crochet PDF patterns and handmade amigurumi products from Ambertinybear.',
-      canonicalPath: getCatalogPath(locale),
-      alternatePaths: {
-        vi: getCatalogPath('vi'),
-        en: getCatalogPath('en')
+    card: {
+      viewProduct: t('viewProduct'),
+      pdfPattern: t('pdfPattern'),
+      finishedItem: t('finishedItem'),
+      inStock: t('inStock'),
+      outOfStock: t('outOfStock'),
+      placeholder: {
+        brand: 'Ambertinybear',
+        status: copy.placeholderStatus
+      },
+      wishlist: {
+        save: copy.saveWishlist,
+        remove: copy.removeWishlist,
+        saving: t('wishlist.saving'),
+        removing: t('wishlist.removing'),
+        signedOut: t('wishlist.signedOut'),
+        invalid: t('wishlist.invalid'),
+        failed: t('wishlist.failed')
       }
-    }),
-    robots: hasFacets ? { index: false, follow: true } : undefined
+    },
+    filters: {
+      category: t('categoryLabel'),
+      allCategories: t('allCategories'),
+      technique: copy.technique,
+      allTechniques: copy.allTechniques,
+      tag: copy.tag,
+      allTags: copy.allTags
+    },
+    controls: {
+      search: t('search'),
+      searchPlaceholder: t('searchPlaceholder'),
+      searchSubmit: t('searchSubmit'),
+      sort: t('sort'),
+      newest: t('newest'),
+      priceAsc: t('priceAsc'),
+      priceDesc: t('priceDesc'),
+      titleSort: t('titleSort')
+    },
+    shell: {
+      productType: t('productType'),
+      allTypes: t('allTypes'),
+      handmadeTab: t('handmadeTab'),
+      patternsTab: t('patternsTab'),
+      filtersTitle: t('filtersTitle'),
+      openFilters: t('openFilters'),
+      closeFilters: t('closeFilters'),
+      resultCount: copy.resultCount,
+      activeFilters: t('activeFiltersLabel'),
+      clearFilters: t('clearFilters'),
+      filterSearch: String(t.raw('filterSearch')),
+      filterType: String(t.raw('filterType')),
+      filterCategory: String(t.raw('filterCategory')),
+      filterTechnique: copy.filterTechnique,
+      filterTag: copy.filterTag,
+      filterSort: String(t.raw('filterSort'))
+    },
+    resolving: copy.resolving,
+    loaded: copy.loaded,
+    showing: String(t.raw('showingCount')),
+    loadMore: t('loadMore'),
+    errorTitle: copy.errorTitle,
+    errorBody: copy.errorBody,
+    retry: copy.retry,
+    emptyTitle: copy.emptyTitle,
+    emptyBody: copy.emptyBody,
+    noFilters: copy.noFilters,
+    marketNames: copy.marketNames
   };
 }
 
-export default async function CatalogPage({
-  params,
-  searchParams
+function CatalogPending({
+  locale,
+  products,
+  labels
 }: {
-  params: Promise<{ locale: Locale }>;
-  searchParams: SearchParams;
+  locale: Locale;
+  products: readonly CatalogProduct[];
+  labels: CatalogCommerceLabels;
 }) {
-  const [{ locale }, query] = await Promise.all([params, searchParams]);
+  return (
+    <section aria-busy="true" aria-label={labels.resolving} className="grid gap-4">
+      <CatalogResultGrid
+        resultKey={`pending:${locale}`}
+        labels={{ showing: labels.showing, loadMore: labels.loadMore }}
+      >
+        {products.map((product, index) => (
+          <ProductCardView
+            key={product.product_id}
+            product={product}
+            locale={locale}
+            labels={labels.card}
+            commerceState="pending"
+            eagerImage={index === 0}
+          />
+        ))}
+      </CatalogResultGrid>
+    </section>
+  );
+}
+
+export default async function CatalogPage({ params }: { params: Promise<{ locale: Locale }> }) {
+  const { locale } = await params;
   setRequestLocale(locale);
-  const state = catalogListState(query);
   const market = marketForLocale(locale);
   const t = await getTranslations('catalog');
-  const [products, facets] = await Promise.all([
-    getCachedCatalogProducts({
-      locale,
-      market,
-      search: state.search,
-      productType: state.productType,
-      categorySlug: state.categorySlug,
-      sort: state.sort
-    }),
-    getCachedCatalogFacets(locale, market)
-  ]);
+  const products = await getCachedCatalogProducts({ locale, market, sort: 'newest' });
   const basePath = getCatalogPath(locale);
-  const categories = facets.filter((facet) => facet.facet_type === 'category');
-  const categoryBySlug = new Map(categories.map((facet) => [facet.slug, facet.label]));
-  const filterLabels = { category: t('categoryLabel'), allCategories: t('allCategories') };
-  const tabs = [
-    { label: t('allTypes'), type: undefined },
-    { label: t('handmadeTab'), type: 'physical_finished' },
-    { label: t('patternsTab'), type: 'pdf_pattern' }
-  ] as const;
-  const sortLabels: Record<CatalogListState['sort'], string> = {
-    newest: t('newest'),
-    price_asc: t('priceAsc'),
-    price_desc: t('priceDesc'),
-    title: t('titleSort')
-  };
-  const activeFilters = [
-    state.search
-      ? {
-          key: 'search',
-          label: t('filterSearch', { value: state.search }),
-          href: catalogHref(basePath, state, { search: null })
-        }
-      : null,
-    state.productType
-      ? {
-          key: 'type',
-          label: t('filterType', {
-            value: tabs.find((tab) => tab.type === state.productType)?.label ?? state.productType
-          }),
-          href: catalogHref(basePath, state, { type: null })
-        }
-      : null,
-    state.categorySlug
-      ? {
-          key: 'category',
-          label: t('filterCategory', {
-            value: categoryBySlug.get(state.categorySlug) ?? state.categorySlug
-          }),
-          href: catalogHref(basePath, state, { categorySlug: null })
-        }
-      : null,
-    state.sort !== 'newest'
-      ? {
-          key: 'sort',
-          label: t('filterSort', { value: sortLabels[state.sort] }),
-          href: catalogHref(basePath, state, { sort: 'newest' })
-        }
-      : null
-  ].filter((filter): filter is { key: string; label: string; href: string } => Boolean(filter));
+  const labels = catalogCommerceLabels(locale, t);
 
   return (
     <main className="container grid gap-4 py-5 sm:py-6 lg:gap-5">
@@ -150,7 +203,12 @@ export default async function CatalogPage({
             { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
             { name: t('breadcrumbShop'), path: basePath }
           ]),
-          itemListJsonLd(products.map((product) => ({ name: product.title, path: `/${locale}/${locale === 'vi' ? 'san-pham' : 'product'}/${product.slug}` })))
+          itemListJsonLd(
+            products.map((product) => ({
+              name: product.title,
+              path: getProductPath(locale, product.slug)
+            }))
+          )
         ]}
       />
       <nav
@@ -171,116 +229,15 @@ export default async function CatalogPage({
           {t('intro')}
         </p>
       </header>
-      <nav
-        className="flex gap-1 overflow-x-auto border-b border-[var(--border)]"
-        aria-label={t('productType')}
-      >
-        {tabs.map((tab) => {
-          const active = state.productType === tab.type;
-          return (
-            <Link
-              key={tab.label}
-              href={catalogHref(basePath, state, { type: tab.type ?? null })}
-              aria-current={active ? 'page' : undefined}
-              transitionTypes={active ? undefined : ['catalog-filter']}
-              className="shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm font-semibold aria-[current=page]:border-[var(--accent)] aria-[current=page]:text-[var(--accent)] sm:px-4"
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-6">
-        <aside
-          className="hidden self-start border-r border-[var(--border)]/70 pr-5 lg:sticky lg:top-24 lg:block"
-          aria-label={t('filtersTitle')}
-        >
-          <CatalogFilterContent
-            basePath={basePath}
-            state={state}
-            categories={categories}
-            labels={filterLabels}
-          />
-        </aside>
-        <div className="grid min-w-0 content-start gap-4">
-          <div className="grid gap-2 lg:sticky lg:top-20 lg:z-20 lg:-mx-2 lg:bg-[var(--background)]/94 lg:px-2 lg:py-2 lg:backdrop-blur-md">
-            <div className="flex min-w-0 items-end gap-2">
-              <div className="min-w-0 flex-1">
-              <CatalogControls state={state} />
-              </div>
-              <div className="shrink-0 lg:hidden">
-                <CatalogMobileFilters
-                  triggerLabel={t('openFilters')}
-                  title={t('filtersTitle')}
-                  closeLabel={t('closeFilters')}
-                >
-                  <CatalogFilterContent
-                    basePath={basePath}
-                    state={state}
-                    categories={categories}
-                    labels={filterLabels}
-                  />
-                </CatalogMobileFilters>
-              </div>
-            </div>
-            {activeFilters.length ? (
-              <section
-                aria-label={t('activeFiltersLabel')}
-                className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1"
-              >
-                {activeFilters.map((filter) => (
-                  <Link
-                    key={filter.key}
-                    href={filter.href}
-                    transitionTypes={['catalog-filter']}
-                    className="inline-flex min-h-7 max-w-[16rem] shrink-0 items-center rounded-full bg-[var(--surface-muted)]/58 px-2.5 py-1 text-xs font-semibold text-[var(--muted-foreground)] transition duration-200 hover:bg-[var(--surface-blush)] hover:text-[var(--accent)] active:scale-[0.98]"
-                  >
-                    <span className="min-w-0 truncate">{filter.label}</span>
-                    <span aria-hidden="true" className="ml-1.5 text-[var(--accent)]">
-                      x
-                    </span>
-                  </Link>
-                ))}
-                {hasCatalogFilters(state) ? (
-                  <Link
-                    href={basePath}
-                    transitionTypes={['catalog-filter']}
-                    className="inline-flex min-h-7 shrink-0 items-center px-1 text-xs font-semibold text-[var(--accent)] transition duration-200 hover:text-[var(--accent-hover)]"
-                  >
-                    {t('clearFilters')}
-                  </Link>
-                ) : null}
-              </section>
-            ) : null}
-          </div>
-          <p data-testid="catalog-result-count" className="text-sm text-[var(--muted-foreground)]">
-            {t('resultCount', { count: products.length })}
-          </p>
-          {products.length ? (
-            <CatalogResultGrid
-              resultKey={JSON.stringify(state)}
-              labels={{ showing: t.raw('showingCount'), loadMore: t('loadMore') }}
-            >
-              {products.map((product, index) => (
-                <ProductCard
-                  key={product.product_id}
-                  product={product}
-                  locale={locale}
-                  eagerImage={index === 0}
-                />
-              ))}
-            </CatalogResultGrid>
-          ) : (
-            <section className="grid min-h-52 place-content-center gap-3 text-center">
-              <h2 className="text-xl font-semibold">{t('emptyTitle')}</h2>
-              <p className="text-[var(--muted-foreground)]">{t('emptyBody')}</p>
-              <Link href={basePath} className="font-semibold text-[var(--accent)]">
-                {t('clearFilters')}
-              </Link>
-            </section>
-          )}
-        </div>
-      </div>
+      <Suspense fallback={<CatalogPending locale={locale} products={products} labels={labels} />}>
+        <CatalogCommerce
+          locale={locale}
+          surface="catalog"
+          seoProducts={products}
+          labels={labels}
+          showControls
+        />
+      </Suspense>
     </main>
   );
 }

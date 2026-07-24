@@ -54,7 +54,13 @@ export function CatalogControlsClient({
       className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(92px,108px)] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(180px,220px)] sm:gap-3"
     >
       {state.productType ? <input type="hidden" name="type" value={state.productType} /> : null}
-      {state.categorySlug ? <input type="hidden" name="category" value={state.categorySlug} /> : null}
+      {state.categorySlug ? (
+        <input type="hidden" name="category" value={state.categorySlug} />
+      ) : null}
+      {state.techniqueSlug ? (
+        <input type="hidden" name="technique" value={state.techniqueSlug} />
+      ) : null}
+      {state.tagSlug ? <input type="hidden" name="tag" value={state.tagSlug} /> : null}
       <label className="grid min-w-0 gap-1 text-sm font-semibold">
         <span className="sr-only sm:not-sr-only">{labels.search}</span>
         <span className="flex min-h-10 min-w-0 items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] pl-3 pr-1 shadow-[inset_0_1px_0_rgb(255_255_255/55%)] transition-colors hover:bg-[var(--surface-paper)] focus-within:border-[var(--accent)] focus-within:ring-1 focus-within:ring-[var(--accent)] sm:min-h-11 sm:rounded-[var(--radius-control)]">

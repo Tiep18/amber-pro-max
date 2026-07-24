@@ -1,5 +1,5 @@
-import {readFile} from 'node:fs/promises';
-import {describe, expect, it} from 'vitest';
+import { readFile } from 'node:fs/promises';
+import { describe, expect, it } from 'vitest';
 
 async function source(path: string) {
   return readFile(new URL(path, import.meta.url), 'utf8');
@@ -17,9 +17,7 @@ describe('static catalog route contract', () => {
   });
 
   it('keeps every allowlisted query dimension in the client control form', async () => {
-    const controls = await source(
-      '../../../src/components/catalog/catalog-controls-client.tsx'
-    );
+    const controls = await source('../../../src/components/catalog/catalog-controls-client.tsx');
 
     expect(controls).toContain('name="type"');
     expect(controls).toContain('name="category"');
@@ -30,9 +28,7 @@ describe('static catalog route contract', () => {
   });
 
   it('keeps the existing catalog discovery shell inside the commerce island', async () => {
-    const commerce = await source(
-      '../../../src/components/catalog/catalog-commerce.tsx'
-    );
+    const commerce = await source('../../../src/components/catalog/catalog-commerce.tsx');
 
     expect(commerce).toContain('CatalogMobileFilters');
     expect(commerce).toContain('productTypeTabs');
