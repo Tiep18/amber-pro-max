@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-10-PLAN.md
-last_updated: "2026-07-24T16:28:56.123Z"
+stopped_at: Completed 09-12-PLAN.md
+last_updated: "2026-07-24T16:52:18.028Z"
 last_activity: 2026-07-22 -- Phase 09 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 86
-  completed_plans: 82
-  percent: 78
+  completed_plans: 83
+  percent: 97
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 09 (independent-locale-and-market-commerce-projection-with-seo-s) — EXECUTING
-Plan: 12 of 15
+Plan: 13 of 15
 Status: Ready to execute
 Last activity: 2026-07-22 -- Phase 09 execution started
 
@@ -104,6 +104,7 @@ Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; P
 | Phase 09 P09 | 14min | 2 tasks | 7 files |
 | Phase 09 P11 | 16min | 2 tasks | 6 files |
 | Phase 09 P10 | 18min | 2 tasks | 12 files |
+| Phase 09 P12 | 20min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -195,6 +196,9 @@ Recent decisions affecting current work:
 - [Phase 09]: Technique and tag pages use stable entity UUID facet slugs in both locales while locale-specific labels come from deterministic cached projections.
 - [Phase 09]: Static taxonomy params union vn and intl facet identities per locale before deduplication so market-exclusive terms remain reachable.
 - [Phase 09]: Dynamic taxonomy pages register localized slugs in a client-only path-scoped context so global switchers preserve the entity without making public routes request-dependent.
+- [Phase 09]: Cart quote cache v2 requires exact locale, resolved market, context version, commercial intent fingerprint, TTL, quote locale, and quote market agreement. — Prevents stale or cross-market session data from hydrating current commerce.
+- [Phase 09]: Prior cart quotes are presentation evidence only during recovery and never supply current commerce or checkout authority. — Preserves recognizable intent while prices, availability, totals, and checkout stay fail-closed.
+- [Phase 09]: Destination material confirmation accepts only through the explicit primary action; Escape, overlay, and secondary actions cancel and restore destination focus. — Preserves Phase 08 destination authority and accessible review semantics.
 
 ### Pending Todos
 
@@ -350,6 +354,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T16:28:31.953Z
-Stopped at: Completed 09-10-PLAN.md
+Last session: 2026-07-24T16:52:18.007Z
+Stopped at: Completed 09-12-PLAN.md
 Resume file: None
