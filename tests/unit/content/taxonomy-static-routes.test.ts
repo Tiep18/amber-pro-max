@@ -36,6 +36,38 @@ describe('static taxonomy route contract', () => {
 
   it.each([
     ['category', categoryPagePath],
+    ['collection', collectionPagePath],
+    ['technique', techniquePagePath],
+    ['tag', tagPagePath]
+  ])('registers equivalent localized slugs for the %s switchers', async (_surface, path) => {
+    const page = await source(path);
+
+    expect(page).toContain('<LocalizedRouteSlugs');
+    expect(page).toContain('slugs={{');
+    expect(page).toContain('vi:');
+    expect(page).toContain('en:');
+  });
+
+  it('connects registered dynamic slugs to both global switchers', async () => {
+    const [layout, localeSwitcher, marketSwitcher] = await Promise.all([
+      source('../../../src/app/[locale]/layout.tsx'),
+      source('../../../src/components/locale-switcher.tsx'),
+      source('../../../src/components/commerce-context-switcher.tsx')
+    ]);
+
+    expect(layout).toContain('LocalizedRouteProvider');
+    expect(localeSwitcher).toContain('useLocalizedRouteSlugs');
+    expect(marketSwitcher).toContain('useLocalizedRouteSlugs');
+    expect(localeSwitcher).toMatch(
+      /getEquivalentLocalizedPath\(pathname,\s*target,\s*localizedSlugs\)/
+    );
+    expect(marketSwitcher).toMatch(
+      /getEquivalentLocalizedPath\(pathname,\s*targetLocale,\s*localizedSlugs\)/
+    );
+  });
+
+  it.each([
+    ['category', categoryPagePath],
     ['collection', collectionPagePath]
   ])(
     'unions Vietnam and international facets for %s static params',
