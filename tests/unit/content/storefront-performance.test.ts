@@ -88,11 +88,11 @@ describe('storefront performance boundaries', () => {
     expect(homepage).toContain('revalidate = 300');
     expect(homepage).toContain('setRequestLocale(locale)');
     expect(homepage).toContain('generateMetadata');
-    expect(homepage.match(/<CatalogCommerce/g)).toHaveLength(2);
-    expect(homepage.match(/surface="home"/g)).toHaveLength(2);
-    expect(homepage).toContain("productType: 'physical_finished'");
-    expect(homepage).toContain("productType: 'pdf_pattern'");
-    expect(homepage.match(/limit=\{4\}/g)).toHaveLength(2);
+    expect(homepage).toContain('<CatalogCommerce');
+    expect(homepage).toContain('surface="home"');
+    expect(homepage).toContain('productType="physical_finished"');
+    expect(homepage).toContain('productType="pdf_pattern"');
+    expect(homepage).toContain('limit={4}');
     expect(homepage).toContain('commerceState="pending"');
 
     expect(homepage).not.toContain('cookies(');

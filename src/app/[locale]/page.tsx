@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -16,7 +16,11 @@ import {
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { localizedMetadata } from '@/catalog/metadata';
 import { type CatalogProduct, type CatalogProductType } from '@/catalog/queries';
-import { ProductCard } from '@/components/catalog/product-card';
+import {
+  CatalogCommerce,
+  type CatalogCommerceLabels
+} from '@/components/catalog/catalog-commerce';
+import { ProductCardView } from '@/components/catalog/product-card-view';
 import { JsonLd, organizationJsonLd, websiteJsonLd } from '@/content/seo/json-ld';
 import type { Locale } from '@/i18n/routing';
 import { getCatalogPath } from '@/i18n/routing';
@@ -27,6 +31,98 @@ export const dynamic = 'force-static';
 
 function catalogTypePath(locale: Locale, type: CatalogProductType) {
   return `${getCatalogPath(locale)}?type=${type}`;
+}
+
+function featuredCommerceLabels(
+  locale: Locale,
+  t: Awaited<ReturnType<typeof getTranslations<'catalog'>>>
+): CatalogCommerceLabels {
+  const copy =
+    locale === 'vi'
+      ? {
+          technique: 'Kỹ thuật',
+          allTechniques: 'Tất cả kỹ thuật',
+          tag: 'Thẻ',
+          allTags: 'Tất cả thẻ',
+          resolving: 'Đang kiểm tra giá và tình trạng hàng…',
+          loaded: 'Đã tải cửa hàng {market}. {count} sản phẩm.',
+          errorTitle: 'Không thể cập nhật cửa hàng.',
+          errorBody:
+            'Giá và tình trạng hàng có thể đã cũ. Hãy thử lại trước khi mua.',
+          retry: 'Thử lại',
+          emptyTitle: 'Không có sản phẩm phù hợp với khu vực và bộ lọc này.',
+          emptyBody:
+            'Hãy đổi bộ lọc hoặc chọn khu vực mua sắm khác để xem thêm sản phẩm.',
+          noFilters: 'không có bộ lọc',
+          marketNames: { vn: 'Việt Nam', intl: 'quốc tế' },
+          placeholderStatus: 'Đang cập nhật ảnh'
+        }
+      : {
+          technique: 'Technique',
+          allTechniques: 'All techniques',
+          tag: 'Tag',
+          allTags: 'All tags',
+          resolving: 'Checking prices and availability…',
+          loaded: '{market} store loaded. {count} products.',
+          errorTitle: 'We could not update this store.',
+          errorBody:
+            'Prices and availability may be out of date. Try again before shopping.',
+          retry: 'Try again',
+          emptyTitle: 'No products match this market and filters.',
+          emptyBody:
+            'Change a filter or choose another shopping region to see more products.',
+          noFilters: 'no filters',
+          marketNames: { vn: 'Vietnam', intl: 'International' },
+          placeholderStatus: 'Image coming soon'
+        };
+
+  return {
+    card: {
+      viewProduct: t('viewProduct'),
+      pdfPattern: t('pdfPattern'),
+      finishedItem: t('finishedItem'),
+      inStock: t('inStock'),
+      outOfStock: t('outOfStock'),
+      placeholder: {
+        brand: 'Ambertinybear',
+        status: copy.placeholderStatus
+      },
+      wishlist: {
+        save:
+          locale === 'vi'
+            ? 'Lưu sản phẩm vào yêu thích'
+            : 'Save product to wishlist',
+        remove:
+          locale === 'vi'
+            ? 'Xóa sản phẩm khỏi yêu thích'
+            : 'Remove product from wishlist',
+        saving: t('wishlist.saving'),
+        removing: t('wishlist.removing'),
+        signedOut: t('wishlist.signedOut'),
+        invalid: t('wishlist.invalid'),
+        failed: t('wishlist.failed')
+      }
+    },
+    filters: {
+      category: t('categoryLabel'),
+      allCategories: t('allCategories'),
+      technique: copy.technique,
+      allTechniques: copy.allTechniques,
+      tag: copy.tag,
+      allTags: copy.allTags
+    },
+    resolving: copy.resolving,
+    loaded: copy.loaded,
+    showing: String(t.raw('showingCount')),
+    loadMore: t('loadMore'),
+    errorTitle: copy.errorTitle,
+    errorBody: copy.errorBody,
+    retry: copy.retry,
+    emptyTitle: copy.emptyTitle,
+    emptyBody: copy.emptyBody,
+    noFilters: copy.noFilters,
+    marketNames: copy.marketNames
+  };
 }
 
 export async function generateMetadata({
@@ -81,6 +177,8 @@ function ArrowLink({
 function FeaturedRow({
   products,
   locale,
+  productType,
+  labels,
   title,
   intro,
   href,
@@ -90,6 +188,8 @@ function FeaturedRow({
 }: {
   products: CatalogProduct[];
   locale: Locale;
+  productType: CatalogProductType;
+  labels: CatalogCommerceLabels;
   title: string;
   intro: string;
   href: string;
@@ -97,7 +197,11 @@ function FeaturedRow({
   testId: string;
   tone?: 'light' | 'taupe';
 }) {
-  if (!products.length) return null;
+  const productGridClassName =
+    tone === 'taupe'
+      ? 'rounded-[18px] bg-[#ded0c8] p-3 ring-1 ring-[#cbb9b0]'
+      : '';
+
   return (
     <section id={testId} data-testid={testId} className="grid scroll-mt-8 gap-7">
       <div className="flex flex-col items-start justify-between gap-4 border-t border-[var(--foreground)]/10 pt-7 sm:flex-row sm:items-end">
@@ -114,15 +218,32 @@ function FeaturedRow({
         </Link>
       </div>
       <div
-        className={
-          tone === 'taupe'
-            ? 'grid gap-5 rounded-[18px] bg-[#ded0c8] p-3 ring-1 ring-[#cbb9b0] sm:grid-cols-2 xl:grid-cols-4'
-            : 'grid gap-5 sm:grid-cols-2 xl:grid-cols-4'
-        }
+        className={`${productGridClassName} [&_[data-testid=catalog-product-grid]]:xl:grid-cols-4`}
       >
-        {products.map((product) => (
-          <ProductCard key={product.product_id} product={product} locale={locale} />
-        ))}
+        <Suspense
+          fallback={
+            <div className="grid gap-y-6 min-[480px]:grid-cols-2 min-[480px]:gap-x-3 sm:gap-5 xl:grid-cols-4">
+              {products.map((product) => (
+                <ProductCardView
+                  key={product.product_id}
+                  product={product}
+                  locale={locale}
+                  labels={labels.card}
+                  commerceState="pending"
+                />
+              ))}
+            </div>
+          }
+        >
+          <CatalogCommerce
+            locale={locale}
+            surface="home"
+            seoProducts={products}
+            labels={labels}
+            fixedFilters={{ productType }}
+            limit={4}
+          />
+        </Suspense>
       </div>
     </section>
   );
@@ -131,11 +252,13 @@ function FeaturedRow({
 export default async function HomePage({ params }: { params: Promise<{ locale: Locale }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const [t, handmadeProducts, patternProducts] = await Promise.all([
+  const [t, catalogT, handmadeProducts, patternProducts] = await Promise.all([
     getTranslations('home'),
+    getTranslations('catalog'),
     getHomeFeaturedProducts({ locale, productType: 'physical_finished' }),
     getHomeFeaturedProducts({ locale, productType: 'pdf_pattern' })
   ]);
+  const commerceLabels = featuredCommerceLabels(locale, catalogT);
   const handmadePath = catalogTypePath(locale, 'physical_finished');
   const patternPath = catalogTypePath(locale, 'pdf_pattern');
   const benefits = [
@@ -310,6 +433,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
           <FeaturedRow
             products={handmadeProducts}
             locale={locale}
+            productType="physical_finished"
+            labels={commerceLabels}
             title={t('featured.handmadeTitle')}
             intro={t('featured.handmadeBody')}
             href={handmadePath}
@@ -324,6 +449,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
           <FeaturedRow
             products={patternProducts}
             locale={locale}
+            productType="pdf_pattern"
+            labels={commerceLabels}
             title={t('featured.patternTitle')}
             intro={t('featured.patternBody')}
             href={patternPath}
