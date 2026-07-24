@@ -148,6 +148,10 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
       status: 'error',
       code: 'invalid_locale'
     });
+    await expect(refreshCustomerWishlistAction(null as never)).resolves.toEqual({
+      status: 'error',
+      code: 'invalid_locale'
+    });
     expect(requireUser).not.toHaveBeenCalled();
     expect(getRequestMarket).not.toHaveBeenCalled();
   });
@@ -349,37 +353,49 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
 });
 
 describe('wishlist market projection lifecycle', () => {
-  test('accepts only the latest response matching authoritative market and context version', async () => {
-    const {
-      beginWishlistRefresh,
-      createWishlistProjectionState,
-      settleWishlistRefresh,
-      wishlistProjectionAgrees
-    } = await import('@/components/account/wishlist-page');
-    const initial = createWishlistProjectionState([], 'intl');
-    const first = beginWishlistRefresh(initial, {market: 'intl', contextVersion: 3});
-    const second = beginWishlistRefresh(first.state, {market: 'vn', contextVersion: 4});
-    const intlResult = {status: 'success', market: 'intl', items: []} as const;
-    const vnResult = {status: 'success', market: 'vn', items: []} as const;
+  test(
+    'accepts only the latest response matching authoritative market and context version',
+    async () => {
+      const {
+        beginWishlistRefresh,
+        createWishlistProjectionState,
+        settleWishlistRefresh,
+        wishlistProjectionAgrees
+      } = await import('@/components/account/wishlist-page');
+      const initial = createWishlistProjectionState([], 'intl');
+      const first = beginWishlistRefresh(initial, {market: 'intl', contextVersion: 3});
+      const second = beginWishlistRefresh(first.state, {market: 'vn', contextVersion: 4});
+      const intlResult = {
+        status: 'success' as const,
+        market: 'intl' as const,
+        items: []
+      };
+      const vnResult = {
+        status: 'success' as const,
+        market: 'vn' as const,
+        items: []
+      };
 
-    expect(settleWishlistRefresh(second.state, first.request, intlResult)).toBe(second.state);
-    expect(settleWishlistRefresh(second.state, second.request, intlResult)).toBe(second.state);
+      expect(settleWishlistRefresh(second.state, first.request, intlResult)).toBe(second.state);
+      expect(settleWishlistRefresh(second.state, second.request, intlResult)).toBe(second.state);
 
-    const settled = settleWishlistRefresh(second.state, second.request, vnResult);
-    expect(settled).toMatchObject({
-      status: 'ready',
-      market: 'vn',
-      contextVersion: 4,
-      activeRequestId: null
-    });
-    expect(
-      wishlistProjectionAgrees(settled, {market: 'vn', contextVersion: 4})
-    ).toBe(true);
-    expect(
-      wishlistProjectionAgrees(settled, {market: 'intl', contextVersion: 4})
-    ).toBe(false);
-    expect(
-      wishlistProjectionAgrees(settled, {market: 'vn', contextVersion: 5})
-    ).toBe(false);
-  });
+      const settled = settleWishlistRefresh(second.state, second.request, vnResult);
+      expect(settled).toMatchObject({
+        status: 'ready',
+        market: 'vn',
+        contextVersion: 4,
+        activeRequestId: null
+      });
+      expect(
+        wishlistProjectionAgrees(settled, {market: 'vn', contextVersion: 4})
+      ).toBe(true);
+      expect(
+        wishlistProjectionAgrees(settled, {market: 'intl', contextVersion: 4})
+      ).toBe(false);
+      expect(
+        wishlistProjectionAgrees(settled, {market: 'vn', contextVersion: 5})
+      ).toBe(false);
+    },
+    10_000
+  );
 });

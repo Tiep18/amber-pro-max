@@ -53,6 +53,17 @@ export async function renderWishlistPage({ params }: { params: Promise<{ locale:
         status: {
           removed: t('status.removed'),
           error: t('status.error')
+        },
+        commerce: {
+          resolving:
+            locale === 'vi'
+              ? 'Đang kiểm tra giá và tình trạng hàng…'
+              : 'Checking prices and availability…',
+          error:
+            locale === 'vi'
+              ? 'Không thể cập nhật danh sách yêu thích. Giá và tình trạng hàng đang được ẩn để đảm bảo an toàn.'
+              : 'We could not update your wishlist. Prices and availability are hidden to keep shopping safe.',
+          retry: locale === 'vi' ? 'Thử lại' : 'Try again'
         }
       }}
     />

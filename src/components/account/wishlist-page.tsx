@@ -2,16 +2,19 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState, useTransition } from 'react';
+import {useEffect, useRef, useState, useTransition} from 'react';
 import { ArrowRight, Heart } from 'lucide-react';
 import { formatMoney } from '@/catalog/money';
 import type { MarketCode } from '@/catalog/market';
 import { publicStorageUrl } from '@/catalog/metadata';
 import { wishlistItemCanCheckout, type CustomerWishlistItem } from '@/account/wishlist';
 import {
-  removeCustomerWishlistItemAction
+  refreshCustomerWishlistAction,
+  removeCustomerWishlistItemAction,
+  type WishlistRefreshResult
 } from '@/account/wishlist-actions';
 import { useCart } from '@/components/cart/cart-provider';
+import {useStorefrontContext} from '@/components/storefront-context';
 import { useSetWishlistSelected } from '@/components/wishlist-context';
 import { Button } from '@/components/ui/button';
 import type { Locale } from '@/i18n/routing';
@@ -37,7 +40,120 @@ type WishlistLabels = {
     removed: string;
     error: string;
   };
+  commerce: {
+    resolving: string;
+    error: string;
+    retry: string;
+  };
 };
+
+export type WishlistProjectionIdentity = {
+  market: MarketCode;
+  contextVersion: number;
+};
+
+export type WishlistRefreshRequest = WishlistProjectionIdentity & {
+  requestId: number;
+};
+
+export type WishlistProjectionState = {
+  status: 'ready' | 'resolving' | 'error';
+  items: CustomerWishlistItem[];
+  market: MarketCode;
+  contextVersion: number | null;
+  nextRequestId: number;
+  activeRequestId: number | null;
+  target: WishlistProjectionIdentity | null;
+};
+
+export function createWishlistProjectionState(
+  items: CustomerWishlistItem[],
+  market: MarketCode
+): WishlistProjectionState {
+  return {
+    status: 'ready',
+    items,
+    market,
+    contextVersion: null,
+    nextRequestId: 0,
+    activeRequestId: null,
+    target: null
+  };
+}
+
+export function beginWishlistRefresh(
+  state: WishlistProjectionState,
+  identity: WishlistProjectionIdentity
+): {state: WishlistProjectionState; request: WishlistRefreshRequest} {
+  const requestId = state.nextRequestId + 1;
+  return {
+    state: {
+      ...state,
+      status: 'resolving',
+      nextRequestId: requestId,
+      activeRequestId: requestId,
+      target: identity
+    },
+    request: {...identity, requestId}
+  };
+}
+
+function matchesWishlistRequest(
+  state: WishlistProjectionState,
+  request: WishlistRefreshRequest
+) {
+  return (
+    state.activeRequestId === request.requestId &&
+    state.target?.market === request.market &&
+    state.target.contextVersion === request.contextVersion
+  );
+}
+
+export function settleWishlistRefresh(
+  state: WishlistProjectionState,
+  request: WishlistRefreshRequest,
+  result: Extract<WishlistRefreshResult, {status: 'success'}>
+): WishlistProjectionState {
+  if (!matchesWishlistRequest(state, request) || result.market !== request.market) {
+    return state;
+  }
+
+  return {
+    ...state,
+    status: 'ready',
+    items: result.items,
+    market: result.market,
+    contextVersion: request.contextVersion,
+    activeRequestId: null,
+    target: null
+  };
+}
+
+export function failWishlistRefresh(
+  state: WishlistProjectionState,
+  request: WishlistRefreshRequest
+): WishlistProjectionState {
+  if (!matchesWishlistRequest(state, request)) {
+    return state;
+  }
+
+  return {
+    ...state,
+    status: 'error',
+    activeRequestId: null
+  };
+}
+
+export function wishlistProjectionAgrees(
+  state: WishlistProjectionState,
+  identity: WishlistProjectionIdentity
+) {
+  return (
+    state.status === 'ready' &&
+    state.market === identity.market &&
+    state.contextVersion === identity.contextVersion
+  );
+}
 
 const emptyCopy = {
   en: {
@@ -86,36 +202,163 @@ export function WishlistPage({
   market: MarketCode;
   labels: WishlistLabels;
 }) {
-  const [visibleItems, setVisibleItems] = useState(items);
+  const [projection, setProjection] = useState(() =>
+    createWishlistProjectionState(items, market)
+  );
+  const projectionRef = useRef(projection);
+  const refreshController = useRef<AbortController | null>(null);
+  const [retryVersion, setRetryVersion] = useState(0);
   const [removeStatus, setRemoveStatus] = useState<'idle' | 'removed' | 'error'>('idle');
   const [removingProductId, setRemovingProductId] = useState<string | null>(null);
   const [removing, startRemoving] = useTransition();
   const empty = emptyCopy[locale];
   const { addLine } = useCart();
+  const context = useStorefrontContext();
   const setWishlistSelected = useSetWishlistSelected();
 
+  function commitProjection(next: WishlistProjectionState) {
+    projectionRef.current = next;
+    setProjection(next);
+  }
+
   useEffect(() => {
-    setVisibleItems(items);
-  }, [items]);
+    refreshController.current?.abort();
+    refreshController.current = null;
+    commitProjection(createWishlistProjectionState(items, market));
+  }, [items, market]);
+
+  useEffect(() => {
+    refreshController.current?.abort();
+    refreshController.current = null;
+
+    if (context.status !== 'ready' || context.market === null) {
+      return;
+    }
+
+    const identity = {
+      market: context.market,
+      contextVersion: context.contextVersion
+    };
+    if (wishlistProjectionAgrees(projectionRef.current, identity)) {
+      return;
+    }
+
+    const begun = beginWishlistRefresh(projectionRef.current, identity);
+    commitProjection(begun.state);
+    const controller = new AbortController();
+    refreshController.current = controller;
+
+    void refreshCustomerWishlistAction({locale})
+      .then((result) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        const current = projectionRef.current;
+        const settled =
+          result.status === 'success'
+            ? settleWishlistRefresh(current, begun.request, result)
+            : current;
+        const next =
+          result.status === 'success' && settled !== current
+            ? settled
+            : failWishlistRefresh(current, begun.request);
+        if (next !== current) {
+          commitProjection(next);
+        }
+      })
+      .catch(() => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        const current = projectionRef.current;
+        const failed = failWishlistRefresh(current, begun.request);
+        if (failed !== current) {
+          commitProjection(failed);
+        }
+      })
+      .finally(() => {
+        if (refreshController.current === controller) {
+          refreshController.current = null;
+        }
+      });
+
+    return () => controller.abort();
+  }, [
+    context.contextVersion,
+    context.market,
+    context.status,
+    locale,
+    retryVersion
+  ]);
+
+  const commerceAgrees =
+    context.status === 'ready' &&
+    context.market !== null &&
+    wishlistProjectionAgrees(projection, {
+      market: context.market,
+      contextVersion: context.contextVersion
+    });
+  const agreedMarket = commerceAgrees ? context.market : null;
+  const commerceError = context.status === 'error' || projection.status === 'error';
 
   function removeItem(formData: FormData, productId: string) {
     setRemoveStatus('idle');
     setRemovingProductId(productId);
+    refreshController.current?.abort();
+    refreshController.current = null;
     startRemoving(async () => {
       const result = await removeCustomerWishlistItemAction({ status: 'idle' }, formData);
       if (result.status === 'removed' || result.status === 'not_found') {
-        setVisibleItems((current) => current.filter((item) => item.productId !== productId));
+        commitProjection({
+          ...projectionRef.current,
+          items: projectionRef.current.items.filter((item) => item.productId !== productId)
+        });
         setWishlistSelected(productId, false);
         setRemoveStatus('removed');
       } else {
         setRemoveStatus('error');
       }
       setRemovingProductId(null);
+      setRetryVersion((version) => version + 1);
+    });
+  }
+
+  function retryCommerce() {
+    if (context.status === 'error') {
+      void context.retryContext();
+      return;
+    }
+    setRetryVersion((version) => version + 1);
+  }
+
+  function quickAdd(item: CustomerWishlistItem) {
+    if (agreedMarket === null) {
+      return;
+    }
+    void addLine({
+      productId: item.productId,
+      variantId: null,
+      quantity: 1,
+      marketAtAdd: agreedMarket
     });
   }
 
   return (
-    <section className="grid gap-6">
+    <section
+      aria-busy={!commerceAgrees && !commerceError}
+      aria-describedby="wishlist-commerce-status"
+      className="grid gap-6"
+    >
+      <p
+        id="wishlist-commerce-status"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {!commerceAgrees && !commerceError ? labels.commerce.resolving : ''}
+      </p>
       <header className="border-b border-[var(--border)] pb-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div className="grid gap-2">
@@ -125,8 +368,8 @@ export function WishlistPage({
             </p>
           </div>
           <span className="text-sm font-semibold text-[var(--muted-foreground)]">
-            {visibleItems.length}{' '}
-            {locale === 'vi' ? 'san pham' : visibleItems.length === 1 ? 'item' : 'items'}
+            {projection.items.length}{' '}
+            {locale === 'vi' ? 'san pham' : projection.items.length === 1 ? 'item' : 'items'}
           </span>
         </div>
       </header>
@@ -148,8 +391,19 @@ export function WishlistPage({
             {labels.status.error}
           </p>
         ) : null}
+        {commerceError ? (
+          <div
+            role="alert"
+            className="flex flex-col items-start gap-3 rounded-[var(--radius-control)] bg-[var(--destructive-surface)] px-3 py-3 text-sm font-semibold text-[var(--destructive)] sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p>{labels.commerce.error}</p>
+            <Button type="button" variant="secondary" onClick={retryCommerce}>
+              {labels.commerce.retry}
+            </Button>
+          </div>
+        ) : null}
 
-        {visibleItems.length === 0 ? (
+        {projection.items.length === 0 ? (
           <div className="grid min-h-60 place-items-center rounded-[var(--radius-card)] bg-[var(--surface-muted)] p-8 text-center">
             <div className="mx-auto grid max-w-[380px] justify-items-center gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-control)] bg-[var(--surface)] text-[var(--accent)]">
@@ -169,14 +423,15 @@ export function WishlistPage({
           </div>
         ) : (
           <div className="grid">
-            {visibleItems.map((item) => {
+            {projection.items.map((item) => {
               const imageUrl = item.image
                 ? publicStorageUrl(item.image.bucket, item.image.path)
                 : undefined;
               const canCheckout = wishlistItemCanCheckout(item);
-              const canQuickAdd = canCheckout && item.variantState !== 'available';
+              const canQuickAdd =
+                commerceAgrees && canCheckout && item.variantState !== 'available';
               const priceLabel =
-                item.currencyCode && item.priceMinor !== null
+                commerceAgrees && item.currencyCode && item.priceMinor !== null
                   ? formatMoney({
                       amountMinor: item.priceMinor,
                       currencyCode: item.currencyCode
@@ -215,11 +470,18 @@ export function WishlistPage({
                           {item.description}
                         </p>
                       </div>
-                      <span
-                        className={`rounded-[var(--radius-control)] border px-2 py-1 text-xs font-semibold ${statusClass(item)}`}
-                      >
-                        {itemStatus(item, labels)}
-                      </span>
+                      {commerceAgrees ? (
+                        <span
+                          className={`rounded-[var(--radius-control)] border px-2 py-1 text-xs font-semibold ${statusClass(item)}`}
+                        >
+                          {itemStatus(item, labels)}
+                        </span>
+                      ) : (
+                        <span
+                          aria-hidden="true"
+                          className="h-6 w-24 animate-pulse rounded-[var(--radius-control)] bg-[var(--surface-muted)]"
+                        />
+                      )}
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -227,9 +489,16 @@ export function WishlistPage({
                         <p className="text-xs font-medium text-[var(--muted-foreground)]">
                           {labels.currentPrice}
                         </p>
-                        <p className="mt-1 text-lg font-semibold leading-tight tabular-nums">
-                          {priceLabel}
-                        </p>
+                        {commerceAgrees ? (
+                          <p className="mt-1 text-lg font-semibold leading-tight tabular-nums">
+                            {priceLabel}
+                          </p>
+                        ) : (
+                          <span
+                            aria-hidden="true"
+                            className="mt-2 block h-6 w-28 animate-pulse rounded-[var(--radius-control)] bg-[var(--surface-muted)]"
+                          />
+                        )}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
@@ -242,14 +511,7 @@ export function WishlistPage({
                         </Link>
                         <Button
                           disabled={!canQuickAdd}
-                          onClick={() =>
-                            void addLine({
-                              productId: item.productId,
-                              variantId: null,
-                              quantity: 1,
-                              marketAtAdd: market
-                            })
-                          }
+                          onClick={() => quickAdd(item)}
                           className="text-base"
                         >
                           {labels.actions.addToCart}

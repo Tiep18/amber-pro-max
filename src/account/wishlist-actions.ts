@@ -1,8 +1,11 @@
 'use server';
 
 import {revalidatePath} from 'next/cache';
+import {getCustomerWishlist, type CustomerWishlistItem} from '@/account/wishlist';
 import {requireUser} from '@/auth/guards';
 import {isPostgresUuid} from '@/account/wishlist-client-state';
+import {getRequestMarket} from '@/catalog/page-context';
+import type {MarketCode} from '@/catalog/market';
 import type {Locale} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {runMonitoredAction, safeSupabaseErrorFacts} from '@/operations/monitoring';
@@ -38,6 +41,10 @@ export type WishlistActionState =
   | {status: 'invalid'; code: 'invalid_product_id'}
   | {status: 'error'; code: 'wishlist_action_failed'; errorId?: string};
 
+export type WishlistRefreshResult =
+  | {status: 'success'; market: MarketCode; items: CustomerWishlistItem[]}
+  | {status: 'error'; code: 'invalid_locale' | 'wishlist_load_failed'};
+
 function localeFromForm(formData: FormData): Locale {
   return formData.get('locale') === 'en' ? 'en' : 'vi';
 }
@@ -66,6 +73,41 @@ function revalidateWishlistSurfaces(locale: Locale, formData: FormData) {
 
 function actionReturnPath(locale: Locale, formData: FormData) {
   return formValue(formData, 'returnTo') ?? wishlistPath(locale);
+}
+
+export async function refreshCustomerWishlistAction(
+  input: unknown
+): Promise<WishlistRefreshResult> {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return {status: 'error', code: 'invalid_locale'};
+  }
+
+  const requestedLocale = (input as {locale?: unknown}).locale;
+  if (requestedLocale !== 'vi' && requestedLocale !== 'en') {
+    return {status: 'error', code: 'invalid_locale'};
+  }
+
+  const locale = requestedLocale;
+  const user = await requireUser({locale, next: wishlistPath(locale)});
+
+  try {
+    const [market, client] = await Promise.all([
+      getRequestMarket(),
+      createSupabaseServerClient()
+    ]);
+    const result = await getCustomerWishlist({
+      userId: user.id,
+      locale,
+      market,
+      client: client as never
+    });
+
+    return result.status === 'success'
+      ? {status: 'success', market, items: result.items}
+      : {status: 'error', code: 'wishlist_load_failed'};
+  } catch {
+    return {status: 'error', code: 'wishlist_load_failed'};
+  }
 }
 
 export async function addCustomerWishlistItem({
