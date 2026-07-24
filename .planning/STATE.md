@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-11-PLAN.md
-last_updated: "2026-07-24T16:06:25.214Z"
+stopped_at: Completed 09-10-PLAN.md
+last_updated: "2026-07-24T16:28:56.123Z"
 last_activity: 2026-07-22 -- Phase 09 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 86
-  completed_plans: 81
+  completed_plans: 82
   percent: 78
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 09 (independent-locale-and-market-commerce-projection-with-seo-s) — EXECUTING
-Plan: 11 of 15
+Plan: 12 of 15
 Status: Ready to execute
 Last activity: 2026-07-22 -- Phase 09 execution started
 
@@ -103,6 +103,7 @@ Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; P
 | Phase 09 P08 | 13min | 2 tasks | 8 files |
 | Phase 09 P09 | 14min | 2 tasks | 7 files |
 | Phase 09 P11 | 16min | 2 tasks | 6 files |
+| Phase 09 P10 | 18min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -191,6 +192,9 @@ Recent decisions affecting current work:
 - [Phase 09]: Homepage featured sections keep deterministic identity shells so active-market-only products may replace an empty locale-default seed. — Preserves static SEO identity without suppressing products available only in the resolved browsing market.
 - [Phase 09]: Wishlist refresh accepts locale only; user and market are re-derived server-side and caller market is ignored. — Prevents browser or cross-tab payloads from becoming wishlist commerce authority.
 - [Phase 09]: Wishlist quick add requires exact market and context-version agreement and captures only the ready context marketAtAdd. — Closes stale response races while preserving server quote authority.
+- [Phase 09]: Technique and tag pages use stable entity UUID facet slugs in both locales while locale-specific labels come from deterministic cached projections.
+- [Phase 09]: Static taxonomy params union vn and intl facet identities per locale before deduplication so market-exclusive terms remain reachable.
+- [Phase 09]: Dynamic taxonomy pages register localized slugs in a client-only path-scoped context so global switchers preserve the entity without making public routes request-dependent.
 
 ### Pending Todos
 
@@ -346,6 +350,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T16:06:11.189Z
-Stopped at: Completed 09-11-PLAN.md
+Last session: 2026-07-24T16:28:31.953Z
+Stopped at: Completed 09-10-PLAN.md
 Resume file: None
