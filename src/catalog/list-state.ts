@@ -1,4 +1,11 @@
-import {catalogSorts, type CatalogProductType, type CatalogSort} from './queries';
+import type {CatalogProductType, CatalogSort} from './queries';
+
+const catalogSorts: readonly CatalogSort[] = [
+  'newest',
+  'price_asc',
+  'price_desc',
+  'title'
+];
 
 export type CatalogSearchParams = Record<string, string | string[] | undefined>;
 

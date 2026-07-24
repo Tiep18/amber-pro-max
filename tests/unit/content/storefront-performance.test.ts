@@ -61,4 +61,23 @@ describe('storefront performance boundaries', () => {
     expect(policy).toContain("dynamic = 'force-static'");
     expect(policy).toContain('revalidate = 300');
   });
+
+  it('keeps the localized catalog route deterministic and ISR-safe', async () => {
+    const catalog = await source('../../../src/app/[locale]/catalog/page.tsx');
+
+    expect(catalog).toContain("dynamic = 'force-static'");
+    expect(catalog).toContain('revalidate = 300');
+    expect(catalog).toContain('setRequestLocale(locale)');
+    expect(catalog).toContain('generateMetadata');
+    expect(catalog).toContain('canonicalPath: getCatalogPath(locale)');
+    expect(catalog).toContain('<CatalogCommerce');
+    expect(catalog).toContain('<Suspense');
+
+    expect(catalog).not.toContain('searchParams');
+    expect(catalog).not.toContain('cookies(');
+    expect(catalog).not.toContain('headers(');
+    expect(catalog).not.toContain('getRequestMarket');
+    expect(catalog).not.toContain('/api/storefront/catalog');
+    expect(catalog).not.toContain('getCachedCatalogProjection');
+  });
 });

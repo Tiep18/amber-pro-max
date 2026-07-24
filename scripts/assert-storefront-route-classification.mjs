@@ -31,11 +31,14 @@ export function parseRouteClassifications(buildOutput) {
   return classifications;
 }
 
-export function assertStorefrontRoutesAreStaticOrIsr(buildOutput) {
+export function assertStorefrontRoutesAreStaticOrIsr(
+  buildOutput,
+  routes = requiredStorefrontRoutes
+) {
   const classifications = parseRouteClassifications(buildOutput);
   const problems = [];
 
-  for (const route of requiredStorefrontRoutes) {
+  for (const route of routes) {
     const result = classifications.get(route);
     if (!result) {
       problems.push(`${route}: missing from the production build route table`);
@@ -82,10 +85,13 @@ Route (app)                              Revalidate  Expire
     () => assertStorefrontRoutesAreStaticOrIsr(missingTagFixture),
     /tag.*missing from the production build route table/su
   );
+  assert.doesNotThrow(() =>
+    assertStorefrontRoutesAreStaticOrIsr(missingTagFixture, ['/[locale]/catalog'])
+  );
   process.stdout.write('storefront route-classification self-test passed\n');
 }
 
-function runProductionBuild() {
+function runProductionBuild(routes = requiredStorefrontRoutes) {
   const command = process.platform === 'win32' ? (process.env.ComSpec ?? 'cmd.exe') : 'npm';
   const args =
     process.platform === 'win32' ? ['/d', '/s', '/c', 'npm run build'] : ['run', 'build'];
@@ -103,15 +109,21 @@ function runProductionBuild() {
     throw new Error(`Production build failed with exit code ${result.status ?? 'unknown'}`);
   }
 
-  assertStorefrontRoutesAreStaticOrIsr(output);
-  process.stdout.write('storefront production routes are static/ISR\n');
+  assertStorefrontRoutesAreStaticOrIsr(output, routes);
+  process.stdout.write(`storefront production routes are static/ISR: ${routes.join(', ')}\n`);
 }
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   try {
     if (process.argv.includes('--self-test')) selfTest();
-    else runProductionBuild();
+    else {
+      const requestedRoutes = process.argv
+        .filter((argument) => argument.startsWith('--route='))
+        .map((argument) => argument.slice('--route='.length))
+        .filter(Boolean);
+      runProductionBuild(requestedRoutes.length ? requestedRoutes : requiredStorefrontRoutes);
+    }
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;
