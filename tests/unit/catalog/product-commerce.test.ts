@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { readFile } from 'node:fs/promises';
 
 async function productCommerceModule() {
   return import('@/catalog/projections');
+}
+
+async function productCommerceComponentModule() {
+  return import('@/components/catalog/product-commerce');
 }
 
 const parentPriceProduct = {
@@ -184,5 +189,68 @@ describe('product commerce projection contracts', () => {
     for (const input of mismatches) {
       expect(isProductCommerceAgreement(input, projection), JSON.stringify(input)).toBe(false);
     }
+  });
+});
+
+describe('product commerce island lifecycle', () => {
+  it('accepts only the latest matching context generation and projection identity', async () => {
+    const { isCurrentProductProjectionRequest } = await productCommerceComponentModule();
+    const current = {
+      requestId: 4,
+      generation: 7,
+      contextVersion: 3,
+      market: 'intl',
+      locale: 'en',
+      productSlug: 'amber-bear'
+    } as const;
+
+    expect(isCurrentProductProjectionRequest(current, current)).toBe(true);
+    expect(
+      isCurrentProductProjectionRequest(current, { ...current, requestId: 3 })
+    ).toBe(false);
+    expect(
+      isCurrentProductProjectionRequest(current, { ...current, generation: 6 })
+    ).toBe(false);
+    expect(
+      isCurrentProductProjectionRequest(current, { ...current, contextVersion: 2 })
+    ).toBe(false);
+    expect(
+      isCurrentProductProjectionRequest(current, { ...current, market: 'vn' })
+    ).toBe(false);
+    expect(
+      isCurrentProductProjectionRequest(current, {
+        ...current,
+        productSlug: 'different-product'
+      })
+    ).toBe(false);
+  });
+
+  it('keeps static SEO facts in the page shell and visitor commerce in the private island', async () => {
+    const [pageSource, commerceSource] = await Promise.all([
+      readFile(
+        new URL(
+          '../../../src/app/[locale]/product/[productSlug]/page.tsx',
+          import.meta.url
+        ),
+        'utf8'
+      ),
+      readFile(
+        new URL('../../../src/components/catalog/product-commerce.tsx', import.meta.url),
+        'utf8'
+      )
+    ]);
+
+    expect(pageSource).toContain("export const dynamic = 'force-static'");
+    expect(pageSource).toContain('export const revalidate = 300');
+    expect(pageSource).toContain('marketForLocale(locale)');
+    expect(pageSource).toContain('<ProductCommerce');
+    expect(pageSource).not.toContain('<AddToCart');
+    expect(pageSource).not.toContain('<UnavailableMarket');
+
+    expect(commerceSource).toContain("cache: 'no-store'");
+    expect(commerceSource).toContain('new AbortController()');
+    expect(commerceSource).toContain('aria-live="polite"');
+    expect(commerceSource).toContain('aria-hidden="true"');
+    expect(commerceSource).toContain('offerFingerprint');
   });
 });
