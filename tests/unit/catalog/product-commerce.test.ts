@@ -164,11 +164,17 @@ describe('product commerce projection contracts', () => {
 
   it('Add to Cart requires exact ready agreement', async () => {
     const { isProductCommerceAgreement, projectProductCommerce } = await productCommerceModule();
-    const projection = { ...projectProductCommerce(variantOverrideProduct), generation: 7 };
+    const projection = {
+      ...projectProductCommerce(variantOverrideProduct),
+      generation: 7,
+      contextVersion: 4
+    };
     const exact = {
       contextStatus: 'ready',
       contextMarket: 'intl',
       contextGeneration: 7,
+      contextVersion: 4,
+      locale: 'en',
       productId: 'product-variant',
       variantId: 'variant-blue',
       offerFingerprint: projection.offerFingerprint
@@ -181,6 +187,8 @@ describe('product commerce projection contracts', () => {
       { ...exact, contextStatus: 'error' },
       { ...exact, contextMarket: 'vn' },
       { ...exact, contextGeneration: 6 },
+      { ...exact, contextVersion: 3 },
+      { ...exact, locale: 'vi' },
       { ...exact, productId: 'different-product' },
       { ...exact, variantId: 'different-variant' },
       { ...exact, offerFingerprint: 'changed-fingerprint' }
