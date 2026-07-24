@@ -25,7 +25,7 @@ describe('storefront performance boundaries', () => {
   });
 
   it('keeps product cards routed through the optimized image boundary', async () => {
-    const component = await source('../../../src/components/catalog/product-card.tsx');
+    const component = await source('../../../src/components/catalog/product-card-view.tsx');
     expect(component).toContain("from '@/components/catalog/product-card-image'");
     expect(component).not.toMatch(/<img\s/);
   });
