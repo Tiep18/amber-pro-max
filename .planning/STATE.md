@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-09-PLAN.md
-last_updated: "2026-07-24T15:46:12.140Z"
+stopped_at: Completed 09-11-PLAN.md
+last_updated: "2026-07-24T16:06:25.214Z"
 last_activity: 2026-07-22 -- Phase 09 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 86
-  completed_plans: 80
+  completed_plans: 81
   percent: 78
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 09 (independent-locale-and-market-commerce-projection-with-seo-s) — EXECUTING
-Plan: 10 of 15
+Plan: 11 of 15
 Status: Ready to execute
 Last activity: 2026-07-22 -- Phase 09 execution started
 
@@ -102,6 +102,7 @@ Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; P
 | Phase 09 P07 | 16min | 2 tasks | 7 files |
 | Phase 09 P08 | 13min | 2 tasks | 8 files |
 | Phase 09 P09 | 14min | 2 tasks | 7 files |
+| Phase 09 P11 | 16min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -187,6 +188,9 @@ Recent decisions affecting current work:
 - [Phase 09]: Catalog metadata and canonical output depend only on locale; browser query variants stay inside the private client projection.
 - [Phase 09]: CatalogCommerce owns the complete query-aware catalog shell so products, facets, and controls stay atomic.
 - [Phase 09]: Focused classifier routes support incremental proof while the default release gate remains the complete storefront route set.
+- [Phase 09]: Homepage featured sections keep deterministic identity shells so active-market-only products may replace an empty locale-default seed. — Preserves static SEO identity without suppressing products available only in the resolved browsing market.
+- [Phase 09]: Wishlist refresh accepts locale only; user and market are re-derived server-side and caller market is ignored. — Prevents browser or cross-tab payloads from becoming wishlist commerce authority.
+- [Phase 09]: Wishlist quick add requires exact market and context-version agreement and captures only the ready context marketAtAdd. — Closes stale response races while preserving server quote authority.
 
 ### Pending Todos
 
@@ -342,6 +346,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T15:46:12.095Z
-Stopped at: Completed 09-09-PLAN.md
+Last session: 2026-07-24T16:06:11.189Z
+Stopped at: Completed 09-11-PLAN.md
 Resume file: None
