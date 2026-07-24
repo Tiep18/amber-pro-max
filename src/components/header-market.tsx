@@ -1,9 +1,14 @@
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import type { Locale } from '@/i18n/routing';
 import type { CommerceContextLabels } from './commerce-context-switcher';
 import { CommerceContextSwitcher } from './commerce-context-switcher';
 import { useStorefrontContext } from './storefront-context';
+
+const subscribeToHydration = () => () => undefined;
+const getHydratedSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 export function HeaderMarket({
   locale,
@@ -27,13 +32,22 @@ export function HeaderMarket({
     requestMarketChange,
     retryContext
   } = useStorefrontContext();
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getHydratedSnapshot,
+    getServerSnapshot
+  );
+  const visibleStatus = hydrated ? status : 'resolving';
+  const visibleMarket = hydrated ? market : null;
+  const visiblePendingMarket = hydrated ? pendingMarket : null;
+  const visibleIssue = hydrated ? issue : null;
 
   const liveMessage =
-    pendingMarket && (status === 'resolving' || status === 'retrying')
+    visiblePendingMarket && (visibleStatus === 'resolving' || visibleStatus === 'retrying')
       ? labels.changing
-      : status === 'retrying'
+      : visibleStatus === 'retrying'
         ? labels.checkingAgain
-        : status === 'resolving'
+        : visibleStatus === 'resolving'
           ? labels.checking
           : '';
 
@@ -41,10 +55,10 @@ export function HeaderMarket({
     <>
       <CommerceContextSwitcher
         locale={locale}
-        activeMarket={market}
-        pendingMarket={pendingMarket}
-        status={status}
-        issue={issue}
+        activeMarket={visibleMarket}
+        pendingMarket={visiblePendingMarket}
+        status={visibleStatus}
+        issue={visibleIssue}
         labels={labels}
         requestMarketChange={requestMarketChange}
         retryContext={retryContext}

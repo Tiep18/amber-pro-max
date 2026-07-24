@@ -311,3 +311,54 @@ export function allowlistedRouteQuery(routeKind: RouteQueryKind, searchParams: U
   const query = result.toString();
   return query ? `?${query}` : '';
 }
+
+export function getRouteQueryKind(pathname: string): RouteQueryKind {
+  const route = pathname.split('/').filter(Boolean)[1] ?? '';
+
+  if (
+    [
+      'catalog',
+      'cua-hang',
+      'category',
+      'danh-muc',
+      'collection',
+      'bo-suu-tap',
+      'technique',
+      'ky-thuat',
+      'tag',
+      'the'
+    ].includes(route)
+  ) {
+    return 'catalog';
+  }
+
+  if (
+    [
+      'sign-in',
+      'dang-nhap',
+      'register',
+      'dang-ky',
+      'forgot-password',
+      'quen-mat-khau',
+      'reset-password',
+      'dat-lai-mat-khau'
+    ].includes(route)
+  ) {
+    return 'auth';
+  }
+
+  return 'other';
+}
+
+export function getLocaleSwitchHref(
+  currentPath: string,
+  targetLocale: Locale,
+  searchParams: URLSearchParams,
+  localizedSlugs?: Record<Locale, string>
+) {
+  return `${getEquivalentLocalizedPath(
+    currentPath,
+    targetLocale,
+    localizedSlugs
+  )}${allowlistedRouteQuery(getRouteQueryKind(currentPath), searchParams)}`;
+}

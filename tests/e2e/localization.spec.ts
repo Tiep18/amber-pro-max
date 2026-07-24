@@ -118,20 +118,23 @@ test('localized auth entry renders while /auth/callback remains an isolated serv
   expect(new URL(callback.headers().location).pathname).toBe('/en/sign-in');
 });
 
-test('language switching preserves market and the equivalent product route', async ({
+test('language switching preserves market and only safe route query state', async ({
   browser
 }) => {
-  test.fail(true, 'Plan 09-13: locale controls must preserve market and equivalent dynamic routes');
   const context = await browser.newContext();
   await addPreferenceCookie(context, MARKET_COOKIE, 'vn');
   const page = await context.newPage();
 
-  await page.goto('/vi/san-pham/gau-ca-hai');
-  const languageLink = page.getByRole('banner').getByRole('link', { name: 'English' });
+  await page.goto('/en/catalog?search=bear&debug=1');
+  await page.getByTestId('commerce-context-trigger').click();
+  const languageLink = page
+    .getByRole('menu')
+    .getByRole('menuitemradio', { name: 'Tiếng Việt (VI)' });
   await expect(languageLink).toBeVisible({ timeout: 5_000 });
+  await expect(languageLink).toHaveAttribute('href', '/vi/cua-hang?search=bear');
   await languageLink.click();
 
-  await expect(page).toHaveURL(/\/en\/product\/crochet-bear$/);
+  await expect(page).toHaveURL(/\/vi\/cua-hang\?search=bear$/);
   await expectMarketCookie(context, 'vn');
   await context.close();
 });

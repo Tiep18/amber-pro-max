@@ -9,6 +9,8 @@ import { useLocalizedRouteSlugs } from '@/components/localized-route-context';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -17,10 +19,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SheetClose } from '@/components/ui/sheet';
 import {
-  allowlistedRouteQuery,
-  getEquivalentLocalizedPath,
-  type Locale,
-  type RouteQueryKind
+  getLocaleSwitchHref,
+  type Locale
 } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import type {
@@ -57,34 +57,6 @@ type CommerceContextSwitcherProps = {
 
 const localeOptions: Locale[] = ['vi', 'en'];
 const marketOptions: MarketCode[] = ['vn', 'intl'];
-
-function routeQueryKind(pathname: string): RouteQueryKind {
-  const segments = pathname.split('/').filter(Boolean);
-  const route = segments[1] ?? '';
-
-  if (
-    [
-      'catalog',
-      'cua-hang',
-      'category',
-      'danh-muc',
-      'collection',
-      'bo-suu-tap',
-      'technique',
-      'ky-thuat',
-      'tag',
-      'the'
-    ].includes(route)
-  ) {
-    return 'catalog';
-  }
-
-  if (['sign-in', 'dang-nhap', 'register', 'dang-ky'].includes(route)) {
-    return 'auth';
-  }
-
-  return 'other';
-}
 
 function OptionCheck({ active }: { active: boolean }) {
   return active ? (
@@ -126,8 +98,7 @@ export function CommerceContextSwitcher({
   }, [status]);
 
   function localizedHref(targetLocale: Locale) {
-    const path = getEquivalentLocalizedPath(pathname, targetLocale, localizedSlugs);
-    return `${path}${allowlistedRouteQuery(routeQueryKind(pathname), searchParams)}`;
+    return getLocaleSwitchHref(pathname, targetLocale, searchParams, localizedSlugs);
   }
 
   async function changeMarket(targetMarket: MarketCode) {
@@ -161,7 +132,7 @@ export function CommerceContextSwitcher({
     ? `${labels.language}: ${labels.languages[locale]}. ${labels.shoppingRegion}: ${labels.markets[activeMarket]}.`
     : `${labels.language}: ${labels.languages[locale]}. ${labels.shoppingRegion}: ${labels.trigger}.`;
 
-  const localeChoices = localeOptions.map((optionLocale) => {
+  function localeChoice(optionLocale: Locale, desktop = false) {
     const active = optionLocale === locale;
     return (
       <Link
@@ -169,7 +140,9 @@ export function CommerceContextSwitcher({
         href={localizedHref(optionLocale)}
         hrefLang={optionLocale}
         lang={optionLocale}
-        aria-current={active ? 'page' : undefined}
+        role={desktop ? 'menuitemradio' : undefined}
+        aria-checked={desktop ? active : undefined}
+        aria-current={!desktop && active ? 'page' : undefined}
         onClick={() => {
           closeOnReadyRef.current = false;
           setOpen(false);
@@ -185,7 +158,9 @@ export function CommerceContextSwitcher({
         <OptionCheck active={active} />
       </Link>
     );
-  });
+  }
+
+  const mobileLocaleChoices = localeOptions.map((optionLocale) => localeChoice(optionLocale));
 
   function marketChoice(optionMarket: MarketCode, desktop = false) {
     const active = optionMarket === activeMarket;
@@ -272,7 +247,7 @@ export function CommerceContextSwitcher({
       <div className={cn('grid gap-4', className)}>
         <fieldset className="grid gap-2">
           <legend className="mb-1 text-sm font-semibold">{labels.language}</legend>
-          <div className="grid grid-cols-2 gap-2">{localeChoices}</div>
+          <div className="grid grid-cols-2 gap-2">{mobileLocaleChoices}</div>
         </fieldset>
         <fieldset className="grid gap-2" aria-busy={marketBusy || undefined}>
           <legend className="mb-1 text-sm font-semibold">{labels.shoppingRegion}</legend>
@@ -298,6 +273,7 @@ export function CommerceContextSwitcher({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          data-testid="commerce-context-trigger"
           aria-label={triggerName}
           aria-busy={contextBusy || undefined}
           className={cn(
@@ -318,18 +294,21 @@ export function CommerceContextSwitcher({
         <DropdownMenuLabel className="px-2 py-2 text-sm font-semibold">
           {labels.language}
         </DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={locale} className="grid gap-1">
+        <DropdownMenuGroup
+          role="group"
+          aria-label={labels.language}
+          className="grid gap-1"
+        >
           {localeOptions.map((optionLocale) => (
-            <DropdownMenuRadioItem
+            <DropdownMenuItem
               key={optionLocale}
-              value={optionLocale}
               asChild
               className="min-h-11 p-0 pl-0"
             >
-              {localeChoices[localeOptions.indexOf(optionLocale)]}
-            </DropdownMenuRadioItem>
+              {localeChoice(optionLocale, true)}
+            </DropdownMenuItem>
           ))}
-        </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator className="my-2" />
         <DropdownMenuLabel className="px-2 py-2 text-sm font-semibold">
           {labels.shoppingRegion}
