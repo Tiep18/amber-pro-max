@@ -56,6 +56,10 @@ async function projectionModules() {
   return { ...schemas, ...projections };
 }
 
+async function catalogCommerceModule() {
+  return import('@/components/catalog/catalog-commerce');
+}
+
 describe('storefront catalog projection contracts', () => {
   describe('strict public input boundary', () => {
     it('normalizes supported projection inputs', async () => {
@@ -235,4 +239,85 @@ describe('storefront catalog projection contracts', () => {
       expect(loadFacets.mock.calls.at(-1)?.[0]).toEqual(base);
     }
   );
+
+  it('commits matching products and facets as one ready snapshot', async () => {
+    const {
+      beginCatalogCommerceRequest,
+      createCatalogCommerceState,
+      settleCatalogCommerceRequest
+    } = await catalogCommerceModule();
+    const initial = createCatalogCommerceState([vnOnlyProduct]);
+    const identity = {
+      locale: 'en',
+      market: 'intl',
+      surface: 'catalog',
+      contextGeneration: 7,
+      contextVersion: 3,
+      queryKey: 'search=amber&sort=newest'
+    } as const;
+    const begun = beginCatalogCommerceRequest(initial, identity);
+    const projection = {
+      locale: 'en',
+      market: 'intl',
+      surface: 'catalog',
+      products: [intlOnlyProduct],
+      facets: intlFacets
+    } as const;
+
+    const settled = settleCatalogCommerceRequest(begun.state, begun.request, projection);
+
+    expect(settled).toMatchObject({
+      status: 'ready',
+      products: projection.products,
+      facets: projection.facets,
+      identity
+    });
+    expect(settled.products).not.toContain(vnOnlyProduct);
+  });
+
+  it('ignores stale generations and mismatched response markets without partial replacement', async () => {
+    const {
+      beginCatalogCommerceRequest,
+      createCatalogCommerceState,
+      settleCatalogCommerceRequest
+    } = await catalogCommerceModule();
+    const initial = createCatalogCommerceState([vnOnlyProduct]);
+    const first = beginCatalogCommerceRequest(initial, {
+      locale: 'vi',
+      market: 'vn',
+      surface: 'catalog',
+      contextGeneration: 1,
+      contextVersion: 1,
+      queryKey: 'sort=newest'
+    });
+    const second = beginCatalogCommerceRequest(first.state, {
+      locale: 'vi',
+      market: 'intl',
+      surface: 'catalog',
+      contextGeneration: 2,
+      contextVersion: 2,
+      queryKey: 'sort=newest'
+    });
+    const staleProjection = {
+      locale: 'vi',
+      market: 'vn',
+      surface: 'catalog',
+      products: [vnOnlyProduct],
+      facets: vnFacets
+    } as const;
+    const wrongMarketProjection = {
+      locale: 'vi',
+      market: 'vn',
+      surface: 'catalog',
+      products: [bothMarketProduct],
+      facets: vnFacets
+    } as const;
+
+    expect(settleCatalogCommerceRequest(second.state, first.request, staleProjection)).toBe(
+      second.state
+    );
+    expect(settleCatalogCommerceRequest(second.state, second.request, wrongMarketProjection)).toBe(
+      second.state
+    );
+  });
 });
