@@ -114,7 +114,21 @@
     "shortVietnam": "VN",
     "shortInternational": "INTL",
     "switchToVietnam": "Use Vietnam market",
-    "switchToInternational": "Use international market"
+    "switchToInternational": "Use international market",
+    "contextTrigger": "Language and shopping region",
+    "language": "Language",
+    "shoppingRegion": "Shopping region",
+    "helper": "Prices and availability only. Shipping destination is confirmed at checkout.",
+    "checking": "Checking prices and availability…",
+    "checkingAgain": "Checking again…",
+    "changing": "Changing shopping region…",
+    "failure": "We couldn’t change your shopping region. Your previous selection is still active.",
+    "contextFailure": "We couldn’t confirm prices and availability. Try again before shopping.",
+    "retry": "Try again",
+    "languageVietnamese": "Tiếng Việt (VI)",
+    "languageEnglish": "English (EN)",
+    "vietnamVnd": "Vietnam — VND",
+    "internationalUsd": "International — USD"
   },
   "home": {
     "hero": {

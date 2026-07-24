@@ -107,14 +107,28 @@
     }
   },
   "market": {
-    "label": "Thi truong",
-    "current": "Thi truong dang dung",
-    "vietnam": "Viet Nam",
-    "international": "Quoc te",
+    "label": "Thị trường",
+    "current": "Thị trường đang dùng",
+    "vietnam": "Việt Nam",
+    "international": "Quốc tế",
     "shortVietnam": "VN",
     "shortInternational": "QT",
-    "switchToVietnam": "Dung thi truong Viet Nam",
-    "switchToInternational": "Dung thi truong quoc te"
+    "switchToVietnam": "Dùng thị trường Việt Nam",
+    "switchToInternational": "Dùng thị trường quốc tế",
+    "contextTrigger": "Ngôn ngữ và khu vực mua sắm",
+    "language": "Ngôn ngữ",
+    "shoppingRegion": "Khu vực mua sắm",
+    "helper": "Chỉ áp dụng cho giá và tình trạng hàng. Địa chỉ giao hàng được xác nhận khi thanh toán.",
+    "checking": "Đang kiểm tra giá và tình trạng hàng…",
+    "checkingAgain": "Đang kiểm tra lại…",
+    "changing": "Đang đổi khu vực mua sắm…",
+    "failure": "Không thể đổi khu vực mua sắm. Lựa chọn trước đó vẫn đang được áp dụng.",
+    "contextFailure": "Không thể xác nhận giá và tình trạng hàng. Hãy thử lại trước khi mua.",
+    "retry": "Thử lại",
+    "languageVietnamese": "Tiếng Việt (VI)",
+    "languageEnglish": "English (EN)",
+    "vietnamVnd": "Việt Nam — VND",
+    "internationalUsd": "Quốc tế — USD"
   },
   "home": {
     "hero": {

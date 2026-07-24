@@ -23,11 +23,27 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
     getTranslations('market')
   ]);
   const marketLabels = {
-    label: marketT('label'),
-    current: marketT('current'),
-    options: {
-      vn: `${marketT('shortVietnam')} / ${locale === 'vi' ? 'Tieng Viet' : 'Vietnamese'}`,
-      intl: `${marketT('shortInternational')} / English`
+    trigger: marketT('contextTrigger'),
+    language: marketT('language'),
+    shoppingRegion: marketT('shoppingRegion'),
+    helper: marketT('helper'),
+    checking: marketT('checking'),
+    checkingAgain: marketT('checkingAgain'),
+    changing: marketT('changing'),
+    failure: marketT('failure'),
+    contextFailure: marketT('contextFailure'),
+    retry: marketT('retry'),
+    languages: {
+      vi: marketT('languageVietnamese'),
+      en: marketT('languageEnglish')
+    },
+    markets: {
+      vn: marketT('vietnamVnd'),
+      intl: marketT('internationalUsd')
+    },
+    marketShort: {
+      vn: marketT('shortVietnam'),
+      intl: marketT('shortInternational')
     }
   };
 
@@ -79,7 +95,7 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
                   <HeaderMarket
                     locale={locale}
                     labels={marketLabels}
-                    className="w-full justify-between rounded-[12px] bg-[var(--surface)]/55 px-3 ring-1 ring-[var(--border)]/55"
+                    mode="mobile"
                   />
                 </Suspense>
                 <div className="mt-3 border-t border-[var(--border)]/60 pt-3">
