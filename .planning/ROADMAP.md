@@ -429,7 +429,7 @@ Plans:
 **UI hint:** yes
 **Requirements**: MKT-01, MKT-02, MKT-03, MKT-04, MKT-05, MKT-06, CAT-05, CAT-06, CAT-08, CART-03, CART-05, SEO-02, SEO-03, SEO-04, OPS-04
 **Depends on:** Phase 8
-**Plans:** 6/15 plans executed
+**Plans:** 7/15 plans executed
 
 **Success Criteria**:
 
@@ -447,7 +447,7 @@ Plans:
 - [x] 09-04-PLAN.md — Implement server market resolution, routing preservation, and context API (Wave 2)
 - [x] 09-06-PLAN.md — Build private market-aware projections and commerce DTOs (Wave 2)
 - [x] 09-05-PLAN.md — Implement the authoritative client storefront-context lifecycle (Wave 3)
-- [ ] 09-07-PLAN.md — Enforce product offer resolution and add-to-cart freshness gates (Wave 4)
+- [x] 09-07-PLAN.md — Enforce product offer resolution and add-to-cart freshness gates (Wave 4)
 - [ ] 09-08-PLAN.md — Build reusable market-aware catalog list commerce (Wave 4)
 - [ ] 09-09-PLAN.md — Preserve static/ISR catalog rendering with client-side market projection (Wave 5)
 - [ ] 09-10-PLAN.md — Migrate category, collection, technique, and tag taxonomy surfaces (Wave 6)
