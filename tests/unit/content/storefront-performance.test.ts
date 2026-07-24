@@ -80,4 +80,25 @@ describe('storefront performance boundaries', () => {
     expect(catalog).not.toContain('/api/storefront/catalog');
     expect(catalog).not.toContain('getCachedCatalogProjection');
   });
+
+  it('keeps homepage identity static while featured commerce resolves privately', async () => {
+    const homepage = await source('../../../src/app/[locale]/page.tsx');
+
+    expect(homepage).toContain("dynamic = 'force-static'");
+    expect(homepage).toContain('revalidate = 300');
+    expect(homepage).toContain('setRequestLocale(locale)');
+    expect(homepage).toContain('generateMetadata');
+    expect(homepage.match(/<CatalogCommerce/g)).toHaveLength(2);
+    expect(homepage.match(/surface="home"/g)).toHaveLength(2);
+    expect(homepage).toContain("productType: 'physical_finished'");
+    expect(homepage).toContain("productType: 'pdf_pattern'");
+    expect(homepage.match(/limit=\{4\}/g)).toHaveLength(2);
+    expect(homepage).toContain('commerceState="pending"');
+
+    expect(homepage).not.toContain('cookies(');
+    expect(homepage).not.toContain('headers(');
+    expect(homepage).not.toContain('getRequestMarket');
+    expect(homepage).not.toContain('/api/storefront/catalog');
+    expect(homepage).not.toContain('getCachedCatalogProjection');
+  });
 });
