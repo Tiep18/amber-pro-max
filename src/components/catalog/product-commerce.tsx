@@ -224,7 +224,8 @@ export function ProductCommerce({
           projection.productId !== productId ||
           projection.slug !== productSlug ||
           projection.locale !== locale ||
-          projection.market !== request.market
+          projection.market !== request.market ||
+          projection.productType !== productType
         ) {
           throw new Error('product_projection_mismatch');
         }
@@ -267,6 +268,7 @@ export function ProductCommerce({
     locale,
     productId,
     productSlug,
+    productType,
     retryNonce
   ]);
 
@@ -324,15 +326,18 @@ export function ProductCommerce({
   return (
     <AddToCart
       locale={locale}
-      market={projection.market}
       title={title}
-      productId={projection.productId}
-      productType={productType}
-      available={projection.available}
-      inStock={projection.inStock}
+      agreement={{
+        contextStatus: context.status,
+        contextMarket: context.market,
+        contextGeneration: context.generation,
+        contextVersion: context.contextVersion,
+        locale,
+        productId: projection.productId,
+        offerFingerprint: projection.offerFingerprint
+      }}
+      projection={projection}
       variants={publicVariants(projection)}
-      priceMinor={projection.priceMinor}
-      currencyCode={projection.currencyCode}
     />
   );
 }

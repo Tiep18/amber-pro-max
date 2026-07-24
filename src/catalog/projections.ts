@@ -237,6 +237,8 @@ type ProductCommerceAgreement = {
   contextStatus: string;
   contextMarket: string;
   contextGeneration: number;
+  contextVersion: number;
+  locale: string;
   productId: string;
   variantId: string | null;
   offerFingerprint: string;
@@ -244,7 +246,7 @@ type ProductCommerceAgreement = {
 
 export function isProductCommerceAgreement(
   agreement: ProductCommerceAgreement,
-  projection: ProductCommerceProjection & { generation: number }
+  projection: ProductCommerceProjection & { generation: number; contextVersion: number }
 ) {
   const selectedVariant =
     agreement.variantId === null
@@ -264,6 +266,8 @@ export function isProductCommerceAgreement(
     agreement.contextStatus === 'ready' &&
     agreement.contextMarket === projection.market &&
     agreement.contextGeneration === projection.generation &&
+    agreement.contextVersion === projection.contextVersion &&
+    agreement.locale === projection.locale &&
     agreement.productId === projection.productId &&
     projection.available &&
     projection.inStock &&

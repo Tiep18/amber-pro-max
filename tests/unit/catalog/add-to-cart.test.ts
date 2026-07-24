@@ -2,10 +2,12 @@ import {describe, expect, it} from 'vitest';
 import {canAddToCart} from '@/catalog/add-to-cart-eligibility';
 import {
   createAddToCartIntent,
-  shouldResetVariantSelection
+  shouldResetVariantSelection,
+  type AddToCartAgreement,
+  type AddToCartProjection
 } from '@/components/catalog/add-to-cart';
 
-const projection = {
+const projection: AddToCartProjection = {
   productId: '11111111-1111-4111-8111-111111111111',
   slug: 'linen-doll',
   locale: 'en',
@@ -30,15 +32,17 @@ const projection = {
   offerFingerprint: 'current-fingerprint',
   generation: 7,
   contextVersion: 4
-} as const;
+};
 
-const readyAgreement = {
+const readyAgreement: AddToCartAgreement = {
   contextStatus: 'ready',
   contextMarket: 'intl',
   contextGeneration: 7,
   contextVersion: 4,
-  locale: 'en'
-} as const;
+  locale: 'en',
+  productId: projection.productId,
+  offerFingerprint: projection.offerFingerprint
+};
 
 describe('catalog add-to-cart availability', () => {
   it('blocks physical products without variants when product inventory is unavailable', () => {
@@ -91,7 +95,11 @@ describe('catalog add-to-cart availability', () => {
   });
 
   it('fails closed for unresolved, stale, unavailable, and invalid variant agreement', () => {
-    const attempts = [
+    const attempts: Array<{
+      agreement?: AddToCartAgreement;
+      projection?: AddToCartProjection;
+      variantId?: string;
+    }> = [
       {agreement: {...readyAgreement, contextStatus: 'resolving'}},
       {agreement: {...readyAgreement, contextStatus: 'error'}},
       {agreement: {...readyAgreement, contextMarket: 'vn'}},

@@ -1,6 +1,6 @@
 'use client';
 
-import {useMemo, useState} from 'react';
+import {useState} from 'react';
 import type {CurrencyCode} from '@/catalog/money';
 import {variantAttributesLabel} from '@/catalog/variant-attributes';
 
@@ -34,11 +34,7 @@ export function VariantSelector({
   selectedId?: string;
   onSelectedIdChange?: (variantId: string) => void;
 }) {
-  const firstAvailable = useMemo(
-    () => variants.find((variant) => variant.enabled && variant.stock) ?? null,
-    [variants]
-  );
-  const [uncontrolledSelectedId, setUncontrolledSelectedId] = useState(firstAvailable?.variant_id ?? '');
+  const [uncontrolledSelectedId, setUncontrolledSelectedId] = useState('');
   const selectedId = controlledSelectedId ?? uncontrolledSelectedId;
   const setSelectedId = onSelectedIdChange ?? setUncontrolledSelectedId;
 

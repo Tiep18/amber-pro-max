@@ -1,95 +1,252 @@
 'use client';
 
 import Link from 'next/link';
-import {useEffect, useMemo, useRef, useState} from 'react';
-import {canAddToCart} from '@/catalog/add-to-cart-eligibility';
-import {variantAttributesLabel} from '@/catalog/variant-attributes';
-import {formatMoney, type CurrencyCode} from '@/catalog/money';
-import type {MarketCode} from '@/catalog/market';
-import type {Locale} from '@/i18n/routing';
-import {Button} from '@/components/ui/button';
-import {Alert} from '@/components/ui/alert';
-import {useCart} from '@/components/cart/cart-provider';
-import { getCartPath } from '@/i18n/routing';
-import {VariantSelector, type PublicVariant} from './variant-selector';
+import { useEffect, useRef, useState } from 'react';
+import type { AddToCartIntent } from '@/cart/types';
+import type { MarketCode } from '@/catalog/market';
+import { formatMoney } from '@/catalog/money';
+import {
+  isProductCommerceAgreement,
+  type ProductCommerceProjection
+} from '@/catalog/projections';
+import { variantAttributesLabel } from '@/catalog/variant-attributes';
+import { Alert } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { useCart } from '@/components/cart/cart-provider';
+import { getCartPath, type Locale } from '@/i18n/routing';
+import { VariantSelector, type PublicVariant } from './variant-selector';
+
+export type AddToCartAgreement = {
+  contextStatus: string;
+  contextMarket: MarketCode | null;
+  contextGeneration: number;
+  contextVersion: number;
+  locale: Locale;
+  productId: string;
+  offerFingerprint: string;
+};
+
+export type AddToCartProjection = ProductCommerceProjection & {
+  generation: number;
+  contextVersion: number;
+};
+
+type ProjectionSelectionIdentity = Pick<
+  ProductCommerceProjection,
+  'productId' | 'market' | 'offerFingerprint'
+>;
 
 const copy = {
   en: {
     add: 'Add to cart',
     addPdf: 'Buy and download',
+    adding: 'Adding…',
     added: 'Added to cart.',
     select: 'Select an in-stock option before adding.',
+    unavailable: 'Unavailable in this shopping region.',
+    stale: 'We couldn’t confirm this offer. Try again.',
+    quoteFailed: 'We couldn’t refresh your cart. Try again before checkout.',
     view: 'View cart',
     continue: 'Continue shopping',
     selected: 'Selected',
-    outOfStock: 'Out of stock'
+    outOfStock: 'Out of stock',
+    options: 'Options',
+    inStock: 'In stock'
   },
   vi: {
-    add: 'Them vao gio',
-    addPdf: 'Mua va tai ve',
-    added: 'Da them vao gio hang.',
-    select: 'Chon tuy chon con hang truoc khi them.',
-    view: 'Xem gio hang',
-    continue: 'Tiep tuc mua sam',
-    selected: 'Da chon',
-    outOfStock: 'Het hang'
+    add: 'Thêm vào giỏ',
+    addPdf: 'Mua và tải về',
+    adding: 'Đang thêm…',
+    added: 'Đã thêm vào giỏ hàng.',
+    select: 'Chọn một tùy chọn còn hàng trước khi thêm.',
+    unavailable: 'Không có sẵn tại khu vực mua sắm này.',
+    stale: 'Không thể xác nhận ưu đãi này. Hãy thử lại.',
+    quoteFailed: 'Không thể cập nhật giỏ hàng. Hãy thử lại trước khi thanh toán.',
+    view: 'Xem giỏ hàng',
+    continue: 'Tiếp tục mua sắm',
+    selected: 'Đã chọn',
+    outOfStock: 'Hết hàng',
+    options: 'Tùy chọn',
+    inStock: 'Còn hàng'
   }
 } as const;
 
-function variantLabel(variant: PublicVariant | null) {
-  if (!variant) {
+export function shouldResetVariantSelection(
+  previous: ProjectionSelectionIdentity,
+  next: ProjectionSelectionIdentity
+) {
+  return (
+    previous.productId !== next.productId ||
+    previous.market !== next.market ||
+    previous.offerFingerprint !== next.offerFingerprint
+  );
+}
+
+export function createAddToCartIntent({
+  agreement,
+  projection,
+  variantId,
+  quantity
+}: {
+  agreement: AddToCartAgreement;
+  projection: AddToCartProjection;
+  variantId: string | null;
+  quantity: number;
+}): AddToCartIntent | null {
+  if (agreement.contextMarket === null) {
     return null;
   }
-  return variantAttributesLabel(variant.attributes, variant.sku);
+  const exact = isProductCommerceAgreement(
+    {
+      contextStatus: agreement.contextStatus,
+      contextMarket: agreement.contextMarket,
+      contextGeneration: agreement.contextGeneration,
+      contextVersion: agreement.contextVersion,
+      locale: agreement.locale,
+      productId: agreement.productId,
+      variantId,
+      offerFingerprint: agreement.offerFingerprint
+    },
+    projection
+  );
+  if (!exact || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+    return null;
+  }
+
+  return {
+    productId: projection.productId,
+    variantId,
+    quantity,
+    marketAtAdd: agreement.contextMarket
+  };
+}
+
+function variantLabel(variant: PublicVariant | null) {
+  return variant
+    ? variantAttributesLabel(variant.attributes, variant.sku)
+    : null;
 }
 
 export function AddToCart({
   locale,
-  market,
   title,
-  productId,
-  productType,
-  available,
-  inStock,
-  variants,
-  priceMinor,
-  currencyCode
+  agreement,
+  projection,
+  variants
 }: {
   locale: Locale;
-  market: MarketCode;
   title: string;
-  productId: string;
-  productType: 'pdf_pattern' | 'physical_finished';
-  available: boolean;
-  inStock: boolean;
+  agreement: AddToCartAgreement;
+  projection: AddToCartProjection;
   variants: PublicVariant[];
-  priceMinor: number | null;
-  currencyCode: CurrencyCode | null;
 }) {
   const t = copy[locale];
-  const firstAvailable = useMemo(() => variants.find((variant) => variant.enabled && variant.stock) ?? null, [variants]);
-  const [selectedId, setSelectedId] = useState(firstAvailable?.variant_id ?? '');
+  const [selectedId, setSelectedId] = useState('');
   const [added, setAdded] = useState(false);
+  const [quoteFailed, setQuoteFailed] = useState(false);
   const [showSticky, setShowSticky] = useState(false);
+  const [submission, setSubmission] = useState<{
+    requestId: number;
+    intent: AddToCartIntent;
+    completed: boolean;
+  } | null>(null);
   const actionRef = useRef<HTMLDivElement | null>(null);
-  const {addLine} = useCart();
-  const needsVariant = productType === 'physical_finished' && variants.length > 0;
-  const selectedVariant = variants.find((variant) => variant.variant_id === selectedId) ?? null;
-  const canAdd = canAddToCart({available, productType, inStock, needsVariant, selectedVariant});
+  const selectionIdentity = useRef<ProjectionSelectionIdentity>({
+    productId: projection.productId,
+    market: projection.market,
+    offerFingerprint: projection.offerFingerprint
+  });
+  const submissionSequence = useRef(0);
+  const { addLine, pending: cartPending, quote } = useCart();
+  const currentSelectionIdentity = {
+    productId: projection.productId,
+    market: projection.market,
+    offerFingerprint: projection.offerFingerprint
+  };
+  const selectionBelongsToProjection = !shouldResetVariantSelection(
+    selectionIdentity.current,
+    currentSelectionIdentity
+  );
+  const needsVariant =
+    projection.productType === 'physical_finished' && variants.length > 0;
+  const selectedVariant =
+    selectionBelongsToProjection
+      ? variants.find((variant) => variant.variant_id === selectedId) ?? null
+      : null;
+  const variantId = needsVariant ? selectedVariant?.variant_id ?? null : null;
+  const intent = createAddToCartIntent({
+    agreement,
+    projection,
+    variantId,
+    quantity: 1
+  });
+  const submitting = submission !== null;
+  const canAdd = intent !== null && !submitting;
   const selectedPrice =
     selectedVariant?.currency_code && selectedVariant.price_minor !== null
       ? {
           amountMinor: selectedVariant.price_minor,
           currencyCode: selectedVariant.currency_code
         }
-      : currencyCode && priceMinor !== null
-        ? {amountMinor: priceMinor, currencyCode}
+      : projection.currencyCode && projection.priceMinor !== null
+        ? {
+            amountMinor: projection.priceMinor,
+            currencyCode: projection.currencyCode
+          }
         : null;
   const selectedPriceLabel = selectedPrice
-    ? formatMoney({amountMinor: selectedPrice.amountMinor, currencyCode: selectedPrice.currencyCode})
+    ? formatMoney({
+        amountMinor: selectedPrice.amountMinor,
+        currencyCode: selectedPrice.currencyCode
+      })
     : null;
   const selectedLabel = variantLabel(selectedVariant);
-  const actionLabel = productType === 'pdf_pattern' ? t.addPdf : t.add;
+  const actionLabel =
+    projection.productType === 'pdf_pattern' ? t.addPdf : t.add;
+  const blockedReason = submitting
+    ? t.adding
+    : quoteFailed
+      ? t.quoteFailed
+      : !projection.available || !projection.inStock
+        ? t.unavailable
+        : needsVariant && !selectedVariant
+          ? t.select
+          : !intent
+            ? t.stale
+            : null;
+
+  useEffect(() => {
+    const nextIdentity = {
+      productId: projection.productId,
+      market: projection.market,
+      offerFingerprint: projection.offerFingerprint
+    };
+    if (shouldResetVariantSelection(selectionIdentity.current, nextIdentity)) {
+      submissionSequence.current += 1;
+      setSelectedId('');
+      setAdded(false);
+      setQuoteFailed(false);
+      setSubmission(null);
+    }
+    selectionIdentity.current = nextIdentity;
+  }, [projection.market, projection.offerFingerprint, projection.productId]);
+
+  useEffect(() => {
+    if (!submission?.completed || cartPending) {
+      return;
+    }
+    const quoteMatchesIntent =
+      quote !== null &&
+      quote.market === submission.intent.marketAtAdd &&
+      quote.lines.some(
+        (line) =>
+          line.productId === submission.intent.productId &&
+          (line.variantId ?? null) === (submission.intent.variantId ?? null)
+      );
+    setAdded(quoteMatchesIntent);
+    setQuoteFailed(!quoteMatchesIntent);
+    setSubmission(null);
+  }, [cartPending, quote, submission]);
 
   useEffect(() => {
     let frame = 0;
@@ -101,7 +258,7 @@ export function AddToCart({
       });
     };
     updateSticky();
-    window.addEventListener('scroll', updateSticky, {passive: true});
+    window.addEventListener('scroll', updateSticky, { passive: true });
     window.addEventListener('resize', updateSticky);
     return () => {
       cancelAnimationFrame(frame);
@@ -110,13 +267,37 @@ export function AddToCart({
     };
   }, []);
 
-  function addCurrentLine() {
-    void addLine({
-      productId,
-      variantId: selectedVariant?.variant_id ?? null,
-      quantity: 1,
-      marketAtAdd: market
-    }).then(() => setAdded(true));
+  async function addCurrentLine() {
+    const currentIntent = createAddToCartIntent({
+      agreement,
+      projection,
+      variantId,
+      quantity: 1
+    });
+    if (!currentIntent || submission) {
+      return;
+    }
+
+    const requestId = ++submissionSequence.current;
+    setAdded(false);
+    setQuoteFailed(false);
+    setSubmission({ requestId, intent: currentIntent, completed: false });
+    try {
+      await addLine(currentIntent);
+      setSubmission((current) =>
+        current?.requestId === requestId
+          ? { ...current, completed: true }
+          : current
+      );
+    } catch {
+      if (submissionSequence.current !== requestId) {
+        return;
+      }
+      setSubmission((current) =>
+        current?.requestId === requestId ? null : current
+      );
+      setQuoteFailed(true);
+    }
   }
 
   return (
@@ -128,7 +309,10 @@ export function AddToCart({
           </p>
           {selectedLabel ? (
             <p className="text-sm text-[var(--muted-foreground)]">
-              {t.selected}: <span className="font-semibold text-[var(--foreground)]">{selectedLabel}</span>
+              {t.selected}:{' '}
+              <span className="font-semibold text-[var(--foreground)]">
+                {selectedLabel}
+              </span>
             </p>
           ) : null}
         </div>
@@ -136,29 +320,49 @@ export function AddToCart({
       {needsVariant ? (
         <VariantSelector
           variants={variants}
-          legend={locale === 'vi' ? 'Tuy chon' : 'Options'}
-          inStockLabel={locale === 'vi' ? 'Con hang' : 'In stock'}
-          outOfStockLabel={locale === 'vi' ? 'Het hang' : 'Out of stock'}
+          legend={t.options}
+          inStockLabel={t.inStock}
+          outOfStockLabel={t.outOfStock}
           selectedId={selectedId}
-          onSelectedIdChange={setSelectedId}
+          onSelectedIdChange={(nextId) => {
+            setSelectedId(nextId);
+            setAdded(false);
+            setQuoteFailed(false);
+          }}
         />
       ) : null}
-      {!canAdd ? <p className="text-sm font-semibold text-[var(--warning)]">{t.select}</p> : null}
+      {blockedReason ? (
+        <p
+          id="add-to-cart-reason"
+          className="text-sm font-semibold text-[var(--warning)]"
+        >
+          {blockedReason}
+        </p>
+      ) : null}
       <div ref={actionRef}>
         <Button
           disabled={!canAdd}
-          onClick={addCurrentLine}
+          aria-describedby={blockedReason ? 'add-to-cart-reason' : undefined}
+          onClick={() => void addCurrentLine()}
           className="min-h-12 w-full text-base transition-transform active:scale-[0.99]"
         >
-          {actionLabel}
+          {submitting ? t.adding : actionLabel}
         </Button>
       </div>
       {added ? (
         <Alert variant="success">
           <div className="flex flex-wrap items-center gap-3">
             <span>{t.added}</span>
-            <Link className="font-semibold underline" href={getCartPath(locale)}>{t.view}</Link>
-            <button className="font-semibold underline" type="button" onClick={() => setAdded(false)}>{t.continue}</button>
+            <Link className="font-semibold underline" href={getCartPath(locale)}>
+              {t.view}
+            </Link>
+            <button
+              className="font-semibold underline"
+              type="button"
+              onClick={() => setAdded(false)}
+            >
+              {t.continue}
+            </button>
           </div>
         </Alert>
       ) : null}
@@ -172,11 +376,19 @@ export function AddToCart({
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{title}</p>
             <p className="truncate text-xs text-[var(--muted-foreground)]">
-              {[selectedLabel, selectedPriceLabel].filter(Boolean).join(' · ') || (canAdd ? actionLabel : t.outOfStock)}
+              {blockedReason ??
+                ([selectedLabel, selectedPriceLabel].filter(Boolean).join(' · ') ||
+                  actionLabel)}
             </p>
           </div>
-          <Button type="button" disabled={!canAdd} onClick={addCurrentLine} className="min-h-10 shrink-0 px-3 text-sm">
-            {actionLabel}
+          <Button
+            type="button"
+            disabled={!canAdd}
+            aria-describedby={blockedReason ? 'add-to-cart-reason' : undefined}
+            onClick={() => void addCurrentLine()}
+            className="min-h-11 shrink-0 px-3 text-sm"
+          >
+            {submitting ? t.adding : actionLabel}
           </Button>
         </div>
       </div>
