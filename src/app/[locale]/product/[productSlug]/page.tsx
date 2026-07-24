@@ -14,7 +14,6 @@ import {
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import type { Json } from '@/types/supabase';
-import type { CurrencyCode } from '@/catalog/money';
 import { localizedMetadata, publicStorageUrl } from '@/catalog/metadata';
 import { marketForLocale } from '@/catalog/seo-market';
 import {
@@ -26,10 +25,8 @@ import {
 } from '@/content/seo/json-ld';
 import { getCachedCatalogProduct, getCachedCatalogProducts } from '@/catalog/public-cache';
 import { ProductGallery, type ProductGalleryImage } from '@/components/catalog/product-gallery';
-import { UnavailableMarket } from '@/components/catalog/unavailable-market';
-import { AddToCart } from '@/components/catalog/add-to-cart';
+import { ProductCommerce } from '@/components/catalog/product-commerce';
 import { WishlistHeart } from '@/components/catalog/wishlist-heart';
-import type { PublicVariant } from '@/components/catalog/variant-selector';
 import { ProductDetailTabs } from '@/components/catalog/product-detail-tabs';
 import { ProductReviews } from '@/components/reviews/product-reviews';
 import { getApprovedProductReviews } from '@/reviews/queries';
@@ -52,40 +49,6 @@ function stringRecord(value: Json): Record<string, string> {
 function localizedSlugs(value: Json) {
   const slugs = stringRecord(value);
   return { vi: slugs.vi, en: slugs.en };
-}
-
-function publicVariants(value: Json): PublicVariant[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.flatMap((item) => {
-    if (!item || Array.isArray(item) || typeof item !== 'object') {
-      return [];
-    }
-    const row = item as Record<string, Json | undefined>;
-    if (
-      typeof row.variant_id !== 'string' ||
-      typeof row.sku !== 'string' ||
-      typeof row.display_order !== 'number' ||
-      typeof row.enabled !== 'boolean' ||
-      typeof row.stock !== 'boolean'
-    ) {
-      return [];
-    }
-    return [
-      {
-        variant_id: row.variant_id,
-        sku: row.sku,
-        display_order: row.display_order,
-        enabled: row.enabled,
-        stock: row.stock,
-        currency_code:
-          row.currency_code === 'VND' || row.currency_code === 'USD' ? row.currency_code : null,
-        price_minor: typeof row.price_minor === 'number' ? row.price_minor : null,
-        attributes: stringRecord(row.attributes ?? {})
-      }
-    ];
-  });
 }
 
 function mediaImagesFromProjection({
@@ -344,10 +307,9 @@ export default async function ProductPage({ params }: { params: Params }) {
   const { locale, productSlug } = await params;
   setRequestLocale(locale);
   const market = marketForLocale(locale);
-  const [product, t, marketT, catalogT] = await Promise.all([
+  const [product, t, catalogT] = await Promise.all([
     getCachedCatalogProduct(locale, market, productSlug),
     getTranslations('product'),
-    getTranslations('market'),
     getTranslations('catalog')
   ]);
   if (!product) {
@@ -356,14 +318,9 @@ export default async function ProductPage({ params }: { params: Params }) {
   const imageUrl =
     publicStorageUrl(product.primary_image_bucket, product.primary_image_path) ?? null;
   const specs = stringRecord(product.specifications);
-  const variants = publicVariants(product.variants);
   const productType =
     product.product_type === 'physical_finished' ? 'physical_finished' : 'pdf_pattern';
   const typeLabel = productType === 'pdf_pattern' ? t('pdfPattern') : t('finishedItem');
-  const otherMarket =
-    product.other_market_code === 'vn' || product.other_market_code === 'intl'
-      ? product.other_market_code
-      : null;
   const productPath = getProductPath(locale, product.slug);
   const [reviews] = await Promise.all([
     getApprovedProductReviews({ productId: product.product_id })
@@ -377,11 +334,6 @@ export default async function ProductPage({ params }: { params: Params }) {
   });
   const reviewList = reviews.status === 'success' ? reviews.reviews : [];
   const averageRating = reviewAverage(reviewList);
-  const currencyCode: CurrencyCode | null =
-    product.currency_code === 'VND' || product.currency_code === 'USD'
-      ? product.currency_code
-      : null;
-
   return (
     <>
       <JsonLd
@@ -467,31 +419,14 @@ export default async function ProductPage({ params }: { params: Params }) {
               {product.description}
             </p>
           </div>
-          {!product.available ? (
-            <UnavailableMarket
-              title={t('unavailableTitle')}
-              body={t('unavailableBody')}
-              otherMarket={otherMarket}
-              returnTo={productPath}
-              switchLabel={
-                otherMarket === 'vn' ? marketT('switchToVietnam') : marketT('switchToInternational')
-              }
-            />
-          ) : null}
-          {product.available ? (
-            <AddToCart
-              locale={locale}
-              market={market}
-              title={product.title}
-              productId={product.product_id}
-              productType={productType}
-              available={product.available}
-              inStock={product.in_stock}
-              variants={variants}
-              priceMinor={product.price_minor}
-              currencyCode={currencyCode}
-            />
-          ) : null}
+          <ProductCommerce
+            locale={locale}
+            productSlug={product.slug}
+            productId={product.product_id}
+            title={product.title}
+            productType={productType}
+            returnTo={productPath}
+          />
           <PurchaseInfo productType={productType} locale={locale} />
           <TrustBadges productType={productType} locale={locale} />
         </section>
