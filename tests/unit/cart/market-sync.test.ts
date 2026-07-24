@@ -4,7 +4,6 @@ import type { CartIntentLine } from '@/cart/types';
 import type { CartQuote, CartQuoteLine } from '@/checkout/types';
 import type { Locale } from '@/i18n/routing';
 
-const PLAN_09_12 = 'expected red: Plan 09-12 owns cart market synchronization';
 const modulePath = '@/cart/market-sync';
 const now = '2026-07-23T00:00:00.000Z';
 
@@ -190,8 +189,8 @@ function readyState(overrides: Partial<CartMarketSyncState> = {}): CartMarketSyn
 }
 
 describe('cart market synchronization contract', () => {
-  it.fails(
-    `${PLAN_09_12}; empty, digital, physical variant, and mixed intents start exactly one authoritative request`,
+  it(
+    'empty, digital, physical variant, and mixed intents start exactly one authoritative request',
     async () => {
       const sync = await loadMarketSync();
       const fixtures = [
@@ -234,7 +233,7 @@ describe('cart market synchronization contract', () => {
     }
   );
 
-  it.fails(`${PLAN_09_12}; VN to INTL and INTL to VN requests increase monotonically`, async () => {
+  it('VN to INTL and INTL to VN requests increase monotonically', async () => {
     const sync = await loadMarketSync();
     const toIntl = sync.beginMarketRequote(readyState(), {
       locale: 'vi',
@@ -260,7 +259,7 @@ describe('cart market synchronization contract', () => {
     });
   });
 
-  it.fails(`${PLAN_09_12}; late success and error responses are exact no-ops`, async () => {
+  it('late success and error responses are exact no-ops', async () => {
     const sync = await loadMarketSync();
     const first = sync.beginMarketRequote(readyState(), {
       locale: 'vi',
@@ -286,8 +285,8 @@ describe('cart market synchronization contract', () => {
     ).toBe(second.state);
   });
 
-  it.fails(
-    `${PLAN_09_12}; newest success atomically replaces all authoritative quote fields`,
+  it(
+    'newest success atomically replaces all authoritative quote fields',
     async () => {
       const sync = await loadMarketSync();
       const begun = sync.beginMarketRequote(readyState(), {
@@ -325,8 +324,8 @@ describe('cart market synchronization contract', () => {
     }
   );
 
-  it.fails(
-    `${PLAN_09_12}; removed, unavailable, repriced, currency, and quantity changes are grouped facts`,
+  it(
+    'removed, unavailable, repriced, currency, and quantity changes are grouped facts',
     async () => {
       const sync = await loadMarketSync();
       const previous = cartQuote('en', 'intl', [
@@ -398,8 +397,8 @@ describe('cart market synchronization contract', () => {
     }
   );
 
-  it.fails(
-    `${PLAN_09_12}; mutation or requote failure keeps intent, rolls back context when required, and exposes bounded retry`,
+  it(
+    'mutation or requote failure keeps intent, rolls back context when required, and exposes bounded retry',
     async () => {
       const sync = await loadMarketSync();
       const begun = sync.beginMarketRequote(readyState(), {

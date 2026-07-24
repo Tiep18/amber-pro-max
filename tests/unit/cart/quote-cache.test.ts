@@ -5,8 +5,6 @@ import type { CartIntentLine } from '@/cart/types';
 import type { CartQuote } from '@/checkout/types';
 import type { Locale } from '@/i18n/routing';
 
-const PLAN_09_12 = 'expected red: Plan 09-12 owns resolved-market quote cache identity';
-
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
   return {
@@ -78,8 +76,8 @@ describe('cart quote cache', () => {
     );
   });
 
-  it.fails(
-    `${PLAN_09_12}; reads only an exact locale, market, context-version, line, TTL, and quote-market match`,
+  it(
+    'reads only an exact locale, market, context-version, line, TTL, and quote-market match',
     () => {
       const storage = memoryStorage();
       const identity = {
@@ -113,7 +111,7 @@ describe('cart quote cache', () => {
     }
   );
 
-  it.fails(`${PLAN_09_12}; rejects an authoritative quote whose market mismatches identity`, () => {
+  it('rejects an authoritative quote whose market mismatches identity', () => {
     const storage = memoryStorage();
     const identity = {
       locale: 'vi',
@@ -132,7 +130,7 @@ describe('cart quote cache', () => {
     expect(marketAwareCache.readCartQuoteCache({ ...identity, now: 2_000 })).toBeNull();
   });
 
-  it.fails(`${PLAN_09_12}; rejects legacy v1 payloads without migration`, () => {
+  it('rejects legacy v1 payloads without migration', () => {
     const storage = memoryStorage();
     storage.setItem(
       'amigurumi.cartQuote.v1',
@@ -156,7 +154,7 @@ describe('cart quote cache', () => {
     ).toBeNull();
   });
 
-  it.fails(`${PLAN_09_12}; clears the current cache without exposing stored payloads`, () => {
+  it('clears the current cache without exposing stored payloads', () => {
     const storage = memoryStorage();
     const identity = {
       locale: 'vi',
