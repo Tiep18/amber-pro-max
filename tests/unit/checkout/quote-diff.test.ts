@@ -1,4 +1,6 @@
 import {describe, expect, it} from 'vitest';
+import {readFileSync} from 'node:fs';
+import {join} from 'node:path';
 import {diffMaterialQuotes} from '@/checkout/market-revalidation';
 import {diffCartQuotes, quoteCartIntent, type QuoteCatalogProduct} from '@/checkout/quote';
 import type {CartIntentLine} from '@/cart/types';
@@ -318,5 +320,22 @@ describe('cart quote hydration', () => {
         expect.objectContaining({type: 'total_changed', previousTotalMinor: 3100, currentTotalMinor: 3350})
       ])
     );
+  });
+});
+
+describe('material quote dialog accessibility contract', () => {
+  it('uses a modal focus trap and cancels without accepting on every dismissal path', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'src/components/checkout/quote-diff-dialog.tsx'),
+      'utf8'
+    );
+
+    expect(source).toContain('<DialogPrimitive.Root open');
+    expect(source).toContain('onOpenChange={(open) => !open && onCancel()}');
+    expect(source).toContain('aria-describedby="quote-diff-description"');
+    expect(source).toContain('onCloseAutoFocus={restoreDestinationFocus}');
+    expect(source).toContain('<DialogPrimitive.Close asChild>');
+    expect(source).toContain('[aria-labelledby="shipping-country-label"]');
+    expect(source).toContain('onClick={onConfirm}');
   });
 });

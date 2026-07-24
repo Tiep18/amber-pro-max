@@ -24,7 +24,9 @@ export function CartLine({
   copy,
   onQuantity,
   onRemove,
-  compact = false
+  compact = false,
+  commerceMasked = false,
+  removed = false
 }: {
   line: CartQuoteLine;
   intentLine?: CartIntentLine;
@@ -32,23 +34,31 @@ export function CartLine({
   onQuantity?: (quantity: number) => void;
   onRemove?: () => void;
   compact?: boolean;
+  commerceMasked?: boolean;
+  removed?: boolean;
 }) {
   const typeLabel = line.fulfillmentType === 'digital' ? copy.pdf : copy.physical;
   const Icon = line.fulfillmentType === 'digital' ? FileText : Package;
-  const price = formatMoney({
-    amountMinor: line.lineSubtotalMinor,
-    currencyCode: line.currencyCode
-  });
+  const lineUnavailable =
+    line.status === 'unavailable' || line.status === 'invalid_variant' || removed;
+  const price =
+    commerceMasked || lineUnavailable
+      ? null
+      : formatMoney({
+          amountMinor: line.lineSubtotalMinor,
+          currencyCode: line.currencyCode
+        });
   const disabled = !intentLine;
+  const quantityDisabled = disabled || commerceMasked || lineUnavailable;
   const imageUrl = resolvePublicProductImageUrl(line.imageUrl);
   const compactNotice =
-    line.status === 'unavailable' || line.status === 'invalid_variant'
+    lineUnavailable
       ? copy.unavailable
       : line.status === 'quantity_capped'
         ? `${copy.quantityReduced} ${line.requestedQuantity} -> ${line.quantity}`
         : line.variantLabel;
   const compactNoticeTone =
-    line.status === 'unavailable' || line.status === 'invalid_variant'
+    lineUnavailable
       ? 'text-[var(--destructive)]'
       : line.status === 'quantity_capped'
         ? 'text-[var(--warning)]'
@@ -84,9 +94,16 @@ export function CartLine({
           ) : null}
         </div>
 
-        <p className="shrink-0 self-start text-sm font-semibold tabular-nums text-[var(--accent)]">
-          {price}
-        </p>
+        {price ? (
+          <p className="shrink-0 self-start text-sm font-semibold tabular-nums text-[var(--accent)]">
+            {price}
+          </p>
+        ) : (
+          <span
+            aria-hidden="true"
+            className="h-4 w-16 animate-pulse rounded bg-[var(--surface-muted)]"
+          />
+        )}
 
         <div className="col-span-2 col-start-2 flex items-center justify-between gap-3 self-end">
           <div className="inline-grid grid-cols-[40px_32px_40px] items-center overflow-hidden rounded-[8px] border border-[var(--border)]/70 bg-[var(--surface)]/40">
@@ -94,7 +111,7 @@ export function CartLine({
               variant="ghost"
               aria-label={`${copy.decrease} ${line.title}`}
               className="h-10 min-h-10 w-10 rounded-none border-r border-[var(--border)]/55 !px-0 text-base font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]"
-              disabled={disabled || line.quantity <= 1}
+              disabled={quantityDisabled || line.quantity <= 1}
               onClick={() => onQuantity?.(line.quantity - 1)}
             >
               -
@@ -106,7 +123,7 @@ export function CartLine({
               variant="ghost"
               aria-label={`${copy.increase} ${line.title}`}
               className="h-10 min-h-10 w-10 rounded-none border-l border-[var(--border)]/55 !px-0 text-base font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]"
-              disabled={disabled}
+              disabled={quantityDisabled}
               onClick={() => onQuantity?.(line.quantity + 1)}
             >
               +
@@ -162,7 +179,7 @@ export function CartLine({
             </p>
           ) : null}
         </div>
-        {line.status === 'unavailable' || line.status === 'invalid_variant' ? (
+        {lineUnavailable ? (
           <p className="text-sm font-semibold text-[var(--destructive)]">{copy.unavailable}</p>
         ) : null}
         {line.status === 'quantity_capped' ? (
@@ -173,13 +190,20 @@ export function CartLine({
       </div>
 
       <div className="col-span-2 grid grid-cols-[1fr_auto] items-center gap-3 border-t border-[var(--border)]/60 pt-3 sm:col-span-1 sm:grid-cols-1 sm:justify-items-end sm:border-t-0 sm:pt-0">
-        <p className="text-lg font-semibold tabular-nums text-[var(--brand)]">{price}</p>
+        {price ? (
+          <p className="text-lg font-semibold tabular-nums text-[var(--brand)]">{price}</p>
+        ) : (
+          <span
+            aria-hidden="true"
+            className="h-5 w-24 animate-pulse rounded bg-[var(--surface-muted)]"
+          />
+        )}
         <div className="inline-grid grid-cols-[40px_34px_40px] items-center overflow-hidden rounded-[8px] border border-[var(--border)]/70 bg-[var(--surface)]/55">
           <Button
             variant="ghost"
             aria-label={`${copy.decrease} ${line.title}`}
             className="h-10 min-h-10 w-10 rounded-none border-r border-[var(--border)]/55 !px-0 text-base font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]"
-            disabled={disabled || line.quantity <= 1}
+            disabled={quantityDisabled || line.quantity <= 1}
             onClick={() => onQuantity?.(line.quantity - 1)}
           >
             -
@@ -191,7 +215,7 @@ export function CartLine({
             variant="ghost"
             aria-label={`${copy.increase} ${line.title}`}
             className="h-10 min-h-10 w-10 rounded-none border-l border-[var(--border)]/55 !px-0 text-base font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]"
-            disabled={disabled}
+            disabled={quantityDisabled}
             onClick={() => onQuantity?.(line.quantity + 1)}
           >
             +

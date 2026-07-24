@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useCart } from './cart-provider';
 import { CartLine } from './cart-line';
+import { CartChangeSummary } from './cart-change-summary';
 
 const copy = {
   en: {
@@ -31,7 +32,13 @@ const copy = {
     remove: 'Remove',
     decrease: 'Decrease quantity for',
     increase: 'Increase quantity for',
-    paidNote: 'PDF patterns are delivered only after the full order is confirmed paid.'
+    paidNote: 'PDF patterns are delivered only after the full order is confirmed paid.',
+    updating: (market: string) => `Updating cart for ${market}…`,
+    checking: 'Checking cart prices and availability…',
+    marketVn: 'Vietnam',
+    marketIntl: 'International',
+    refreshError: 'We couldn’t refresh your cart. Try again before checkout.',
+    retry: 'Try again'
   },
   vi: {
     title: 'Gio hang',
@@ -52,17 +59,52 @@ const copy = {
     remove: 'Xoa',
     decrease: 'Giam so luong',
     increase: 'Tang so luong',
-    paidNote: 'Mau PDF chi duoc cung cap sau khi toan bo don hang duoc xac nhan da thanh toan.'
+    paidNote: 'Mẫu PDF chỉ được cung cấp sau khi toàn bộ đơn hàng được xác nhận đã thanh toán.',
+    updating: (market: string) => `Đang cập nhật giỏ hàng cho ${market}…`,
+    checking: 'Đang kiểm tra giá và tình trạng hàng trong giỏ…',
+    marketVn: 'Việt Nam',
+    marketIntl: 'Quốc tế',
+    refreshError: 'Không thể cập nhật giỏ hàng. Hãy thử lại trước khi thanh toán.',
+    retry: 'Thử lại'
   }
 } as const;
 
 export function CartPageContent({ locale }: { locale: Locale }) {
   const t = copy[locale];
-  const { quote, cart, pending, updateQuantity, removeLine, removedLine, undoRemove } = useCart();
-  const hasBlocking = quote?.status === 'blocked';
-  const money = quote?.currencyCode
+  const {
+    quote,
+    previousQuote,
+    market,
+    cart,
+    pending,
+    changes,
+    blockReason,
+    updateQuantity,
+    removeLine,
+    removedLine,
+    undoRemove,
+    retry
+  } = useCart();
+  const removedLineIds = new Set(changes.removed.map((change) => change.lineId));
+  const currentLineIds = new Set(quote?.lines.map((line) => line.lineId) ?? []);
+  const displayLines = [
+    ...(quote?.lines ?? (pending || blockReason ? (previousQuote?.lines ?? []) : [])),
+    ...((quote ? previousQuote?.lines : []) ?? []).filter(
+      (line) => removedLineIds.has(line.lineId) && !currentLineIds.has(line.lineId)
+    )
+  ];
+  const hasBlocking =
+    quote?.status === 'blocked' ||
+    changes.unavailable.length > 0 ||
+    changes.removed.length > 0;
+  const quoteUnsafe = blockReason !== null || pending || !quote;
+  const money = !quoteUnsafe && quote.currencyCode
     ? formatMoney({ amountMinor: quote.subtotalMinor, currencyCode: quote.currencyCode })
-    : '-';
+    : null;
+  const updatingMessage =
+    market === null
+      ? t.checking
+      : t.updating(market === 'intl' ? t.marketIntl : t.marketVn);
 
   return (
     <main className="container grid gap-5 py-7 lg:gap-6 lg:py-9">
@@ -92,7 +134,60 @@ export function CartPageContent({ locale }: { locale: Locale }) {
               </Button>
             </Alert>
           ) : null}
-          {!quote || quote.lines.length === 0 ? (
+          {pending ? (
+            <Alert
+              variant="warning"
+              aria-live="polite"
+              aria-atomic="true"
+              className="min-h-14 px-4 py-3 text-sm"
+            >
+              {updatingMessage}
+            </Alert>
+          ) : null}
+          {blockReason === 'context_error' || blockReason === 'requote_failed' ? (
+            <Alert variant="destructive" className="grid gap-3 px-4 py-3 text-sm">
+              <p>{t.refreshError}</p>
+              <Button
+                variant="secondary"
+                className="min-h-11 w-fit px-4"
+                onClick={() => void retry()}
+              >
+                {t.retry}
+              </Button>
+            </Alert>
+          ) : null}
+          {!pending && !blockReason ? (
+            <CartChangeSummary
+              locale={locale}
+              changes={changes}
+              previousQuote={previousQuote}
+              quote={quote}
+            />
+          ) : null}
+          {displayLines.length === 0 && (cart?.lines.length ?? 0) > 0 ? (
+            <Card
+              className="grid gap-4 bg-[var(--surface-paper)] p-4"
+              aria-busy="true"
+              aria-label={updatingMessage}
+            >
+              {cart?.lines.map((line) => (
+                <div
+                  key={`${line.productId}:${line.variantId ?? ''}`}
+                  className="grid grid-cols-[96px_1fr] gap-4"
+                  aria-hidden="true"
+                >
+                  <div className="aspect-square animate-pulse rounded-[8px] bg-[var(--surface-muted)]" />
+                  <div className="grid content-center gap-3">
+                    <div className="h-4 w-2/3 animate-pulse rounded bg-[var(--surface-muted)]" />
+                    <div className="h-4 w-20 animate-pulse rounded bg-[var(--surface-muted)]" />
+                    <p className="text-sm text-[var(--muted-foreground)]">
+                      {line.quantity}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </Card>
+          ) : displayLines.length === 0 && !pending && !blockReason ? (
             <Card className="grid justify-items-center gap-4 bg-[var(--surface-paper)] py-10 text-center shadow-[0_18px_60px_rgb(73_52_32/8%)]">
               <div className="grid h-16 w-16 place-items-center rounded-[18px] bg-[var(--surface-muted)]/72 text-[var(--accent)] ring-1 ring-[var(--border)]/55">
                 <ShoppingBag aria-hidden="true" className="h-7 w-7" strokeWidth={1.5} />
@@ -112,8 +207,8 @@ export function CartPageContent({ locale }: { locale: Locale }) {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4" aria-busy={pending}>
-              {quote.lines.map((line) => {
+            <div className="grid gap-4" aria-busy={quoteUnsafe}>
+              {displayLines.map((line) => {
                 const intent = cart?.lines.find(
                   (candidate) =>
                     candidate.productId === line.productId &&
@@ -125,7 +220,11 @@ export function CartPageContent({ locale }: { locale: Locale }) {
                     line={line}
                     intentLine={intent}
                     copy={t}
-                    onQuantity={(quantity) => intent && void updateQuantity(intent, quantity)}
+                    commerceMasked={quoteUnsafe}
+                    removed={removedLineIds.has(line.lineId)}
+                    onQuantity={(quantity) =>
+                      !quoteUnsafe && intent && void updateQuantity(intent, quantity)
+                    }
                     onRemove={() => intent && removeLine(intent)}
                   />
                 );
@@ -145,15 +244,29 @@ export function CartPageContent({ locale }: { locale: Locale }) {
             ) : null}
             <div className="flex justify-between gap-3 text-sm tabular-nums">
               <span className="text-[var(--muted-foreground)]">{t.subtotal}</span>
-              <strong className="text-[var(--foreground)]">{money}</strong>
+              {money ? (
+                <strong className="text-[var(--foreground)]">{money}</strong>
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="h-4 w-24 animate-pulse rounded bg-[var(--surface-muted)]"
+                />
+              )}
             </div>
             <p className="text-sm leading-6 text-[var(--muted-foreground)]">{t.shipping}</p>
             <Separator className="border-[var(--border)]/70" />
             <div className="flex justify-between gap-3 text-lg font-semibold tabular-nums sm:text-xl">
               <span>{t.total}</span>
-              <span className="text-[var(--brand)]">{money}</span>
+              {money ? (
+                <span className="text-[var(--brand)]">{money}</span>
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="h-5 w-28 animate-pulse rounded bg-[var(--surface-muted)]"
+                />
+              )}
             </div>
-            {hasBlocking || !quote?.lines.length ? (
+            {hasBlocking || quoteUnsafe || !quote?.lines.length ? (
               <Button className="min-h-12 w-full" disabled>
                 {t.checkout}
               </Button>

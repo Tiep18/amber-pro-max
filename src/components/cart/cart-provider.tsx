@@ -45,6 +45,8 @@ type RemovedLine = {
 type CartContextValue = {
   cart: GuestCartIntent | null;
   quote: CartQuote | null;
+  previousQuote: CartQuote | null;
+  market: MarketCode | null;
   pending: boolean;
   syncStatus: CartMarketSyncState['status'] | 'resolving';
   changes: CartMarketGroupedChanges;
@@ -414,6 +416,8 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
     () => ({
       cart,
       quote,
+      previousQuote: syncState?.previousQuote ?? null,
+      market: syncState?.committedMarket ?? storefrontContext.market,
       pending,
       syncStatus: !contextReady ? 'resolving' : (syncState?.status ?? 'resolving'),
       changes: syncState?.changes ?? emptyCartMarketChanges(),
@@ -443,6 +447,7 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
       retry,
       removeLine,
       removed,
+      storefrontContext.market,
       syncState,
       undoRemove,
       updateQuantity

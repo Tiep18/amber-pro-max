@@ -10,6 +10,7 @@ import { CartLine } from './cart-line';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { Sheet } from '@/components/ui/sheet';
+import { CartChangeSummary } from './cart-change-summary';
 
 const copy = {
   en: {
@@ -30,7 +31,11 @@ const copy = {
     quantityReduced: 'Quantity adjusted',
     remove: 'Remove',
     decrease: 'Decrease quantity for',
-    increase: 'Increase quantity for'
+    increase: 'Increase quantity for',
+    marketVn: 'Vietnam',
+    marketIntl: 'International',
+    refreshError: 'We couldn’t refresh your cart. Try again before checkout.',
+    retry: 'Try again'
   },
   vi: {
     cart: 'Gio hang',
@@ -50,16 +55,45 @@ const copy = {
     quantityReduced: 'So luong da dieu chinh',
     remove: 'Xoa',
     decrease: 'Giam so luong',
-    increase: 'Tang so luong'
+    increase: 'Tang so luong',
+    marketVn: 'Việt Nam',
+    marketIntl: 'Quốc tế',
+    refreshError: 'Không thể cập nhật giỏ hàng. Hãy thử lại trước khi thanh toán.',
+    retry: 'Thử lại'
   }
 } as const;
 
 export function MiniCart({ locale }: { locale: Locale }) {
   const t = copy[locale];
-  const { count, open, setOpen, quote, cart, pending, updateQuantity, removeLine } = useCart();
+  const {
+    count,
+    open,
+    setOpen,
+    quote,
+    previousQuote,
+    cart,
+    pending,
+    changes,
+    blockReason,
+    updateQuantity,
+    removeLine,
+    retry
+  } = useCart();
   const [mounted, setMounted] = useState(false);
   const visibleCount = mounted ? count : 0;
-  const hasBlocking = quote?.status === 'blocked';
+  const removedLineIds = new Set(changes.removed.map((change) => change.lineId));
+  const currentLineIds = new Set(quote?.lines.map((line) => line.lineId) ?? []);
+  const displayLines = [
+    ...(quote?.lines ?? (pending || blockReason ? (previousQuote?.lines ?? []) : [])),
+    ...((quote ? previousQuote?.lines : []) ?? []).filter(
+      (line) => removedLineIds.has(line.lineId) && !currentLineIds.has(line.lineId)
+    )
+  ];
+  const hasBlocking =
+    quote?.status === 'blocked' ||
+    changes.unavailable.length > 0 ||
+    changes.removed.length > 0;
+  const quoteUnsafe = blockReason !== null || pending || !quote;
 
   useEffect(() => {
     setMounted(true);
@@ -103,7 +137,7 @@ export function MiniCart({ locale }: { locale: Locale }) {
           className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6"
           aria-busy={pending}
         >
-          {pending && !quote ? (
+          {pending && displayLines.length === 0 ? (
             <div className="grid gap-5" aria-label={t.loading}>
               {[0, 1, 2].map((item) => (
                 <div key={item} className="grid grid-cols-[88px_1fr] gap-4">
@@ -117,7 +151,7 @@ export function MiniCart({ locale }: { locale: Locale }) {
               ))}
               <span className="sr-only">{t.loading}</span>
             </div>
-          ) : !quote || quote.lines.length === 0 ? (
+          ) : displayLines.length === 0 && !blockReason ? (
             <div className="grid min-h-[52dvh] place-content-center justify-items-center gap-4 text-center">
               <div className="grid h-16 w-16 place-items-center rounded-[18px] bg-[var(--surface-muted)]/72 text-[var(--accent)] ring-1 ring-[var(--border)]/55">
                 <ShoppingBag aria-hidden="true" className="h-7 w-7" strokeWidth={1.5} />
@@ -131,7 +165,7 @@ export function MiniCart({ locale }: { locale: Locale }) {
             </div>
           ) : (
             <div className="divide-y divide-[var(--border)]/65">
-              {quote.lines.map((line) => {
+              {displayLines.map((line) => {
                 const intent = cart?.lines.find(
                   (candidate) =>
                     candidate.productId === line.productId &&
@@ -144,7 +178,11 @@ export function MiniCart({ locale }: { locale: Locale }) {
                     intentLine={intent}
                     copy={t}
                     compact
-                    onQuantity={(quantity) => intent && void updateQuantity(intent, quantity)}
+                    commerceMasked={quoteUnsafe}
+                    removed={removedLineIds.has(line.lineId)}
+                    onQuantity={(quantity) =>
+                      !quoteUnsafe && intent && void updateQuantity(intent, quantity)
+                    }
                     onRemove={() => intent && removeLine(intent)}
                   />
                 );
@@ -153,22 +191,53 @@ export function MiniCart({ locale }: { locale: Locale }) {
           )}
         </div>
         <div className="grid gap-3 border-t border-[var(--border)]/70 bg-[var(--surface-paper)] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-18px_48px_rgb(73_52_32/8%)] sm:px-6">
+          {pending ? (
+            <Alert variant="warning" aria-live="polite" aria-atomic="true">
+              {t.loading}
+            </Alert>
+          ) : null}
+          {blockReason === 'context_error' || blockReason === 'requote_failed' ? (
+            <Alert variant="destructive" className="grid gap-3">
+              <p>{t.refreshError}</p>
+              <Button
+                variant="secondary"
+                className="min-h-11 w-fit px-4"
+                onClick={() => void retry()}
+              >
+                {t.retry}
+              </Button>
+            </Alert>
+          ) : null}
+          {!pending && !blockReason ? (
+            <CartChangeSummary
+              locale={locale}
+              changes={changes}
+              previousQuote={previousQuote}
+              quote={quote}
+              compact
+            />
+          ) : null}
           {hasBlocking ? <Alert variant="destructive">{t.blocked}</Alert> : null}
           <div className="flex items-end justify-between gap-3 tabular-nums">
             <div className="grid gap-0.5">
               <span className="text-sm text-[var(--muted-foreground)]">{t.subtotal}</span>
               <span className="text-xs text-[var(--muted-foreground)]">{t.shipping}</span>
             </div>
-            <strong className="text-xl text-[var(--accent)]">
-              {quote?.currencyCode
-                ? formatMoney({
-                    amountMinor: quote.subtotalMinor,
-                    currencyCode: quote.currencyCode
-                  })
-                : '-'}
-            </strong>
+            {!quoteUnsafe && quote.currencyCode ? (
+              <strong className="text-xl text-[var(--accent)]">
+                {formatMoney({
+                  amountMinor: quote.subtotalMinor,
+                  currencyCode: quote.currencyCode
+                })}
+              </strong>
+            ) : (
+              <span
+                aria-hidden="true"
+                className="h-5 w-24 animate-pulse rounded bg-[var(--surface-muted)]"
+              />
+            )}
           </div>
-          {hasBlocking || !quote?.lines.length ? (
+          {hasBlocking || quoteUnsafe || !quote?.lines.length ? (
             <Button className="min-h-12" disabled>
               {t.checkout}
             </Button>

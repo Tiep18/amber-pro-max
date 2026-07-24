@@ -461,4 +461,23 @@ describe('CartProvider storefront context integration', () => {
       /refreshCartQuoteAction\(\{[^}]*\b(?:market|contextVersion|price|fingerprint)\b/s
     );
   });
+
+  it('keeps cart intent visible while masking stale commerce and blocking checkout', () => {
+    const cartPageSource = readFileSync(
+      join(process.cwd(), 'src/components/cart/cart-page.tsx'),
+      'utf8'
+    );
+    const miniCartSource = readFileSync(
+      join(process.cwd(), 'src/components/cart/mini-cart.tsx'),
+      'utf8'
+    );
+
+    for (const source of [cartPageSource, miniCartSource]) {
+      expect(source).toContain('previousQuote');
+      expect(source).toContain('commerceMasked={quoteUnsafe}');
+      expect(source).toContain('CartChangeSummary');
+      expect(source).toContain("blockReason === 'requote_failed'");
+      expect(source).toContain('void retry()');
+    }
+  });
 });
