@@ -78,8 +78,8 @@ describe('static taxonomy route contract', () => {
     async (surface, path) => {
       const page = await source(path);
 
-      expect(page).toContain("market: 'vn'");
-      expect(page).toContain("market: 'intl'");
+      expect(page).toMatch(/projectionInput\(locale,\s*'vn'/);
+      expect(page).toMatch(/projectionInput\(locale,\s*'intl'/);
       expect(page).toContain(`surface: '${surface}'`);
       expect(page).toContain('new Map');
     }

@@ -161,6 +161,14 @@ export function getCollectionPath(locale: Locale, collectionSlug: string): `/${L
   return `/${locale}/${locale === 'vi' ? 'bo-suu-tap' : 'collection'}/${collectionSlug}`;
 }
 
+export function getTechniquePath(locale: Locale, techniqueSlug: string): `/${Locale}${string}` {
+  return `/${locale}/${locale === 'vi' ? 'ky-thuat' : 'technique'}/${encodeURIComponent(techniqueSlug)}`;
+}
+
+export function getTagPath(locale: Locale, tagSlug: string): `/${Locale}${string}` {
+  return `/${locale}/${locale === 'vi' ? 'the' : 'tag'}/${encodeURIComponent(tagSlug)}`;
+}
+
 export function getProductPath(locale: Locale, productSlug: string): `/${Locale}${string}` {
   return `/${locale}/${locale === 'vi' ? 'san-pham' : 'product'}/${productSlug}`;
 }
