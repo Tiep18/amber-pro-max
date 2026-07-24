@@ -29,9 +29,9 @@ export default async function LocaleLayout({
 
   setRequestLocale(locale);
   return (
-    <CartProvider locale={locale as Locale}>
-      <LocalizedRouteProvider>
-        <StorefrontContextProvider locale={locale as Locale}>
+    <LocalizedRouteProvider>
+      <StorefrontContextProvider locale={locale as Locale}>
+        <CartProvider locale={locale as Locale}>
           <WishlistProvider locale={locale as Locale}>
             <div className="flex min-h-screen flex-col">
               <a
@@ -49,8 +49,8 @@ export default async function LocaleLayout({
               <SiteFooter locale={locale as Locale} />
             </div>
           </WishlistProvider>
-        </StorefrontContextProvider>
-      </LocalizedRouteProvider>
-    </CartProvider>
+        </CartProvider>
+      </StorefrontContextProvider>
+    </LocalizedRouteProvider>
   );
 }

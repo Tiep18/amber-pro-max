@@ -8,8 +8,8 @@ const CART_QUOTE_TTL_MS = 5 * 60 * 1000;
 
 type QuoteCacheOptions = {
   locale: Locale;
-  market?: CartQuote['market'];
-  contextVersion?: number;
+  market: CartQuote['market'];
+  contextVersion: number;
   lines: CartIntentLine[];
   storage?: Storage | null;
   now?: number;
@@ -54,9 +54,6 @@ function looksLikeCartQuote(value: unknown): value is CartQuote {
 export function readCartQuoteCache(options: QuoteCacheOptions): CartQuote | null {
   const storage = options.storage ?? browserSessionStorage();
   const now = options.now ?? Date.now();
-  if (!options.market || options.contextVersion === undefined) {
-    return null;
-  }
   try {
     const raw = storage?.getItem(CART_QUOTE_STORAGE_KEY);
     if (!raw) return null;
@@ -91,7 +88,7 @@ export function writeCartQuoteCache({
   storage = browserSessionStorage(),
   now = Date.now()
 }: QuoteCacheOptions & { quote: CartQuote }) {
-  if (!market || contextVersion === undefined || quote.market !== market) {
+  if (quote.market !== market) {
     return;
   }
   try {
