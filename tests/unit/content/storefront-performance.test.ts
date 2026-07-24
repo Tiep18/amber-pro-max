@@ -30,6 +30,23 @@ describe('storefront performance boundaries', () => {
     expect(component).not.toMatch(/<img\s/);
   });
 
+  it('keeps the reusable product card view client-safe and projection-driven', async () => {
+    const [view, wrapper] = await Promise.all([
+      source('../../../src/components/catalog/product-card-view.tsx'),
+      source('../../../src/components/catalog/product-card.tsx')
+    ]);
+
+    expect(view.trimStart()).toMatch(/^['"]use client['"]/);
+    expect(view).not.toContain('next-intl/server');
+    expect(view).not.toContain('getRequestMarket');
+    expect(view).not.toContain('useStorefrontContext');
+    expect(view).toContain('commerceState');
+    expect(view).toContain('aria-hidden="true"');
+
+    expect(wrapper).toContain("from '@/components/catalog/product-card-view'");
+    expect(wrapper).toContain('<ProductCardView');
+  });
+
   it('protects cart state from stale quote responses', async () => {
     const provider = await source('../../../src/components/cart/cart-provider.tsx');
     expect(provider).toContain('latestQuoteRequest');
