@@ -16,6 +16,7 @@ import {
 import { notifyStorefrontContextChanged } from '@/components/storefront-context';
 import { getEquivalentLocalizedPath, isLocale, type Locale } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
+import { useLocalizedRouteSlugs } from '@/components/localized-route-context';
 
 type CommerceContextLabels = {
   label: string;
@@ -64,6 +65,7 @@ export function CommerceContextSwitcher({
 }) {
   const pathname = usePathname() || `/${locale}`;
   const searchParams = useSearchParams();
+  const localizedSlugs = useLocalizedRouteSlugs(pathname);
   const [isPending, startTransition] = useTransition();
   const activeOption =
     options.find((option) => option.market === activeMarket && option.locale === locale) ??
@@ -73,7 +75,7 @@ export function CommerceContextSwitcher({
   function returnPathFor(targetLocale: Locale) {
     const path =
       isLocale(locale) && targetLocale !== locale
-        ? getEquivalentLocalizedPath(pathname, targetLocale)
+        ? getEquivalentLocalizedPath(pathname, targetLocale, localizedSlugs)
         : pathname;
     return `${path}${safeQuery(searchParams)}`;
   }

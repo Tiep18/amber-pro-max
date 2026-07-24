@@ -21,6 +21,7 @@ import {
   getTechniquePath,
   type Locale
 } from '@/i18n/routing';
+import { LocalizedRouteSlugs } from '@/components/localized-route-context';
 
 type Params = Promise<{ locale: Locale; techniqueSlug: string }>;
 
@@ -142,6 +143,10 @@ export default async function TechniquePage({ params }: { params: Params }) {
 
   return (
     <main className="container grid gap-8 py-10 sm:py-12">
+      <LocalizedRouteSlugs
+        path={getTechniquePath(locale, techniqueSlug)}
+        slugs={{ vi: techniqueSlug, en: techniqueSlug }}
+      />
       <JsonLd
         data={[
           breadcrumbJsonLd([

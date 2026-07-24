@@ -16,6 +16,7 @@ import {
 } from '@/components/catalog/taxonomy-commerce';
 import { JsonLd, breadcrumbJsonLd, itemListJsonLd } from '@/content/seo/json-ld';
 import { getCatalogPath, getProductPath, getTagPath, type Locale } from '@/i18n/routing';
+import { LocalizedRouteSlugs } from '@/components/localized-route-context';
 
 type Params = Promise<{ locale: Locale; tagSlug: string }>;
 
@@ -122,6 +123,10 @@ export default async function TagPage({ params }: { params: Params }) {
 
   return (
     <main className="container grid gap-8 py-10 sm:py-12">
+      <LocalizedRouteSlugs
+        path={getTagPath(locale, tagSlug)}
+        slugs={{ vi: tagSlug, en: tagSlug }}
+      />
       <JsonLd
         data={[
           breadcrumbJsonLd([

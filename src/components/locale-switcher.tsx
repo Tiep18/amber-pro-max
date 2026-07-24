@@ -3,6 +3,7 @@
 import {usePathname, useSearchParams} from 'next/navigation';
 import {getEquivalentLocalizedPath, isLocale, type Locale} from '@/i18n/routing';
 import {cn} from '@/lib/utils';
+import {useLocalizedRouteSlugs} from '@/components/localized-route-context';
 
 const safeQueryKeys = new Set(['next']);
 
@@ -20,6 +21,7 @@ function safeQuery(searchParams: URLSearchParams) {
 export function LocaleSwitcher({locale}: {locale: Locale}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const localizedSlugs = useLocalizedRouteSlugs(pathname);
 
   return (
     <nav
@@ -29,7 +31,7 @@ export function LocaleSwitcher({locale}: {locale: Locale}) {
       {(['vi', 'en'] as const).map((target) => {
         const href =
           isLocale(locale) && target !== locale
-            ? `${getEquivalentLocalizedPath(pathname, target)}${safeQuery(searchParams)}`
+            ? `${getEquivalentLocalizedPath(pathname, target, localizedSlugs)}${safeQuery(searchParams)}`
             : `${pathname}${safeQuery(searchParams)}`;
         const active = target === locale;
         return (

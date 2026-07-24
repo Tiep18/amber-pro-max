@@ -15,6 +15,7 @@ import type { Json } from '@/types/supabase';
 import { JsonLd, breadcrumbJsonLd, itemListJsonLd } from '@/content/seo/json-ld';
 import Link from 'next/link';
 import { ArrowLeft, Sparkles } from 'lucide-react';
+import { LocalizedRouteSlugs } from '@/components/localized-route-context';
 
 type Params = Promise<{ locale: Locale; categorySlug: string }>;
 
@@ -98,11 +99,19 @@ export default async function CategoryPage({ params }: { params: Params }) {
   if (!category) {
     notFound();
   }
+  const localized = slugs(category.localized_slugs);
+  if (!localized.vi || !localized.en) {
+    notFound();
+  }
   const t = copy[locale];
   const labels = await getTaxonomyCommerceLabels(locale);
 
   return (
     <main className="container grid gap-8 py-10 sm:py-12">
+      <LocalizedRouteSlugs
+        path={getCategoryPath(locale, category.slug)}
+        slugs={{ vi: localized.vi, en: localized.en }}
+      />
       <JsonLd
         data={[
           breadcrumbJsonLd([
