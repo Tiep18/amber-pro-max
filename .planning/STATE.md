@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-07-PLAN.md
-last_updated: "2026-07-24T15:09:47.042Z"
+stopped_at: Completed 09-08-PLAN.md
+last_updated: "2026-07-24T15:26:52.924Z"
 last_activity: 2026-07-22 -- Phase 09 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 86
-  completed_plans: 78
+  completed_plans: 79
   percent: 78
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 09 (independent-locale-and-market-commerce-projection-with-seo-s) — EXECUTING
-Plan: 8 of 15
+Plan: 9 of 15
 Status: Ready to execute
 Last activity: 2026-07-22 -- Phase 09 execution started
 
@@ -100,6 +100,7 @@ Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; P
 | Phase 09 P06 | 29min | 2 tasks | 12 files |
 | Phase 09 P05 | 10min | 2 tasks | 6 files |
 | Phase 09 P07 | 16min | 2 tasks | 7 files |
+| Phase 09 P08 | 13min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -179,6 +180,9 @@ Recent decisions affecting current work:
 - [Phase 09]: Visible product commerce starts as a private fail-closed island while locale-default offers remain deterministic SEO metadata and JSON-LD. — Prevents wrong-market purchase frames without making static routes request-dependent.
 - [Phase 09]: Product purchase agreement matches locale, market, context generation/version, product, selected variant, and offer fingerprint before cart intent creation. — Closes stale response and one-frame stale selection races.
 - [Phase 09]: Projected variant attributes and display order remain public offer facts and participate in the stale-offer fingerprint. — Prevents SKU-only placeholder presentation and keeps reset identity complete.
+- [Phase 09]: ProductCardView renders only supplied product and serialized label facts; storefront context and market resolution remain the parent island responsibility.
+- [Phase 09]: Catalog result identity includes locale, market, surface, context generation/version, and the complete normalized query key before products and facets may commit.
+- [Phase 09]: Malformed, stale, wrong-market, or failed catalog projections fail closed and never retain a partial previous-market overlay.
 
 ### Pending Todos
 
@@ -334,6 +338,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T15:09:46.995Z
-Stopped at: Completed 09-07-PLAN.md
+Last session: 2026-07-24T15:26:52.480Z
+Stopped at: Completed 09-08-PLAN.md
 Resume file: None
