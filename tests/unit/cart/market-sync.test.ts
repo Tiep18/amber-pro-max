@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { MarketCode } from '@/catalog/market';
 import type { CartIntentLine } from '@/cart/types';
 import type { CartQuote, CartQuoteLine } from '@/checkout/types';
@@ -431,4 +433,32 @@ describe('cart market synchronization contract', () => {
       }
     }
   );
+});
+
+describe('CartProvider storefront context integration', () => {
+  it('nests cart below authoritative storefront context and wires guarded requotes', () => {
+    const layoutSource = readFileSync(
+      join(process.cwd(), 'src/app/[locale]/layout.tsx'),
+      'utf8'
+    );
+    const providerSource = readFileSync(
+      join(process.cwd(), 'src/components/cart/cart-provider.tsx'),
+      'utf8'
+    );
+
+    expect(layoutSource.indexOf('<StorefrontContextProvider')).toBeLessThan(
+      layoutSource.indexOf('<CartProvider')
+    );
+    expect(providerSource).toContain('useStorefrontContext');
+    expect(providerSource).toContain('clearCartQuoteCache');
+    expect(providerSource).toContain('beginMarketRequote');
+    expect(providerSource).toContain('settleMarketRequote');
+    expect(providerSource).toContain('failMarketRequote');
+    expect(providerSource).toMatch(
+      /refreshCartQuoteAction\(\{\s*locale,\s*lines: begun\.request\.lines\s*\}\)/
+    );
+    expect(providerSource).not.toMatch(
+      /refreshCartQuoteAction\(\{[^}]*\b(?:market|contextVersion|price|fingerprint)\b/s
+    );
+  });
 });
