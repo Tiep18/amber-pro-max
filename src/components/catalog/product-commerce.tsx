@@ -107,11 +107,11 @@ function isProductProjectionResponse(value: unknown): value is ProductProjection
 }
 
 function publicVariants(projection: ProductCommerceProjection): PublicVariant[] {
-  return projection.variants.map((variant, index) => ({
+  return projection.variants.map((variant) => ({
     variant_id: variant.variantId,
     sku: variant.sku,
-    attributes: {},
-    display_order: index,
+    attributes: variant.attributes,
+    display_order: variant.displayOrder,
     enabled: variant.enabled,
     currency_code: variant.currencyCode,
     price_minor: variant.priceMinor,

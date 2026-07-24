@@ -22,6 +22,8 @@ const projection: AddToCartProjection = {
     {
       variantId: '22222222-2222-4222-8222-222222222222',
       sku: 'DOLL-BLUE',
+      attributes: {color: 'Blue'},
+      displayOrder: 0,
       enabled: true,
       stock: 1,
       priceMinor: 3_100,

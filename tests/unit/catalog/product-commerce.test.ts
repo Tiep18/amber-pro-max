@@ -24,6 +24,8 @@ const parentPriceProduct = {
     {
       variantId: 'variant-small',
       sku: 'BEAR-S',
+      attributes: {size: 'Small'},
+      displayOrder: 0,
       enabled: true,
       stock: 3,
       priceMinor: 2_400,
@@ -41,6 +43,8 @@ const variantOverrideProduct = {
     {
       variantId: 'variant-blue',
       sku: 'DOLL-BLUE',
+      attributes: {color: 'Blue'},
+      displayOrder: 0,
       enabled: true,
       stock: 1,
       priceMinor: 3_100,
@@ -50,6 +54,8 @@ const variantOverrideProduct = {
     {
       variantId: 'variant-red',
       sku: 'DOLL-RED',
+      attributes: {color: 'Red'},
+      displayOrder: 1,
       enabled: false,
       stock: 0,
       priceMinor: 2_400,
@@ -89,6 +95,8 @@ describe('product commerce projection contracts', () => {
 
     expect(inherited.variants[0]).toMatchObject({
       variantId: 'variant-small',
+      attributes: {size: 'Small'},
+      displayOrder: 0,
       priceMinor: 2_400,
       currencyCode: 'USD',
       priceSource: 'parent',

@@ -89,6 +89,8 @@ export async function projectCatalog<
 export type ProductCommerceVariant = {
   variantId: string;
   sku: string;
+  attributes: Record<string, string>;
+  displayOrder: number;
   enabled: boolean;
   stock: number;
   priceMinor: number | null;
@@ -189,6 +191,8 @@ export function projectProductCommerce(input: ProductCommerceInput): ProductComm
     variants: input.variants.map((variant) => ({
       variantId: variant.variantId,
       sku: variant.sku,
+      attributes: { ...variant.attributes },
+      displayOrder: variant.displayOrder,
       enabled: variant.enabled,
       stock: variant.stock,
       priceMinor: variant.priceMinor,
@@ -224,6 +228,12 @@ export function projectAuthoritativeProductCommerce(
     variants: parsed.variants.map((variant) => ({
       variantId: variant.variant_id,
       sku: variant.sku,
+      attributes: Object.fromEntries(
+        Object.entries(variant.attributes).filter(
+          (entry): entry is [string, string] => typeof entry[1] === 'string'
+        )
+      ),
+      displayOrder: variant.display_order,
       enabled: variant.enabled,
       stock: variant.stock,
       priceMinor: variant.price_minor,
