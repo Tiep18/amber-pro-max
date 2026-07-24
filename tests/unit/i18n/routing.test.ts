@@ -8,6 +8,12 @@ const { getEquivalentLocalizedPath, getLocalizedPath, pathnames, preferredLocale
 
 type FutureRoutingModule = typeof routingModule & {
   allowlistedRouteQuery?: (kind: 'catalog' | 'auth' | 'other', query: URLSearchParams) => string;
+  getLocaleSwitchHref?: (
+    currentPath: string,
+    targetLocale: 'vi' | 'en',
+    query: URLSearchParams,
+    localizedSlugs?: { vi: string; en: string }
+  ) => string;
   getTechniquePath?: (locale: 'vi' | 'en', slug: string) => string;
   getTagPath?: (locale: 'vi' | 'en', slug: string) => string;
   getEquivalentLocalizedPath: (
@@ -152,6 +158,39 @@ describe('localized routing contract', () => {
       expect(allow?.('auth', new URLSearchParams(unsafe))).toBe('');
     }
     expect(allow?.('other', new URLSearchParams('next=%2Fen%2Fcheckout'))).toBe('');
+  });
+
+  it('builds one equivalent locale link with only route-allowlisted query state', () => {
+    const href = futureRouting.getLocaleSwitchHref;
+
+    expect(
+      href?.(
+        '/vi/danh-muc/thu-bong',
+        'en',
+        new URLSearchParams(
+          'search=bear&type=physical&category=animals&technique=crochet&tag=gift&sort=price-asc&next=%2Fen%2Faccount&debug=1'
+        ),
+        { vi: 'thu-bong', en: 'stuffed-animals' }
+      )
+    ).toBe(
+      '/en/category/stuffed-animals?search=bear&type=physical&category=animals&technique=crochet&tag=gift&sort=price-asc'
+    );
+    expect(
+      href?.(
+        '/en/sign-in',
+        'vi',
+        new URLSearchParams('next=%2Fen%2Fcheckout'),
+        undefined
+      )
+    ).toBe('/vi/dang-nhap?next=%2Fen%2Fcheckout');
+    expect(
+      href?.(
+        '/vi/san-pham/gau-len',
+        'en',
+        new URLSearchParams('debug=1&next=https%3A%2F%2Fevil.example'),
+        { vi: 'gau-len', en: 'crochet-bear' }
+      )
+    ).toBe('/en/product/crochet-bear');
   });
 
   it('keeps message key coverage equal across locales', () => {
