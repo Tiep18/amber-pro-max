@@ -6,6 +6,8 @@ export type CatalogListState = {
   search?: string;
   productType?: CatalogProductType;
   categorySlug?: string;
+  techniqueSlug?: string;
+  tagSlug?: string;
   sort: CatalogSort;
 };
 
@@ -29,14 +31,36 @@ export function catalogListState(query: CatalogSearchParams): CatalogListState {
         ? requestedType
         : undefined,
     categorySlug: clean(first(query.category)),
+    techniqueSlug: clean(first(query.technique)),
+    tagSlug: clean(first(query.tag)),
     sort: catalogSorts.includes(requestedSort as CatalogSort)
       ? (requestedSort as CatalogSort)
       : 'newest'
   };
 }
 
+export function catalogListStateFromSearchParams(
+  searchParams: Pick<URLSearchParams, 'getAll'>
+): CatalogListState {
+  const firstValue = (key: string) => searchParams.getAll(key)[0];
+
+  return catalogListState({
+    search: firstValue('search'),
+    type: firstValue('type'),
+    category: firstValue('category'),
+    technique: firstValue('technique'),
+    tag: firstValue('tag'),
+    sort: firstValue('sort')
+  });
+}
+
 export function hasCatalogFilters(state: CatalogListState) {
   return Boolean(
-    state.search || state.productType || state.categorySlug || state.sort !== 'newest'
+    state.search ||
+      state.productType ||
+      state.categorySlug ||
+      state.techniqueSlug ||
+      state.tagSlug ||
+      state.sort !== 'newest'
   );
 }

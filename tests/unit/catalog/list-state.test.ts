@@ -18,6 +18,8 @@ describe('catalog list state', () => {
       search: 'bear',
       productType: 'pdf_pattern',
       categorySlug: 'stuffed-animals',
+      techniqueSlug: undefined,
+      tagSlug: undefined,
       sort: 'price_asc'
     });
   });
@@ -31,6 +33,8 @@ describe('catalog list state', () => {
       search: 'a'.repeat(100),
       productType: undefined,
       categorySlug: 'gifts',
+      techniqueSlug: undefined,
+      tagSlug: undefined,
       sort: 'newest'
     });
   });
@@ -42,6 +46,8 @@ describe('catalog list state', () => {
       search: undefined,
       productType: undefined,
       categorySlug: undefined,
+      techniqueSlug: undefined,
+      tagSlug: undefined,
       sort: 'newest'
     });
     expect(hasCatalogFilters(defaults)).toBe(false);

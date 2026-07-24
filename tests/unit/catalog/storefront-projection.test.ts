@@ -1,5 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('@/components/catalog/product-card-view', () => ({
+  ProductCardView: () => null
+}));
+vi.mock('@/components/storefront-context', () => ({
+  useStorefrontContext: () => ({
+    status: 'resolving',
+    market: null,
+    generation: 0,
+    contextVersion: 0
+  })
+}));
+
 const vnOnlyProduct = {
   productId: 'product-vn',
   slug: 'gau-vang',
