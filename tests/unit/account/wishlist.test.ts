@@ -3,6 +3,7 @@ import {describe, expect, test, vi} from 'vitest';
 vi.mock('server-only', () => ({}));
 vi.mock('next/cache', () => ({revalidatePath: vi.fn()}));
 vi.mock('@/auth/guards', () => ({requireUser: vi.fn()}));
+vi.mock('@/catalog/page-context', () => ({getRequestMarket: vi.fn()}));
 vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient: vi.fn()}));
 vi.mock('@/operations/errors', () => ({recordOperationalFailure: vi.fn()}));
 
@@ -13,7 +14,14 @@ import {
   type WishlistHydrationRow
 } from '@/account/wishlist';
 import {wishlistSignInPath} from '@/auth/redirect';
-import {addCustomerWishlistItem, removeCustomerWishlistItem} from '@/account/wishlist-actions';
+import {
+  addCustomerWishlistItem,
+  refreshCustomerWishlistAction,
+  removeCustomerWishlistItem
+} from '@/account/wishlist-actions';
+import {requireUser} from '@/auth/guards';
+import {getRequestMarket} from '@/catalog/page-context';
+import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {recordOperationalFailure} from '@/operations/errors';
 
 const ownerId = '22222222-2222-4222-8222-222222222222';
@@ -105,6 +113,43 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
       p_locale: 'en',
       p_market: 'intl'
     });
+  });
+
+  test('refresh action derives authenticated user and market on the server', async () => {
+    vi.mocked(requireUser).mockResolvedValue({id: ownerId} as never);
+    vi.mocked(getRequestMarket).mockResolvedValue('intl');
+    const client = {rpc: vi.fn(() => Promise.resolve({data: [availableRow], error: null}))};
+    vi.mocked(createSupabaseServerClient).mockResolvedValue(client as never);
+
+    await expect(
+      refreshCustomerWishlistAction({locale: 'en', market: 'vn'} as never)
+    ).resolves.toMatchObject({
+      status: 'success',
+      market: 'intl',
+      items: [{productId, currencyCode: 'USD', priceMinor: 2400}]
+    });
+
+    expect(requireUser).toHaveBeenCalledWith({
+      locale: 'en',
+      next: '/en/account/wishlist'
+    });
+    expect(getRequestMarket).toHaveBeenCalledWith();
+    expect(client.rpc).toHaveBeenCalledWith('get_customer_wishlist', {
+      p_locale: 'en',
+      p_market: 'intl'
+    });
+  });
+
+  test('refresh action rejects invalid locale before auth or market resolution', async () => {
+    vi.mocked(requireUser).mockClear();
+    vi.mocked(getRequestMarket).mockClear();
+
+    await expect(refreshCustomerWishlistAction({locale: 'fr'} as never)).resolves.toEqual({
+      status: 'error',
+      code: 'invalid_locale'
+    });
+    expect(requireUser).not.toHaveBeenCalled();
+    expect(getRequestMarket).not.toHaveBeenCalled();
   });
 
   test('records sanitized operational failures for wishlist load errors', async () => {
@@ -300,5 +345,41 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
   test('keeps guest wishlist intent out of persistent client storage contracts', () => {
     expect(wishlistSignInPath({locale: 'en', next: '/en/account/wishlist'})).not.toContain('guestWishlist');
     expect(wishlistSignInPath({locale: 'vi', next: '/vi/tai-khoan/yeu-thich'})).not.toContain('merge');
+  });
+});
+
+describe('wishlist market projection lifecycle', () => {
+  test('accepts only the latest response matching authoritative market and context version', async () => {
+    const {
+      beginWishlistRefresh,
+      createWishlistProjectionState,
+      settleWishlistRefresh,
+      wishlistProjectionAgrees
+    } = await import('@/components/account/wishlist-page');
+    const initial = createWishlistProjectionState([], 'intl');
+    const first = beginWishlistRefresh(initial, {market: 'intl', contextVersion: 3});
+    const second = beginWishlistRefresh(first.state, {market: 'vn', contextVersion: 4});
+    const intlResult = {status: 'success', market: 'intl', items: []} as const;
+    const vnResult = {status: 'success', market: 'vn', items: []} as const;
+
+    expect(settleWishlistRefresh(second.state, first.request, intlResult)).toBe(second.state);
+    expect(settleWishlistRefresh(second.state, second.request, intlResult)).toBe(second.state);
+
+    const settled = settleWishlistRefresh(second.state, second.request, vnResult);
+    expect(settled).toMatchObject({
+      status: 'ready',
+      market: 'vn',
+      contextVersion: 4,
+      activeRequestId: null
+    });
+    expect(
+      wishlistProjectionAgrees(settled, {market: 'vn', contextVersion: 4})
+    ).toBe(true);
+    expect(
+      wishlistProjectionAgrees(settled, {market: 'intl', contextVersion: 4})
+    ).toBe(false);
+    expect(
+      wishlistProjectionAgrees(settled, {market: 'vn', contextVersion: 5})
+    ).toBe(false);
   });
 });
