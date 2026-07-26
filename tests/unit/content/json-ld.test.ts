@@ -20,16 +20,17 @@ describe('safe JSON-LD (SEO-03, D-08)', () => {
   });
 
   it('builds Product JSON-LD with authoritative offer facts', () => {
-    expect(
-      productJsonLd({
-        name: 'Both-market bear',
-        description: 'Handmade bear.',
-        path: '/en/product/both-market-bear',
-        currency: 'USD',
-        priceMinor: 3100,
-        available: true
-      })
-    ).toMatchObject({
+    const input = {
+      name: 'Both-market bear',
+      description: 'Handmade bear.',
+      path: '/en/product/both-market-bear',
+      currency: 'USD' as const,
+      priceMinor: 3100,
+      available: true
+    };
+    const localeDefaultOffer = productJsonLd(input);
+
+    expect(localeDefaultOffer).toMatchObject({
       '@type': 'Product',
       name: 'Both-market bear',
       offers: {
@@ -39,10 +40,17 @@ describe('safe JSON-LD (SEO-03, D-08)', () => {
         availability: 'https://schema.org/InStock'
       }
     });
+
+    vi.stubEnv('ACTIVE_MARKET', 'vn');
+    vi.stubEnv('VERCEL_IP_COUNTRY', 'VN');
+    expect(productJsonLd(input)).toEqual(localeDefaultOffer);
   });
 
   it('builds Article and Breadcrumb JSON-LD from public localized paths only', () => {
-    expect(articleJsonLd({headline: 'Care', description: 'Care notes.', path: '/en/blog/care'})).toMatchObject({
+    const articleInput = {headline: 'Care', description: 'Care notes.', path: '/en/blog/care'};
+    const article = articleJsonLd(articleInput);
+
+    expect(article).toMatchObject({
       '@type': 'Article',
       url: 'https://example.test/en/blog/care'
     });
@@ -50,5 +58,9 @@ describe('safe JSON-LD (SEO-03, D-08)', () => {
       '@type': 'BreadcrumbList',
       itemListElement: [{item: 'https://example.test/en/blog', position: 1}]
     });
+
+    vi.stubEnv('ACTIVE_MARKET', 'intl');
+    vi.stubEnv('VERCEL_IP_COUNTRY', 'US');
+    expect(articleJsonLd(articleInput)).toEqual(article);
   });
 });
