@@ -20,6 +20,7 @@ type WishlistContextValue = {
 };
 
 const WishlistContext = createContext<WishlistContextValue | null>(null);
+const WISHLIST_BATCH_DELAY_MS = 20;
 
 export function WishlistProvider({ children, locale }: { children: ReactNode; locale: Locale }) {
   const [selected, setSelectedState] = useState<Record<string, boolean | undefined>>({});
@@ -54,8 +55,8 @@ export function WishlistProvider({ children, locale }: { children: ReactNode; lo
   }, [locale]);
 
   const scheduleFlush = useCallback(() => {
-    if (timer.current) return;
-    timer.current = setTimeout(() => void flush(), 0);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => void flush(), WISHLIST_BATCH_DELAY_MS);
   }, [flush]);
 
   const register = useCallback(

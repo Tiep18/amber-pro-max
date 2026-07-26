@@ -34,7 +34,12 @@ describe('safeRedirect', () => {
     ['/vi/tai-khoan', '/vi/tai-khoan'],
     ['/en/account', '/en/account'],
     ['/admin', '/admin'],
-    ['/admin/reviews', '/admin/reviews']
+    ['/admin/reviews', '/admin/reviews'],
+    ['/admin/blog/taxonomy', '/admin/blog/taxonomy'],
+    ['/admin/catalog/taxonomy', '/admin/catalog/taxonomy'],
+    ['/admin/exceptions', '/admin/exceptions'],
+    ['/admin/orders', '/admin/orders'],
+    ['/admin/orders/ATB-2026-001', '/admin/orders/ATB-2026-001']
   ])('allows known localized route %s', (next, expected) => {
     expect(safeRedirect(next, 'vi')).toBe(expected);
   });

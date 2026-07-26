@@ -135,7 +135,9 @@ test.afterAll(async () => {
 
 test('BLOG-01 BLOG-02 D-02 D-03 public blog renders published localized posts only', async ({page}) => {
   await page.goto('/en/blog');
-  await expect(page.getByRole('heading', {name: 'Amigurumi blog'})).toBeVisible();
+  await expect(
+    page.getByRole('heading', {name: 'Crochet notes with a maker’s point of view'})
+  ).toBeVisible();
   await expect(page.getByText(/Crochet care \d/)).toBeVisible();
   await expect(page.getByText(/draft-/)).toHaveCount(0);
   await expect(page.getByText(/future-/)).toHaveCount(0);

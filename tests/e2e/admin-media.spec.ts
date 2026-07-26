@@ -110,10 +110,14 @@ async function signIn(page: Page, user: { email: string; password: string }) {
   await page.getByLabel('Email').fill(user.email);
   await page.getByLabel('Password').fill(user.password);
   await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('heading', { name: 'Signed in' })).toBeVisible({
+    timeout: 15_000
+  });
+  await page.goto('/admin/catalog');
 }
 
 function statusMessage(page: Page, message: string) {
-  return page.locator('[data-sonner-toast]').filter({ hasText: message });
+  return page.locator('[data-sonner-toast][data-front="true"]').filter({ hasText: message });
 }
 
 async function fetchDigitalAsset(productId: string) {
@@ -201,11 +205,16 @@ test('admin uploads product images, selects social images, uploads a private PDF
     .fill('Blue crochet bunny');
   await page.getByRole('button', { name: 'Upload image' }).click();
   await expect(statusMessage(page, 'Image uploaded')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('region', { name: 'Gallery' }).getByText('1 total')).toBeVisible();
 
-  for (const name of ['bunny-side.png', 'bunny-detail.png']) {
+  for (const [index, name] of ['bunny-side.png', 'bunny-detail.png'].entries()) {
     await page.locator('input[name="image"]').setInputFiles({ ...png, name });
     await page.getByRole('button', { name: 'Upload image' }).click();
-    await expect(statusMessage(page, 'Image uploaded')).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page
+        .getByRole('region', { name: 'Gallery' })
+        .getByText(`${index + 2} total`, { exact: true })
+    ).toBeVisible({ timeout: 15_000 });
   }
   await expect(page.getByText('3 total')).toBeVisible();
 

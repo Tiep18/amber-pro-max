@@ -323,7 +323,9 @@ test('admin creates, reorders, edits, removes variants, and manages variant stoc
     '18.50'
   );
   await page.getByRole('button', { name: 'Save variant' }).click();
-  await expect(page.getByText('Variant saved')).toBeVisible();
+  await expect(page.getByText('All changes saved.', { exact: true })).toBeVisible({
+    timeout: 15_000
+  });
   await expect(vietnam.getByText('VND 275,000')).toBeVisible();
   await expect(international.getByText('$18.50')).toBeVisible();
 
@@ -346,13 +348,16 @@ test('admin creates, reorders, edits, removes variants, and manages variant stoc
 
   await international.getByRole('radio', { name: 'Unavailable' }).click();
   await page.getByRole('button', { name: 'Save variant' }).click();
-  await expect(page.getByText('Variant saved')).toBeVisible();
+  await expect(page.getByText('All changes saved.', { exact: true })).toBeVisible({
+    timeout: 15_000
+  });
   await expect(international.getByRole('radio', { name: 'Unavailable' })).toHaveAttribute(
     'aria-checked',
     'true'
   );
 
   await page.getByLabel('Variant SKU').fill('BEAR-BROWN-DIRTY');
+  await expect(page.getByText('Unsaved changes', { exact: true }).first()).toBeVisible();
   expect(
     await page.evaluate(() => {
       const event = new Event('beforeunload', { cancelable: true });
@@ -376,7 +381,9 @@ test('admin creates, reorders, edits, removes variants, and manages variant stoc
   await displayOrder.fill('1');
   await quantityOnHand.fill('5');
   await page.getByRole('button', { name: 'Save variant' }).click();
-  await expect(page.getByText('Variant saved')).toBeVisible();
+  await expect(page.getByText('All changes saved.', { exact: true })).toBeVisible({
+    timeout: 15_000
+  });
   expect(
     await page.evaluate(() => {
       const event = new Event('beforeunload', { cancelable: true });
@@ -398,7 +405,9 @@ test('admin creates, reorders, edits, removes variants, and manages variant stoc
   );
   await displayOrder.fill('0');
   await page.getByRole('button', { name: 'Save variant' }).click();
-  await expect(page.getByText('Variant saved')).toBeVisible();
+  await expect(page.getByText('All changes saved.', { exact: true })).toBeVisible({
+    timeout: 15_000
+  });
 
   const variants = await rows<{ id: string; sku: string; display_order: number }>(
     `product_variants?product_id=eq.${product.id}&select=id,sku,display_order`

@@ -148,8 +148,8 @@ test('admin assigns product and variant parcel profiles with inheritance', async
   await expect(page.getByText(defaultProfileName)).toBeVisible();
   await expect(page.getByText('Store default')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Change parcel profile' }).click();
-  await page.getByLabel('Parcel profile assignment').click();
+  await page.getByRole('button', { name: 'Change package type' }).click();
+  await page.getByLabel('Package type assignment').click();
   await page.getByRole('option', { name: productProfileName }).click();
   await expect(page.getByText('Source: Product')).toBeVisible();
   await page.getByRole('button', { name: 'Save assignment' }).click();
@@ -157,16 +157,16 @@ test('admin assigns product and variant parcel profiles with inheritance', async
   await expect(page.getByText(productProfileName)).toBeVisible();
   await expect(page.getByText('Product', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Change parcel profile' }).click();
-  await page.getByLabel('Parcel profile assignment').click();
+  await page.getByRole('button', { name: 'Change package type' }).click();
+  await page.getByLabel('Package type assignment').click();
   await page.getByRole('option', { name: 'Store default' }).click();
   await expect(page.getByText('Source: Store default')).toBeVisible();
   await page.getByRole('button', { name: 'Save assignment' }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByText(defaultProfileName)).toBeVisible();
 
-  await page.getByRole('button', { name: 'Change parcel profile' }).click();
-  await page.getByLabel('Parcel profile assignment').click();
+  await page.getByRole('button', { name: 'Change package type' }).click();
+  await page.getByLabel('Package type assignment').click();
   await page.getByRole('option', { name: productProfileName }).click();
   await page.getByRole('button', { name: 'Save assignment' }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
@@ -177,8 +177,8 @@ test('admin assigns product and variant parcel profiles with inheritance', async
   await expect(page.getByText(productProfileName)).toBeVisible();
   await expect(page.getByText('Product', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Change parcel profile' }).click();
-  await page.getByLabel('Parcel profile assignment').click();
+  await page.getByRole('button', { name: 'Change package type' }).click();
+  await page.getByLabel('Package type assignment').click();
   await page.getByRole('option', { name: variantProfileName }).click();
   await expect(page.getByText('Source: Variant override')).toBeVisible();
   await page.getByRole('button', { name: 'Save assignment' }).click();
@@ -186,8 +186,8 @@ test('admin assigns product and variant parcel profiles with inheritance', async
   await expect(page.getByText(variantProfileName)).toBeVisible();
   await expect(page.getByText('Variant override', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Change parcel profile' }).click();
-  await page.getByLabel('Parcel profile assignment').click();
+  await page.getByRole('button', { name: 'Change package type' }).click();
+  await page.getByLabel('Package type assignment').click();
   await page.getByRole('option', { name: 'Inherit product / Store default' }).click();
   await expect(page.getByText(productProfileName)).toBeVisible();
   await expect(page.getByText('Source: Product')).toBeVisible();
@@ -208,8 +208,8 @@ test('admin assigns product and variant parcel profiles with inheritance', async
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/admin/catalog/${productId}/variants`);
-  await expect(page.getByRole('button', { name: 'Change parcel profile' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Change package type' })).toBeVisible();
   await expect(page.locator('body').evaluate((body) => body.scrollWidth <= window.innerWidth)).resolves.toBe(true);
-  const targetBox = await page.getByRole('button', { name: 'Change parcel profile' }).boundingBox();
+  const targetBox = await page.getByRole('button', { name: 'Change package type' }).boundingBox();
   expect(targetBox?.height ?? 0).toBeGreaterThanOrEqual(44);
 });

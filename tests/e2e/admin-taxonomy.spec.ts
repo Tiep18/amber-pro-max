@@ -56,7 +56,11 @@ test('admin searches, validates, creates, and reopens a bilingual taxonomy item'
   await signIn(page, admin, '/admin/catalog/taxonomy');
 
   await expect(page.getByRole('heading', { name: 'Catalog taxonomy' })).toBeVisible();
-  await expect(page.getByRole('complementary')).toBeVisible();
+  await expect(
+    page
+      .getByRole('complementary')
+      .filter({ has: page.getByLabel('Search Product categories') })
+  ).toBeVisible();
   await page.getByLabel('Search Product categories').fill('Workspace fixture');
   await page.getByRole('button', { name: /Workspace fixture EN/ }).click();
   await expect(page.getByRole('heading', { name: 'Workspace fixture EN' })).toBeVisible();
@@ -64,18 +68,17 @@ test('admin searches, validates, creates, and reopens a bilingual taxonomy item'
 
   await page.getByRole('button', { name: 'New item' }).click();
   await page.getByRole('button', { name: 'Create item' }).click();
-  await expect(page.getByRole('alert')).toHaveCount(2);
-  await expect(page.getByText('Name is required.')).toBeVisible();
-  await expect(page.getByText('Slug is required.')).toBeVisible();
+  await expect(page.locator('#taxonomy-vi-name-error')).toHaveText('Name is required.');
+  await expect(page.locator('#taxonomy-vi-slug-error')).toHaveText('Slug is required.');
   await expect(page).toHaveURL(/\/admin\/catalog\/taxonomy$/);
 
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2, 7)}`;
   const englishName = `Seasonal friends ${suffix}`;
-  await page.getByLabel('Name').fill(`Ban theo mua ${suffix}`);
-  await page.getByLabel('Slug').fill(`ban-theo-mua-${suffix}`);
+  await page.locator('#taxonomy-vi-name').fill(`Ban theo mua ${suffix}`);
+  await page.locator('#taxonomy-vi-slug').fill(`ban-theo-mua-${suffix}`);
   await page.getByRole('tab', { name: /English/ }).click();
-  await page.getByLabel('Name').fill(englishName);
-  await page.getByLabel('Slug').fill(`seasonal-friends-${suffix}`);
+  await page.locator('#taxonomy-en-name').fill(englishName);
+  await page.locator('#taxonomy-en-slug').fill(`seasonal-friends-${suffix}`);
   await page.getByRole('button', { name: 'Create item' }).click();
 
   await expect(page).toHaveURL(/\/admin\/catalog\/taxonomy$/);

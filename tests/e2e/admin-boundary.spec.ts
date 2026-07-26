@@ -87,7 +87,9 @@ test('signed-in customer can enter account and sign out', async ({page}) => {
 
   await expect(page).toHaveURL(/\/vi\/tai-khoan$/);
   await expect(page.getByRole('heading', {name: 'Tai khoan'})).toBeVisible();
-  await expect(page.getByText(customer.email)).toBeVisible();
+  await expect(
+    page.getByRole('definition').filter({hasText: customer.email})
+  ).toBeVisible();
   await expect(page.getByText(/user_roles|access_token|refresh_token|service_role/i)).toHaveCount(0);
 
   await page.getByRole('button', {name: 'Dang xuat'}).click();
@@ -117,7 +119,7 @@ test('database-owned admin role can enter admin shell', async ({page}) => {
 
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByRole('heading', {name: 'Operational dashboard'})).toBeVisible();
-  await expect(page.getByText('Admin work queue')).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Need attention'})).toBeVisible();
   await expect(page.getByText(admin.email)).toHaveCount(0);
   await expect(page.getByText(/project|token|service key|provider payload/i)).toHaveCount(0);
 });

@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { revalidateTag } from 'next/cache';
+import { revalidateTag, updateTag } from 'next/cache';
 import { CACHE_TAGS } from './cache-tags';
 
 export function invalidateCatalogCache() {
@@ -12,5 +12,5 @@ export function invalidateBlogCache() {
 }
 
 export function invalidatePolicyCache() {
-  revalidateTag(CACHE_TAGS.policies, 'max');
+  updateTag(CACHE_TAGS.policies);
 }

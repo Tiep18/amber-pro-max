@@ -29,6 +29,7 @@ import { ProductCommerce } from '@/components/catalog/product-commerce';
 import { WishlistHeart } from '@/components/catalog/wishlist-heart';
 import { ProductDetailTabs } from '@/components/catalog/product-detail-tabs';
 import { ProductReviews } from '@/components/reviews/product-reviews';
+import { ReviewFormGate } from '@/components/reviews/review-form-gate';
 import { getApprovedProductReviews } from '@/reviews/queries';
 import { getCatalogPath, getProductPath, type Locale } from '@/i18n/routing';
 
@@ -439,6 +440,21 @@ export default async function ProductPage({ params }: { params: Params }) {
           specs={specs}
         />
         <div id="reviews" className="scroll-mt-8">
+          <ReviewFormGate
+            productId={product.product_id}
+            locale={locale}
+            returnTo={productPath}
+            labels={{
+              title: catalogT('reviews.formTitle'),
+              rating: catalogT('reviews.rating'),
+              reviewTitle: catalogT('reviews.reviewTitle'),
+              body: catalogT('reviews.body'),
+              submit: catalogT('reviews.submit'),
+              pending: catalogT('reviews.pending'),
+              notEligible: catalogT('reviews.notEligible'),
+              error: catalogT('reviews.error')
+            }}
+          />
           {reviews.status === 'success' ? (
             <ProductReviews
               reviews={reviews.reviews}

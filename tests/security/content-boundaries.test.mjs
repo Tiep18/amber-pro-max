@@ -26,3 +26,19 @@ test('SEO-04 D-08 robots excludes private checkout, account, API, and admin surf
   assert.match(source, /\/checkout/);
   assert.match(source, /\/account/);
 });
+
+test('review eligibility stays private without making the ISR product page user-specific', () => {
+  const route = read('src/app/api/reviews/eligibility/route.ts');
+  const productPage = read('src/app/[locale]/product/[productSlug]/page.tsx');
+
+  assert.match(route, /dynamic\s*=\s*['"]force-dynamic['"]/);
+  assert.match(route, /Cache-Control['"]:\s*['"]private,\s*no-store['"]/);
+  assert.match(route, /Vary:\s*['"]Cookie['"]/);
+  assert.match(route, /auth\.getUser\(\)/);
+  assert.match(route, /canReviewProduct/);
+
+  assert.match(productPage, /revalidate\s*=\s*300/);
+  assert.match(productPage, /dynamic\s*=\s*['"]force-static['"]/);
+  assert.match(productPage, /<ReviewFormGate/);
+  assert.doesNotMatch(productPage, /requireUser|canReviewProduct/);
+});

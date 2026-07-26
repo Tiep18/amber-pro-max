@@ -7,7 +7,7 @@ test.describe.configure({ mode: 'serial' });
 let seed: Phase6Seed;
 
 function adminReviewSection(page: Page, title: string) {
-  return page.getByRole('region', { name: `${title} for ${seed.products.review.title}` });
+  return page.getByRole('article', { name: `${title} for ${seed.products.review.title}` });
 }
 
 test.beforeAll(async () => {
@@ -27,23 +27,27 @@ test.describe('verified product reviews (REV-01, D-09, D-10, D-11)', () => {
     await page.goto(`/en/product/${seed.products.review.enSlug}`);
     await page
       .getByRole('group', { name: /rating/i })
-      .getByText('5')
+      .getByText('5', {exact: true})
       .click();
     await page.getByLabel(/review title/i).fill('Sweet bear');
     await page.getByLabel(/review body/i).fill('Beautifully made.');
     await page.getByRole('button', { name: /submit review/i }).click();
-    await expect(page.getByRole('status')).toContainText(/pending moderation/i);
+    await expect(
+      page.getByRole('status').filter({hasText: /pending moderation/i})
+    ).toBeVisible();
   });
 
   test('editing a review returns it to pending moderation', async ({ page }) => {
     await page.goto(`/en/product/${seed.products.review.enSlug}`);
     await page
       .getByRole('group', { name: /rating/i })
-      .getByText('4')
+      .getByText('4', {exact: true})
       .click();
     await page.getByLabel(/review body/i).fill('Updated after using it.');
     await page.getByRole('button', { name: /submit review/i }).click();
-    await expect(page.getByRole('status')).toContainText(/pending moderation/i);
+    await expect(
+      page.getByRole('status').filter({hasText: /pending moderation/i})
+    ).toBeVisible();
   });
 
   test('public product page shows approved masked verified reviews only', async ({ page }) => {
@@ -91,10 +95,16 @@ test.describe('admin review moderation and shop reply (REV-02, D-12)', () => {
     const moderationSheet = page.getByRole('dialog', { name: /review moderation/i });
     await moderationSheet.getByLabel(/shop reply/i).fill('Temporary reply for workflow coverage.');
     await moderationSheet.getByRole('button', { name: /save reply/i }).click();
-    await expect(page.locator('[data-sonner-toast]')).toContainText(/reply saved/i);
+    await expect(
+      page.locator('[data-sonner-toast]').filter({hasText: /reply saved/i})
+    ).toBeVisible();
     page.once('dialog', async (dialog) => dialog.accept());
     await moderationSheet.getByRole('button', { name: /remove reply/i }).click();
-    await expect(page.locator('[data-sonner-toast]')).toContainText(/reply removed|state changed/i);
+    await expect(
+      page
+        .locator('[data-sonner-toast]')
+        .filter({hasText: /reply removed|state changed/i})
+    ).toBeVisible();
   });
 
   test('approved product review shows one public shop reply and hidden content disappears', async ({

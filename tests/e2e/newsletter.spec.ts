@@ -17,16 +17,16 @@ test.describe('localized newsletter subscribe (NEWS-01, NEWS-02, D-13, D-16)', (
   test('English footer explicitly subscribes without requiring an account', async ({page}) => {
     await page.goto('/en');
     await page.locator('#newsletter input[name="email"]').fill(`newsletter-en-${Date.now()}@example.test`);
-    await page.getByRole('button', {name: 'Subscribe to newsletter'}).click();
-    await expect(page.getByRole('status')).toContainText("You're subscribed");
+    await page.getByRole('button', {name: 'Subscribe', exact: true}).click();
+    await expect(page.getByRole('status').filter({hasText: "You're subscribed"})).toBeVisible();
     await expect(page).toHaveURL(/\/en/);
   });
 
   test('Vietnamese footer explicitly subscribes with localized consent copy', async ({page}) => {
     await page.goto('/vi');
     await page.locator('#newsletter input[name="email"]').fill(`newsletter-vi-${Date.now()}@example.test`);
-    await page.getByRole('button', {name: 'Dang ky nhan ban tin'}).click();
-    await expect(page.getByRole('status')).toContainText('Ban da dang ky');
+    await page.getByRole('button', {name: 'Đăng ký', exact: true}).click();
+    await expect(page.getByRole('status').filter({hasText: 'Ban da dang ky'})).toBeVisible();
   });
 });
 
@@ -45,7 +45,7 @@ test.describe('one-click newsletter unsubscribe (NEWS-02, D-14, D-16)', () => {
 
   test('subscribe confirmation uses the locale-matched one-click link shape', async ({page}) => {
     await page.goto('/en');
-    await expect(page.getByRole('button', {name: 'Subscribe to newsletter'})).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Subscribe', exact: true})).toBeVisible();
     await page.goto(`/en/newsletter/unsubscribe?token=${seed.unsubscribeTokens.invalid}`);
     await expect(page).toHaveURL(/\/en\/newsletter\/unsubscribe\?token=/);
   });

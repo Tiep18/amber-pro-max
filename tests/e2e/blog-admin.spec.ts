@@ -137,10 +137,16 @@ test('admin creates a bilingual blog draft and sees publish blockers', async ({ 
 
   await page.getByRole('button', { name: 'Save draft' }).click();
   await expect(
-    page.getByText('Review the highlighted fields. First issue: Slug is required.')
+    page.getByText(
+      'Review the highlighted fields. First issue: Use lowercase letters, numbers, and single hyphens only.'
+    )
   ).toBeVisible();
   await expect(page.getByLabel('Vietnamese slug')).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.getByText('Slug is required.')).toBeVisible();
+  await expect(
+    page
+      .getByRole('alert')
+      .filter({hasText: /^Use lowercase letters, numbers, and single hyphens only\.$/})
+  ).toBeVisible();
 
   await page.getByLabel('Category').click();
   await page.getByRole('option', { name: category.label }).click();
@@ -174,7 +180,6 @@ test('admin creates a bilingual blog draft and sees publish blockers', async ({ 
   await expect(page.getByText('English social image', { exact: true })).toBeVisible();
 
   await page.goto('/admin/blog');
-  await expect(page.getByText(englishTitle)).toBeVisible();
   await expect(page.getByRole('link', { name: `Edit ${englishTitle}` })).toBeVisible();
   await expect(
     page.locator('body').evaluate((body) => body.scrollWidth <= window.innerWidth)

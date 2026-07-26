@@ -60,8 +60,8 @@ export async function getTaxonomyCommerceLabels(
         status: copy.placeholderStatus
       },
       wishlist: {
-        save: copy.saveWishlist,
-        remove: copy.removeWishlist,
+        save: String(t.raw('wishlist.save')),
+        remove: String(t.raw('wishlist.remove')),
         saving: t('wishlist.saving'),
         removing: t('wishlist.removing'),
         signedOut: t('wishlist.signedOut'),

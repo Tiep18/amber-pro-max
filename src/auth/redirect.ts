@@ -9,22 +9,32 @@ const allowedPaths = new Set(
   ]
 );
 
+const allowedAdminPaths = new Set([
+  '/admin',
+  '/admin/blog',
+  '/admin/blog/new',
+  '/admin/blog/taxonomy',
+  '/admin/catalog',
+  '/admin/catalog/new',
+  '/admin/catalog/taxonomy',
+  '/admin/discounts',
+  '/admin/exceptions',
+  '/admin/forbidden',
+  '/admin/launch',
+  '/admin/newsletter',
+  '/admin/operations',
+  '/admin/orders',
+  '/admin/policies',
+  '/admin/reviews',
+  '/admin/shipping'
+]);
+
 function isAllowedAdminPath(pathname: string) {
   return (
-    pathname === '/admin' ||
-    pathname === '/admin/blog' ||
-    pathname === '/admin/blog/new' ||
-    pathname === '/admin/catalog' ||
-    pathname === '/admin/catalog/new' ||
-    pathname === '/admin/launch' ||
-    pathname === '/admin/operations' ||
-    pathname === '/admin/policies' ||
-    pathname === '/admin/shipping' ||
-    pathname === '/admin/discounts' ||
-    pathname === '/admin/reviews' ||
-    pathname === '/admin/newsletter' ||
+    allowedAdminPaths.has(pathname) ||
     /^\/admin\/catalog\/[0-9a-f-]+$/i.test(pathname) ||
     /^\/admin\/blog\/[0-9a-f-]+$/i.test(pathname) ||
+    /^\/admin\/orders\/[A-Z0-9-]+$/i.test(pathname) ||
     /^\/admin\/catalog\/[0-9a-f-]+\/media$/i.test(pathname) ||
     /^\/admin\/catalog\/[0-9a-f-]+\/variants$/i.test(pathname)
   );

@@ -1,5 +1,7 @@
+import {execFile} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {createConfirmedUser, deleteUser, rest, type E2EUser} from './authenticated-users';
+import {promisify} from 'node:util';
+import {createConfirmedUser, deleteUser, rest, supabaseUrl, type E2EUser} from './authenticated-users';
 
 type ProductFixture = {
   id: string;
@@ -29,6 +31,10 @@ const createdUsers: E2EUser[] = [];
 const createdProductIds: string[] = [];
 const createdOrderIds: string[] = [];
 const createdEmails: string[] = [];
+const execFileAsync = promisify(execFile);
+const dockerExecutable = process.platform === 'win32' ? 'docker.exe' : 'docker';
+const localSupabaseDbContainer = 'supabase_db_Test_GSD';
+const localSupabaseProject = 'Test_GSD';
 
 function suffix() {
   return `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -374,33 +380,101 @@ export async function seedPhase6Data(): Promise<Phase6Seed> {
   };
 }
 
-async function safeRest(path: string, init?: RequestInit) {
-  try {
-    await rest(path, init);
-  } catch {
-    // Some commerce rows are intentionally append-only; failed teardown must not mask test failures.
+function assertLoopbackSupabase() {
+  const target = new URL(supabaseUrl);
+  const loopbackHosts = new Set(['127.0.0.1', 'localhost', '[::1]']);
+
+  if (target.protocol !== 'http:' || !loopbackHosts.has(target.hostname)) {
+    throw new Error(`Phase 6 privileged cleanup requires a loopback Supabase URL; received ${target.origin}`);
   }
 }
 
-async function safeDeleteUser(userId: string) {
-  try {
-    await deleteUser(userId);
-  } catch {
-    // A later db reset removes any leftover auth fixtures.
+function sqlText(value: string) {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+async function deleteProtectedLocalRows(orderIds: string[], emails: string[]) {
+  if (orderIds.length === 0 && emails.length === 0) {
+    return;
   }
+
+  assertLoopbackSupabase();
+
+  const {stdout: projectLabel} = await execFileAsync(
+    dockerExecutable,
+    [
+      'inspect',
+      '--format',
+      '{{ index .Config.Labels "com.supabase.cli.project" }}',
+      localSupabaseDbContainer
+    ],
+    {windowsHide: true}
+  );
+
+  if (projectLabel.trim() !== localSupabaseProject) {
+    throw new Error(
+      `Phase 6 privileged cleanup refused container ${localSupabaseDbContainer} with project label ${projectLabel.trim()}`
+    );
+  }
+
+  const statements = ['begin;'];
+
+  if (orderIds.length > 0) {
+    statements.push(
+      'alter table public.commerce_audit_events disable trigger commerce_audit_events_append_only;',
+      `delete from public.commerce_audit_events where order_id in (${orderIds.map(sqlText).join(', ')});`,
+      'alter table public.commerce_audit_events enable trigger commerce_audit_events_append_only;'
+    );
+  }
+
+  if (emails.length > 0) {
+    statements.push(
+      `delete from public.newsletter_consent_events where normalized_email in (${emails.map(sqlText).join(', ')});`,
+      `delete from public.newsletter_subscribers where normalized_email in (${emails.map(sqlText).join(', ')});`
+    );
+  }
+
+  statements.push('commit;');
+
+  await execFileAsync(
+    dockerExecutable,
+    [
+      'exec',
+      localSupabaseDbContainer,
+      'psql',
+      '--set',
+      'ON_ERROR_STOP=1',
+      '--username',
+      'postgres',
+      '--dbname',
+      'postgres',
+      '--command',
+      statements.join('\n')
+    ],
+    {windowsHide: true}
+  );
 }
 
 export async function cleanupPhase6Data() {
-  for (const email of createdEmails.splice(0)) {
-    await safeRest(`newsletter_subscribers?normalized_email=eq.${encodeURIComponent(email)}`, {method: 'DELETE'});
+  const orderIds = [...createdOrderIds];
+  const productIds = [...createdProductIds];
+  const emails = [...createdEmails];
+  const users = [...createdUsers];
+
+  await deleteProtectedLocalRows(orderIds, emails);
+
+  for (const orderId of orderIds) {
+    await rest(`checkout_orders?id=eq.${orderId}`, {method: 'DELETE'});
   }
-  for (const orderId of createdOrderIds.splice(0)) {
-    await safeRest(`checkout_orders?id=eq.${orderId}`, {method: 'DELETE'});
+  for (const productId of productIds) {
+    await rest(`products?id=eq.${productId}`, {method: 'DELETE'});
   }
-  for (const productId of createdProductIds.splice(0)) {
-    await safeRest(`products?id=eq.${productId}`, {method: 'DELETE'});
+  for (const user of users) {
+    await deleteUser(user.id);
   }
-  for (const user of createdUsers.splice(0)) {
-    await safeDeleteUser(user.id);
-  }
+
+  createdOrderIds.splice(0);
+  createdProductIds.splice(0);
+  createdEmails.splice(0);
+  createdUsers.splice(0);
 }

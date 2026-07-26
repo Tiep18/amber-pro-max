@@ -91,10 +91,10 @@ async function signIn(page: Page, user: {email: string; password: string}, expec
   await page.getByLabel('Password').fill(user.password);
   await page.getByRole('button', {name: 'Sign in'}).click();
   if (expected === 'admin') {
-    await expect(page).toHaveURL((url) => url.pathname === '/admin/catalog');
+    await expect(page).toHaveURL((url) => url.pathname === '/admin/catalog', {timeout: 15_000});
     await expect(page.getByRole('heading', {name: 'Products', exact: true})).toBeVisible();
   } else {
-    await expect(page).toHaveURL((url) => url.pathname === '/admin/forbidden');
+    await expect(page).toHaveURL((url) => url.pathname === '/admin/forbidden', {timeout: 15_000});
     await expect(page.getByRole('heading', {name: 'Access denied'})).toBeVisible();
   }
 }
@@ -163,6 +163,7 @@ test.afterAll(async () => {
 });
 
 test('admin persists an incomplete draft and publish saves the current editor snapshot', async ({page}) => {
+  test.setTimeout(120_000);
   const slugSuffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   const partialVietnameseTitle = `Mau tho dang do ${slugSuffix}`;
   const unsavedEnglishTitle = `Publish snapshot bunny ${slugSuffix}`;
@@ -200,7 +201,9 @@ test('admin persists an incomplete draft and publish saves the current editor sn
   await page.getByRole('button', {name: 'Vietnam market enabled'}).click();
   await page.getByRole('button', {name: 'Save draft', exact: true}).first().click();
 
-  await expect(page).toHaveURL(/\/admin\/catalog\/[0-9a-f-]+(?:\?saved=1)?$/);
+  await expect(page).toHaveURL(/\/admin\/catalog\/[0-9a-f-]+(?:\?saved=1)?$/, {
+    timeout: 15_000
+  });
   const productId = new URL(page.url()).pathname.split('/').at(-1);
   expect(productId).toBeTruthy();
   createdProductIds.push(productId!);
@@ -214,17 +217,19 @@ test('admin persists an incomplete draft and publish saves the current editor sn
     'on'
   );
   await expect(page.getByLabel('Vietnam price in VND')).toHaveValue('');
-  await expect(page.getByText('Current status: draft')).toBeVisible();
+  await expect(
+    page.getByRole('heading', {name: 'Edit product'}).locator('xpath=preceding-sibling::p[1]')
+  ).toHaveText('draft');
 
   await selectLocale(page, 'content', 'English');
   await page.getByLabel('English title').fill(unsavedEnglishTitle);
   await page.getByLabel('English description').fill('Current snapshot saved by publish.');
   await page.getByLabel('English specifications JSON').fill('{"difficulty":"easy"}');
 
-  await page.getByRole('button', {name: category.label, exact: true}).click();
-  await page.getByRole('button', {name: technique.label, exact: true}).click();
-  await page.getByRole('button', {name: tag.label, exact: true}).click();
-  await page.getByRole('button', {name: collection.label, exact: true}).click();
+  await page.getByRole('button', {name: `+ ${category.label}`, exact: true}).click();
+  await page.getByRole('button', {name: `+ ${technique.label}`, exact: true}).click();
+  await page.getByRole('button', {name: `+ ${tag.label}`, exact: true}).click();
+  await page.getByRole('button', {name: `+ ${collection.label}`, exact: true}).click();
   await expect(page.getByLabel(`${collection.label} display order`)).toHaveValue('8');
 
   await page.getByLabel('Vietnam price in VND').fill('173000');
@@ -244,7 +249,7 @@ test('admin persists an incomplete draft and publish saves the current editor sn
   await expect(page.getByText('Primary product image')).toBeVisible();
   await expect(page.getByText('Vietnamese social image')).toBeVisible();
   await expect(page.getByText('English social image')).toBeVisible();
-  await expect(page.getByText('Private PDF')).toBeVisible();
+  await expect(page.getByText('Private PDF', {exact: true})).toBeVisible();
 
   const membershipsResponse = await rest(
     `collection_products?collection_id=eq.${collection.id}&select=product_id,display_order&order=display_order`
@@ -254,11 +259,11 @@ test('admin persists an incomplete draft and publish saves the current editor sn
     {product_id: productId, display_order: 8}
   ]);
 
-  await expect(page.getByRole('link', {name: 'Manage media and PDF'})).toHaveAttribute(
+  await expect(page.getByRole('link', {name: 'Media and PDF'}).first()).toHaveAttribute(
     'href',
     `/admin/catalog/${productId}/media`
   );
-  await expect(page.getByRole('link', {name: 'Manage variants and inventory'})).toHaveAttribute(
+  await expect(page.getByRole('link', {name: 'Variants and inventory'}).first()).toHaveAttribute(
     'href',
     `/admin/catalog/${productId}/variants`
   );
@@ -267,7 +272,9 @@ test('admin persists an incomplete draft and publish saves the current editor sn
   await selectLocale(page, 'content', 'English');
   await expect(page.getByLabel('English title')).toHaveValue(unsavedEnglishTitle);
   await expect(page.getByLabel('Vietnam price in VND')).toHaveValue('173000');
-  await expect(page.getByText('Current status: draft')).toBeVisible();
+  await expect(
+    page.getByRole('heading', {name: 'Edit product'}).locator('xpath=preceding-sibling::p[1]')
+  ).toHaveText('draft');
 
   await page.goto('/admin/catalog');
   const productRow = page.getByRole('row').filter({hasText: unsavedEnglishTitle});

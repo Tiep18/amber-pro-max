@@ -1,13 +1,13 @@
 import {getTranslations, setRequestLocale} from 'next-intl/server';
-import {notFound} from 'next/navigation';
 import {UnsubscribeResult} from '@/components/newsletter/unsubscribe-result';
+import type {Locale} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {unsubscribeNewsletter} from '@/newsletter/consent';
 
-type Params = Promise<{locale: string}>;
+type Params = Promise<{locale: Locale}>;
 type SearchParams = Promise<{token?: string | string[]}>;
 
-export default async function EnglishNewsletterUnsubscribePage({
+export default async function NewsletterUnsubscribePage({
   params,
   searchParams
 }: {
@@ -15,19 +15,18 @@ export default async function EnglishNewsletterUnsubscribePage({
   searchParams: SearchParams;
 }) {
   const {locale} = await params;
-  if (locale !== 'en') notFound();
-  setRequestLocale('en');
+  setRequestLocale(locale);
   const tokenValue = (await searchParams).token;
   const client = await createSupabaseServerClient();
   const [result, t] = await Promise.all([
     unsubscribeNewsletter({rawToken: typeof tokenValue === 'string' ? tokenValue : null}, client as never),
-    getTranslations('newsletterUnsubscribe')
+    getTranslations({locale, namespace: 'newsletterUnsubscribe'})
   ]);
 
   return (
     <UnsubscribeResult
       result={result}
-      subscribeAgainHref="/en#newsletter"
+      subscribeAgainHref={`/${locale}#newsletter`}
       labels={{
         unsubscribedTitle: t('unsubscribedTitle'),
         unsubscribedBody: t('unsubscribedBody'),

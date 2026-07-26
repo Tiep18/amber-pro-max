@@ -88,14 +88,8 @@ function featuredCommerceLabels(
         status: copy.placeholderStatus
       },
       wishlist: {
-        save:
-          locale === 'vi'
-            ? 'Lưu sản phẩm vào yêu thích'
-            : 'Save product to wishlist',
-        remove:
-          locale === 'vi'
-            ? 'Xóa sản phẩm khỏi yêu thích'
-            : 'Remove product from wishlist',
+        save: String(t.raw('wishlist.save')),
+        remove: String(t.raw('wishlist.remove')),
         saving: t('wishlist.saving'),
         removing: t('wishlist.removing'),
         signedOut: t('wishlist.signedOut'),

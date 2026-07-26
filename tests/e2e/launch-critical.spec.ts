@@ -4,11 +4,13 @@ test('OPS-04 D-08 launch smoke keeps localized storefront and checkout reachable
   await page.setViewportSize({width: 375, height: 812});
 
   await page.goto('/en');
-  await expect(page.getByRole('heading', {name: 'Handmade crochet patterns and keepsakes'})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Ambertinybear', level: 1})).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.goto('/vi');
-  await expect(page.getByRole('heading', {name: 'Mau moc va qua tang len thu cong'})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Ambertinybear', level: 1})).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'vi');
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   const checkout = await page.goto('/en/checkout');

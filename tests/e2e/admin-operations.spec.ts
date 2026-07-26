@@ -54,16 +54,23 @@ test.describe('admin operations error queue (OPS-03, D-11, D-12)', () => {
   test('renders only sanitized operational facts and resolves an error', async ({ page }) => {
     await signIn(page, admin, '/admin/operations');
     await expect(page.getByRole('heading', { name: 'Operational errors' })).toBeVisible();
-    await expect(page.getByText('PayPal capture failed after provider verification')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'PayPal capture failed after provider verification' })
+    ).toBeVisible();
     await page.getByLabel('Search operational errors').fill('paypal:capture');
-    await expect(page.getByText('PayPal capture failed after provider verification')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'PayPal capture failed after provider verification' })
+    ).toBeVisible();
     await page.getByLabel('Search operational errors').fill('no-matching-error');
     await expect(page.getByText('No errors match this search.')).toBeVisible();
     await page.getByLabel('Search operational errors').fill('');
     await expect(
       page.locator('body').evaluate((body) => body.scrollWidth <= window.innerWidth)
     ).resolves.toBe(true);
-    await page.getByRole('button', { name: /View details for/ }).click();
+    const paymentIncident = page
+      .getByRole('heading', { name: 'PayPal capture failed after provider verification' })
+      .locator('xpath=ancestor::article[1]');
+    await paymentIncident.getByRole('button', { name: /View details for/ }).click();
     await expect(page.getByRole('dialog', { name: 'Incident details' })).toBeVisible();
     await expect(page.getByText('Sanitized facts')).toBeVisible();
     await expect(page.getByText('ORDER-OPS-123')).toBeVisible();
@@ -71,16 +78,21 @@ test.describe('admin operations error queue (OPS-03, D-11, D-12)', () => {
       /buyer@example\.com|secret-token|Bearer abc|https:\/\/example\.com\/download|rawPayload/i
     );
 
-    await page.getByRole('button', { name: 'Mark error resolved' }).click();
+    await page.getByRole('button', { name: 'Close incident details' }).click();
+    await paymentIncident.getByRole('button', { name: 'Mark error resolved' }).click();
     await expect(
       page.locator('[data-sonner-toast]').filter({
         hasText: 'Operational error marked as resolved.'
       })
     ).toBeVisible();
-    await expect(page.getByText('No unresolved operational errors')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'PayPal capture failed after provider verification' })
+    ).toHaveCount(0);
 
     await page.goto('/admin/operations?status=resolved&area=payment');
-    await expect(page.getByText('PayPal capture failed after provider verification')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'PayPal capture failed after provider verification' })
+    ).toBeVisible();
   });
 
   test('customer cannot access operational errors', async ({ page }) => {

@@ -44,10 +44,10 @@ test.describe('saved address retention (ACC-03, D-01, D-02, D-04)', () => {
     await page.getByLabel('Address line 1').fill('123 Market Street');
     await page.getByRole('button', {name: 'Save address'}).click();
     await expect(page.getByRole('status').filter({hasText: 'Address saved.'})).toBeVisible();
-    await expect(page.getByRole('heading', {name: 'Home'})).toBeVisible();
+    await expect(page.getByRole('heading', {name: 'Home', exact: true})).toBeVisible();
 
     const homeAddress = page.locator('article').filter({
-      has: page.getByRole('heading', {name: 'Home'})
+      has: page.getByRole('heading', {name: 'Home', exact: true})
     });
     await homeAddress.getByRole('button', {name: 'Edit'}).click();
     await homeAddress.getByLabel('Address label').fill('Studio');
@@ -58,7 +58,9 @@ test.describe('saved address retention (ACC-03, D-01, D-02, D-04)', () => {
   test('customer can select exactly one default address', async ({page}) => {
     await page.goto('/en/account/addresses');
     await page.getByRole('button', {name: 'Set as default'}).first().click();
-    await expect(page.getByRole('status')).toContainText(/default address updated/i);
+    await expect(
+      page.getByRole('status').filter({hasText: /default address updated/i})
+    ).toBeVisible();
     await expect(page.locator('span').filter({hasText: /^Default$/})).toHaveCount(1);
   });
 
@@ -66,7 +68,7 @@ test.describe('saved address retention (ACC-03, D-01, D-02, D-04)', () => {
     await page.goto('/en/account/addresses');
     page.once('dialog', async (dialog) => {
       expect(dialog.message()).toMatch(/past orders keep their original shipping details/i);
-      await dialog.accept();
+      await dialog.dismiss();
     });
     await page.getByRole('button', {name: 'Delete'}).first().click();
   });
@@ -90,12 +92,18 @@ test.describe('saved address retention (ACC-03, D-01, D-02, D-04)', () => {
     );
     await page.goto('/en/checkout');
     const savedAddress = page.getByLabel('Saved address');
-    const savedAddressValue = await savedAddress.locator('option').nth(1).getAttribute('value');
-    expect(savedAddressValue).toBeTruthy();
-    await savedAddress.selectOption(savedAddressValue!);
+    await savedAddress.click();
+    await page.getByRole('option', {name: /^US home/}).click();
     await page.getByRole('button', {name: 'Use this address'}).click();
-    await expect(page.getByLabel('Shipping country', {exact: true})).not.toHaveValue('');
-    await expect(page.getByLabel('Address line 1')).not.toHaveValue('');
+    await expect(page.getByRole('combobox', {name: /^Shipping country/})).toContainText(
+      'United States (US)'
+    );
+    await expect(page.getByRole('textbox', {name: /^Street address/})).toHaveValue(
+      '123 Market Street'
+    );
+    await expect(
+      page.getByRole('status').filter({hasText: /cannot ship these items to this destination/i})
+    ).toBeVisible();
   });
 });
 
@@ -126,7 +134,9 @@ test.describe('account wishlist retention (ACC-04, D-05, D-06, D-07)', () => {
     await page.goto('/en/account/wishlist');
     const removableItem = page.getByRole('heading', {name: seed.products.wishlistUnavailable.title}).locator('xpath=ancestor::article[1]');
     await removableItem.getByRole('button', {name: /remove/i}).click();
-    await expect(page.getByRole('status')).toContainText(/removed/i);
+    await expect(
+      page.getByRole('status').filter({hasText: /wishlist item removed/i})
+    ).toBeVisible();
     await expect(removableItem).toHaveCount(0);
     await expect(page.getByText('1 item', {exact: true})).toBeVisible();
   });
@@ -157,12 +167,13 @@ test.describe('product surface wishlist hearts (ACC-04, D-07, D-08)', () => {
   test('signed-in customer can toggle a catalog card heart selected state', async ({page}) => {
     await signIn(page, surfaceSeed.customer, '/en/account');
     await page.goto('/en/catalog');
-    const heart = page.getByRole('button', {name: /save .* to wishlist/i}).first();
-    const title = await heart.getAttribute('aria-label');
+    const productTitle = surfaceSeed.products.physical.title;
+    const product = page.getByRole('article', {name: productTitle});
+    const heart = product.getByRole('button', {name: `Save ${productTitle} to wishlist`});
     await heart.click();
-    const productTitle = title?.replace(/^Save /, '').replace(/ to wishlist$/, '');
-    expect(productTitle).toBeTruthy();
-    await expect(page.getByRole('button', {name: `Remove ${productTitle} from wishlist`})).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      product.getByRole('button', {name: `Remove ${productTitle} from wishlist`})
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('signed-in customer can remove and restore a saved heart with persisted state', async ({

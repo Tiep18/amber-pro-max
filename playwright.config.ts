@@ -11,7 +11,7 @@ export default defineConfig({
     trace: 'on-first-retry'
   },
   webServer: {
-    command: 'npm run dev -- --port 3210',
+    command: 'node scripts/start-playwright-server.mjs',
     url: 'http://localhost:3210',
     env: {
       NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3210',
