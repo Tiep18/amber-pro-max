@@ -93,7 +93,7 @@ export function SignInForm({
 
   useEffect(() => {
     completeSuccessfulSignIn(state, {
-      publishUser: (user) => notifyStorefrontContextChanged({ user }),
+      publishUser: () => notifyStorefrontContextChanged(),
       replace: (path) => router.replace(path)
     });
   }, [router, state]);

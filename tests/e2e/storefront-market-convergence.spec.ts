@@ -31,23 +31,25 @@ test('controlled response fixture delays, fails, counts, and marks private respo
 test('rapid VN to INTL to VN intent commits only the newest server context and cart quote', async ({
   storefrontMarket
 }) => {
-  test.fixme(true, 'Plans 09-12 and 09-13: promote after canonical control-to-cart fan-out exists');
   const session = await storefrontMarket.createSession({ locale: 'en', marketCookie: 'vn' });
   await storefrontMarket.interceptContext(session.page, [
+    { body: { market: 'vn', user: null, contextVersion: 4 } },
     { delayMs: 250, body: { market: 'intl', user: null, contextVersion: 5 } },
     { delayMs: 10, body: { market: 'vn', user: null, contextVersion: 6 } }
   ]);
   await session.page.goto('/en');
 
-  const trigger = session.page.getByRole('banner').getByRole('button', { name: /EN.*VN/i });
+  const trigger = session.page.getByTestId('commerce-context-trigger');
+  await expect(trigger).toHaveAccessibleName(/Language: English.*Shopping region: Vietnam/i);
   await trigger.click();
   await session.page.getByRole('menuitemradio', { name: /International.*USD/i }).click();
+  await expect(trigger).toHaveAttribute('data-state', 'closed');
+  await expect(trigger).toHaveAccessibleName(/Language: English.*Shopping region: International/i);
   await trigger.click();
   await session.page.getByRole('menuitemradio', { name: /Vietnam.*VND/i }).click();
 
-  await expect(
-    session.page.getByRole('banner').getByRole('button', { name: /EN.*VN/i })
-  ).toBeVisible();
+  await expect(trigger).toHaveAttribute('data-state', 'closed');
+  await expect(trigger).toHaveAccessibleName(/Language: English.*Shopping region: Vietnam/i);
   await expectMarketCookie(session.context, 'vn');
   await expect(session.page.getByRole('main')).not.toContainText(/\$|USD/);
 });
@@ -66,7 +68,8 @@ test('late context and catalog projection responses cannot replace the latest ma
   ]);
   await session.page.goto(catalogPath('en'));
 
-  const trigger = session.page.getByRole('banner').getByRole('button', { name: /EN.*VN/i });
+  const trigger = session.page.getByTestId('commerce-context-trigger');
+  await expect(trigger).toHaveAccessibleName(/EN.*VN/i);
   await trigger.click();
   await session.page.getByRole('menuitemradio', { name: /International.*USD/i }).click();
   await trigger.click();
@@ -79,66 +82,83 @@ test('late context and catalog projection responses cannot replace the latest ma
 test('failed market action retains committed selection, intent rows, and retry recovery', async ({
   storefrontMarket
 }) => {
-  test.fixme(true, 'Plans 09-12 and 09-13: promote after rollback and cart recovery UI exist');
   const session = await storefrontMarket.createSession({ locale: 'en', marketCookie: 'vn' });
   await storefrontMarket.failNextServerAction(session.page);
   await session.page.goto('/en/cart');
 
-  const trigger = session.page.getByRole('banner').getByRole('button', { name: /EN.*VN/i });
+  const trigger = session.page.getByTestId('commerce-context-trigger');
+  await expect(trigger).toHaveAccessibleName(/Language: English.*Shopping region: Vietnam/i);
   await trigger.click();
   await session.page.getByRole('menuitemradio', { name: /International.*USD/i }).click();
 
-  await expect(trigger).toHaveAccessibleName(/EN.*VN/i);
-  await expect(session.page.getByRole('alert')).toContainText(/previous selection.*active/i);
-  await expect(session.page.getByRole('button', { name: /try again/i })).toBeVisible();
+  await expect(trigger).toHaveAttribute(
+    'aria-label',
+    /Language: English.*Shopping region: Vietnam/i
+  );
+  await expect(session.page.getByRole('menuitemradio', { name: /Vietnam.*VND/i })).toBeChecked();
+  const marketMenu = session.page.getByRole('menu', {
+    name: /Language: English.*Shopping region: Vietnam/i
+  });
+  await expect(marketMenu.getByRole('alert')).toContainText(/previous selection.*active/i);
+  await expect(marketMenu.getByRole('button', { name: /try again/i })).toBeVisible();
   await expectMarketCookie(session.context, 'vn');
 });
 
 test('committed market survives reload and client navigation without locale drift', async ({
   storefrontMarket
 }) => {
-  test.fixme(true, 'Plan 09-13: promote after independent route-preserving controls ship');
   const session = await storefrontMarket.createSession({ locale: 'vi', marketCookie: 'intl' });
   await session.page.goto('/vi');
   await session.page.reload();
-  await session.page
-    .getByRole('link', { name: /cửa hàng/i })
-    .first()
-    .click();
+  const trigger = session.page.getByTestId('commerce-context-trigger');
+  await expect(trigger).toHaveAccessibleName(/Ngôn ngữ: Tiếng Việt.*Khu vực mua sắm: Quốc tế/i);
+  const catalogLink = session.page
+    .getByRole('banner')
+    .getByRole('link', { name: 'Cua hang', exact: true });
+  await Promise.all([session.page.waitForURL(/\/vi\/cua-hang$/), catalogLink.click()]);
 
   await expect(session.page).toHaveURL(/\/vi\/cua-hang$/);
   await expect(session.page.locator('html')).toHaveAttribute('lang', 'vi');
   await expectMarketCookie(session.context, 'intl');
-  await expect(
-    session.page.getByRole('banner').getByRole('button', { name: /VI.*INTL/i })
-  ).toBeVisible();
+  await expect(trigger).toHaveAccessibleName(/Ngôn ngữ: Tiếng Việt.*Khu vực mua sắm: Quốc tế/i);
 });
 
 test('focus and visible transitions refetch while hidden state cannot commit commerce', async ({
   storefrontMarket
 }) => {
-  test.fixme(true, 'Plan 09-13: promote after visible-only authoritative revalidation is wired');
   const session = await storefrontMarket.createSession({ locale: 'en', marketCookie: 'intl' });
   const tracker = await storefrontMarket.interceptContext(session.page, [
     { body: { market: 'intl', user: null, contextVersion: 4 } },
-    { body: { market: 'vn', user: null, contextVersion: 5 } }
+    { body: { market: 'vn', user: null, contextVersion: 5 } },
+    { body: { market: 'vn', user: null, contextVersion: 6 } }
   ]);
   await session.page.goto('/en');
+  await expect.poll(tracker.count).toBe(1);
+  const trigger = session.page.getByTestId('commerce-context-trigger');
+  await expect(trigger).toHaveAccessibleName(/Language: English.*Shopping region: International/i);
+  await session.page.evaluate(() => {
+    const validatedAt = Date.now();
+    Date.now = () => validatedAt + 5 * 60 * 1000 + 1;
+  });
   await storefrontMarket.setVisibility(session.page, 'hidden');
   expect(tracker.count()).toBe(1);
 
   await storefrontMarket.setVisibility(session.page, 'visible');
-  await storefrontMarket.focus(session.page);
   await expect.poll(tracker.count).toBe(2);
-  await expect(
-    session.page.getByRole('banner').getByRole('button', { name: /EN.*VN/i })
-  ).toBeVisible();
+  await expect(trigger).toHaveAccessibleName(/Language: English.*Shopping region: Vietnam/i);
+
+  await session.page.evaluate(() => {
+    const validatedAt = Date.now();
+    Date.now = () => validatedAt + 5 * 60 * 1000 + 1;
+  });
+  await storefrontMarket.focus(session.page);
+  await expect.poll(tracker.count).toBe(3);
+  await expect(trigger).toHaveAccessibleName(/Language: English.*Shopping region: Vietnam/i);
 });
 
 test('another tab sends invalidation only and the receiving tab refetches server authority', async ({
   storefrontMarket
 }) => {
-  test.fixme(true, 'Plan 09-13: promote after cross-tab invalidation reaches controls and cart');
   const session = await storefrontMarket.createSession({ locale: 'en', marketCookie: 'intl' });
   const second = await storefrontMarket.secondPage(session);
   const tracker = await storefrontMarket.interceptContext(second, [
@@ -146,11 +166,17 @@ test('another tab sends invalidation only and the receiving tab refetches server
     { body: { market: 'intl', user: null, contextVersion: 9 } }
   ]);
   await Promise.all([session.page.goto('/en'), second.goto('/en')]);
+  await expect.poll(tracker.count).toBe(1);
+  await expect(second.getByTestId('commerce-context-trigger')).toHaveAccessibleName(
+    /Language: English.*Shopping region: International/i
+  );
 
   await storefrontMarket.signalForgedInvalidation(session.page, 9);
 
   await expect.poll(tracker.count).toBe(2);
-  await expect(second.getByRole('banner').getByRole('button', { name: /EN.*INTL/i })).toBeVisible();
+  await expect(second.getByTestId('commerce-context-trigger')).toHaveAccessibleName(
+    /Language: English.*Shopping region: International/i
+  );
   await expect(second.getByRole('main')).not.toContainText('untrusted-browser-value');
 });
 

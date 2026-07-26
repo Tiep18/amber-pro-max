@@ -147,110 +147,108 @@ describe('storefront catalog projection contracts', () => {
     });
   });
 
-  it(
-    'active-market products and facets replace the SEO shell atomically',
-    async () => {
-      const { projectCatalog } = await projectionModules();
-      const loadProducts = vi.fn(async ({ market }: { market: 'vn' | 'intl' }) =>
-        market === 'vn'
-          ? [vnOnlyProduct, bothMarketProduct]
-          : [intlOnlyProduct, { ...bothMarketProduct, currencyCode: 'USD', priceMinor: 500 }]
-      );
-      const loadFacets = vi.fn(async ({ market }: { market: 'vn' | 'intl' }) =>
-        market === 'vn' ? vnFacets : intlFacets
-      );
+  it('active-market products and facets replace the SEO shell atomically', async () => {
+    const { projectCatalog } = await projectionModules();
+    const loadProducts = vi.fn(async ({ market }: { market: 'vn' | 'intl' }) =>
+      market === 'vn'
+        ? [vnOnlyProduct, bothMarketProduct]
+        : [intlOnlyProduct, { ...bothMarketProduct, currencyCode: 'USD', priceMinor: 500 }]
+    );
+    const loadFacets = vi.fn(async ({ market }: { market: 'vn' | 'intl' }) =>
+      market === 'vn' ? vnFacets : intlFacets
+    );
 
-      const seoDefaultShell = { products: [vnOnlyProduct, bothMarketProduct], facets: vnFacets };
-      const result = await projectCatalog(
-        {
-          locale: 'vi',
-          market: 'intl',
-          surface: 'catalog',
-          search: null,
-          productType: null,
-          categorySlug: null,
-          collectionSlug: null,
-          techniqueSlug: null,
-          tagSlug: null,
-          sort: 'newest',
-          limit: 24
-        },
-        { loadProducts, loadFacets }
-      );
-
-      expect(result).not.toEqual(seoDefaultShell);
-      expect(result.products).toEqual([
-        intlOnlyProduct,
-        { ...bothMarketProduct, currencyCode: 'USD', priceMinor: 500 }
-      ]);
-      expect(
-        result.products.map((product: { productId: string }) => product.productId)
-      ).not.toContain('product-vn');
-      expect(result.facets).toEqual(intlFacets);
-      expect(result.facets).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ kind: 'category' }),
-          expect.objectContaining({ kind: 'collection' }),
-          expect.objectContaining({ kind: 'technique' }),
-          expect.objectContaining({ kind: 'tag' })
-        ])
-      );
-    }
-  );
-
-  it(
-    'every shaping dimension participates in reusable cache calls',
-    async () => {
-      const { projectCatalog } = await projectionModules();
-      const base = {
-        locale: 'en',
+    const seoDefaultShell = { products: [vnOnlyProduct, bothMarketProduct], facets: vnFacets };
+    const result = await projectCatalog(
+      {
+        locale: 'vi',
         market: 'intl',
         surface: 'catalog',
-        search: 'bear',
-        productType: 'physical_finished',
-        categorySlug: 'toys',
-        collectionSlug: 'spring',
-        techniqueSlug: 'crochet',
-        tagSlug: 'gift',
-        sort: 'price_asc',
+        search: null,
+        productType: null,
+        categorySlug: null,
+        collectionSlug: null,
+        techniqueSlug: null,
+        tagSlug: null,
+        sort: 'newest',
         limit: 24
-      } as const;
-      const loadProducts = vi.fn(async (_input: typeof base) => []);
-      const loadFacets = vi.fn(async (_input: typeof base) => []);
+      },
+      { loadProducts, loadFacets }
+    );
 
-      await projectCatalog(base, { loadProducts, loadFacets });
+    expect(result).not.toEqual(seoDefaultShell);
+    expect(result.products).toEqual([
+      intlOnlyProduct,
+      { ...bothMarketProduct, currencyCode: 'USD', priceMinor: 500 }
+    ]);
+    expect(
+      result.products.map((product: { productId: string }) => product.productId)
+    ).not.toContain('product-vn');
+    expect(result.facets).toEqual(intlFacets);
+    expect(result.facets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'category' }),
+        expect.objectContaining({ kind: 'collection' }),
+        expect.objectContaining({ kind: 'technique' }),
+        expect.objectContaining({ kind: 'tag' })
+      ])
+    );
+  });
 
-      expect(loadProducts).toHaveBeenCalledWith(base);
-      expect(loadFacets).toHaveBeenCalledWith(base);
+  it('every shaping dimension participates in reusable cache calls', async () => {
+    const { projectCatalog } = await projectionModules();
+    const base = {
+      locale: 'en',
+      market: 'intl',
+      surface: 'catalog',
+      search: 'bear',
+      productType: 'physical_finished',
+      categorySlug: 'toys',
+      collectionSlug: 'spring',
+      techniqueSlug: 'crochet',
+      tagSlug: 'gift',
+      sort: 'price_asc',
+      limit: 24
+    } as const;
+    const loadProducts = vi.fn(async (input: typeof base) => {
+      void input;
+      return [];
+    });
+    const loadFacets = vi.fn(async (input: typeof base) => {
+      void input;
+      return [];
+    });
 
-      const variants = [
-        { ...base, locale: 'vi' },
-        { ...base, market: 'vn' },
-        { ...base, surface: 'category' },
-        { ...base, search: 'rabbit' },
-        { ...base, productType: 'pdf_pattern' },
-        { ...base, categorySlug: 'patterns' },
-        { ...base, collectionSlug: 'holiday' },
-        { ...base, techniqueSlug: 'knit' },
-        { ...base, tagSlug: 'beginner' },
-        { ...base, sort: 'title' },
-        { ...base, limit: 12 }
-      ];
+    await projectCatalog(base, { loadProducts, loadFacets });
 
-      for (const variant of variants) {
-        await projectCatalog(variant, { loadProducts, loadFacets });
-      }
+    expect(loadProducts).toHaveBeenCalledWith(base);
+    expect(loadFacets).toHaveBeenCalledWith(base);
 
-      expect(new Set(loadProducts.mock.calls.map(([input]) => JSON.stringify(input))).size).toBe(
-        12
-      );
-      expect(new Set(loadFacets.mock.calls.map(([input]) => JSON.stringify(input))).size).toBe(12);
+    const variants = [
+      { ...base, locale: 'vi' },
+      { ...base, market: 'vn' },
+      { ...base, surface: 'category' },
+      { ...base, search: 'rabbit' },
+      { ...base, productType: 'pdf_pattern' },
+      { ...base, categorySlug: 'patterns' },
+      { ...base, collectionSlug: 'holiday' },
+      { ...base, techniqueSlug: 'knit' },
+      { ...base, tagSlug: 'beginner' },
+      { ...base, sort: 'title' },
+      { ...base, limit: 12 }
+    ];
 
-      await projectCatalog({ ...base, search: '  bear  ' }, { loadProducts, loadFacets });
-      expect(loadProducts.mock.calls.at(-1)?.[0]).toEqual(base);
-      expect(loadFacets.mock.calls.at(-1)?.[0]).toEqual(base);
+    for (const variant of variants) {
+      await projectCatalog(variant, { loadProducts, loadFacets });
     }
-  );
+
+    expect(new Set(loadProducts.mock.calls.map(([input]) => JSON.stringify(input))).size).toBe(12);
+    expect(new Set(loadFacets.mock.calls.map(([input]) => JSON.stringify(input))).size).toBe(12);
+
+    await projectCatalog({ ...base, search: '  bear  ' }, { loadProducts, loadFacets });
+    expect(loadProducts.mock.calls.at(-1)?.[0]).toEqual(base);
+    expect(loadFacets.mock.calls.at(-1)?.[0]).toEqual(base);
+  });
 
   it('commits matching products and facets as one ready snapshot', async () => {
     const {
@@ -285,6 +283,46 @@ describe('storefront catalog projection contracts', () => {
       identity
     });
     expect(settled.products).not.toContain(vnOnlyProduct);
+  });
+
+  it('accepts a ready catalog product without optional image metadata', async () => {
+    const { parseCatalogProjectionResponse } = await catalogCommerceModule();
+    const parsed = parseCatalogProjectionResponse({
+      status: 'ready',
+      projection: {
+        locale: 'en',
+        market: 'intl',
+        surface: 'catalog',
+        products: [
+          {
+            product_id: 'product-without-image',
+            slug: 'guest-race-pattern',
+            title: 'Guest race pattern',
+            description: '',
+            product_type: 'pdf_pattern',
+            currency_code: 'USD',
+            price_minor: 2500,
+            primary_image_bucket: null,
+            primary_image_path: null,
+            primary_image_alt: null,
+            in_stock: true,
+            published_at: '2026-07-23T12:32:48.379769+00:00'
+          }
+        ],
+        facets: []
+      }
+    });
+
+    expect(parsed).toMatchObject({
+      market: 'intl',
+      products: [
+        {
+          product_id: 'product-without-image',
+          primary_image_bucket: null,
+          currency_code: 'USD'
+        }
+      ]
+    });
   });
 
   it('ignores stale generations and mismatched response markets without partial replacement', async () => {

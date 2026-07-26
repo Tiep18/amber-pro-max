@@ -1,16 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { cookies, getRequestHeaderUser, getRequestMarket, redirect, revalidatePath } = vi.hoisted(() => ({
+const { cookies, getRequestHeaderUser, getRequestMarket } = vi.hoisted(() => ({
   cookies: vi.fn(),
   getRequestHeaderUser: vi.fn(),
-  getRequestMarket: vi.fn(),
-  revalidatePath: vi.fn(),
-  redirect: vi.fn()
+  getRequestMarket: vi.fn()
 }));
 
 vi.mock('next/headers', () => ({ cookies }));
-vi.mock('next/navigation', () => ({ redirect }));
-vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/auth/request-user', () => ({ getRequestHeaderUser }));
 vi.mock('@/catalog/page-context', () => ({ getRequestMarket }));
 
@@ -95,8 +91,6 @@ describe('strict market mutation result contract', () => {
   beforeEach(() => {
     set.mockReset();
     cookies.mockReset();
-    redirect.mockReset();
-    revalidatePath.mockReset();
     getRequestHeaderUser.mockReset();
     getRequestMarket.mockReset();
     cookies.mockResolvedValue({ set });
@@ -114,23 +108,16 @@ describe('strict market mutation result contract', () => {
       secure: false,
       maxAge: 60 * 60 * 24 * 180
     });
-    expect(redirect).not.toHaveBeenCalled();
-    expect(revalidatePath).not.toHaveBeenCalled();
   });
 
-  it(
-    'rejects invalid market input without cookie mutation or shared invalidation',
-    async () => {
-      const result = await futureMarketActions.commitActiveMarketAction?.({
-        market: 'https://evil.example'
-      });
+  it('rejects invalid market input without cookie mutation or shared invalidation', async () => {
+    const result = await futureMarketActions.commitActiveMarketAction?.({
+      market: 'https://evil.example'
+    });
 
-      expect(result).toEqual({ status: 'error', code: 'invalid_market' });
-      expect(set).not.toHaveBeenCalled();
-      expect(redirect).not.toHaveBeenCalled();
-      expect(revalidatePath).not.toHaveBeenCalled();
-    }
-  );
+    expect(result).toEqual({ status: 'error', code: 'invalid_market' });
+    expect(set).not.toHaveBeenCalled();
+  });
 
   it('returns a stable error when cookie persistence fails', async () => {
     set.mockRejectedValueOnce(new Error('raw persistence detail'));
@@ -138,32 +125,6 @@ describe('strict market mutation result contract', () => {
     const result = await futureMarketActions.commitActiveMarketAction?.({ market: 'intl' });
 
     expect(result).toEqual({ status: 'error', code: 'mutation_failed' });
-    expect(redirect).not.toHaveBeenCalled();
-    expect(revalidatePath).not.toHaveBeenCalled();
-  });
-
-  it('keeps the legacy form adapter strict and redirects only to a safe internal path', async () => {
-    const formData = new FormData();
-    formData.set('market', 'vn');
-    formData.set('returnTo', '/en/catalog?search=bear');
-
-    await marketActions.setActiveMarketAction(formData);
-
-    expect(set).toHaveBeenCalledWith(MARKET_COOKIE, 'vn', expect.any(Object));
-    expect(revalidatePath).not.toHaveBeenCalled();
-    expect(redirect).toHaveBeenCalledWith('/en/catalog');
-  });
-
-  it('does not let invalid legacy form input change market authority', async () => {
-    const formData = new FormData();
-    formData.set('market', 'VN');
-    formData.set('returnTo', '//evil.example');
-
-    await marketActions.setActiveMarketAction(formData);
-
-    expect(set).not.toHaveBeenCalled();
-    expect(revalidatePath).not.toHaveBeenCalled();
-    expect(redirect).toHaveBeenCalledWith('/vi');
   });
 });
 

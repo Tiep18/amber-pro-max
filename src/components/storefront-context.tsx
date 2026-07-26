@@ -10,8 +10,8 @@ import {
   useState,
   type ReactNode
 } from 'react';
-import {commitActiveMarketAction} from '@/catalog/market-actions';
-import {isMarketCode, type MarketCode} from '@/catalog/market';
+import { commitActiveMarketAction } from '@/catalog/market-actions';
+import { isMarketCode, type MarketCode } from '@/catalog/market';
 import type { Locale } from '@/i18n/routing';
 import {
   beginContextRequest,
@@ -26,12 +26,7 @@ import {
   type StorefrontContextState,
   type StorefrontUser
 } from '@/storefront/context-lifecycle';
-import {shouldRevalidateStorefrontContext} from './storefront-context-policy';
-
-type StorefrontContextUpdate = {
-  market?: MarketCode;
-  user?: StorefrontUser;
-};
+import { shouldRevalidateStorefrontContext } from './storefront-context-policy';
 
 export type StorefrontContextValue = StorefrontContextState & {
   purchaseSafe: boolean;
@@ -48,8 +43,8 @@ type ContextResponse = {
 const StorefrontContext = createContext<StorefrontContextValue | null>(null);
 export const STOREFRONT_CONTEXT_CHANGED = 'storefront-context-changed';
 export const STOREFRONT_CONTEXT_INVALIDATED = 'storefront-context-invalidated';
-const STOREFRONT_CONTEXT_CHANNEL = 'storefront-context-v1';
-const STOREFRONT_CONTEXT_STORAGE_KEY = 'storefront-context-invalidation-v1';
+const STOREFRONT_CONTEXT_CHANNEL = 'amigurumi.storefront-context.v1';
+const STOREFRONT_CONTEXT_STORAGE_KEY = 'amigurumi.storefront-context.invalidation.v1';
 let lastInvalidationVersion = 0;
 
 export function notifyStorefrontContextInvalidated() {
@@ -64,8 +59,7 @@ export function notifyStorefrontContextInvalidated() {
  * their detail is never accepted as commerce authority. The provider refetches
  * the private server context instead.
  */
-export function notifyStorefrontContextChanged(update: StorefrontContextUpdate = {}) {
-  void update;
+export function notifyStorefrontContextChanged() {
   if (typeof window === 'undefined') return;
 
   window.dispatchEvent(new CustomEvent(STOREFRONT_CONTEXT_CHANGED));
@@ -74,7 +68,15 @@ export function notifyStorefrontContextChanged(update: StorefrontContextUpdate =
 
 function createInvalidationSignal(): ContextInvalidationSignal {
   lastInvalidationVersion = Math.max(Date.now(), lastInvalidationVersion + 1);
-  return {schemaVersion: 1, invalidationVersion: lastInvalidationVersion};
+  return { schemaVersion: 1, invalidationVersion: lastInvalidationVersion };
+}
+
+function rememberInvalidation(seen: Set<number>, invalidationVersion: number) {
+  seen.add(invalidationVersion);
+  if (seen.size <= 64) return;
+
+  const oldest = seen.values().next().value;
+  if (oldest !== undefined) seen.delete(oldest);
 }
 
 function publishInvalidation(signal: ContextInvalidationSignal, includeCurrentWindow: boolean) {
@@ -105,26 +107,26 @@ function parseContextResponse(value: unknown): ContextResponse | null {
     return null;
   }
 
-  const candidate = value as {market?: unknown; user?: unknown};
+  const candidate = value as { market?: unknown; user?: unknown };
   if (!isMarketCode(candidate.market)) {
     return null;
   }
 
   if (candidate.user === null) {
-    return {market: candidate.market, user: null};
+    return { market: candidate.market, user: null };
   }
   if (!candidate.user || typeof candidate.user !== 'object' || Array.isArray(candidate.user)) {
     return null;
   }
 
-  const user = candidate.user as {email?: unknown; isAdmin?: unknown};
+  const user = candidate.user as { email?: unknown; isAdmin?: unknown };
   if (typeof user.email !== 'string' || typeof user.isAdmin !== 'boolean') {
     return null;
   }
 
   return {
     market: candidate.market,
-    user: {email: user.email, isAdmin: user.isAdmin}
+    user: { email: user.email, isAdmin: user.isAdmin }
   };
 }
 
@@ -132,12 +134,7 @@ function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === 'AbortError';
 }
 
-export function StorefrontContextProvider({
-  children
-}: {
-  locale: Locale;
-  children: ReactNode;
-}) {
+export function StorefrontContextProvider({ children }: { locale: Locale; children: ReactNode }) {
   const [state, setState] = useState<StorefrontContextState>(createStorefrontContextState);
   const stateRef = useRef(state);
   const activeController = useRef<{
@@ -160,7 +157,7 @@ export function StorefrontContextProvider({
   const runContextRequest = useCallback(
     async (reason: StorefrontContextRequestReason) => {
       abortActiveRequest();
-      const begun = beginContextRequest(stateRef.current, {reason});
+      const begun = beginContextRequest(stateRef.current, { reason });
       commitState(begun.state);
 
       const controller = new AbortController();
@@ -215,10 +212,7 @@ export function StorefrontContextProvider({
     [abortActiveRequest, commitState]
   );
 
-  const refreshContext = useCallback(
-    () => runContextRequest('invalidation'),
-    [runContextRequest]
-  );
+  const refreshContext = useCallback(() => runContextRequest('invalidation'), [runContextRequest]);
 
   const requestMarketChange = useCallback(
     async (market: MarketCode) => {
@@ -231,7 +225,20 @@ export function StorefrontContextProvider({
       });
       commitState(begun.state);
 
-      const result = await commitActiveMarketAction({market});
+      let result;
+      try {
+        result = await commitActiveMarketAction({ market });
+      } catch {
+        const current = stateRef.current;
+        if (current.activeGeneration === begun.request.generation) {
+          commitState(
+            failContextRequest(current, begun.request.generation, {
+              code: 'market_mutation_failed'
+            })
+          );
+        }
+        return false;
+      }
       const current = stateRef.current;
       if (current.activeGeneration !== begun.request.generation) {
         return false;
@@ -252,6 +259,7 @@ export function StorefrontContextProvider({
         invalidationVersion: Math.max(signal.invalidationVersion, current.contextVersion + 1)
       });
       commitState(invalidated);
+      rememberInvalidation(seenInvalidations.current, signal.invalidationVersion);
       publishInvalidation(signal, false);
       await runContextRequest('invalidation');
       return stateRef.current.status === 'ready' && stateRef.current.market === result.market;
@@ -275,20 +283,13 @@ export function StorefrontContextProvider({
         return;
       }
 
-      seenInvalidations.current.add(signal.invalidationVersion);
-      if (seenInvalidations.current.size > 64) {
-        const oldest = seenInvalidations.current.values().next().value;
-        if (oldest !== undefined) seenInvalidations.current.delete(oldest);
-      }
+      rememberInvalidation(seenInvalidations.current, signal.invalidationVersion);
 
       abortActiveRequest();
       const current = stateRef.current;
       const invalidated = invalidateContext(current, {
         schemaVersion: 1,
-        invalidationVersion: Math.max(
-          signal.invalidationVersion,
-          current.contextVersion + 1
-        )
+        invalidationVersion: Math.max(signal.invalidationVersion, current.contextVersion + 1)
       });
       commitState(invalidated);
       void runContextRequest('invalidation');

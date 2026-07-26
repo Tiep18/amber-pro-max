@@ -12,7 +12,15 @@ export type CatalogProductType = 'pdf_pattern' | 'physical_finished';
 type CatalogClient = SupabaseClient<Database>;
 type CatalogFunctions = Database['public']['Functions'];
 
-export type CatalogProduct = CatalogFunctions['list_catalog_products']['Returns'][number];
+type CatalogProductRow = CatalogFunctions['list_catalog_products']['Returns'][number];
+export type CatalogProduct = Omit<
+  CatalogProductRow,
+  'primary_image_bucket' | 'primary_image_path' | 'primary_image_alt'
+> & {
+  primary_image_bucket: string | null;
+  primary_image_path: string | null;
+  primary_image_alt: string | null;
+};
 export type CatalogFacet = CatalogFunctions['list_catalog_facets']['Returns'][number];
 export type CatalogProductDetail =
   CatalogFunctions['get_catalog_product_by_slug']['Returns'][number];

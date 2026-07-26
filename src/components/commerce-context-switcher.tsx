@@ -18,10 +18,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { SheetClose } from '@/components/ui/sheet';
-import {
-  getLocaleSwitchHref,
-  type Locale
-} from '@/i18n/routing';
+import { getLocaleSwitchHref, type Locale } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import type {
   StorefrontContextIssueCode,
@@ -219,7 +216,10 @@ export function CommerceContextSwitcher({
   const mobileMarketChoices = marketOptions.map((optionMarket) => marketChoice(optionMarket));
 
   const feedback = marketBusy ? (
-    <p className="flex items-center gap-2 text-sm font-normal text-[var(--warning)]" aria-hidden="true">
+    <p
+      className="flex items-center gap-2 text-sm font-normal text-[var(--warning)]"
+      aria-hidden="true"
+    >
       <RefreshCw className="size-4 animate-spin" aria-hidden="true" />
       {labels.changing}
     </p>
@@ -294,17 +294,9 @@ export function CommerceContextSwitcher({
         <DropdownMenuLabel className="px-2 py-2 text-sm font-semibold">
           {labels.language}
         </DropdownMenuLabel>
-        <DropdownMenuGroup
-          role="group"
-          aria-label={labels.language}
-          className="grid gap-1"
-        >
+        <DropdownMenuGroup role="group" aria-label={labels.language} className="grid gap-1">
           {localeOptions.map((optionLocale) => (
-            <DropdownMenuItem
-              key={optionLocale}
-              asChild
-              className="min-h-11 p-0 pl-0"
-            >
+            <DropdownMenuItem key={optionLocale} asChild className="min-h-11 p-0 pl-0">
               {localeChoice(optionLocale, true)}
             </DropdownMenuItem>
           ))}
@@ -315,6 +307,7 @@ export function CommerceContextSwitcher({
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={activeMarket ?? ''}
+          aria-label={labels.shoppingRegion}
           aria-busy={marketBusy || undefined}
           className="grid gap-1"
         >

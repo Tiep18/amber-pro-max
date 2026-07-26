@@ -177,7 +177,7 @@ export function AccountMenu({
         <form
           action={signOutAction}
           className="border-t border-[var(--border)] pt-1"
-          onSubmit={() => notifyStorefrontContextChanged({ user: null })}
+          onSubmit={() => notifyStorefrontContextChanged()}
         >
           <input type="hidden" name="locale" value={locale} />
           <button
@@ -246,10 +246,7 @@ export function AccountMenu({
           </>
         ) : null}
         <DropdownMenuSeparator />
-        <form
-          action={signOutAction}
-          onSubmit={() => notifyStorefrontContextChanged({ user: null })}
-        >
+        <form action={signOutAction} onSubmit={() => notifyStorefrontContextChanged()}>
           <input type="hidden" name="locale" value={locale} />
           <DropdownMenuItem asChild variant="destructive">
             <button type="submit" className="flex min-h-10 w-full items-center gap-2.5 font-medium">

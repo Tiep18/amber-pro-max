@@ -44,10 +44,13 @@ const copy = {
     errorBody: 'Try again before adding this product to your cart.',
     retry: 'Try again',
     unavailableTitle: 'Unavailable in this shopping region',
-    unavailableBody:
-      'This product cannot be purchased in your current shopping region.',
+    unavailableBody: 'This product cannot be purchased in your current shopping region.',
     switchToVietnam: 'Switch to Vietnam',
-    switchToInternational: 'Switch to International'
+    switchToInternational: 'Switch to International',
+    marketPending: 'Changing shopping region…',
+    marketFailure:
+      'We couldn’t change your shopping region. Your previous selection is still active.',
+    retryMarket: 'Try changing region again'
   },
   vi: {
     checking: 'Đang kiểm tra tình trạng hàng…',
@@ -56,10 +59,12 @@ const copy = {
     errorBody: 'Hãy thử lại trước khi thêm sản phẩm vào giỏ hàng.',
     retry: 'Thử lại',
     unavailableTitle: 'Không có sẵn tại khu vực mua sắm này',
-    unavailableBody:
-      'Không thể mua sản phẩm này tại khu vực mua sắm hiện tại của bạn.',
+    unavailableBody: 'Không thể mua sản phẩm này tại khu vực mua sắm hiện tại của bạn.',
     switchToVietnam: 'Chuyển sang Việt Nam',
-    switchToInternational: 'Chuyển sang Quốc tế'
+    switchToInternational: 'Chuyển sang Quốc tế',
+    marketPending: 'Đang đổi khu vực mua sắm…',
+    marketFailure: 'Không thể đổi khu vực mua sắm. Lựa chọn trước đó vẫn đang được áp dụng.',
+    retryMarket: 'Thử đổi lại khu vực'
   }
 } as const;
 
@@ -97,8 +102,7 @@ function isProductProjectionResponse(value: unknown): value is ProductProjection
     typeof projection.slug === 'string' &&
     (projection.locale === 'vi' || projection.locale === 'en') &&
     (projection.market === 'vn' || projection.market === 'intl') &&
-    (projection.productType === 'pdf_pattern' ||
-      projection.productType === 'physical_finished') &&
+    (projection.productType === 'pdf_pattern' || projection.productType === 'physical_finished') &&
     typeof projection.available === 'boolean' &&
     typeof projection.inStock === 'boolean' &&
     typeof projection.offerFingerprint === 'string' &&
@@ -119,13 +123,7 @@ function publicVariants(projection: ProductCommerceProjection): PublicVariant[] 
   }));
 }
 
-function ProductCommerceSkeleton({
-  locale,
-  retrying
-}: {
-  locale: Locale;
-  retrying: boolean;
-}) {
+function ProductCommerceSkeleton({ locale, retrying }: { locale: Locale; retrying: boolean }) {
   const status = retrying ? copy[locale].checkingAgain : copy[locale].checking;
   return (
     <section className="grid min-h-[220px] content-start gap-4" aria-busy="true">
@@ -149,15 +147,13 @@ export function ProductCommerce({
   productSlug,
   productId,
   title,
-  productType,
-  returnTo
+  productType
 }: {
   locale: Locale;
   productSlug: string;
   productId: string;
   title: string;
   productType: 'pdf_pattern' | 'physical_finished';
-  returnTo: string;
 }) {
   const context = useStorefrontContext();
   const [retryNonce, setRetryNonce] = useState(0);
@@ -169,20 +165,29 @@ export function ProductCommerce({
   const activeRequest = useRef<ProductProjectionRequestIdentity | null>(null);
 
   useEffect(() => {
-    if (
-      context.status !== 'ready' ||
-      !context.purchaseSafe ||
-      context.market === null
-    ) {
+    if (context.status !== 'ready' || !context.purchaseSafe || context.market === null) {
       activeRequest.current = null;
-      setState({
-        status:
-          context.status === 'error'
-            ? 'error'
-            : context.status === 'retrying'
-              ? 'retrying'
-              : 'resolving',
-        projection: null
+      setState((current) => {
+        const keepsUnavailableRecoveryVisible =
+          current.status === 'ready' &&
+          !current.projection.available &&
+          context.market !== null &&
+          current.projection.market === context.market &&
+          (context.pendingMarket !== null || context.issue?.code === 'market_mutation_failed');
+
+        if (keepsUnavailableRecoveryVisible) {
+          return current;
+        }
+
+        return {
+          status:
+            context.status === 'error'
+              ? 'error'
+              : context.status === 'retrying'
+                ? 'retrying'
+                : 'resolving',
+          projection: null
+        };
       });
       return;
     }
@@ -263,8 +268,10 @@ export function ProductCommerce({
     context.contextVersion,
     context.generation,
     context.market,
+    context.pendingMarket,
     context.purchaseSafe,
     context.status,
+    context.issue,
     locale,
     productId,
     productSlug,
@@ -305,20 +312,18 @@ export function ProductCommerce({
 
   const projection = state.projection;
   if (!projection.available) {
-    const otherMarket = projection.otherMarket?.available
-      ? projection.otherMarket.market
-      : null;
+    const otherMarket = projection.otherMarket?.available ? projection.otherMarket.market : null;
     return (
       <UnavailableMarket
+        market={projection.market}
         title={copy[locale].unavailableTitle}
-        body={copy[locale].unavailableBody}
-        otherMarket={otherMarket}
-        returnTo={returnTo}
+        description={copy[locale].unavailableBody}
         switchLabel={
-          otherMarket === 'vn'
-            ? copy[locale].switchToVietnam
-            : copy[locale].switchToInternational
+          otherMarket === 'vn' ? copy[locale].switchToVietnam : copy[locale].switchToInternational
         }
+        pendingLabel={copy[locale].marketPending}
+        failureLabel={copy[locale].marketFailure}
+        retryLabel={copy[locale].retryMarket}
       />
     );
   }

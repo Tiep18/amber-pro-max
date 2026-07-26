@@ -216,9 +216,9 @@ function isCatalogProduct(value: unknown): value is CatalogProduct {
     value.price_minor >= 0 &&
     (value.currency_code === 'VND' || value.currency_code === 'USD') &&
     typeof value.in_stock === 'boolean' &&
-    typeof value.primary_image_bucket === 'string' &&
-    typeof value.primary_image_path === 'string' &&
-    typeof value.primary_image_alt === 'string' &&
+    (value.primary_image_bucket === null || typeof value.primary_image_bucket === 'string') &&
+    (value.primary_image_path === null || typeof value.primary_image_path === 'string') &&
+    (value.primary_image_alt === null || typeof value.primary_image_alt === 'string') &&
     typeof value.published_at === 'string'
   );
 }
@@ -239,7 +239,7 @@ function isCatalogFacet(value: unknown): value is CatalogFacet {
   );
 }
 
-function parseCatalogProjectionResponse(
+export function parseCatalogProjectionResponse(
   value: unknown
 ): CatalogProjection<CatalogProduct, CatalogFacet> | null {
   if (!isRecord(value) || value.status !== 'ready' || !isRecord(value.projection)) {

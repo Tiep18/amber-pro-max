@@ -3,7 +3,16 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronRight, Heart, Home, LogOut, MapPin, Package, ScrollText, UserRound } from 'lucide-react';
+import {
+  ChevronRight,
+  Heart,
+  Home,
+  LogOut,
+  MapPin,
+  Package,
+  ScrollText,
+  UserRound
+} from 'lucide-react';
 import { signOutAction } from '@/auth/actions';
 import {
   getAccountAddressesPath,
@@ -142,7 +151,7 @@ function AccountNavigation({ locale, onNavigate }: { locale: Locale; onNavigate?
 
 function SignOutButton({ locale }: { locale: Locale }) {
   return (
-    <form action={signOutAction} onSubmit={() => notifyStorefrontContextChanged({ user: null })}>
+    <form action={signOutAction} onSubmit={() => notifyStorefrontContextChanged()}>
       <input type="hidden" name="locale" value={locale} />
       <Button
         type="submit"

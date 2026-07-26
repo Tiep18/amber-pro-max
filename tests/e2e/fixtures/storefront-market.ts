@@ -66,7 +66,17 @@ export function catalogPath(locale: StorefrontLocale) {
 }
 
 export async function seedMarketCookie(context: BrowserContext, value: string) {
-  await context.addCookies([{ name: MARKET_COOKIE, value, url: STOREFRONT_ORIGIN }]);
+  await context.addCookies([
+    {
+      name: MARKET_COOKIE,
+      value,
+      domain: 'localhost',
+      path: '/',
+      httpOnly: true,
+      sameSite: 'Lax',
+      secure: false
+    }
+  ]);
 }
 
 export async function expectMarketCookie(context: BrowserContext, expected: StorefrontMarket) {
@@ -161,15 +171,43 @@ export const test = base.extend<{ storefrontMarket: StorefrontMarketHarness }>({
         let failed = false;
         await page.route('**/*', async (route) => {
           if (
-            !failed &&
-            route.request().method() === 'POST' &&
-            route.request().headers()['next-action']
+            failed ||
+            route.request().method() !== 'POST' ||
+            !route.request().headers()['next-action']
           ) {
-            failed = true;
-            await route.fulfill({ status: 503, body: 'market mutation unavailable' });
+            await route.continue();
             return;
           }
-          await route.continue();
+
+          const previousMarketCookie = (await page.context().cookies()).find(
+            ({ name }) => name === MARKET_COOKIE
+          );
+          const response = await route.fetch();
+          const body = await response.text();
+          const successfulMarketResult = /\{"status":"success","market":"(?:vn|intl)"\}/;
+          if (!successfulMarketResult.test(body)) {
+            await route.fulfill({ response });
+            return;
+          }
+
+          failed = true;
+          if (previousMarketCookie) {
+            await seedMarketCookie(page.context(), previousMarketCookie.value);
+          } else {
+            await page.context().clearCookies({ name: MARKET_COOKIE });
+          }
+          const headers = { ...response.headers() };
+          delete headers['set-cookie'];
+          delete headers['content-encoding'];
+          delete headers['content-length'];
+          await route.fulfill({
+            response,
+            headers,
+            body: body.replace(
+              successfulMarketResult,
+              '{"status":"error","code":"mutation_failed"}'
+            )
+          });
         });
       },
       secondPage: (session) => session.context.newPage(),

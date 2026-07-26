@@ -77,10 +77,12 @@ function mediaImagesFromProjection({
         if (!url) {
           return [];
         }
-        return [{
-          url,
-          alt: typeof row.alt === 'string' && row.alt.trim() ? row.alt : primaryImageAlt || title
-        }];
+        return [
+          {
+            url,
+            alt: typeof row.alt === 'string' && row.alt.trim() ? row.alt : primaryImageAlt || title
+          }
+        ];
       })
     : [];
 
@@ -89,7 +91,7 @@ function mediaImagesFromProjection({
   }
 
   const primaryUrl = publicStorageUrl(primaryImageBucket, primaryImagePath);
-  return primaryUrl ? [{url: primaryUrl, alt: primaryImageAlt || title}] : [];
+  return primaryUrl ? [{ url: primaryUrl, alt: primaryImageAlt || title }] : [];
 }
 
 function reviewAverage(reviews: Array<{ rating: number }>) {
@@ -203,7 +205,9 @@ function PurchaseInfo({
             </span>
             <div className="min-w-0">
               <p className="text-sm font-semibold leading-tight">{item.title}</p>
-              <p className="mt-1 text-sm leading-relaxed text-[var(--muted-foreground)]">{item.body}</p>
+              <p className="mt-1 text-sm leading-relaxed text-[var(--muted-foreground)]">
+                {item.body}
+              </p>
             </div>
           </div>
         );
@@ -253,10 +257,7 @@ function TrustBadges({
       {badges.map((badge) => {
         const Icon = badge.icon;
         return (
-          <div
-            key={badge.label}
-            className="flex items-center gap-1.5"
-          >
+          <div key={badge.label} className="flex items-center gap-1.5">
             <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--trust-accent)]" aria-hidden="true" />
             <span className="font-medium">{badge.label}</span>
           </div>
@@ -425,7 +426,6 @@ export default async function ProductPage({ params }: { params: Params }) {
             productId={product.product_id}
             title={product.title}
             productType={productType}
-            returnTo={productPath}
           />
           <PurchaseInfo productType={productType} locale={locale} />
           <TrustBadges productType={productType} locale={locale} />
