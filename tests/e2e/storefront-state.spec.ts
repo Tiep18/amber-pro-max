@@ -1,4 +1,25 @@
 import { expect, test } from '@playwright/test';
+import { rest } from './fixtures/authenticated-users';
+
+const VARIANT_PRODUCT_ID = '50000000-0000-0000-0000-000000000003';
+
+async function setVariantFixtureStatus(status: 'draft' | 'published') {
+  await rest(`products?id=eq.${VARIANT_PRODUCT_ID}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      status,
+      published_at: status === 'published' ? new Date().toISOString() : null
+    })
+  });
+}
+
+test.beforeAll(async () => {
+  await setVariantFixtureStatus('published');
+});
+
+test.afterAll(async () => {
+  await setVariantFixtureStatus('draft');
+});
 
 test('client navigation preserves header context without refetching it', async ({ page }) => {
   const initialContext = page.waitForResponse((response) =>
@@ -33,5 +54,6 @@ test('catalog batches personalized wishlist state without making the page dynami
 
   expect(wishlistRequests).toHaveLength(1);
   const productIds = new URL(wishlistRequests[0]).searchParams.get('productIds')?.split(',') ?? [];
+  expect(productIds).toHaveLength(await page.getByRole('article').count());
   expect(productIds.length).toBeGreaterThan(1);
 });

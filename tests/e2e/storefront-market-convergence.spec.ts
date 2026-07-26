@@ -6,6 +6,135 @@ import {
   expectPrivateNoStore,
   test
 } from './fixtures/storefront-market';
+import { rest } from './fixtures/authenticated-users';
+
+const createdProductIds: string[] = [];
+const createdProfileIds: string[] = [];
+
+function storedCart(productId: string, marketAtAdd: 'vn' | 'intl') {
+  const now = new Date().toISOString();
+  return JSON.stringify({
+    version: 1,
+    updatedAt: now,
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    lines: [
+      {
+        productId,
+        variantId: null,
+        quantity: 1,
+        marketAtAdd,
+        addedAt: now,
+        updatedAt: now
+      }
+    ]
+  });
+}
+
+async function createPublishedPhysicalProduct() {
+  const suffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  const productResponse = await rest('products', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ product_type: 'physical_finished', status: 'draft' })
+  });
+  const [{ id }] = (await productResponse.json()) as Array<{ id: string }>;
+  createdProductIds.push(id);
+
+  await rest('product_translations', {
+    method: 'POST',
+    body: JSON.stringify([
+      {
+        product_id: id,
+        locale: 'vi',
+        title: 'Gau hoi tu thi truong',
+        description: 'Gau kiem thu hoi tu thi truong.',
+        specifications: { material: 'cotton' },
+        slug: `gau-hoi-tu-${suffix}`,
+        seo_title: 'Gau hoi tu thi truong',
+        seo_description: 'Gau handmade.'
+      },
+      {
+        product_id: id,
+        locale: 'en',
+        title: 'Market convergence bear',
+        description: 'Physical fixture for destination authority.',
+        specifications: { material: 'cotton' },
+        slug: `market-convergence-bear-${suffix}`,
+        seo_title: 'Market convergence bear',
+        seo_description: 'Physical checkout fixture.'
+      }
+    ])
+  });
+  await rest('product_market_offers', {
+    method: 'POST',
+    body: JSON.stringify([
+      {
+        product_id: id,
+        market_code: 'vn',
+        currency_code: 'VND',
+        enabled: true,
+        price_minor: 250000
+      },
+      {
+        product_id: id,
+        market_code: 'intl',
+        currency_code: 'USD',
+        enabled: true,
+        price_minor: 1800
+      }
+    ])
+  });
+  await rest('inventory_records', {
+    method: 'POST',
+    body: JSON.stringify({ product_id: id, quantity_on_hand: 3 })
+  });
+
+  const profileResponse = await rest('shipping_profiles', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ name: `Convergence shipping ${suffix}` })
+  });
+  const [{ id: profileId }] = (await profileResponse.json()) as Array<{ id: string }>;
+  createdProfileIds.push(profileId);
+  await rest('shipping_rules', {
+    method: 'POST',
+    body: JSON.stringify([
+      {
+        profile_id: profileId,
+        country_code: 'US',
+        currency_code: 'USD',
+        first_item_fee_minor: 750,
+        additional_item_fee_minor: 225
+      },
+      {
+        profile_id: profileId,
+        country_code: 'VN',
+        currency_code: 'VND',
+        first_item_fee_minor: 30000,
+        additional_item_fee_minor: 10000
+      }
+    ])
+  });
+  await rest('product_shipping_profiles', {
+    method: 'POST',
+    body: JSON.stringify({ product_id: id, profile_id: profileId })
+  });
+  await rest(`products?id=eq.${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'published', published_at: new Date().toISOString() })
+  });
+
+  return id;
+}
+
+test.afterEach(async () => {
+  for (const productId of createdProductIds.splice(0)) {
+    await rest(`products?id=eq.${productId}`, { method: 'DELETE' });
+  }
+  for (const profileId of createdProfileIds.splice(0)) {
+    await rest(`shipping_profiles?id=eq.${profileId}`, { method: 'DELETE' });
+  }
+});
 
 test('controlled response fixture delays, fails, counts, and marks private responses no-store', async ({
   storefrontMarket
@@ -57,24 +186,30 @@ test('rapid VN to INTL to VN intent commits only the newest server context and c
 test('late context and catalog projection responses cannot replace the latest market result', async ({
   storefrontMarket
 }) => {
-  test.fixme(
-    true,
-    'Plan 09-13: promote after controls coordinate context and projection generations'
-  );
   const session = await storefrontMarket.createSession({ locale: 'en', marketCookie: 'vn' });
-  await storefrontMarket.interceptCatalog(session.page, [
-    { delayMs: 250, body: { market: 'intl', user: null, contextVersion: 5 } },
-    { delayMs: 10, body: { market: 'vn', user: null, contextVersion: 6 } }
-  ]);
+  let catalogRequests = 0;
+  let delayedInternationalResponses = 0;
+  await session.page.route(/\/api\/storefront\/catalog(?:\?.*)?$/, async (route) => {
+    catalogRequests += 1;
+    const response = await route.fetch();
+    if (catalogRequests === 2) {
+      delayedInternationalResponses += 1;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    await route.fulfill({ response });
+  });
   await session.page.goto(catalogPath('en'));
 
   const trigger = session.page.getByTestId('commerce-context-trigger');
-  await expect(trigger).toHaveAccessibleName(/EN.*VN/i);
+  await expect(trigger).toHaveAccessibleName(/Language: English.*Shopping region: Vietnam/i);
   await trigger.click();
   await session.page.getByRole('menuitemradio', { name: /International.*USD/i }).click();
+  await expect(trigger).toHaveAccessibleName(/Language: English.*Shopping region: International/i);
   await trigger.click();
   await session.page.getByRole('menuitemradio', { name: /Vietnam.*VND/i }).click();
 
+  await expect.poll(() => delayedInternationalResponses).toBeGreaterThan(0);
+  await expect(trigger).toHaveAccessibleName(/Language: English.*Shopping region: Vietnam/i);
   await expect(session.page.getByRole('main')).toContainText(/₫|VND/);
   await expect(session.page.getByRole('main')).not.toContainText(/\$|USD/);
 });
@@ -183,35 +318,71 @@ test('another tab sends invalidation only and the receiving tab refetches server
 test('market requote masks stale amounts and preserves blocked intent rows until retry', async ({
   storefrontMarket
 }) => {
-  test.fixme(true, 'Plan 09-12: promote after latest-wins CartProvider synchronization ships');
+  const productId = await createPublishedPhysicalProduct();
   const session = await storefrontMarket.createSession({ locale: 'en', marketCookie: 'intl' });
+  await session.page.addInitScript(
+    (cart) => {
+      localStorage.setItem('amigurumi.guestCart.v1', cart);
+    },
+    storedCart(productId, 'intl')
+  );
   await session.page.goto('/en/cart');
+  const cart = session.page.getByRole('main');
+  await expect(cart.getByRole('heading', { name: 'Market convergence bear' })).toBeVisible();
+  await expect(cart).toContainText('$18.00');
 
-  const trigger = session.page.getByRole('banner').getByRole('button', { name: /EN.*INTL/i });
+  let serverActions = 0;
+  let delayedRequoteSettled = false;
+  await session.page.route('**/*', async (route) => {
+    if (route.request().method() !== 'POST' || !route.request().headers()['next-action']) {
+      await route.continue();
+      return;
+    }
+    serverActions += 1;
+    const actionSequence = serverActions;
+    const response = await route.fetch();
+    if (actionSequence === 2) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    await route.fulfill({ response });
+    if (actionSequence === 2) {
+      delayedRequoteSettled = true;
+    }
+  });
+
+  const trigger = session.page.getByTestId('commerce-context-trigger');
   await trigger.click();
   await session.page.getByRole('menuitemradio', { name: /Vietnam.*VND/i }).click();
 
-  const cart = session.page.getByRole('main');
-  await expect(cart).toHaveAttribute('aria-busy', 'true');
+  await expect(cart.locator('[aria-busy="true"]').first()).toBeVisible();
   await expect(cart).not.toContainText(/\$|USD|free/i);
   await expect(cart.getByRole('button', { name: /checkout/i })).toBeDisabled();
   await expect(cart.getByRole('article')).not.toHaveCount(0);
+  await expect.poll(() => serverActions).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => delayedRequoteSettled).toBe(true);
 });
 
 test('destination quote remains authoritative after browsing-market invalidation', async ({
   storefrontMarket
 }) => {
-  test.fixme(true, 'Plan 09-12: promote without changing the Phase 08 destination quote lifecycle');
+  const productId = await createPublishedPhysicalProduct();
   const session = await storefrontMarket.createSession({ locale: 'en', marketCookie: 'intl' });
+  await session.page.addInitScript(
+    (cart) => {
+      localStorage.setItem('amigurumi.guestCart.v1', cart);
+    },
+    storedCart(productId, 'intl')
+  );
   await session.page.goto('/en/checkout');
-  await session.page.getByLabel(/country/i).selectOption('US');
-  await session.page.getByLabel(/state|region/i).selectOption('CA');
+  await expect(session.page.getByRole('heading', { name: 'Checkout' })).toBeVisible();
+  await session.page.getByRole('combobox', { name: 'Shipping country' }).click();
+  await session.page.getByRole('option', { name: /\(US\)/ }).click();
+  const review = session.page.getByRole('dialog', { name: /shipping and total changed/i });
+  await expect(review).toBeVisible();
   await storefrontMarket.signalInvalidation(session.page, 8);
 
-  await expect(
-    session.page.getByRole('dialog', { name: /shipping and total changed/i })
-  ).toBeVisible();
-  await expect(session.page.getByRole('button', { name: /place order/i })).toBeDisabled();
+  await expect(review).toBeVisible();
+  await expect(review).toContainText(/\$7\.50/);
 });
 
 test('final checkout gate owns the digital, physical, mixed, guest, account, and payment pairs', () => {

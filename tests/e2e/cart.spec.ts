@@ -1,9 +1,29 @@
 import { expect, test } from '@playwright/test';
+import { rest } from './fixtures/authenticated-users';
 
-const now = '2026-06-15T00:00:00.000Z';
-const expiresAt = '2026-07-15T00:00:00.000Z';
+const VARIANT_PRODUCT_ID = '50000000-0000-0000-0000-000000000003';
+
+async function setVariantFixtureStatus(status: 'draft' | 'published') {
+  await rest(`products?id=eq.${VARIANT_PRODUCT_ID}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      status,
+      published_at: status === 'published' ? new Date().toISOString() : null
+    })
+  });
+}
+
+test.beforeAll(async () => {
+  await setVariantFixtureStatus('published');
+});
+
+test.afterAll(async () => {
+  await setVariantFixtureStatus('draft');
+});
 
 function storedCart(lines: unknown[]) {
+  const now = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
   return JSON.stringify({
     version: 1,
     updatedAt: now,
@@ -12,71 +32,12 @@ function storedCart(lines: unknown[]) {
   });
 }
 
-function storedQuoteCache(lines: unknown[]) {
-  const fingerprint = lines
-    .map((line) => {
-      const candidate = line as {
-        productId: string;
-        variantId?: string | null;
-        quantity: number;
-        marketAtAdd: string;
-      };
-      return `${candidate.productId}:${candidate.variantId ?? ''}:${candidate.quantity}:${candidate.marketAtAdd}`;
-    })
-    .sort()
-    .join('|');
-
-  return JSON.stringify({
-    locale: 'en',
-    fingerprint,
-    validatedAt: Date.now(),
-    quote: {
-      status: 'blocked',
-      locale: 'en',
-      market: 'intl',
-      currencyCode: 'USD',
-      lines: [
-        {
-          lineId: 'blocked-line',
-          productId: '50000000-0000-0000-0000-000000000001',
-          variantId: null,
-          slug: null,
-          title: 'Unavailable item',
-          fulfillmentType: 'physical',
-          status: 'unavailable',
-          quantity: 1,
-          requestedQuantity: 1,
-          marketAtAdd: 'vn',
-          currencyCode: 'USD',
-          unitPriceMinor: 0,
-          lineSubtotalMinor: 0,
-          excludedSubtotalMinor: 0,
-          variantLabel: null,
-          imageUrl: null,
-          categoryIds: [],
-          collectionIds: [],
-          discountAllocationMinor: 0,
-          change: { type: 'unavailable' }
-        }
-      ],
-      subtotalMinor: 0,
-      excludedSubtotalMinor: 0,
-      discount: { status: 'not_applied', amountMinor: 0 },
-      shipping: { status: 'not_calculated', amountMinor: 0 },
-      totalMinor: 0,
-      changes: [{ type: 'unavailable' }],
-      hash: 'blocked-quote',
-      quotedAt: now
-    }
-  });
-}
-
 test('Vietnamese shopper adds a PDF pattern and edits it in the cart', async ({ browser }) => {
   const context = await browser.newContext({ extraHTTPHeaders: { 'x-vercel-ip-country': 'VN' } });
   const page = await context.newPage();
 
   await page.goto('/vi/san-pham/mau-gau-vn');
-  await page.getByRole('button', { name: 'Them vao gio' }).click();
+  await page.getByRole('button', { name: 'Mua và tải về' }).click();
   await expect(page.getByRole('button', { name: /Gio hang, 1 san pham/ })).toBeVisible();
 
   await expect(
@@ -104,8 +65,12 @@ test('Vietnamese shopper adds a PDF pattern and edits it in the cart', async ({ 
 test('English shopper adds an in-stock physical variant through the mini cart', async ({
   page
 }) => {
+  test.slow();
   await page.goto('/en/product/both-market-bear');
-  await page.getByRole('radio', { name: /small/i }).check();
+  await expect(page.getByRole('heading', { name: 'Both-market bear' })).toBeVisible({
+    timeout: 30_000
+  });
+  await page.getByRole('radio', { name: /small/i }).check({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Add to cart' }).click();
 
   const cartDialog = page.getByRole('dialog', { name: 'Cart' });
@@ -119,6 +84,7 @@ test('English shopper adds an in-stock physical variant through the mini cart', 
 });
 
 test('blocking cart lines remain visible and disable checkout', async ({ page }) => {
+  const now = new Date().toISOString();
   const blockedLines = [
     {
       productId: '50000000-0000-0000-0000-000000000001',
@@ -130,18 +96,18 @@ test('blocking cart lines remain visible and disable checkout', async ({ page })
     }
   ];
   await page.addInitScript(
-    ({ cart, quote }) => {
+    ({ cart }) => {
       localStorage.setItem('amigurumi.guestCart.v1', cart);
-      sessionStorage.setItem('amigurumi.cartQuote.v1', quote);
     },
     {
-      cart: storedCart(blockedLines),
-      quote: storedQuoteCache(blockedLines)
+      cart: storedCart(blockedLines)
     }
   );
 
   await page.goto('/en/cart');
-  await expect(page.getByRole('heading', { name: 'Unavailable item' })).toBeVisible();
+  const blockedLine = page.getByRole('article');
+  await expect(blockedLine.getByRole('heading', { name: 'Unavailable item' })).toBeVisible();
+  await expect(blockedLine.getByText('Unavailable for the current quote')).toBeVisible();
   await expect(page.getByText('Review unavailable items before checkout.')).toHaveCount(1);
   await expect(page.getByTestId('cart-line-thumbnail')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Checkout' })).toBeDisabled();

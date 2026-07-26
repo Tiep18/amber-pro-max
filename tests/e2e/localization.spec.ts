@@ -75,7 +75,7 @@ test.describe('locale precedence', () => {
     const context = await browser.newContext();
     await context.route('**/*', async (route) => {
       await route.continue({
-        headers: {...route.request().headers(), 'accept-language': 'fr-FR,fr;q=0.9'}
+        headers: { ...route.request().headers(), 'accept-language': 'fr-FR,fr;q=0.9' }
       });
     });
     const page = await context.newPage();
@@ -120,9 +120,7 @@ test('localized auth entry renders while /auth/callback remains an isolated serv
   expect(new URL(callback.headers().location).pathname).toBe('/en/sign-in');
 });
 
-test('language switching preserves market and only safe route query state', async ({
-  browser
-}) => {
+test('language switching preserves market and only safe route query state', async ({ browser }) => {
   const context = await browser.newContext();
   await addPreferenceCookie(context, MARKET_COOKIE, 'vn');
   const page = await context.newPage();
