@@ -1,5 +1,5 @@
-import {describe, expect, test, vi} from 'vitest';
-import {submitCheckout, submitCheckoutInputSchema} from '@/checkout/submit-checkout';
+import { describe, expect, test, vi } from 'vitest';
+import { submitCheckout, submitCheckoutInputSchema } from '@/checkout/submit-checkout';
 
 describe('submitCheckoutInputSchema', () => {
   const digitalQuote = {
@@ -7,8 +7,8 @@ describe('submitCheckoutInputSchema', () => {
     hash: 'hash',
     market: 'intl',
     currencyCode: 'USD',
-    lines: [{fulfillmentType: 'digital', quantity: 1}],
-    shipping: {status: 'no_shipping_required', amountMinor: 0, countryCode: null}
+    lines: [{ fulfillmentType: 'digital', quantity: 1 }],
+    shipping: { status: 'no_shipping_required', amountMinor: 0, countryCode: null }
   };
 
   const physicalQuote = {
@@ -16,8 +16,8 @@ describe('submitCheckoutInputSchema', () => {
     hash: 'hash',
     market: 'intl',
     currencyCode: 'USD',
-    lines: [{fulfillmentType: 'physical', quantity: 1}],
-    shipping: {status: 'ready', amountMinor: 750, countryCode: 'US'}
+    lines: [{ fulfillmentType: 'physical', quantity: 1 }],
+    shipping: { status: 'ready', amountMinor: 750, countryCode: 'US' }
   };
 
   const shippingAddress = {
@@ -52,7 +52,7 @@ describe('submitCheckoutInputSchema', () => {
       market: 'intl',
       lines: [],
       acceptedQuoteHash: 'hash',
-      acceptedQuote: {status: 'ready', hash: 'hash'},
+      acceptedQuote: { status: 'ready', hash: 'hash' },
       idempotencyKey: 'idem-key',
       contactEmail: 'customer@example.com',
       paymentIntent: 'capture_now'
@@ -119,7 +119,7 @@ describe('submitCheckoutInputSchema', () => {
       idempotencyKey: 'idem-key',
       contactEmail: 'customer@example.com',
       paymentIntent: 'paypal_intent',
-      shippingAddress: {...shippingAddress, region: null}
+      shippingAddress: { ...shippingAddress, region: null }
     });
     const longRegion = submitCheckoutInputSchema.safeParse({
       locale: 'en',
@@ -130,7 +130,7 @@ describe('submitCheckoutInputSchema', () => {
       idempotencyKey: 'idem-key',
       contactEmail: 'customer@example.com',
       paymentIntent: 'paypal_intent',
-      shippingAddress: {...shippingAddress, region: 'California'}
+      shippingAddress: { ...shippingAddress, region: 'California' }
     });
     const missingPostal = submitCheckoutInputSchema.safeParse({
       locale: 'en',
@@ -141,7 +141,7 @@ describe('submitCheckoutInputSchema', () => {
       idempotencyKey: 'idem-key',
       contactEmail: 'customer@example.com',
       paymentIntent: 'paypal_intent',
-      shippingAddress: {...shippingAddress, postalCode: null}
+      shippingAddress: { ...shippingAddress, postalCode: null }
     });
 
     expect(missingRegion.success).toBe(false);
@@ -151,6 +151,122 @@ describe('submitCheckoutInputSchema', () => {
 });
 
 describe('submitCheckout', () => {
+  test.each([
+    ['intl', 'USD', 'paypal_intent'],
+    ['vn', 'VND', 'vietqr_intent']
+  ] as const)(
+    'accepts the exact %s + %s + %s payment pair at the RPC boundary',
+    async (market, currencyCode, paymentIntent) => {
+      const rpc = vi.fn().mockResolvedValue({
+        data: {
+          status: 'success',
+          orderId: 'order-1',
+          orderNumber: 'ATB-0001',
+          reservationExpiresAt: '2026-06-15T00:15:00.000Z'
+        },
+        error: null
+      });
+
+      const result = await submitCheckout(
+        {
+          locale: market === 'vn' ? 'vi' : 'en',
+          market,
+          lines: [],
+          acceptedQuoteHash: 'hash',
+          acceptedQuote: {
+            status: 'ready',
+            hash: 'hash',
+            market,
+            currencyCode,
+            lines: [{ fulfillmentType: 'digital', quantity: 1 }],
+            shipping: { status: 'no_shipping_required', amountMinor: 0, countryCode: null }
+          },
+          idempotencyKey: 'idem-key',
+          contactEmail: 'customer@example.com',
+          paymentIntent,
+          shippingAddress: null
+        },
+        { rpc } as never
+      );
+
+      expect(result.status).toBe('success');
+      expect(rpc).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  test.each([
+    ['intl', 'USD', 'vietqr_intent'],
+    ['vn', 'VND', 'paypal_intent']
+  ] as const)(
+    'rejects a browser payment override for %s + %s before calling submit_checkout',
+    async (market, currencyCode, paymentIntent) => {
+      const rpc = vi.fn();
+
+      const result = await submitCheckout(
+        {
+          locale: market === 'vn' ? 'vi' : 'en',
+          market,
+          lines: [],
+          acceptedQuoteHash: 'hash',
+          acceptedQuote: {
+            status: 'ready',
+            hash: 'hash',
+            market,
+            currencyCode,
+            lines: [{ fulfillmentType: 'digital', quantity: 1 }],
+            shipping: { status: 'no_shipping_required', amountMinor: 0, countryCode: null }
+          },
+          idempotencyKey: 'idem-key',
+          contactEmail: 'customer@example.com',
+          paymentIntent,
+          shippingAddress: null
+        },
+        { rpc } as never
+      );
+
+      expect(result).toEqual({ status: 'invalid', code: 'invalid_payment_method_for_market' });
+      expect(rpc).not.toHaveBeenCalled();
+    }
+  );
+
+  test('preserves an authoritative stale result without retrying submit', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { status: 'stale', code: 'stale_commercial_quote' },
+      error: null
+    });
+
+    const result = await submitCheckout(
+      {
+        locale: 'en',
+        market: 'intl',
+        lines: [],
+        acceptedQuoteHash: 'accepted-hash',
+        acceptedQuote: {
+          status: 'ready',
+          hash: 'accepted-hash',
+          market: 'intl',
+          currencyCode: 'USD',
+          lines: [{ fulfillmentType: 'digital', quantity: 1 }],
+          shipping: { status: 'no_shipping_required', amountMinor: 0, countryCode: null }
+        },
+        idempotencyKey: 'idem-key',
+        contactEmail: 'customer@example.com',
+        paymentIntent: 'paypal_intent',
+        shippingAddress: null
+      },
+      { rpc } as never
+    );
+
+    expect(result).toEqual({ status: 'stale', code: 'stale_commercial_quote' });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith('submit_checkout', {
+      p_payload: expect.objectContaining({
+        acceptedQuoteHash: 'accepted-hash',
+        acceptedQuote: expect.objectContaining({ hash: 'accepted-hash' })
+      })
+    });
+  });
+
   test('calls the single submit_checkout RPC and maps pending-payment handoff data', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {
@@ -168,17 +284,20 @@ describe('submitCheckout', () => {
         market: 'intl',
         lines: [],
         acceptedQuoteHash: 'hash',
-        acceptedQuote: {status: 'ready', hash: 'hash', market: 'intl', currencyCode: 'USD'},
+        acceptedQuote: { status: 'ready', hash: 'hash', market: 'intl', currencyCode: 'USD' },
         idempotencyKey: 'idem-key',
         contactEmail: 'customer@example.com',
         paymentIntent: 'paypal_intent',
         shippingAddress: null
       },
-      {rpc} as never
+      { rpc } as never
     );
 
     expect(rpc).toHaveBeenCalledWith('submit_checkout', {
-      p_payload: expect.objectContaining({idempotencyKey: 'idem-key', paymentIntent: 'paypal_intent'})
+      p_payload: expect.objectContaining({
+        idempotencyKey: 'idem-key',
+        paymentIntent: 'paypal_intent'
+      })
     });
     expect(result).toEqual({
       status: 'success',
@@ -220,19 +339,19 @@ describe('submitCheckout', () => {
           hash: 'hash',
           market: 'intl',
           currencyCode: 'USD',
-          lines: [{fulfillmentType: 'physical', quantity: 1}],
-          shipping: {status: 'ready', amountMinor: 750, countryCode: 'US'}
+          lines: [{ fulfillmentType: 'physical', quantity: 1 }],
+          shipping: { status: 'ready', amountMinor: 750, countryCode: 'US' }
         },
         idempotencyKey: 'idem-key',
         contactEmail: 'customer@example.com',
         paymentIntent: 'paypal_intent',
         shippingAddress
       },
-      {rpc} as never
+      { rpc } as never
     );
 
     expect(rpc).toHaveBeenCalledWith('submit_checkout', {
-      p_payload: expect.objectContaining({shippingAddress})
+      p_payload: expect.objectContaining({ shippingAddress })
     });
   });
 });

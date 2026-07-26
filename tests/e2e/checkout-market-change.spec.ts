@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:55431';
 const serviceRoleKey =
@@ -16,7 +16,7 @@ const createdProfileIds: string[] = [];
 async function rest(path: string, init?: RequestInit) {
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
     ...init,
-    headers: {...serviceHeaders, ...init?.headers}
+    headers: { ...serviceHeaders, ...init?.headers }
   });
   if (!response.ok) {
     throw new Error(`${path} failed: ${response.status} ${await response.text()}`);
@@ -28,10 +28,14 @@ async function createPublishedPhysicalProduct() {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   const productResponse = await rest('products', {
     method: 'POST',
-    headers: {Prefer: 'return=representation'},
-    body: JSON.stringify({product_type: 'physical_finished', status: 'published', published_at: new Date().toISOString()})
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      product_type: 'physical_finished',
+      status: 'published',
+      published_at: new Date().toISOString()
+    })
   });
-  const [{id}] = (await productResponse.json()) as Array<{id: string}>;
+  const [{ id }] = (await productResponse.json()) as Array<{ id: string }>;
   createdProductIds.push(id);
 
   await rest('product_translations', {
@@ -42,7 +46,7 @@ async function createPublishedPhysicalProduct() {
         locale: 'vi',
         title: 'Gau giao hang',
         description: 'Gau moc co phi van chuyen.',
-        specifications: {material: 'cotton'},
+        specifications: { material: 'cotton' },
         slug: `gau-giao-hang-${suffix}`,
         seo_title: 'Gau giao hang',
         seo_description: 'Gau handmade.'
@@ -52,7 +56,7 @@ async function createPublishedPhysicalProduct() {
         locale: 'en',
         title: 'Shipping test bear',
         description: 'Ready-made bear with shipping.',
-        specifications: {material: 'cotton'},
+        specifications: { material: 'cotton' },
         slug: `shipping-test-bear-${suffix}`,
         seo_title: 'Shipping test bear',
         seo_description: 'Handmade bear.'
@@ -63,33 +67,57 @@ async function createPublishedPhysicalProduct() {
   await rest('product_market_offers', {
     method: 'POST',
     body: JSON.stringify([
-      {product_id: id, market_code: 'vn', currency_code: 'VND', enabled: true, price_minor: 250000},
-      {product_id: id, market_code: 'intl', currency_code: 'USD', enabled: true, price_minor: 1800}
+      {
+        product_id: id,
+        market_code: 'vn',
+        currency_code: 'VND',
+        enabled: true,
+        price_minor: 250000
+      },
+      {
+        product_id: id,
+        market_code: 'intl',
+        currency_code: 'USD',
+        enabled: true,
+        price_minor: 1800
+      }
     ])
   });
 
   await rest('inventory_records', {
     method: 'POST',
-    body: JSON.stringify({product_id: id, quantity_on_hand: 3})
+    body: JSON.stringify({ product_id: id, quantity_on_hand: 3 })
   });
 
   const profileResponse = await rest('shipping_profiles', {
     method: 'POST',
-    headers: {Prefer: 'return=representation'},
-    body: JSON.stringify({name: `Checkout shipping ${suffix}`})
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ name: `Checkout shipping ${suffix}` })
   });
-  const [{id: profileId}] = (await profileResponse.json()) as Array<{id: string}>;
+  const [{ id: profileId }] = (await profileResponse.json()) as Array<{ id: string }>;
   createdProfileIds.push(profileId);
   await rest('shipping_rules', {
     method: 'POST',
     body: JSON.stringify([
-      {profile_id: profileId, country_code: 'US', currency_code: 'USD', first_item_fee_minor: 750, additional_item_fee_minor: 225},
-      {profile_id: profileId, country_code: 'VN', currency_code: 'VND', first_item_fee_minor: 30000, additional_item_fee_minor: 10000}
+      {
+        profile_id: profileId,
+        country_code: 'US',
+        currency_code: 'USD',
+        first_item_fee_minor: 750,
+        additional_item_fee_minor: 225
+      },
+      {
+        profile_id: profileId,
+        country_code: 'VN',
+        currency_code: 'VND',
+        first_item_fee_minor: 30000,
+        additional_item_fee_minor: 10000
+      }
     ])
   });
   await rest('product_shipping_profiles', {
     method: 'POST',
-    body: JSON.stringify({product_id: id, profile_id: profileId})
+    body: JSON.stringify({ product_id: id, profile_id: profileId })
   });
 
   return id;
@@ -97,14 +125,14 @@ async function createPublishedPhysicalProduct() {
 
 test.afterEach(async () => {
   for (const productId of createdProductIds.splice(0)) {
-    await rest(`products?id=eq.${productId}`, {method: 'DELETE'});
+    await rest(`products?id=eq.${productId}`, { method: 'DELETE' });
   }
   for (const profileId of createdProfileIds.splice(0)) {
-    await rest(`shipping_profiles?id=eq.${profileId}`, {method: 'DELETE'});
+    await rest(`shipping_profiles?id=eq.${profileId}`, { method: 'DELETE' });
   }
 });
 
-test('destination changes require a blocking material-change confirmation', async ({page}) => {
+test('destination changes require a blocking material-change confirmation', async ({ page }) => {
   const productId = await createPublishedPhysicalProduct();
   const now = new Date().toISOString();
   await page.context().addCookies([
@@ -117,7 +145,7 @@ test('destination changes require a blocking material-change confirmation', asyn
   ]);
   await page.goto('/vi');
   await page.evaluate(
-    ({productId: seededProductId, now: timestamp}) => {
+    ({ productId: seededProductId, now: timestamp }) => {
       window.localStorage.setItem(
         'amigurumi.guestCart.v1',
         JSON.stringify({
@@ -137,28 +165,92 @@ test('destination changes require a blocking material-change confirmation', asyn
         })
       );
     },
-    {productId, now}
+    { productId, now }
   );
 
   await page.goto('/vi/thanh-toan');
-  await expect(page.getByRole('heading', {name: 'Thanh toan'})).toBeVisible();
-  await page.getByRole('combobox', {name: 'Quốc gia giao hàng'}).click();
-  await page.getByRole('option', {name: /\(US\)/}).click();
-  await expect(page.getByRole('dialog', {name: 'Phí giao hàng và tổng tiền đã thay đổi'})).toBeVisible();
-  await expect(page.getByText(/Shipping: .* -> \$7\.50/)).toBeVisible();
-  await page.getByRole('button', {name: 'Xem lại địa chỉ'}).click();
-  await expect(page.getByRole('dialog', {name: 'Phí giao hàng và tổng tiền đã thay đổi'})).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Thanh toan' })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Quốc gia giao hàng' }).click();
+  await page.getByRole('option', { name: /\(US\)/ }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Phí giao hàng và tổng tiền đã thay đổi' })
+  ).toBeVisible();
+  await expect(
+    page.getByRole('dialog', { name: 'Phí giao hàng và tổng tiền đã thay đổi' })
+  ).toContainText(/\$25\.50/);
+  await page.getByRole('button', { name: 'Xem lại địa chỉ' }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Phí giao hàng và tổng tiền đã thay đổi' })
+  ).toHaveCount(0);
 
-  await page.getByRole('combobox', {name: 'Bang hoặc vùng lãnh thổ'}).click();
-  await page.getByRole('option', {name: 'CA', exact: true}).click();
-  await page.getByRole('button', {name: 'Dùng phí giao hàng mới'}).click();
+  await page.getByRole('combobox', { name: 'Bang hoặc vùng lãnh thổ' }).click();
+  await page.getByRole('option', { name: 'CA', exact: true }).click();
+  await page.getByRole('button', { name: 'Dùng báo giá mới' }).click();
   await page.getByLabel('Tên người nhận').fill('Taylor Customer');
   await page.getByLabel('Số điện thoại').fill('+15551234567');
   await page.getByLabel('Địa chỉ').fill('123 Market Street');
   await page.getByLabel('Mã ZIP hoặc mã bưu chính').fill('94105');
   await expect(page.getByText('$25.50')).toBeVisible();
 
-  await page.setViewportSize({width: 390, height: 844});
-  await expect(page.getByRole('combobox', {name: 'Quốc gia giao hàng'})).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('combobox', { name: 'Quốc gia giao hàng' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true
+  );
+});
+
+test('Vietnam destination overrides international browsing and requires the VND VietQR pair', async ({
+  page
+}) => {
+  const productId = await createPublishedPhysicalProduct();
+  const now = new Date().toISOString();
+  await page.context().addCookies([
+    {
+      name: 'ACTIVE_MARKET',
+      value: 'intl',
+      domain: '127.0.0.1',
+      path: '/'
+    }
+  ]);
+  await page.goto('/en');
+  await page.evaluate(
+    ({ productId: seededProductId, now: timestamp }) => {
+      window.localStorage.setItem(
+        'amigurumi.guestCart.v1',
+        JSON.stringify({
+          version: 1,
+          updatedAt: timestamp,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          lines: [
+            {
+              productId: seededProductId,
+              variantId: null,
+              quantity: 1,
+              marketAtAdd: 'intl',
+              addedAt: timestamp,
+              updatedAt: timestamp
+            }
+          ]
+        })
+      );
+    },
+    { productId, now }
+  );
+
+  await page.goto('/en/checkout');
+  await expect(page.getByText('$18.00').last()).toBeVisible();
+  await page.getByRole('combobox', { name: 'Shipping country' }).click();
+  await page.getByRole('option', { name: /\(VN\)/ }).click();
+
+  const review = page.getByRole('dialog', { name: 'Shipping and total changed' });
+  await expect(review).toBeVisible();
+  await expect(review).toContainText(/30[.,]000/);
+  await review.getByRole('button', { name: 'Use updated quote' }).click();
+  await expect(page.getByText(/280[.,]000/).last()).toBeVisible();
+
+  const paypal = page.getByRole('button', { name: /PayPal Card or PayPal balance/i });
+  const vietqr = page.getByRole('button', { name: /VietQR bank transfer/i });
+  await vietqr.click();
+  await expect(vietqr).toHaveAttribute('aria-pressed', 'true');
+  await expect(paypal).toHaveAttribute('aria-pressed', 'false');
 });

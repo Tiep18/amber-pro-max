@@ -1,4 +1,4 @@
-import {describe, expect, it} from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   acceptQuoteProposal,
   beginQuoteRequest,
@@ -7,8 +7,8 @@ import {
   reviewDestination,
   settleQuoteRequest
 } from '@/checkout/quote-lifecycle';
-import type {ShippingAddress} from '@/checkout/shipping-address';
-import type {CartQuote} from '@/checkout/types';
+import type { ShippingAddress } from '@/checkout/shipping-address';
+import type { CartQuote } from '@/checkout/types';
 
 const usAddress: ShippingAddress = {
   recipientName: 'Taylor Customer',
@@ -53,7 +53,7 @@ function physicalQuote(overrides: Partial<CartQuote> = {}): CartQuote {
     ],
     subtotalMinor: 3000,
     excludedSubtotalMinor: 0,
-    discount: {status: 'not_applied', amountMinor: 0},
+    discount: { status: 'not_applied', amountMinor: 0 },
     shipping: {
       status: 'ready',
       version: 2,
@@ -76,10 +76,32 @@ function digitalQuote(): CartQuote {
   const quote = physicalQuote();
   return {
     ...quote,
-    lines: quote.lines.map((line) => ({...line, fulfillmentType: 'digital'})),
-    shipping: {status: 'no_shipping_required', amountMinor: 0, countryCode: null},
+    lines: quote.lines.map((line) => ({ ...line, fulfillmentType: 'digital' })),
+    shipping: { status: 'no_shipping_required', amountMinor: 0, countryCode: null },
     totalMinor: 3000,
     hash: 'digital'
+  };
+}
+
+function mixedQuote(overrides: Partial<CartQuote> = {}): CartQuote {
+  const quote = physicalQuote();
+  const digitalLine = {
+    ...quote.lines[0],
+    lineId: 'line-2',
+    productId: '10000000-0000-4000-8000-000000000002',
+    slug: 'pattern',
+    title: 'Pattern',
+    fulfillmentType: 'digital' as const,
+    unitPriceMinor: 1200,
+    lineSubtotalMinor: 1200
+  };
+  return {
+    ...quote,
+    lines: [...quote.lines, digitalLine],
+    subtotalMinor: 4200,
+    totalMinor: 4700,
+    hash: 'mixed',
+    ...overrides
   };
 }
 
@@ -87,8 +109,8 @@ describe('checkout quote lifecycle', () => {
   it('assigns monotonically increasing request identities and preserves the accepted quote while updating', () => {
     const accepted = physicalQuote();
     const initial = createCheckoutQuoteLifecycleState(accepted);
-    const first = beginQuoteRequest(initial, {countryCode: 'VN'});
-    const second = beginQuoteRequest(first.state, {countryCode: 'US', regionCode: 'CA'});
+    const first = beginQuoteRequest(initial, { countryCode: 'VN' });
+    const second = beginQuoteRequest(first.state, { countryCode: 'US', regionCode: 'CA' });
 
     expect(first.request.requestId).toBe(1);
     expect(second.request.requestId).toBe(2);
@@ -96,28 +118,36 @@ describe('checkout quote lifecycle', () => {
       acceptedQuote: accepted,
       activeRequestId: 2,
       loadingMode: 'updating',
-      destination: {countryCode: 'US', regionCode: 'CA'}
+      destination: { countryCode: 'US', regionCode: 'CA' }
     });
   });
 
   it('ignores every stale response without changing current state', () => {
-    const first = beginQuoteRequest(createCheckoutQuoteLifecycleState(physicalQuote()), {countryCode: 'VN'});
-    const second = beginQuoteRequest(first.state, {countryCode: 'US', regionCode: 'CA'});
+    const first = beginQuoteRequest(createCheckoutQuoteLifecycleState(physicalQuote()), {
+      countryCode: 'VN'
+    });
+    const second = beginQuoteRequest(first.state, { countryCode: 'US', regionCode: 'CA' });
     const stale = settleQuoteRequest(second.state, first.request.requestId, {
       status: 'ready',
-      quote: physicalQuote({hash: 'stale'})
+      quote: physicalQuote({ hash: 'stale' })
     });
     expect(stale).toBe(second.state);
   });
 
   it('commits the first and non-material latest quotes in place', () => {
-    const first = beginQuoteRequest(createCheckoutQuoteLifecycleState(), {countryCode: 'US', regionCode: 'CA'});
+    const first = beginQuoteRequest(createCheckoutQuoteLifecycleState(), {
+      countryCode: 'US',
+      regionCode: 'CA'
+    });
     const accepted = settleQuoteRequest(first.state, first.request.requestId, {
       status: 'ready',
       quote: physicalQuote()
     });
-    const refresh = beginQuoteRequest(accepted, {countryCode: 'US', regionCode: 'CA'});
-    const refreshedQuote = physicalQuote({hash: 'quote-refreshed', quotedAt: '2026-07-12T00:01:00.000Z'});
+    const refresh = beginQuoteRequest(accepted, { countryCode: 'US', regionCode: 'CA' });
+    const refreshedQuote = physicalQuote({
+      hash: 'quote-refreshed',
+      quotedAt: '2026-07-12T00:01:00.000Z'
+    });
     const refreshed = settleQuoteRequest(refresh.state, refresh.request.requestId, {
       status: 'ready',
       quote: refreshedQuote
@@ -129,7 +159,9 @@ describe('checkout quote lifecycle', () => {
 
   it('keeps material changes as a proposal until explicit acceptance', () => {
     const accepted = physicalQuote();
-    const request = beginQuoteRequest(createCheckoutQuoteLifecycleState(accepted), {countryCode: 'VN'});
+    const request = beginQuoteRequest(createCheckoutQuoteLifecycleState(accepted), {
+      countryCode: 'VN'
+    });
     const changed = physicalQuote({
       market: 'vn',
       currencyCode: 'VND',
@@ -145,21 +177,26 @@ describe('checkout quote lifecycle', () => {
         allocations: []
       }
     });
-    const proposed = settleQuoteRequest(request.state, request.request.requestId, {status: 'ready', quote: changed});
+    const proposed = settleQuoteRequest(request.state, request.request.requestId, {
+      status: 'ready',
+      quote: changed
+    });
 
     expect(proposed.acceptedQuote).toBe(accepted);
     expect(proposed.proposal?.quote).toBe(changed);
     expect(proposed.proposal?.materialChanges.length).toBeGreaterThan(0);
-    expect(acceptQuoteProposal(proposed)).toMatchObject({acceptedQuote: changed, proposal: null});
+    expect(acceptQuoteProposal(proposed)).toMatchObject({ acceptedQuote: changed, proposal: null });
   });
 
   it.each([
-    [{status: 'unsupported' as const, code: 'no_profile'}, 'unsupported'],
-    [{status: 'network_error' as const}, 'network'],
-    [{status: 'server_error' as const}, 'server']
+    [{ status: 'unsupported' as const, code: 'no_profile' }, 'unsupported'],
+    [{ status: 'network_error' as const }, 'network'],
+    [{ status: 'server_error' as const }, 'server']
   ])('preserves accepted evidence for recoverable %s results', (result, issueKind) => {
     const accepted = physicalQuote();
-    const request = beginQuoteRequest(createCheckoutQuoteLifecycleState(accepted), {countryCode: 'VN'});
+    const request = beginQuoteRequest(createCheckoutQuoteLifecycleState(accepted), {
+      countryCode: 'VN'
+    });
     const settled = settleQuoteRequest(request.state, request.request.requestId, result);
     expect(settled.acceptedQuote).toBe(accepted);
     expect(settled.issue?.kind).toBe(issueKind);
@@ -167,7 +204,9 @@ describe('checkout quote lifecycle', () => {
   });
 
   it('never treats an unsupported quote as ready zero-fee evidence', () => {
-    const request = beginQuoteRequest(createCheckoutQuoteLifecycleState(physicalQuote()), {countryCode: 'VN'});
+    const request = beginQuoteRequest(createCheckoutQuoteLifecycleState(physicalQuote()), {
+      countryCode: 'VN'
+    });
     const unsupported = physicalQuote({
       status: 'blocked',
       shipping: {
@@ -179,33 +218,83 @@ describe('checkout quote lifecycle', () => {
         failureCode: 'no_profile'
       }
     });
-    const settled = settleQuoteRequest(request.state, request.request.requestId, {status: 'ready', quote: unsupported});
-    expect(settled.issue).toEqual({kind: 'unsupported', code: 'no_profile'});
+    const settled = settleQuoteRequest(request.state, request.request.requestId, {
+      status: 'ready',
+      quote: unsupported
+    });
+    expect(settled.issue).toEqual({ kind: 'unsupported', code: 'no_profile' });
     expect(settled.acceptedQuote?.hash).toBe('quote-a');
   });
 
   it('requires settled current destination evidence and a valid final US address before submit', () => {
-    const ready = createCheckoutQuoteLifecycleState(physicalQuote(), {countryCode: 'US', regionCode: 'CA'});
+    const ready = createCheckoutQuoteLifecycleState(physicalQuote(), {
+      countryCode: 'US',
+      regionCode: 'CA'
+    });
     expect(canSubmitAcceptedQuote(ready, usAddress)).toBe(true);
-    expect(canSubmitAcceptedQuote(ready, {...usAddress, region: 'NY'})).toBe(false);
-    expect(canSubmitAcceptedQuote(ready, {...usAddress, postalCode: null})).toBe(false);
-    expect(canSubmitAcceptedQuote(beginQuoteRequest(ready, {countryCode: 'US', regionCode: 'CA'}).state, usAddress)).toBe(false);
-    expect(canSubmitAcceptedQuote(createCheckoutQuoteLifecycleState(digitalQuote()), null)).toBe(true);
+    expect(canSubmitAcceptedQuote(ready, { ...usAddress, region: 'NY' })).toBe(false);
+    expect(canSubmitAcceptedQuote(ready, { ...usAddress, postalCode: null })).toBe(false);
+    expect(
+      canSubmitAcceptedQuote(
+        beginQuoteRequest(ready, { countryCode: 'US', regionCode: 'CA' }).state,
+        usAddress
+      )
+    ).toBe(false);
+    expect(canSubmitAcceptedQuote(createCheckoutQuoteLifecycleState(digitalQuote()), null)).toBe(
+      true
+    );
   });
 
   it('reviewing a destination clears transient intent but keeps accepted evidence mismatched and unsubmitable', () => {
-    const state = reviewDestination(createCheckoutQuoteLifecycleState(physicalQuote()), {countryCode: 'US', regionCode: 'NY'});
+    const state = reviewDestination(createCheckoutQuoteLifecycleState(physicalQuote()), {
+      countryCode: 'US',
+      regionCode: 'NY'
+    });
     expect(state.acceptedQuote?.hash).toBe('quote-a');
     expect(state.proposal).toBeNull();
-    expect(canSubmitAcceptedQuote(state, {...usAddress, region: 'NY'})).toBe(false);
+    expect(canSubmitAcceptedQuote(state, { ...usAddress, region: 'NY' })).toBe(false);
   });
 
   it('does not treat non-US free-form regions as shipping adjustment material', () => {
     const reviewed = reviewDestination(createCheckoutQuoteLifecycleState(physicalQuote()), {
-      countryCode: 'VN', regionCode: 'Ho Chi Minh City'
+      countryCode: 'VN',
+      regionCode: 'Ho Chi Minh City'
     });
-    expect(reviewed.destination).toEqual({countryCode: 'VN', regionCode: null});
-    const request = beginQuoteRequest(reviewed, {countryCode: 'VN', regionCode: 'Da Nang'});
-    expect(request.request.destination).toEqual({countryCode: 'VN', regionCode: null});
+    expect(reviewed.destination).toEqual({ countryCode: 'VN', regionCode: null });
+    const request = beginQuoteRequest(reviewed, { countryCode: 'VN', regionCode: 'Da Nang' });
+    expect(request.request.destination).toEqual({ countryCode: 'VN', regionCode: null });
+  });
+
+  it('keeps a mixed cart blocked on destination mismatch until the latest material quote is accepted', () => {
+    const accepted = mixedQuote();
+    const request = beginQuoteRequest(createCheckoutQuoteLifecycleState(accepted), {
+      countryCode: 'VN'
+    });
+    const vietnamQuote = mixedQuote({
+      market: 'vn',
+      currencyCode: 'VND',
+      subtotalMinor: 420000,
+      totalMinor: 450000,
+      hash: 'mixed-vn',
+      shipping: {
+        status: 'ready',
+        version: 2,
+        amountMinor: 30000,
+        countryCode: 'VN',
+        firstItemLineId: 'line-1',
+        chargeableUnitCount: 1,
+        allocations: []
+      }
+    });
+    const proposed = settleQuoteRequest(request.state, request.request.requestId, {
+      status: 'ready',
+      quote: vietnamQuote
+    });
+    const vietnamAddress = { ...usAddress, countryCode: 'VN', region: null, postalCode: null };
+
+    expect(proposed.acceptedQuote).toBe(accepted);
+    expect(proposed.proposal?.quote).toBe(vietnamQuote);
+    expect(canSubmitAcceptedQuote(proposed, vietnamAddress)).toBe(false);
+    expect(canSubmitAcceptedQuote(acceptQuoteProposal(proposed), vietnamAddress)).toBe(true);
   });
 });
