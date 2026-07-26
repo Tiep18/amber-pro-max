@@ -59,10 +59,10 @@ describe('static taxonomy route contract', () => {
     expect(localeSwitcher).toContain('useLocalizedRouteSlugs');
     expect(marketSwitcher).toContain('useLocalizedRouteSlugs');
     expect(localeSwitcher).toMatch(
-      /getEquivalentLocalizedPath\(pathname,\s*target,\s*localizedSlugs\)/
+      /getLocaleSwitchHref\(pathname,\s*target,\s*searchParams,\s*localizedSlugs\)/
     );
     expect(marketSwitcher).toMatch(
-      /getEquivalentLocalizedPath\(pathname,\s*targetLocale,\s*localizedSlugs\)/
+      /getLocaleSwitchHref\(pathname,\s*targetLocale,\s*searchParams,\s*localizedSlugs\)/
     );
   });
 
