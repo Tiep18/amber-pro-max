@@ -7,11 +7,29 @@ import {
   urlSetXml
 } from '@/content/seo/metadata';
 
+const routeMocks = vi.hoisted(() => ({
+  getRequestMarket: vi.fn(),
+  getCachedCatalogProjection: vi.fn(),
+  getCachedProductCommerce: vi.fn()
+}));
+
+vi.mock('@/catalog/page-context', () => ({
+  getRequestMarket: routeMocks.getRequestMarket
+}));
+vi.mock('@/catalog/public-cache', () => ({
+  getCachedCatalogProjection: routeMocks.getCachedCatalogProjection,
+  getCachedProductCommerce: routeMocks.getCachedProductCommerce
+}));
+
 describe('localized SEO metadata (SEO-02, D-05, D-06)', () => {
   beforeEach(() => {
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://example.test');
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://supabase.example.test');
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'publishable-key');
+    routeMocks.getRequestMarket.mockReset();
+    routeMocks.getCachedCatalogProjection.mockReset();
+    routeMocks.getCachedProductCommerce.mockReset();
+    routeMocks.getRequestMarket.mockResolvedValue('intl');
   });
 
   afterEach(() => {
@@ -76,11 +94,12 @@ describe('localized SEO metadata (SEO-02, D-05, D-06)', () => {
   });
 
   it('keeps the cookie and geo invariance release probe exhaustive', async () => {
-    const [launchSeo, detailSeo] = await Promise.all([
+    const [launchSeo, detailSeo, seoSource] = await Promise.all([
       readFile('tests/e2e/launch-seo.spec.ts', 'utf8'),
-      readFile('tests/e2e/catalog-detail-seo.spec.ts', 'utf8')
+      readFile('tests/e2e/catalog-detail-seo.spec.ts', 'utf8'),
+      readFile('tests/unit/content/seo.test.ts', 'utf8')
     ]);
-    const probe = `${launchSeo}\n${detailSeo}`;
+    const probe = `${launchSeo}\n${detailSeo}\n${seoSource}`;
 
     expect(probe).toContain('PUBLIC_VARIANTS');
     expect(probe).toContain('normalizePublicHtml');
@@ -113,5 +132,100 @@ describe('localized SEO metadata (SEO-02, D-05, D-06)', () => {
     expect(probe).toContain('catalog_projection_unavailable');
     expect(probe).toContain('product_not_found');
     expect(probe).toContain('product_projection_unavailable');
+  });
+});
+
+describe('private storefront projection response policy (D-09, D-10, T-09-07)', () => {
+  beforeEach(() => {
+    routeMocks.getRequestMarket.mockReset();
+    routeMocks.getCachedCatalogProjection.mockReset();
+    routeMocks.getCachedProductCommerce.mockReset();
+    routeMocks.getRequestMarket.mockResolvedValue('intl');
+  });
+
+  async function expectPrivateNoStore(response: Response, status: number, code?: string) {
+    expect(response.status).toBe(status);
+    expect(response.headers.get('cache-control')).toBe('private, no-store');
+    if (code) {
+      await expect(response.json()).resolves.toMatchObject({ status: 'error', code });
+    }
+  }
+
+  it('keeps catalog success and invalid-input responses private and server-owned', async () => {
+    routeMocks.getCachedCatalogProjection.mockResolvedValue({
+      locale: 'en',
+      market: 'intl',
+      surface: 'catalog',
+      products: [],
+      facets: []
+    });
+    const { GET } = await import('@/app/api/storefront/catalog/route');
+    const ready = await GET(
+      new Request(
+        'https://example.test/api/storefront/catalog?locale=en&surface=catalog&sort=newest&limit=24'
+      )
+    );
+    const invalid = await GET(
+      new Request(
+        'https://example.test/api/storefront/catalog?locale=en&locale=vi&surface=catalog&sort=newest&limit=24'
+      )
+    );
+
+    await expectPrivateNoStore(ready, 200);
+    await expectPrivateNoStore(invalid, 400, 'invalid_catalog_projection');
+    expect(routeMocks.getCachedCatalogProjection).toHaveBeenCalledWith({
+      locale: 'en',
+      market: 'intl',
+      surface: 'catalog',
+      search: null,
+      productType: null,
+      categorySlug: null,
+      collectionSlug: null,
+      techniqueSlug: null,
+      tagSlug: null,
+      sort: 'newest',
+      limit: 24
+    });
+  });
+
+  it('keeps catalog failures private and no-store', async () => {
+    routeMocks.getCachedCatalogProjection.mockRejectedValue(new Error('catalog unavailable'));
+    const { GET } = await import('@/app/api/storefront/catalog/route');
+    const response = await GET(
+      new Request(
+        'https://example.test/api/storefront/catalog?locale=en&surface=catalog&sort=newest&limit=24'
+      )
+    );
+
+    await expectPrivateNoStore(response, 503, 'catalog_projection_unavailable');
+  });
+
+  it('keeps product success, invalid, not-found, and failure responses private', async () => {
+    const { GET } = await import('@/app/api/storefront/products/[productSlug]/route');
+    routeMocks.getCachedProductCommerce.mockResolvedValueOnce({
+      productId: 'product-ready',
+      slug: 'ready-bear',
+      locale: 'en',
+      market: 'intl'
+    });
+    const ready = await GET(new Request('https://example.test/api/product?locale=en'), {
+      params: Promise.resolve({ productSlug: 'ready-bear' })
+    });
+    const invalid = await GET(new Request('https://example.test/api/product?locale=en&market=vn'), {
+      params: Promise.resolve({ productSlug: 'ready-bear' })
+    });
+    routeMocks.getCachedProductCommerce.mockResolvedValueOnce(null);
+    const notFound = await GET(new Request('https://example.test/api/product?locale=en'), {
+      params: Promise.resolve({ productSlug: 'missing-bear' })
+    });
+    routeMocks.getCachedProductCommerce.mockRejectedValueOnce(new Error('product unavailable'));
+    const unavailable = await GET(new Request('https://example.test/api/product?locale=en'), {
+      params: Promise.resolve({ productSlug: 'broken-bear' })
+    });
+
+    await expectPrivateNoStore(ready, 200);
+    await expectPrivateNoStore(invalid, 400, 'invalid_product_projection');
+    await expectPrivateNoStore(notFound, 404, 'product_not_found');
+    await expectPrivateNoStore(unavailable, 503, 'product_projection_unavailable');
   });
 });
