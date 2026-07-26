@@ -74,4 +74,44 @@ describe('localized SEO metadata (SEO-02, D-05, D-06)', () => {
     );
     expect(xml).not.toMatch(/[?&](?:market|ACTIVE_MARKET)=|\/(?:vn|intl)(?:\/|<)/i);
   });
+
+  it('keeps the cookie and geo invariance release probe exhaustive', async () => {
+    const [launchSeo, detailSeo] = await Promise.all([
+      readFile('tests/e2e/launch-seo.spec.ts', 'utf8'),
+      readFile('tests/e2e/catalog-detail-seo.spec.ts', 'utf8')
+    ]);
+    const probe = `${launchSeo}\n${detailSeo}`;
+
+    expect(probe).toContain('PUBLIC_VARIANTS');
+    expect(probe).toContain('normalizePublicHtml');
+    for (const path of [
+      '/en',
+      '/vi',
+      '/en/catalog',
+      '/vi/cua-hang',
+      '/en/category/',
+      '/vi/danh-muc/',
+      '/en/collection/',
+      '/vi/bo-suu-tap/',
+      '/en/technique/',
+      '/vi/ky-thuat/',
+      '/en/tag/',
+      '/vi/the/',
+      '/en/product/',
+      '/vi/san-pham/',
+      '/sitemap.xml',
+      '/sitemaps/en',
+      '/sitemaps/vi',
+      '/robots.txt'
+    ]) {
+      expect(probe, path).toContain(path);
+    }
+    expect(probe).toContain('ACTIVE_MARKET');
+    expect(probe).toContain('x-vercel-ip-country');
+    expect(probe).toContain('private, no-store');
+    expect(probe).toContain('invalid_catalog_projection');
+    expect(probe).toContain('catalog_projection_unavailable');
+    expect(probe).toContain('product_not_found');
+    expect(probe).toContain('product_projection_unavailable');
+  });
 });
