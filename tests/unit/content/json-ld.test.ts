@@ -1,5 +1,10 @@
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {articleJsonLd, breadcrumbJsonLd, productJsonLd, serializeJsonLd} from '@/content/seo/json-ld';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  articleJsonLd,
+  breadcrumbJsonLd,
+  productJsonLd,
+  serializeJsonLd
+} from '@/content/seo/json-ld';
 
 describe('safe JSON-LD (SEO-03, D-08)', () => {
   beforeEach(() => {
@@ -13,7 +18,7 @@ describe('safe JSON-LD (SEO-03, D-08)', () => {
   });
 
   it('escapes less-than characters before rendering into a script tag', () => {
-    const serialized = serializeJsonLd({name: '</script><script>alert(1)</script>'});
+    const serialized = serializeJsonLd({ name: '</script><script>alert(1)</script>' });
 
     expect(serialized).toContain('\\u003c/script>');
     expect(serialized).not.toContain('</script>');
@@ -47,16 +52,16 @@ describe('safe JSON-LD (SEO-03, D-08)', () => {
   });
 
   it('builds Article and Breadcrumb JSON-LD from public localized paths only', () => {
-    const articleInput = {headline: 'Care', description: 'Care notes.', path: '/en/blog/care'};
+    const articleInput = { headline: 'Care', description: 'Care notes.', path: '/en/blog/care' };
     const article = articleJsonLd(articleInput);
 
     expect(article).toMatchObject({
       '@type': 'Article',
       url: 'https://example.test/en/blog/care'
     });
-    expect(breadcrumbJsonLd([{name: 'Blog', path: '/en/blog'}])).toMatchObject({
+    expect(breadcrumbJsonLd([{ name: 'Blog', path: '/en/blog' }])).toMatchObject({
       '@type': 'BreadcrumbList',
-      itemListElement: [{item: 'https://example.test/en/blog', position: 1}]
+      itemListElement: [{ item: 'https://example.test/en/blog', position: 1 }]
     });
 
     vi.stubEnv('ACTIVE_MARKET', 'intl');

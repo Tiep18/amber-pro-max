@@ -1,6 +1,11 @@
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {readFile} from 'node:fs/promises';
-import {absoluteUrl, localizedAlternates, sitemapIndexXml, urlSetXml} from '@/content/seo/metadata';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFile } from 'node:fs/promises';
+import {
+  absoluteUrl,
+  localizedAlternates,
+  sitemapIndexXml,
+  urlSetXml
+} from '@/content/seo/metadata';
 
 describe('localized SEO metadata (SEO-02, D-05, D-06)', () => {
   beforeEach(() => {
@@ -36,24 +41,23 @@ describe('localized SEO metadata (SEO-02, D-05, D-06)', () => {
 
   it('renders sitemap lastmod when provided', () => {
     expect(
-      urlSetXml([{path: '/en/product/bear', lastModified: '2026-06-28T00:00:00Z'}])
+      urlSetXml([{ path: '/en/product/bear', lastModified: '2026-06-28T00:00:00Z' }])
     ).toContain('<lastmod>2026-06-28T00:00:00Z</lastmod>');
   });
 
   it('keeps localized sitemap taxonomy on a deterministic cross-market public union', async () => {
-    const source = await readFile(
-      'src/app/sitemaps/[locale]/route.ts',
-      'utf8'
-    );
+    const source = await readFile('src/app/sitemaps/[locale]/route.ts', 'utf8');
 
     expect(source).toContain('getCachedCatalogProjection');
-    expect(source).toMatch(/market:\s*'vn'/);
-    expect(source).toMatch(/market:\s*'intl'/);
+    expect(source).toContain("taxonomyProjectionInput(locale, 'vn')");
+    expect(source).toContain("taxonomyProjectionInput(locale, 'intl')");
     expect(source).toContain("facet_type === 'technique'");
     expect(source).toContain("facet_type === 'tag'");
     expect(source).toContain('getTechniquePath');
     expect(source).toContain('getTagPath');
-    expect(source).not.toMatch(/cookies\(|headers\(|getRequestMarket|ACTIVE_MARKET|x-vercel-ip-country/);
+    expect(source).not.toMatch(
+      /cookies\(|headers\(|getRequestMarket|ACTIVE_MARKET|x-vercel-ip-country/
+    );
   });
 
   it('keeps sitemap XML locale-only without a market path or query dimension', () => {

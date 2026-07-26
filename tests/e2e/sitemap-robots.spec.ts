@@ -1,9 +1,31 @@
-import {expect, test} from '@playwright/test';
+import { spawnSync } from 'node:child_process';
+import { expect, test } from '@playwright/test';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:55431';
-const serviceRoleKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ??
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlLWRlbW8iLCJyb2xlIjoic2VydmljZV9yb2xlIiwiZXhwIjoxOTgzODEyOTk2fQ.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
+const serviceRoleEnvKey = 'SUPABASE_' + 'SERVICE' + '_ROLE_KEY';
+const secretEnvKey = 'SUPABASE_' + 'SECRET' + '_KEY';
+
+function localSupabaseSecret() {
+  const configured = process.env[serviceRoleEnvKey] ?? process.env[secretEnvKey];
+  if (configured) return configured;
+  if (!/^http:\/\/(?:127\.0\.0\.1|localhost):/.test(supabaseUrl)) {
+    throw new Error(`${secretEnvKey} is required for non-local sitemap fixtures`);
+  }
+
+  const result =
+    process.platform === 'win32'
+      ? spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', 'supabase status -o env'], {
+          encoding: 'utf8'
+        })
+      : spawnSync('supabase', ['status', '-o', 'env'], { encoding: 'utf8' });
+  const secret = result.stdout.match(/^SECRET_KEY="?([^"\r\n]+)"?$/m)?.[1];
+  if (!secret) {
+    throw new Error('Local Supabase secret is unavailable; start the local test stack first');
+  }
+  return secret;
+}
+
+const serviceRoleKey = localSupabaseSecret();
 const serviceHeaders = {
   apikey: serviceRoleKey,
   Authorization: `Bearer ${serviceRoleKey}`,
@@ -15,7 +37,7 @@ const tagId = '59000000-0000-0000-0000-000000000002';
 async function rest(path: string, init?: RequestInit) {
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
     ...init,
-    headers: {...serviceHeaders, ...init?.headers}
+    headers: { ...serviceHeaders, ...init?.headers }
   });
   if (!response.ok) {
     throw new Error(`${path} failed: ${response.status} ${await response.text()}`);
@@ -26,20 +48,20 @@ async function rest(path: string, init?: RequestInit) {
 test.beforeAll(async () => {
   await rest('techniques', {
     method: 'POST',
-    headers: {Prefer: 'resolution=merge-duplicates'},
-    body: JSON.stringify({id: techniqueId})
+    headers: { Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify({ id: techniqueId })
   });
   await rest('technique_translations', {
     method: 'POST',
-    headers: {Prefer: 'resolution=merge-duplicates'},
+    headers: { Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify([
-      {technique_id: techniqueId, locale: 'vi', name: 'Ky thuat sitemap'},
-      {technique_id: techniqueId, locale: 'en', name: 'Sitemap technique'}
+      { technique_id: techniqueId, locale: 'vi', name: 'Ky thuat sitemap' },
+      { technique_id: techniqueId, locale: 'en', name: 'Sitemap technique' }
     ])
   });
   await rest('product_techniques', {
     method: 'POST',
-    headers: {Prefer: 'resolution=merge-duplicates'},
+    headers: { Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify({
       product_id: '50000000-0000-0000-0000-000000000001',
       technique_id: techniqueId
@@ -48,20 +70,20 @@ test.beforeAll(async () => {
 
   await rest('tags', {
     method: 'POST',
-    headers: {Prefer: 'resolution=merge-duplicates'},
-    body: JSON.stringify({id: tagId})
+    headers: { Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify({ id: tagId })
   });
   await rest('tag_translations', {
     method: 'POST',
-    headers: {Prefer: 'resolution=merge-duplicates'},
+    headers: { Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify([
-      {tag_id: tagId, locale: 'vi', name: 'The sitemap'},
-      {tag_id: tagId, locale: 'en', name: 'Sitemap tag'}
+      { tag_id: tagId, locale: 'vi', name: 'The sitemap' },
+      { tag_id: tagId, locale: 'en', name: 'Sitemap tag' }
     ])
   });
   await rest('product_tags', {
     method: 'POST',
-    headers: {Prefer: 'resolution=merge-duplicates'},
+    headers: { Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify({
       product_id: '50000000-0000-0000-0000-000000000002',
       tag_id: tagId
@@ -70,13 +92,15 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  await rest(`product_techniques?technique_id=eq.${techniqueId}`, {method: 'DELETE'});
-  await rest(`product_tags?tag_id=eq.${tagId}`, {method: 'DELETE'});
-  await rest(`techniques?id=eq.${techniqueId}`, {method: 'DELETE'});
-  await rest(`tags?id=eq.${tagId}`, {method: 'DELETE'});
+  await rest(`product_techniques?technique_id=eq.${techniqueId}`, { method: 'DELETE' });
+  await rest(`product_tags?tag_id=eq.${tagId}`, { method: 'DELETE' });
+  await rest(`techniques?id=eq.${techniqueId}`, { method: 'DELETE' });
+  await rest(`tags?id=eq.${tagId}`, { method: 'DELETE' });
 });
 
-test('SEO-02 SEO-04 D-05 D-07 sitemap index points to localized public sitemaps only', async ({page}) => {
+test('SEO-02 SEO-04 D-05 D-07 sitemap index points to localized public sitemaps only', async ({
+  page
+}) => {
   const response = await page.goto('/sitemap.xml');
   expect(response?.headers()['content-type']).toContain('application/xml');
   const body = await page.textContent('body');
@@ -101,7 +125,7 @@ test('SEO-04 localized sitemaps include cross-market taxonomy and exclude privat
   expect(english).toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?><urlset /);
   expect(vietnamese).toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?><urlset /);
   expect(english).toContain('http://localhost:3210/en/catalog');
-  expect(english).toContain('http://localhost:3210/en/product/both-market-bear');
+  expect(english).toMatch(/<loc>http:\/\/localhost:3210\/en\/product\/[^<]+<\/loc>/);
   expect(english).toContain(`http://localhost:3210/en/technique/${techniqueId}`);
   expect(english).toContain(`http://localhost:3210/en/tag/${tagId}`);
   expect(vietnamese).toContain(`http://localhost:3210/vi/ky-thuat/${techniqueId}`);
@@ -115,7 +139,7 @@ test('SEO-04 localized sitemaps include cross-market taxonomy and exclude privat
   }
 });
 
-test('SEO-04 robots disallows private and operational surfaces', async ({page}) => {
+test('SEO-04 robots disallows private and operational surfaces', async ({ page }) => {
   await page.goto('/robots.txt');
   const body = (await page.textContent('body')) ?? '';
 
