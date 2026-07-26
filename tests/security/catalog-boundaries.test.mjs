@@ -38,6 +38,13 @@ function existingSource(files) {
     .join('\n');
 }
 
+function requireSource(files) {
+  for (const file of files) {
+    assert.ok(existsSync(file), `required security boundary file is missing: ${file}`);
+  }
+  return existingSource(files);
+}
+
 function sourceFilesUnder(directory) {
   if (!existsSync(directory)) return [];
   return readdirSync(directory).flatMap((entry) => {
@@ -100,7 +107,7 @@ test('public catalog has no pre-payment digital fulfillment path', () => {
 });
 
 test('static storefront scopes stay request-invariant and never fetch private projections', () => {
-  const source = existingSource(staticStorefrontScopes);
+  const source = requireSource(staticStorefrontScopes);
 
   assert.doesNotMatch(source, requestApiBoundary);
   assert.ok(
@@ -129,108 +136,90 @@ test('request and logging boundary matchers reject unsafe fixtures', () => {
   }
 });
 
-test(
-  'market preference changes do not invalidate shared storefront paths',
-  {
-    skip:
-      /\brevalidatePath\s*\(/u.test(marketPreferenceSource) &&
-      'expected red: Plan 09-04 removes legacy shared-path invalidation'
-  },
-  () => {
-    assert.doesNotMatch(marketPreferenceSource, /\brevalidatePath\s*\(/u);
-  }
-);
+test('market preference changes do not invalidate shared storefront paths', () => {
+  assert.doesNotMatch(marketPreferenceSource, /\brevalidatePath\s*\(/u);
+});
 
-test('projection fingerprints never enter cart, checkout, payment, or database authority', () => {
+test('projection fingerprints stay confined to projection and presentation code', () => {
+  const allowedFingerprintFiles = new Set([
+    'src/catalog/projections.ts',
+    'src/components/catalog/add-to-cart.tsx',
+    'src/components/catalog/product-commerce.tsx'
+  ]);
   const authorityFiles = [
-    ...sourceFilesUnder('src/cart'),
-    ...sourceFilesUnder('src/checkout'),
-    ...sourceFilesUnder('src/payments'),
+    ...sourceFilesUnder('src'),
     ...sourceFilesUnder('supabase/migrations')
-  ];
-  const source = existingSource(authorityFiles);
+  ].filter((file) => !allowedFingerprintFiles.has(file));
+  const source = requireSource(authorityFiles);
 
   assert.doesNotMatch(source, offerFingerprintBoundary);
 });
 
-test(
-  'projection schemas are strict, bounded, and exclude caller-selected market',
-  {
-    skip:
-      !existsSync('src/catalog/projection-schemas.ts') &&
-      'Plan 09-06 owns projection implementation'
-  },
-  () => {
-    const source = readFileSync('src/catalog/projection-schemas.ts', 'utf8');
+test('projection schemas are strict, bounded, and exclude caller-selected market', () => {
+  const source = requireSource(['src/catalog/projection-schemas.ts']);
 
-    assert.match(source, /(?:\.strict\s*\(\)|z\.strictObject\s*\()/u);
-    assert.match(source, /\.max\s*\(\s*100\s*\)/u);
-    assert.match(source, /\.max\s*\(\s*48\s*\)/u);
-    assert.doesNotMatch(source, /\bmarket\s*:/u);
-  }
-);
+  assert.match(source, /(?:\.strict\s*\(\)|z\.strictObject\s*\()/u);
+  assert.match(source, /\.max\s*\(\s*100\s*\)/u);
+  assert.match(source, /\.max\s*\(\s*48\s*\)/u);
+  assert.doesNotMatch(source, /\bmarket\s*:/u);
+});
 
-test(
-  'private projection handlers derive market and mark every response private no-store',
-  {
-    skip:
-      !projectionBoundaryFiles.slice(2).every((file) => existsSync(file)) &&
-      'Plan 09-06 owns projection implementation'
-  },
-  () => {
-    for (const file of projectionBoundaryFiles.slice(2)) {
-      const source = readFileSync(file, 'utf8');
-      assert.match(source, /\bgetRequestMarket\s*\(/u, `${file} must derive market on the server`);
-      assert.match(source, /private,\s*no-store/iu, `${file} must mark every outcome private`);
-      assert.doesNotMatch(
-        source,
-        /(?:searchParams\.get\s*\(\s*['"`]market|\bmarket\s*:\s*searchParams)/u
-      );
-      assert.doesNotMatch(source, rawSensitiveLogBoundary);
-    }
+test('private projection handlers derive market and mark every response private no-store', () => {
+  requireSource(projectionBoundaryFiles.slice(2));
+  for (const file of projectionBoundaryFiles.slice(2)) {
+    const source = readFileSync(file, 'utf8');
+    assert.match(source, /\bgetRequestMarket\s*\(/u, `${file} must derive market on the server`);
+    assert.match(source, /private,\s*no-store/iu, `${file} must mark every outcome private`);
+    assert.doesNotMatch(
+      source,
+      /(?:searchParams\.get\s*\(\s*['"`]market|\bmarket\s*:\s*searchParams)/u
+    );
+    assert.doesNotMatch(source, rawSensitiveLogBoundary);
   }
-);
+});
 
-test(
-  'cached catalog projections carry every result-shaping argument',
-  {
-    skip:
-      !projectionBoundaryFiles.slice(0, 2).every((file) => existsSync(file)) &&
-      'Plan 09-06 owns projection implementation'
-  },
-  () => {
-    const source = existingSource(['src/catalog/public-cache.ts', 'src/catalog/projections.ts']);
-    for (const argument of [
-      'locale',
-      'market',
-      'surface',
-      'search',
-      'productType',
-      'categorySlug',
-      'collectionSlug',
-      'techniqueSlug',
-      'tagSlug',
-      'sort',
-      'limit'
-    ]) {
-      assert.match(
-        source,
-        new RegExp(`\\b${argument}\\b`, 'u'),
-        `missing cache argument: ${argument}`
-      );
-    }
-    assert.doesNotMatch(source, requestApiBoundary);
+test('cached catalog projections carry every result-shaping argument', () => {
+  const source = requireSource(['src/catalog/public-cache.ts', 'src/catalog/projections.ts']);
+  for (const argument of [
+    'locale',
+    'market',
+    'surface',
+    'search',
+    'productType',
+    'categorySlug',
+    'collectionSlug',
+    'techniqueSlug',
+    'tagSlug',
+    'sort',
+    'limit'
+  ]) {
+    assert.match(
+      source,
+      new RegExp(`\\b${argument}\\b`, 'u'),
+      `missing cache argument: ${argument}`
+    );
   }
-);
+  assert.doesNotMatch(source, requestApiBoundary);
+});
 
-test(
-  'projection code never logs raw request or projected offer data',
-  {
-    skip:
-      !projectionBoundaryFiles.some((file) => existsSync(file)) &&
-      'Plan 09-06 owns projection implementation'
-  },
-  () => {
-    assert.doesNotMatch(existingSource(projectionBoundaryFiles), rawSensitiveLogBoundary);
-  }
-);
+test('projection code never logs raw request or projected offer data', () => {
+  assert.doesNotMatch(requireSource(projectionBoundaryFiles), rawSensitiveLogBoundary);
+});
+
+test('cross-tab storefront messages carry invalidation coordinates only', () => {
+  const source = requireSource(['src/components/storefront-context.tsx']);
+
+  assert.match(source, /channel\.postMessage\(signal\)/u);
+  assert.match(
+    source,
+    /localStorage\.setItem\(STOREFRONT_CONTEXT_STORAGE_KEY,\s*JSON\.stringify\(signal\)\)/u
+  );
+  assert.doesNotMatch(
+    source,
+    /postMessage\s*\(\s*\{[^}]*(?:market|price|currency|quote|product|facet)/isu
+  );
+  assert.doesNotMatch(
+    source,
+    /JSON\.stringify\s*\(\s*\{[^}]*(?:market|price|currency|quote|product|facet)/isu
+  );
+});

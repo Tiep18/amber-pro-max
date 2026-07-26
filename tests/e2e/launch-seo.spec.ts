@@ -5,8 +5,8 @@ import { expect, MARKET_COOKIE, STOREFRONT_ORIGIN, test } from './fixtures/store
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:55431';
 const serviceRoleEnvKey = 'SUPABASE_' + 'SERVICE' + '_ROLE_KEY';
 const secretEnvKey = 'SUPABASE_' + 'SECRET' + '_KEY';
-const techniqueId = '59100000-0000-0000-0000-000000000001';
-const tagId = '59100000-0000-0000-0000-000000000002';
+const techniqueId = '59000000-0000-0000-0000-000000000001';
+const tagId = '59000000-0000-0000-0000-000000000002';
 
 function localSupabaseSecret() {
   const configured = process.env[serviceRoleEnvKey] ?? process.env[secretEnvKey];

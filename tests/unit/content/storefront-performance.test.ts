@@ -5,6 +5,16 @@ async function source(path: string) {
   return readFile(new URL(path, import.meta.url), 'utf8');
 }
 
+const localizedPublicRoutes = [
+  '../../../src/app/[locale]/page.tsx',
+  '../../../src/app/[locale]/catalog/page.tsx',
+  '../../../src/app/[locale]/category/[categorySlug]/page.tsx',
+  '../../../src/app/[locale]/collection/[collectionSlug]/page.tsx',
+  '../../../src/app/[locale]/technique/[techniqueSlug]/page.tsx',
+  '../../../src/app/[locale]/tag/[tagSlug]/page.tsx',
+  '../../../src/app/[locale]/product/[productSlug]/page.tsx'
+] as const;
+
 describe('storefront performance boundaries', () => {
   it('keeps the locale layout free of full client message serialization', async () => {
     const layout = await source('../../../src/app/[locale]/layout.tsx');
@@ -112,5 +122,46 @@ describe('storefront performance boundaries', () => {
     expect(homepage).not.toContain('getRequestMarket');
     expect(homepage).not.toContain('/api/storefront/catalog');
     expect(homepage).not.toContain('getCachedCatalogProjection');
+  });
+
+  it.each(localizedPublicRoutes)(
+    'keeps %s on the five-minute static/ISR contract',
+    async (path) => {
+      const route = await source(path);
+
+      expect(route).toContain("dynamic = 'force-static'");
+      expect(route).toContain('revalidate = 300');
+      expect(route).not.toMatch(/\b(?:cookies|headers|draftMode|connection)\s*\(/);
+      expect(route).not.toContain('getRequestMarket');
+      expect(route).not.toMatch(/fetch\s*\(\s*['"`]\/api\/storefront\//);
+    }
+  );
+
+  it('keeps every result-shaping projection input explicit at the shared cache boundary', async () => {
+    const [cache, projections] = await Promise.all([
+      source('../../../src/catalog/public-cache.ts'),
+      source('../../../src/catalog/projections.ts')
+    ]);
+    const cacheBoundary = `${cache}\n${projections}`;
+
+    for (const argument of [
+      'locale',
+      'market',
+      'surface',
+      'search',
+      'productType',
+      'categorySlug',
+      'collectionSlug',
+      'techniqueSlug',
+      'tagSlug',
+      'sort',
+      'limit'
+    ]) {
+      expect(cacheBoundary, `missing cache argument ${argument}`).toMatch(
+        new RegExp(`\\b${argument}\\b`)
+      );
+    }
+    expect(cacheBoundary).not.toMatch(/\b(?:cookies|headers|draftMode|connection)\s*\(/);
+    expect(cacheBoundary).not.toContain('getRequestMarket');
   });
 });
