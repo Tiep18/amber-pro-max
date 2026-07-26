@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-12-PLAN.md
-last_updated: "2026-07-24T16:52:18.028Z"
+stopped_at: Completed 09-13-PLAN.md
+last_updated: "2026-07-26T04:18:35.199Z"
 last_activity: 2026-07-22 -- Phase 09 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 86
-  completed_plans: 83
-  percent: 97
+  completed_plans: 84
+  percent: 98
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 09 (independent-locale-and-market-commerce-projection-with-seo-s) — EXECUTING
-Plan: 13 of 15
+Plan: 14 of 15
 Status: Ready to execute
-Last activity: 2026-07-22 -- Phase 09 execution started
+Last activity: 2026-07-26 -- Plan 09-13 independent locale and market controls completed
 
-Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; Plan 09 checkout UI integration is in progress.
+Progress: Phase 09 Plan 13 is complete; Plan 14 is next.
 
 ## Performance Metrics
 
@@ -105,6 +105,7 @@ Progress: Phase 06 completed and human-approved; Phase 08 Plan 08 is complete; P
 | Phase 09 P11 | 16min | 2 tasks | 6 files |
 | Phase 09 P10 | 18min | 2 tasks | 12 files |
 | Phase 09 P12 | 20min | 3 tasks | 12 files |
+| Phase 09 P13 | 1 day elapsed across checkpoint | 3 tasks | 25 files |
 
 ## Accumulated Context
 
@@ -199,6 +200,9 @@ Recent decisions affecting current work:
 - [Phase 09]: Cart quote cache v2 requires exact locale, resolved market, context version, commercial intent fingerprint, TTL, quote locale, and quote market agreement. — Prevents stale or cross-market session data from hydrating current commerce.
 - [Phase 09]: Prior cart quotes are presentation evidence only during recovery and never supply current commerce or checkout authority. — Preserves recognizable intent while prices, availability, totals, and checkout stay fail-closed.
 - [Phase 09]: Destination material confirmation accepts only through the explicit primary action; Escape, overlay, and secondary actions cancel and restore destination focus. — Preserves Phase 08 destination authority and accessible review semantics.
+- [Phase 09]: Language navigation changes routes only while StorefrontContext exclusively owns market mutation. — Keeps locale and shopping region independent and prevents route navigation from changing the HttpOnly market cookie.
+- [Phase 09]: Unavailable-product recovery and compatibility callers delegate to StorefrontContext.requestMarketChange. — One server-confirmed lifecycle now owns pending state, commit, rollback, retry, and cart invalidation.
+- [Phase 09]: Providers record locally published invalidation versions before broadcasting. — Prevents same-tab BroadcastChannel delivery from aborting the authoritative refresh that initiated the invalidation.
 
 ### Pending Todos
 
@@ -354,6 +358,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T16:52:18.007Z
-Stopped at: Completed 09-12-PLAN.md
+Last session: 2026-07-26T04:18:16.147Z
+Stopped at: Completed 09-13-PLAN.md
 Resume file: None
