@@ -138,7 +138,7 @@ completed: 2026-07-26
 
 ## Verification
 
-- `npx playwright test tests/e2e/catalog-market.spec.ts tests/e2e/storefront-market-convergence.spec.ts` - 14 passed, 3 intentionally skipped, zero failures or flaky retries.
+- `npx playwright test tests/e2e/catalog-market.spec.ts tests/e2e/storefront-market-convergence.spec.ts` - 14 passed, 3 intentionally skipped, zero errors or flaky retries.
 - `npm run test:unit -- tests/unit/i18n/routing.test.ts tests/unit/storefront-context-lifecycle.test.ts tests/unit/cart/market-sync.test.ts tests/unit/catalog/storefront-projection.test.ts tests/unit/catalog/market.test.ts` - 65/65 passed across five files.
 - `npm run typecheck` - passed.
 - `npm run lint` - passed without warnings.
