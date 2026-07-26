@@ -72,9 +72,11 @@ test.describe('locale precedence', () => {
   });
 
   test('missing supported locale preference falls back to Vietnamese', async ({ browser }) => {
-    test.fail(true, 'Plan 09-04: missing or unsupported locale input must fall back to vi');
-    const context = await browser.newContext({
-      extraHTTPHeaders: { 'Accept-Language': 'fr-FR,fr;q=0.9' }
+    const context = await browser.newContext();
+    await context.route('**/*', async (route) => {
+      await route.continue({
+        headers: {...route.request().headers(), 'accept-language': 'fr-FR,fr;q=0.9'}
+      });
     });
     const page = await context.newPage();
 
