@@ -1,6 +1,6 @@
 'use client';
 
-import {useState, useTransition} from 'react';
+import {useEffect, useState, useTransition} from 'react';
 import {Check, ChevronDown} from 'lucide-react';
 import {refreshCheckoutQuoteAction} from '@/checkout/actions';
 import type {CartQuote} from '@/checkout/types';
@@ -35,6 +35,7 @@ const copy = {
 type DiscountCodeFormProps = {
   locale: Locale;
   acceptedQuote: CartQuote | null;
+  feedbackRevision: number;
   onAcceptedQuote: (quote: CartQuote) => void;
 };
 
@@ -49,13 +50,28 @@ function quoteLines(quote: CartQuote) {
   }));
 }
 
-export function DiscountCodeForm({locale, acceptedQuote, onAcceptedQuote}: DiscountCodeFormProps) {
+export function DiscountCodeForm({
+  locale,
+  acceptedQuote,
+  feedbackRevision,
+  onAcceptedQuote
+}: DiscountCodeFormProps) {
   const t = copy[locale];
   const [code, setCode] = useState('');
   const [expanded, setExpanded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{message: string; quoteHash: string | null} | null>(null);
   const [pending, startTransition] = useTransition();
   const appliedCode = acceptedQuote?.discount.status === 'applied' ? acceptedQuote.discount.code : null;
+
+  useEffect(() => {
+    setError((current) =>
+      current && current.quoteHash !== (acceptedQuote?.hash ?? null) ? null : current
+    );
+  }, [acceptedQuote?.hash]);
+
+  useEffect(() => {
+    setError(null);
+  }, [feedbackRevision]);
 
   function refresh(discountCode: string | null) {
     if (!acceptedQuote) {
@@ -77,22 +93,26 @@ export function DiscountCodeForm({locale, acceptedQuote, onAcceptedQuote}: Disco
         priorAcceptedQuoteHash: acceptedQuote.hash
       });
       if (result.status !== 'success') {
-        setError(t.invalid);
+        setError({message: t.invalid, quoteHash: acceptedQuote.hash});
         return;
       }
       onAcceptedQuote(result.quote);
       if (result.quote.discount.status === 'not_eligible') {
-        setError(t.notEligible);
+        setCode('');
+        setExpanded(false);
+        setError({message: t.notEligible, quoteHash: result.quote.hash});
+        return;
       }
       if (discountCode === null) {
         setCode('');
       }
+      setExpanded(false);
     });
   }
 
   return (
     <div className="grid gap-2">
-      {error ? <Alert variant="warning">{error}</Alert> : null}
+      {error ? <Alert variant="warning">{error.message}</Alert> : null}
       {appliedCode ? (
         <div role="status" className="flex items-center justify-between gap-3 rounded-[var(--radius-control)] bg-[var(--success-surface)] px-3 py-2 text-sm">
           <span className="inline-flex min-w-0 items-center gap-2 font-semibold text-[var(--success)]">
@@ -112,7 +132,10 @@ export function DiscountCodeForm({locale, acceptedQuote, onAcceptedQuote}: Disco
             aria-expanded={expanded}
             aria-controls="checkout-discount-fields"
             className="min-h-11 w-full justify-between px-0 text-sm font-semibold hover:bg-transparent"
-            onClick={() => setExpanded((current) => !current)}
+            onClick={() => {
+              setError(null);
+              setExpanded((current) => !current);
+            }}
           >
             {t.add}
             <ChevronDown aria-hidden="true" className={`size-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
@@ -127,7 +150,10 @@ export function DiscountCodeForm({locale, acceptedQuote, onAcceptedQuote}: Disco
                   id="discount-code"
                   value={code}
                   autoComplete="off"
-                  onChange={(event) => setCode(event.target.value)}
+                  onChange={(event) => {
+                    setError(null);
+                    setCode(event.target.value);
+                  }}
                   className="uppercase"
                 />
                 <Button type="button" variant="secondary" disabled={pending || !acceptedQuote || code.trim().length === 0} onClick={() => refresh(code.trim().toUpperCase())}>
@@ -137,13 +163,6 @@ export function DiscountCodeForm({locale, acceptedQuote, onAcceptedQuote}: Disco
             </div>
           ) : null}
         </>
-      ) : null}
-      {acceptedQuote?.discount.status === 'not_eligible' ? (
-        <div>
-          <Button type="button" variant="ghost" disabled={pending || !acceptedQuote} onClick={() => refresh(null)} className="min-h-9 px-2 text-sm">
-            {t.remove}
-          </Button>
-        </div>
       ) : null}
     </div>
   );

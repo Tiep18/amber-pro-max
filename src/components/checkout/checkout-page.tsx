@@ -16,8 +16,9 @@ import {
 } from '@/checkout/actions';
 import {checkoutPaymentIntentForQuote} from '@/checkout/payment-method';
 import {
-  canAcceptPrefilledQuoteWithoutReview,
-  checkoutPrefillDestination
+  checkoutPrefillDestination,
+  shouldReviewCheckoutQuoteChange,
+  type CheckoutQuoteChangeSource
 } from '@/checkout/prefill';
 import {
   acceptQuoteProposal,
@@ -147,6 +148,10 @@ function addressesEqual(left: ShippingAddress, right: ShippingAddress) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+function activeDiscountCode(quote: CartQuote | null) {
+  return quote?.discount.status === 'applied' ? quote.discount.code : null;
+}
+
 export function CheckoutPage({
   locale,
   initialEmail = '',
@@ -184,6 +189,7 @@ export function CheckoutPage({
   const [submitResult, setSubmitResult] = useState<SubmitCheckoutActionState | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [feedbackRevision, setFeedbackRevision] = useState(0);
   const paymentIntent = checkoutPaymentIntentForQuote(acceptedQuote);
 
   const setLifecycle = useCallback((next: CheckoutQuoteLifecycleState) => {
@@ -196,13 +202,19 @@ export function CheckoutPage({
     setShippingAddress(next);
   }, []);
 
+  const beginCheckoutInteraction = useCallback(() => {
+    setSubmitResult(null);
+    setFeedbackRevision((current) => current + 1);
+  }, []);
+
   const requestQuote = useCallback(
     async (
       destination: QuoteDestination,
       nextAddress?: ShippingAddress,
       upstreamQuote?: CartQuote,
-      source: 'destination' | 'upstream' | 'prefill' = 'destination'
+      source: CheckoutQuoteChangeSource = 'destination'
     ) => {
+      beginCheckoutInteraction();
       if (source !== 'upstream') {
         destinationAuthorityRef.current = Boolean(destination.countryCode);
       }
@@ -229,22 +241,14 @@ export function CheckoutPage({
           destinationCountryCode: destination.countryCode,
           destinationRegionCode: destination.regionCode,
           shippingQuoteVersion: 2,
-          discountCode:
-            baseQuote?.discount.status === 'applied' ||
-            baseQuote?.discount.status === 'not_eligible'
-              ? baseQuote.discount.code
-              : null,
+          discountCode: activeDiscountCode(baseQuote),
           priorAcceptedQuoteHash: current.acceptedQuote?.hash ?? null
         });
         const latest = lifecycleRef.current;
         const settlementState =
-          source === 'prefill' &&
+          !shouldReviewCheckoutQuoteChange(source) &&
           result.status === 'success' &&
-          latest.acceptedQuote &&
-          canAcceptPrefilledQuoteWithoutReview(
-            latest.acceptedQuote.market,
-            result.quote.market
-          )
+          latest.acceptedQuote
             ? {...latest, acceptedQuote: null}
             : latest;
         const settled =
@@ -258,15 +262,24 @@ export function CheckoutPage({
                 code: result.code
               });
         setLifecycle(settled);
+        return settled;
       } catch {
-        setLifecycle(
-          settleQuoteRequest(lifecycleRef.current, transition.request.requestId, {
-            status: 'network_error'
-          })
+        const settled = settleQuoteRequest(
+          lifecycleRef.current,
+          transition.request.requestId,
+          {status: 'network_error'}
         );
+        setLifecycle(settled);
+        return settled;
       }
     },
-    [cart?.lines, locale, setLifecycle, setShippingAddressState]
+    [
+      beginCheckoutInteraction,
+      cart?.lines,
+      locale,
+      setLifecycle,
+      setShippingAddressState
+    ]
   );
 
   useEffect(() => {
@@ -386,7 +399,33 @@ export function CheckoutPage({
     (!pending && Boolean(cart) && (cart?.lines.length ?? 0) === 0);
 
   function acceptExternalQuote(nextQuote: CartQuote) {
+    setSubmitResult(null);
     setLifecycle(createCheckoutQuoteLifecycleState(nextQuote, lifecycleRef.current.destination));
+  }
+
+  function acceptProposedQuote() {
+    beginCheckoutInteraction();
+    setLifecycle(acceptQuoteProposal(lifecycleRef.current));
+  }
+
+  function reviewProposedDestination() {
+    const current = lifecycleRef.current;
+    const acceptedDestination = current.acceptedQuote
+      ? quoteDestination(current.acceptedQuote)
+      : null;
+    const restoredDestination = acceptedDestination ?? {
+      countryCode: null,
+      regionCode: null
+    };
+
+    beginCheckoutInteraction();
+    setDestinationExpanded(true);
+    setShippingAddressState({
+      ...shippingAddressRef.current,
+      countryCode: restoredDestination.countryCode ?? '',
+      region: restoredDestination.regionCode
+    });
+    setLifecycle(reviewDestination(current, restoredDestination));
   }
 
   function idempotencyKeyForQuote(quoteHash: string) {
@@ -432,29 +471,44 @@ export function CheckoutPage({
 
     setSubmitting(true);
     setSubmitResult(null);
+    const refreshedLifecycle = await requestQuote(
+      lifecycleRef.current.destination,
+      undefined,
+      acceptedQuote,
+      'submit'
+    );
+    const refreshedQuote = refreshedLifecycle.acceptedQuote;
+    const refreshedPaymentIntent = checkoutPaymentIntentForQuote(refreshedQuote);
+    if (
+      !refreshedQuote ||
+      refreshedLifecycle.activeRequestId !== null ||
+      refreshedLifecycle.proposal ||
+      refreshedLifecycle.issue ||
+      !refreshedPaymentIntent
+    ) {
+      setSubmitting(false);
+      return;
+    }
+
     const submitInput = {
       locale,
-      market: acceptedQuote.market,
+      market: refreshedQuote.market,
       lines: cart.lines,
-      acceptedQuote,
-      acceptedQuoteHash: acceptedQuote.hash,
-      idempotencyKey: idempotencyKeyForQuote(acceptedQuote.hash),
+      acceptedQuote: refreshedQuote,
+      acceptedQuoteHash: refreshedQuote.hash,
+      idempotencyKey: idempotencyKeyForQuote(refreshedQuote.hash),
       contactEmail: email.trim(),
-      paymentIntent,
+      paymentIntent: refreshedPaymentIntent,
       destinationCountryCode:
-        acceptedQuote.shipping.status === 'ready' ||
-        acceptedQuote.shipping.status === 'unsupported_destination'
-          ? acceptedQuote.shipping.countryCode
+        refreshedQuote.shipping.status === 'ready' ||
+        refreshedQuote.shipping.status === 'unsupported_destination'
+          ? refreshedQuote.shipping.countryCode
           : null,
       shippingAddress: physicalCount > 0 ? shippingAddress : null,
-      discountCode:
-        acceptedQuote.discount.status === 'applied' ||
-        acceptedQuote.discount.status === 'not_eligible'
-          ? acceptedQuote.discount.code
-          : null
+      discountCode: activeDiscountCode(refreshedQuote)
     };
     const prepared = await prepareGuestCheckoutRecoveryAction({
-      acceptedQuote,
+      acceptedQuote: refreshedQuote,
       acceptedQuoteHash: submitInput.acceptedQuoteHash,
       contactEmail: submitInput.contactEmail,
       paymentIntent: submitInput.paymentIntent
@@ -523,7 +577,10 @@ export function CheckoutPage({
                 <ContactForm
                   locale={locale}
                   email={email}
-                  onEmailChange={setEmail}
+                  onEmailChange={(nextEmail) => {
+                    beginCheckoutInteraction();
+                    setEmail(nextEmail);
+                  }}
                   onValidityChange={setContactReady}
                   showValidation={submitAttempted}
                 />
@@ -578,7 +635,10 @@ export function CheckoutPage({
                           shippingAddress={shippingAddress}
                           lifecycle={lifecycle}
                           showValidation={submitAttempted}
-                          onShippingAddressChange={setShippingAddressState}
+                          onShippingAddressChange={(nextAddress) => {
+                            beginCheckoutInteraction();
+                            setShippingAddressState(nextAddress);
+                          }}
                           onDestinationChange={(destination) => void requestQuote(destination)}
                         />
                       </div>
@@ -613,6 +673,7 @@ export function CheckoutPage({
             shippingAddress={shippingAddress}
             submitIssues={submitIssues}
             showSubmitIssues={submitAttempted}
+            feedbackRevision={feedbackRevision}
             actionLabel={actionLabel}
             actionDisabled={actionDisabled}
             onSubmit={() => void submit()}
@@ -635,12 +696,8 @@ export function CheckoutPage({
           locale={locale}
           proposal={lifecycle.proposal.quote}
           changes={lifecycle.proposal.materialChanges}
-          onConfirm={() => setLifecycle(acceptQuoteProposal(lifecycleRef.current))}
-          onCancel={() =>
-            setLifecycle(
-              reviewDestination(lifecycleRef.current, lifecycleRef.current.destination)
-            )
-          }
+          onConfirm={acceptProposedQuote}
+          onCancel={reviewProposedDestination}
         />
       ) : null}
     </main>

@@ -31,7 +31,6 @@ const copy = {
     notCalculated: 'Pending destination',
     unsupported: 'Unavailable',
     blocked: 'Resolve unavailable items before continuing.',
-    discountRejected: 'This code is not eligible for the current cart.',
     payment: 'Payment',
     paymentPending: 'Available after the current quote is ready',
     paypal: 'PayPal · USD',
@@ -56,7 +55,6 @@ const copy = {
     notCalculated: 'Chờ địa chỉ',
     unsupported: 'Chưa hỗ trợ',
     blocked: 'Hãy xử lý các sản phẩm chưa khả dụng trước khi tiếp tục.',
-    discountRejected: 'Mã này không áp dụng cho giỏ hàng hiện tại.',
     payment: 'Thanh toán',
     paymentPending: 'Hiển thị sau khi báo giá hiện tại sẵn sàng',
     paypal: 'PayPal · USD',
@@ -109,6 +107,7 @@ export function OrderSummary({
   shippingAddress,
   submitIssues,
   showSubmitIssues,
+  feedbackRevision,
   actionLabel,
   actionDisabled,
   onSubmit,
@@ -121,6 +120,7 @@ export function OrderSummary({
   shippingAddress: ShippingAddress;
   submitIssues: string[];
   showSubmitIssues: boolean;
+  feedbackRevision: number;
   actionLabel: string;
   actionDisabled: boolean;
   onSubmit: () => void;
@@ -190,7 +190,12 @@ export function OrderSummary({
         ) : null}
 
         <div className="border-y border-[var(--border)]/60 py-1">
-          <DiscountCodeForm locale={locale} acceptedQuote={quote} onAcceptedQuote={onAcceptedQuote} />
+          <DiscountCodeForm
+            locale={locale}
+            acceptedQuote={quote}
+            feedbackRevision={feedbackRevision}
+            onAcceptedQuote={onAcceptedQuote}
+          />
         </div>
 
         {quote?.status === 'blocked' ? (
@@ -198,10 +203,6 @@ export function OrderSummary({
             {quote.shipping.status === 'unsupported_destination' ? t.unsupported : t.blocked}
           </Alert>
         ) : null}
-        {quote?.discount.status === 'not_eligible' ? (
-          <Alert variant="warning" className="px-3 py-2 text-sm">{t.discountRejected}</Alert>
-        ) : null}
-
         <dl className="grid gap-2 text-sm tabular-nums">
           <div className="flex justify-between gap-3">
             <dt className="text-[var(--muted-foreground)]">{t.subtotal}</dt>

@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {
-  canAcceptPrefilledQuoteWithoutReview,
-  checkoutPrefillDestination
+  checkoutPrefillDestination,
+  shouldReviewCheckoutQuoteChange
 } from '@/checkout/prefill';
 
 describe('checkout prefill', () => {
@@ -38,9 +38,9 @@ describe('checkout prefill', () => {
     });
   });
 
-  it('accepts initial shipping updates directly only within the same market', () => {
-    expect(canAcceptPrefilledQuoteWithoutReview('vn', 'vn')).toBe(true);
-    expect(canAcceptPrefilledQuoteWithoutReview('intl', 'intl')).toBe(true);
-    expect(canAcceptPrefilledQuoteWithoutReview('vn', 'intl')).toBe(false);
+  it('settles automatic prefill without a review modal while keeping user changes reviewable', () => {
+    expect(shouldReviewCheckoutQuoteChange('prefill')).toBe(false);
+    expect(shouldReviewCheckoutQuoteChange('destination')).toBe(true);
+    expect(shouldReviewCheckoutQuoteChange('submit')).toBe(true);
   });
 });

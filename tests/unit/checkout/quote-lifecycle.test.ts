@@ -291,6 +291,24 @@ describe('checkout quote lifecycle', () => {
     expect(canSubmitAcceptedQuote(state, { ...usAddress, region: 'NY' })).toBe(false);
   });
 
+  it('restores the accepted destination when leaving review so checkout is not stranded', () => {
+    const accepted = createCheckoutQuoteLifecycleState(physicalQuote(), {
+      countryCode: 'US',
+      regionCode: 'CA'
+    });
+    const changed = beginQuoteRequest(accepted, {
+      countryCode: 'VN',
+      regionCode: null
+    });
+    const reviewed = reviewDestination(changed.state, {
+      countryCode: 'US',
+      regionCode: 'CA'
+    });
+
+    expect(reviewed.destination).toEqual({countryCode: 'US', regionCode: 'CA'});
+    expect(canSubmitAcceptedQuote(reviewed, usAddress)).toBe(true);
+  });
+
   it('does not treat non-US free-form regions as shipping adjustment material', () => {
     const reviewed = reviewDestination(createCheckoutQuoteLifecycleState(physicalQuote()), {
       countryCode: 'VN',

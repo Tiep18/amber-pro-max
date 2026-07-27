@@ -239,12 +239,19 @@ test('Vietnam destination overrides international browsing and requires the VND 
 
   await page.goto('/en/checkout');
   await expect(page.getByText('$18.00').last()).toBeVisible();
-  await page.getByRole('combobox', { name: 'Shipping country' }).click();
+  const shippingCountry = page.getByRole('combobox', { name: 'Shipping country' });
+  await shippingCountry.click();
   await page.getByRole('option', { name: /\(VN\)/ }).click();
 
   const review = page.getByRole('dialog', { name: 'Shipping and total changed' });
   await expect(review).toBeVisible();
   await expect(review).toContainText(/30[.,]000/);
+  await review.getByRole('button', { name: 'Review destination' }).click();
+  await expect(shippingCountry).toContainText('Choose a country');
+
+  await shippingCountry.click();
+  await page.getByRole('option', { name: /\(VN\)/ }).click();
+  await expect(review).toBeVisible();
   await review.getByRole('button', { name: 'Use updated quote' }).click();
   await expect(page.getByText(/280[.,]000/).last()).toBeVisible();
 

@@ -5,6 +5,8 @@ export type CheckoutPrefillDestination = {
   regionCode: string | null;
 };
 
+export type CheckoutQuoteChangeSource = 'prefill' | 'destination' | 'upstream' | 'submit';
+
 function normalizeCode(value: string | null | undefined, maxLength: number) {
   const normalized = value?.trim().toUpperCase() ?? '';
   return normalized && normalized.length <= maxLength ? normalized : null;
@@ -40,9 +42,6 @@ export function checkoutPrefillDestination({
     : {countryCode: null, regionCode: null};
 }
 
-export function canAcceptPrefilledQuoteWithoutReview(
-  currentMarket: MarketCode,
-  nextMarket: MarketCode
-) {
-  return currentMarket === nextMarket;
+export function shouldReviewCheckoutQuoteChange(source: CheckoutQuoteChangeSource) {
+  return source !== 'prefill';
 }

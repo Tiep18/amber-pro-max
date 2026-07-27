@@ -141,4 +141,23 @@ test('checkout prefill uses authenticated server identity and deterministic dest
   assert.match(prefill, /quotedDestination/);
   assert.match(prefill, /market === 'vn'/);
   assert.match(prefill, /countryCode: 'VN'/);
+  assert.match(prefill, /source !== 'prefill'/);
+});
+
+test('checkout refreshes accepted commercial evidence immediately before submit', () => {
+  const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  const submitStart = client.indexOf('async function submit()');
+  const preflight = client.indexOf('const refreshedLifecycle = await requestQuote(', submitStart);
+  const recovery = client.indexOf('await prepareGuestCheckoutRecoveryAction(', submitStart);
+  const persistence = client.indexOf('await submitCheckoutAction(submitInput)', submitStart);
+
+  assert.ok(submitStart >= 0);
+  assert.ok(preflight > submitStart);
+  assert.ok(recovery > preflight);
+  assert.ok(persistence > recovery);
+  assert.match(
+    client.slice(submitStart),
+    /prepareGuestCheckoutRecoveryAction\(\{\s*acceptedQuote:\s*refreshedQuote,/
+  );
+  assert.match(client.slice(submitStart), /discountCode: activeDiscountCode\(refreshedQuote\)/);
 });
