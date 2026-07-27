@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 09-14-PLAN.md
-last_updated: "2026-07-27T11:33:15+07:00"
-last_activity: 2026-07-27 -- Quick task 260727-fmw compact checkout redesign and safe prefill completed
+last_updated: "2026-07-27T12:03:00+07:00"
+last_activity: 2026-07-27 -- Resolved checkout quote lifecycle and transient feedback regressions
 progress:
   total_phases: 9
   completed_phases: 7
@@ -352,6 +352,7 @@ None yet.
 | catalog-lcp-and-repeated-requests   | Verify catalog request behavior and remove the first product image LCP warning                              | 2026-07-06 | [catalog-lcp-and-repeated-requests](./debug/catalog-lcp-and-repeated-requests.md)     |
 | product-route-smooth-scroll-warning | Declare Next.js 16 smooth-scroll transition behavior and verify product navigation                          | 2026-07-06 | [product-route-smooth-scroll-warning](./debug/product-route-smooth-scroll-warning.md) |
 | wishlist-invalid-product-id         | Accept PostgreSQL-valid product UUIDs in wishlist actions and client wishlist state                         | 2026-07-09 | [wishlist-invalid-product-id](./debug/wishlist-invalid-product-id.md)                 |
+| checkout-quote-state-stuck           | Synchronize checkout quote transitions, submit evidence, destination review, and transient coupon feedback  | 2026-07-27 | [checkout-quote-state-stuck](./debug/checkout-quote-state-stuck.md)                   |
 
 ## Deferred Items
 
