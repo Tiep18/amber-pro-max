@@ -13,11 +13,7 @@ import {
 import type { Locale } from '@/i18n/routing';
 import { refreshCartQuoteAction } from '@/cart/actions';
 import { readGuestCart, writeGuestCart } from '@/cart/guest-storage';
-import {
-  clearCartQuoteCache,
-  readCartQuoteCache,
-  writeCartQuoteCache
-} from '@/cart/quote-cache';
+import { clearCartQuoteCache, readCartQuoteCache, writeCartQuoteCache } from '@/cart/quote-cache';
 import {
   beginMarketRequote,
   emptyCartMarketChanges,
@@ -27,6 +23,7 @@ import {
   type CartMarketSyncIssue,
   type CartMarketSyncState
 } from '@/cart/market-sync';
+import { subtractCompletedOrderLines, type CompletedOrderLine } from '@/cart/order-completion';
 import {
   cartLineKey,
   type AddToCartIntent,
@@ -51,12 +48,7 @@ type CartContextValue = {
   syncStatus: CartMarketSyncState['status'] | 'resolving';
   changes: CartMarketGroupedChanges;
   issue: CartMarketSyncIssue | null;
-  blockReason:
-    | 'context_resolving'
-    | 'context_error'
-    | 'requote_updating'
-    | 'requote_failed'
-    | null;
+  blockReason: 'context_resolving' | 'context_error' | 'requote_updating' | 'requote_failed' | null;
   open: boolean;
   setOpen: (open: boolean) => void;
   count: number;
@@ -65,6 +57,7 @@ type CartContextValue = {
   removeLine: (line: CartIntentLine) => void;
   undoRemove: () => Promise<void>;
   removedLine: CartIntentLine | null;
+  completeOrder: (lines: CompletedOrderLine[]) => void;
   refresh: (lines?: CartIntentLine[]) => Promise<void>;
   retry: () => Promise<void>;
 };
@@ -143,12 +136,11 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
   const runRequote = useCallback(
     async (
       lines: CartIntentLine[],
-      identity: {locale: Locale; market: MarketCode; contextVersion: number}
+      identity: { locale: Locale; market: MarketCode; contextVersion: number }
     ) => {
       clearCartQuoteCache();
       const current =
-        syncStateRef.current ??
-        createSyncState(identity.market, identity.contextVersion, lines);
+        syncStateRef.current ?? createSyncState(identity.market, identity.contextVersion, lines);
       const begun = beginMarketRequote(current, {
         locale: identity.locale,
         committedMarket: identity.market,
@@ -241,21 +233,14 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
 
   useEffect(() => {
     const marker = `${locale}:${storefrontContext.market ?? 'none'}:${storefrontContext.contextVersion}`;
-    if (
-      lastObservedContext.current !== null &&
-      lastObservedContext.current !== marker
-    ) {
+    if (lastObservedContext.current !== null && lastObservedContext.current !== marker) {
       clearCartQuoteCache();
     }
     lastObservedContext.current = marker;
   }, [locale, storefrontContext.contextVersion, storefrontContext.market]);
 
   useEffect(() => {
-    if (
-      !hydrated ||
-      storefrontContext.status !== 'ready' ||
-      !storefrontContext.market
-    ) {
+    if (!hydrated || storefrontContext.status !== 'ready' || !storefrontContext.market) {
       return;
     }
 
@@ -274,7 +259,7 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
     lastReadyContext.current = marker;
 
     if (isFirstReadyContext) {
-      const cachedQuote = readCartQuoteCache({...identity, lines});
+      const cachedQuote = readCartQuoteCache({ ...identity, lines });
       if (cachedQuote) {
         commitSyncState(
           createSyncState(identity.market, identity.contextVersion, lines, cachedQuote)
@@ -369,11 +354,19 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
     setRemoved(null);
   }, [persist, removed]);
 
+  const completeOrder = useCallback((completedLines: CompletedOrderLine[]) => {
+    const current = readGuestCart() ?? emptyCart(new Date());
+    const lines = subtractCompletedOrderLines({
+      currentLines: current.lines,
+      completedLines,
+      updatedAt: new Date().toISOString()
+    });
+    clearCartQuoteCache();
+    writeGuestCart({ lines });
+  }, []);
+
   const retry = useCallback(async () => {
-    if (
-      storefrontContext.status === 'error' ||
-      storefrontContext.status === 'retrying'
-    ) {
+    if (storefrontContext.status === 'error' || storefrontContext.status === 'retrying') {
       await storefrontContext.retryContext();
       return;
     }
@@ -386,8 +379,7 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
     });
   }, [runRequote, storefrontContext]);
 
-  const contextReady =
-    storefrontContext.status === 'ready' && storefrontContext.market !== null;
+  const contextReady = storefrontContext.status === 'ready' && storefrontContext.market !== null;
   const quoteAgrees =
     contextReady &&
     syncState?.status === 'ready' &&
@@ -431,6 +423,7 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
       removeLine,
       undoRemove,
       removedLine: removed?.line ?? null,
+      completeOrder,
       refresh,
       retry
     }),
@@ -438,6 +431,7 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
       addLine,
       blockReason,
       cart,
+      completeOrder,
       contextReady,
       hydrated,
       open,

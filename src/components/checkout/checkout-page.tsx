@@ -1,9 +1,8 @@
 'use client';
 
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {ArrowLeft, Check, MapPin, ShoppingBag} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Check, MapPin, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
-import {useRouter} from 'next/navigation';
 import {
   customerAddressToShippingAddress,
   type CustomerShippingAddress
@@ -14,13 +13,13 @@ import {
   submitCheckoutAction,
   type SubmitCheckoutActionState
 } from '@/checkout/actions';
-import {checkoutPaymentIntentForQuote} from '@/checkout/payment-method';
+import { checkoutPaymentIntentForQuote } from '@/checkout/payment-method';
 import {
   checkoutPrefillDestination,
   shouldReviewCheckoutQuoteChange,
   type CheckoutQuoteChangeSource
 } from '@/checkout/prefill';
-import {quoteIntentLines} from '@/checkout/quote-intent';
+import { quoteIntentLines } from '@/checkout/quote-intent';
 import {
   acceptQuoteProposal,
   beginQuoteRequest,
@@ -32,19 +31,19 @@ import {
   type CheckoutQuoteLifecycleState,
   type QuoteDestination
 } from '@/checkout/quote-lifecycle';
-import type {ShippingAddress} from '@/checkout/shipping-address';
-import type {CartQuote} from '@/checkout/types';
-import {useCart} from '@/components/cart/cart-provider';
-import {Alert} from '@/components/ui/alert';
-import {Button} from '@/components/ui/button';
-import {Card, CardContent} from '@/components/ui/card';
-import {Separator} from '@/components/ui/separator';
-import {getCartPath, getCatalogPath, type Locale} from '@/i18n/routing';
-import {ContactForm} from './contact-form';
-import {DestinationForm} from './destination-form';
-import {MobileCheckoutDock, OrderSummary} from './order-summary';
-import {QuoteDiffDialog} from './quote-diff-dialog';
-import {SavedAddressSelector} from './saved-address-selector';
+import type { ShippingAddress } from '@/checkout/shipping-address';
+import type { CartQuote } from '@/checkout/types';
+import { useCart } from '@/components/cart/cart-provider';
+import { Alert } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { getCartPath, getCatalogPath, type Locale } from '@/i18n/routing';
+import { ContactForm } from './contact-form';
+import { DestinationForm } from './destination-form';
+import { MobileCheckoutDock, OrderSummary } from './order-summary';
+import { QuoteDiffDialog } from './quote-diff-dialog';
+import { SavedAddressSelector } from './saved-address-selector';
 
 const copy = {
   en: {
@@ -127,10 +126,7 @@ function preferredAddress(addresses: CustomerShippingAddress[]) {
 }
 
 function quoteDestination(quote: CartQuote): QuoteDestination | null {
-  if (
-    quote.shipping.status !== 'ready' &&
-    quote.shipping.status !== 'unsupported_destination'
-  ) {
+  if (quote.shipping.status !== 'ready' && quote.shipping.status !== 'unsupported_destination') {
     return null;
   }
   return {
@@ -165,20 +161,17 @@ export function CheckoutPage({
   policyLinks?: CheckoutPolicyLink[];
 }) {
   const t = copy[locale];
-  const router = useRouter();
-  const {quote, cart, pending} = useCart();
+  const { quote, cart, pending, completeOrder } = useCart();
   const savedAddress = useMemo(() => preferredAddress(savedAddresses), [savedAddresses]);
   const savedShippingAddress = useMemo(
     () => (savedAddress ? customerAddressToShippingAddress(savedAddress) : null),
     [savedAddress]
   );
-  const [lifecycle, setLifecycleState] = useState(() =>
-    createCheckoutQuoteLifecycleState(quote)
-  );
+  const [lifecycle, setLifecycleState] = useState(() => createCheckoutQuoteLifecycleState(quote));
   const lifecycleRef = useRef(lifecycle);
   const destinationAuthorityRef = useRef(false);
   const prefillRequestRef = useRef<string | null>(null);
-  const idempotencyRef = useRef<{quoteHash: string; key: string} | null>(null);
+  const idempotencyRef = useRef<{ quoteHash: string; key: string } | null>(null);
   const acceptedQuote = lifecycle.acceptedQuote;
   const [email, setEmail] = useState(initialEmail);
   const [contactReady, setContactReady] = useState(false);
@@ -240,7 +233,7 @@ export function CheckoutPage({
           !shouldReviewCheckoutQuoteChange(source) &&
           result.status === 'success' &&
           latest.acceptedQuote
-            ? {...latest, acceptedQuote: null}
+            ? { ...latest, acceptedQuote: null }
             : latest;
         const settled =
           result.status === 'success'
@@ -255,22 +248,14 @@ export function CheckoutPage({
         setLifecycle(settled);
         return settled;
       } catch {
-        const settled = settleQuoteRequest(
-          lifecycleRef.current,
-          transition.request.requestId,
-          {status: 'network_error'}
-        );
+        const settled = settleQuoteRequest(lifecycleRef.current, transition.request.requestId, {
+          status: 'network_error'
+        });
         setLifecycle(settled);
         return settled;
       }
     },
-    [
-      beginCheckoutInteraction,
-      cart?.lines,
-      locale,
-      setLifecycle,
-      setShippingAddressState
-    ]
+    [beginCheckoutInteraction, cart?.lines, locale, setLifecycle, setShippingAddressState]
   );
 
   useEffect(() => {
@@ -335,9 +320,8 @@ export function CheckoutPage({
   }, [quote, requestQuote, savedShippingAddress, setLifecycle, setShippingAddressState]);
 
   const physicalCount =
-    acceptedQuote?.lines.filter(
-      (line) => line.fulfillmentType === 'physical' && line.quantity > 0
-    ).length ?? 0;
+    acceptedQuote?.lines.filter((line) => line.fulfillmentType === 'physical' && line.quantity > 0)
+      .length ?? 0;
   const shippingAddressReady = canSubmitAcceptedQuote(
     lifecycle,
     physicalCount > 0 ? shippingAddress : null
@@ -361,8 +345,7 @@ export function CheckoutPage({
         physicalCount > 0 && acceptedQuote?.shipping.status === 'not_calculated'
           ? t.missingShipping
           : null,
-        physicalCount > 0 &&
-        acceptedQuote?.shipping.status === 'unsupported_destination'
+        physicalCount > 0 && acceptedQuote?.shipping.status === 'unsupported_destination'
           ? t.unsupportedShipping
           : null
       ].filter(Boolean) as string[]
@@ -424,7 +407,7 @@ export function CheckoutPage({
       return idempotencyRef.current.key;
     }
     const key = `checkout-${quoteHash.slice(0, 24)}-${globalThis.crypto.randomUUID()}`;
-    idempotencyRef.current = {quoteHash, key};
+    idempotencyRef.current = { quoteHash, key };
     return key;
   }
 
@@ -507,17 +490,34 @@ export function CheckoutPage({
     const result =
       prepared.status === 'ready'
         ? await submitCheckoutAction(submitInput)
-        : ({status: 'invalid', code: prepared.code} as const);
+        : ({ status: 'invalid', code: prepared.code } as const);
     setSubmitResult(result);
     setSubmitting(false);
-    if (result.status === 'success') router.push(result.orderPath);
+    if (result.status === 'success') {
+      completeOrder(
+        refreshedQuote.lines
+          .filter(
+            (line) =>
+              (line.status === 'ready' || line.status === 'quantity_capped') && line.quantity > 0
+          )
+          .map((line) => ({
+            productId: line.productId,
+            variantId: line.variantId,
+            quantity: line.quantity
+          }))
+      );
+      window.location.assign(result.orderPath);
+    }
   }
 
   if (isEmpty) {
     return (
       <main className="container grid gap-5 py-7 lg:py-9">
         <div className="grid max-w-[68ch] gap-1.5">
-          <Link href={getCartPath(locale)} className="inline-flex min-h-10 w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)]">
+          <Link
+            href={getCartPath(locale)}
+            className="inline-flex min-h-10 w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)]"
+          >
             <ArrowLeft aria-hidden="true" className="size-4" />
             {t.backToCart}
           </Link>
@@ -545,7 +545,10 @@ export function CheckoutPage({
   return (
     <main className="container grid gap-5 pb-28 pt-6 lg:gap-6 lg:pb-10 lg:pt-8">
       <header className="grid max-w-[72ch] gap-1.5">
-        <Link href={getCartPath(locale)} className="inline-flex min-h-10 w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)]">
+        <Link
+          href={getCartPath(locale)}
+          className="inline-flex min-h-10 w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)]"
+        >
           <ArrowLeft aria-hidden="true" className="size-4" />
           {t.backToCart}
         </Link>
@@ -557,13 +560,25 @@ export function CheckoutPage({
         <section className="grid content-start gap-4">
           <Card className="overflow-hidden bg-[var(--surface-paper)] shadow-none">
             <CardContent className="space-y-0 p-0">
-              <section aria-labelledby="checkout-contact-heading" className="grid gap-3 px-5 py-5 sm:px-6">
+              <section
+                aria-labelledby="checkout-contact-heading"
+                className="grid gap-3 px-5 py-5 sm:px-6"
+              >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 id="checkout-contact-heading" className="text-base font-semibold">{t.contact}</h2>
-                    <p className="mt-0.5 text-xs leading-5 text-[var(--muted-foreground)]">{t.contactIntro}</p>
+                    <h2 id="checkout-contact-heading" className="text-base font-semibold">
+                      {t.contact}
+                    </h2>
+                    <p className="mt-0.5 text-xs leading-5 text-[var(--muted-foreground)]">
+                      {t.contactIntro}
+                    </p>
                   </div>
-                  {contactReady ? <Check aria-label="Complete" className="mt-0.5 size-4 shrink-0 text-[var(--success)]" /> : null}
+                  {contactReady ? (
+                    <Check
+                      aria-label="Complete"
+                      className="mt-0.5 size-4 shrink-0 text-[var(--success)]"
+                    />
+                  ) : null}
                 </div>
                 <ContactForm
                   locale={locale}
@@ -580,28 +595,59 @@ export function CheckoutPage({
               {physicalCount > 0 ? (
                 <>
                   <Separator className="border-[var(--border)]/70" />
-                  <section aria-labelledby="checkout-destination-heading" className="grid gap-4 px-5 py-5 sm:px-6">
+                  <section
+                    aria-labelledby="checkout-destination-heading"
+                    className="grid gap-4 px-5 py-5 sm:px-6"
+                  >
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h2 id="checkout-destination-heading" className="text-base font-semibold">{t.destination}</h2>
-                        <p className="mt-0.5 text-xs leading-5 text-[var(--muted-foreground)]">{t.destinationIntro}</p>
+                        <h2 id="checkout-destination-heading" className="text-base font-semibold">
+                          {t.destination}
+                        </h2>
+                        <p className="mt-0.5 text-xs leading-5 text-[var(--muted-foreground)]">
+                          {t.destinationIntro}
+                        </p>
                       </div>
-                      {shippingAddressReady ? <Check aria-label="Complete" className="mt-0.5 size-4 shrink-0 text-[var(--success)]" /> : null}
+                      {shippingAddressReady ? (
+                        <Check
+                          aria-label="Complete"
+                          className="mt-0.5 size-4 shrink-0 text-[var(--success)]"
+                        />
+                      ) : null}
                     </div>
 
                     {!destinationExpanded && shippingAddress.countryCode ? (
                       <div className="flex items-start gap-3 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 p-3">
-                        <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[var(--accent)]" />
+                        <MapPin
+                          aria-hidden="true"
+                          className="mt-0.5 size-4 shrink-0 text-[var(--accent)]"
+                        />
                         <div className="min-w-0 flex-1">
-                          <p className="font-semibold">{shippingAddress.recipientName || savedAddress?.label}</p>
+                          <p className="font-semibold">
+                            {shippingAddress.recipientName || savedAddress?.label}
+                          </p>
                           <p className="mt-0.5 text-sm leading-5 text-[var(--muted-foreground)]">
-                            {[shippingAddress.addressLine1, shippingAddress.locality, shippingAddress.region, shippingAddress.countryCode].filter(Boolean).join(', ')}
+                            {[
+                              shippingAddress.addressLine1,
+                              shippingAddress.locality,
+                              shippingAddress.region,
+                              shippingAddress.countryCode
+                            ]
+                              .filter(Boolean)
+                              .join(', ')}
                           </p>
                           {lifecycle.activeRequestId !== null ? (
-                            <p className="mt-1 text-xs font-medium text-[var(--accent)]">{t.calculating}</p>
+                            <p className="mt-1 text-xs font-medium text-[var(--accent)]">
+                              {t.calculating}
+                            </p>
                           ) : null}
                         </div>
-                        <Button type="button" variant="ghost" className="min-h-10 shrink-0 px-2 text-sm" onClick={() => setDestinationExpanded(true)}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="min-h-10 shrink-0 px-2 text-sm"
+                          onClick={() => setDestinationExpanded(true)}
+                        >
                           {t.changeAddress}
                         </Button>
                       </div>
@@ -615,7 +661,7 @@ export function CheckoutPage({
                             onApply={(address) => {
                               setDestinationExpanded(false);
                               void requestQuote(
-                                {countryCode: address.countryCode, regionCode: address.region},
+                                { countryCode: address.countryCode, regionCode: address.region },
                                 address
                               );
                             }}
@@ -642,7 +688,8 @@ export function CheckoutPage({
 
           {submitResult?.status === 'success' ? (
             <Alert variant="success">
-              {t.success} {t.deadline}: {new Date(submitResult.reservationExpiresAt).toLocaleString(locale)}.
+              {t.success} {t.deadline}:{' '}
+              {new Date(submitResult.reservationExpiresAt).toLocaleString(locale)}.
             </Alert>
           ) : null}
           {submitResult && submitResult.status !== 'success' ? (

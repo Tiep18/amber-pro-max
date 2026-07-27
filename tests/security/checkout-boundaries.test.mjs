@@ -179,3 +179,21 @@ test('checkout refreshes accepted commercial evidence immediately before submit'
   assert.match(client.slice(submitStart), /lines:\s*quoteIntentLines\(refreshedQuote\)/);
   assert.match(client.slice(submitStart), /discountCode: activeDiscountCode\(refreshedQuote\)/);
 });
+
+test('checkout removes only final ordered quantities after successful order creation', () => {
+  const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  const successBranch = client.indexOf("if (result.status === 'success')");
+  const completion = client.indexOf('completeOrder(', successBranch);
+  const navigation = client.indexOf('window.location.assign(result.orderPath)', successBranch);
+  const priorSource = client.slice(0, successBranch);
+  const branchSource = client.slice(successBranch, navigation);
+
+  assert.ok(successBranch >= 0);
+  assert.ok(completion > successBranch);
+  assert.ok(navigation > completion);
+  assert.doesNotMatch(priorSource, /completeOrder\(/);
+  assert.match(branchSource, /line\.status === 'ready'/);
+  assert.match(branchSource, /line\.status === 'quantity_capped'/);
+  assert.match(branchSource, /quantity:\s*line\.quantity/);
+  assert.doesNotMatch(branchSource, /quantity:\s*line\.requestedQuantity/);
+});
