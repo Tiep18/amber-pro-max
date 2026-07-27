@@ -159,5 +159,6 @@ test('checkout refreshes accepted commercial evidence immediately before submit'
     client.slice(submitStart),
     /prepareGuestCheckoutRecoveryAction\(\{\s*acceptedQuote:\s*refreshedQuote,/
   );
+  assert.match(client.slice(submitStart), /lines:\s*quoteIntentLines\(refreshedQuote\)/);
   assert.match(client.slice(submitStart), /discountCode: activeDiscountCode\(refreshedQuote\)/);
 });

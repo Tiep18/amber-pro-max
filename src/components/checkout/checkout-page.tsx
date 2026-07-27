@@ -20,6 +20,7 @@ import {
   shouldReviewCheckoutQuoteChange,
   type CheckoutQuoteChangeSource
 } from '@/checkout/prefill';
+import {quoteIntentLines} from '@/checkout/quote-intent';
 import {
   acceptQuoteProposal,
   beginQuoteRequest,
@@ -227,17 +228,7 @@ export function CheckoutPage({
         const result = await refreshCheckoutQuoteAction({
           locale,
           market: baseQuote?.market ?? (locale === 'vi' ? 'vn' : 'intl'),
-          lines:
-            baseQuote?.lines.map((line) => ({
-              productId: line.productId,
-              variantId: line.variantId,
-              quantity: line.requestedQuantity,
-              marketAtAdd: line.marketAtAdd,
-              addedAt: baseQuote.quotedAt,
-              updatedAt: baseQuote.quotedAt
-            })) ??
-            cart?.lines ??
-            [],
+          lines: baseQuote ? quoteIntentLines(baseQuote) : (cart?.lines ?? []),
           destinationCountryCode: destination.countryCode,
           destinationRegionCode: destination.regionCode,
           shippingQuoteVersion: 2,
@@ -493,7 +484,7 @@ export function CheckoutPage({
     const submitInput = {
       locale,
       market: refreshedQuote.market,
-      lines: cart.lines,
+      lines: quoteIntentLines(refreshedQuote),
       acceptedQuote: refreshedQuote,
       acceptedQuoteHash: refreshedQuote.hash,
       idempotencyKey: idempotencyKeyForQuote(refreshedQuote.hash),

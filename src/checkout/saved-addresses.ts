@@ -1,5 +1,6 @@
 import type {Locale} from '@/i18n/routing';
 import {beginQuoteRequest, type CheckoutQuoteLifecycleState} from './quote-lifecycle';
+import {quoteIntentLines} from './quote-intent';
 import {resolverRegionCode, shippingAddressSchema, type ShippingAddress} from './shipping-address';
 import type {CartQuote, QuoteCartActionInput} from './types';
 
@@ -16,15 +17,7 @@ export function buildSavedAddressQuoteRefreshInput({
   return {
     locale,
     market: acceptedQuote?.market ?? (locale === 'vi' ? 'vn' : 'intl'),
-    lines:
-      acceptedQuote?.lines.map((line) => ({
-        productId: line.productId,
-        variantId: line.variantId,
-        quantity: line.requestedQuantity,
-        marketAtAdd: line.marketAtAdd,
-        addedAt: acceptedQuote.quotedAt,
-        updatedAt: acceptedQuote.quotedAt
-      })) ?? [],
+    lines: acceptedQuote ? quoteIntentLines(acceptedQuote) : [],
     destinationCountryCode: address.countryCode,
     destinationRegionCode: resolverRegionCode(address.countryCode, address.region),
     shippingQuoteVersion: 2,
