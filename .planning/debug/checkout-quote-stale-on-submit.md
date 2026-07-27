@@ -28,7 +28,7 @@ updated: 2026-07-27T13:23:33+07:00
 - `requestQuote` rebuilt intent lines from `acceptedQuote.lines`, but `submitInput.lines` used `cart.lines`; Phase 9 market synchronization and long-lived tabs can make those two snapshots differ.
 - The previous object/hash fix is active: a direct Vietnam checkout created pending VietQR order `ATB-6B66C0C9CF`.
 - The exact Vietnam-to-Australia material-change flow also created pending PayPal order `ATB-69C7890FB6`, confirming provider selection and the shared RPC are healthy on the current build.
-- Both browser test orders remain unpaid/pending; no payment confirmation, fulfillment, entitlement, or shipping transition was triggered.
+- Both browser test orders were then moved from pending to cancelled through the supported `apply_payment_transition` path, releasing their reservations. No payment confirmation, fulfillment, entitlement, or shipping transition was triggered.
 - After the fix, quote refresh and submit use `quoteIntentLines(refreshedQuote)` as one canonical source.
 
 ## Eliminated
@@ -54,3 +54,4 @@ updated: 2026-07-27T13:23:33+07:00
   - `npm run test:security` (52 tests)
   - Real-browser VietQR order creation
   - Real-browser Vietnam-to-Australia quote acceptance and PayPal order creation
+  - Supported cancellation transition applied to both synthetic test orders
