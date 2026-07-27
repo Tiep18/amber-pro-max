@@ -9,6 +9,8 @@ out/
 coverage/
 playwright-report/
 test-results/
+.playwright-cli/
+output/playwright/
 
 # local env
 .env

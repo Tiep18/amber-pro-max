@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Alert, AlertTitle } from '@/components/ui/alert';
@@ -77,7 +77,7 @@ export function beginCatalogCommerceRequest(
     state: {
       ...state,
       status: 'resolving',
-      products: state.seedProducts,
+      products: [],
       facets: [],
       generation,
       activeGeneration: generation,
@@ -86,6 +86,23 @@ export function beginCatalogCommerceRequest(
     },
     request: { generation, identity }
   };
+}
+
+export function catalogResultsArePending({
+  state,
+  currentQueryKey,
+  filtersActive,
+  navigationPending
+}: {
+  state: CatalogCommerceState;
+  currentQueryKey: string;
+  filtersActive: boolean;
+  navigationPending: boolean;
+}) {
+  if (navigationPending) return true;
+  if (state.status === 'error') return false;
+  if (state.status === 'ready') return state.identity?.queryKey !== currentQueryKey;
+  return filtersActive || state.activeGeneration !== null;
 }
 
 function sameIdentity(left: CatalogCommerceIdentity | null, right: CatalogCommerceIdentity) {
@@ -371,6 +388,28 @@ function CatalogFacetSkeletons() {
   );
 }
 
+function CatalogProductGridSkeleton() {
+  return (
+    <div
+      data-testid="catalog-product-grid-skeleton"
+      aria-hidden="true"
+      className="grid gap-y-6 min-[480px]:grid-cols-2 min-[480px]:gap-x-3 sm:gap-5 lg:grid-cols-3"
+    >
+      {Array.from({ length: 12 }, (_, index) => (
+        <div key={index} className="grid gap-3">
+          <Skeleton className="aspect-[4/3] w-full rounded-[var(--radius-card)]" />
+          <div className="grid gap-2 px-1">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-5 w-4/5" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function CatalogCommerce({
   locale,
   surface,
@@ -396,6 +435,7 @@ export function CatalogCommerce({
   const query = projectionQuery(locale, surface, normalizedState, fixedFilters, safeLimit);
   const queryKey = query.toString();
   const [retryVersion, setRetryVersion] = useState(0);
+  const [navigationPending, setNavigationPending] = useState(false);
   const [state, setState] = useState<CatalogCommerceState>(() =>
     createCatalogCommerceState(seoProducts)
   );
@@ -501,9 +541,26 @@ export function CatalogCommerce({
     surface
   ]);
 
+  useEffect(() => {
+    if (
+      navigationPending &&
+      (state.status === 'error' ||
+        (state.status === 'ready' && state.identity?.queryKey === queryKey))
+    ) {
+      setNavigationPending(false);
+    }
+  }, [navigationPending, queryKey, state.identity?.queryKey, state.status]);
+
   const products = state.products as readonly CatalogProduct[];
   const facets = state.facets as readonly CatalogFacet[];
   const groups = useMemo(() => facetGroups(facets), [facets]);
+  const filtersActive = hasCatalogFilters(normalizedState);
+  const resultsPending = catalogResultsArePending({
+    state,
+    currentQueryKey: queryKey,
+    filtersActive,
+    navigationPending
+  });
   const marketName = context.market === null ? '' : labels.marketNames[context.market];
   const filterSummary =
     [
@@ -615,8 +672,40 @@ export function CatalogCommerce({
     setRetryVersion((version) => version + 1);
   }
 
+  function beginLinkNavigation(event: MouseEvent<HTMLElement>) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+    const href = link?.getAttribute('href');
+    if (!href) return;
+
+    const destination = new URL(href, window.location.href);
+    if (
+      destination.origin === window.location.origin &&
+      destination.pathname === pathname &&
+      destination.search !== window.location.search
+    ) {
+      setNavigationPending(true);
+    }
+  }
+
+  function beginFormNavigation(event: FormEvent<HTMLElement>) {
+    const form = event.target;
+    if (form instanceof HTMLFormElement && form.method.toLowerCase() === 'get') {
+      setNavigationPending(true);
+    }
+  }
+
   const filterContent =
-    state.status === 'ready' ? (
+    state.status === 'ready' && !resultsPending ? (
       <CatalogFilterContent
         basePath={pathname}
         state={normalizedState}
@@ -639,6 +728,8 @@ export function CatalogCommerce({
           </Button>
         </div>
       </Alert>
+    ) : resultsPending ? (
+      <CatalogProductGridSkeleton />
     ) : (
       <div className="min-w-0">
         <h2 tabIndex={-1} className="sr-only">
@@ -681,8 +772,10 @@ export function CatalogCommerce({
 
   return (
     <section
-      aria-busy={state.status === 'resolving'}
+      aria-busy={resultsPending}
       aria-describedby="catalog-commerce-status"
+      onClickCapture={beginLinkNavigation}
+      onSubmitCapture={beginFormNavigation}
       className="grid gap-4"
     >
       <p
@@ -692,7 +785,7 @@ export function CatalogCommerce({
         aria-atomic="true"
         className="sr-only"
       >
-        {state.status === 'resolving'
+        {resultsPending
           ? labels.resolving
           : state.status === 'ready'
             ? replaceTokens(labels.loaded, {
@@ -778,12 +871,19 @@ export function CatalogCommerce({
                   </section>
                 ) : null}
               </div>
-              <p
+              <div
                 data-testid="catalog-result-count"
-                className="text-sm text-[var(--muted-foreground)]"
+                className="min-h-5 text-sm text-[var(--muted-foreground)]"
               >
-                {replaceTokens(labels.shell.resultCount, { count: products.length })}
-              </p>
+                {resultsPending ? (
+                  <>
+                    <span className="sr-only">{labels.resolving}</span>
+                    <Skeleton aria-hidden="true" className="h-4 w-24" />
+                  </>
+                ) : (
+                  replaceTokens(labels.shell.resultCount, { count: products.length })
+                )}
+              </div>
               {resultContent}
             </div>
           </div>

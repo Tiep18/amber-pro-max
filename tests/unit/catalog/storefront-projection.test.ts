@@ -285,6 +285,69 @@ describe('storefront catalog projection contracts', () => {
     expect(settled.products).not.toContain(vnOnlyProduct);
   });
 
+  it('hides stale products behind a skeleton until the current filtered projection settles', async () => {
+    const {
+      beginCatalogCommerceRequest,
+      catalogResultsArePending,
+      createCatalogCommerceState,
+      settleCatalogCommerceRequest
+    } = await catalogCommerceModule();
+    const initial = createCatalogCommerceState([vnOnlyProduct]);
+    const identity = {
+      locale: 'en',
+      market: 'intl',
+      surface: 'catalog',
+      contextGeneration: 2,
+      contextVersion: 4,
+      queryKey: 'sort=newest&productType=pdf_pattern'
+    } as const;
+
+    expect(
+      catalogResultsArePending({
+        state: initial,
+        currentQueryKey: 'sort=newest',
+        filtersActive: false,
+        navigationPending: false
+      })
+    ).toBe(false);
+    expect(
+      catalogResultsArePending({
+        state: initial,
+        currentQueryKey: identity.queryKey,
+        filtersActive: true,
+        navigationPending: false
+      })
+    ).toBe(true);
+
+    const begun = beginCatalogCommerceRequest(initial, identity);
+    expect(begun.state.products).toEqual([]);
+    expect(
+      catalogResultsArePending({
+        state: begun.state,
+        currentQueryKey: identity.queryKey,
+        filtersActive: true,
+        navigationPending: false
+      })
+    ).toBe(true);
+
+    const settled = settleCatalogCommerceRequest(begun.state, begun.request, {
+      locale: 'en',
+      market: 'intl',
+      surface: 'catalog',
+      products: [intlOnlyProduct],
+      facets: intlFacets
+    });
+    expect(
+      catalogResultsArePending({
+        state: settled,
+        currentQueryKey: identity.queryKey,
+        filtersActive: true,
+        navigationPending: false
+      })
+    ).toBe(false);
+    expect(settled.products).toEqual([intlOnlyProduct]);
+  });
+
   it('accepts a ready catalog product without optional image metadata', async () => {
     const { parseCatalogProjectionResponse } = await catalogCommerceModule();
     const parsed = parseCatalogProjectionResponse({

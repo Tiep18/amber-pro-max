@@ -9,6 +9,8 @@ const eslintConfig = [
       'coverage/**',
       'test-results/**',
       'playwright-report/**',
+      '.playwright-cli/**',
+      'output/**',
       'eslint.config.mjs',
       'postcss.config.mjs',
       'prettier.config.mjs'
