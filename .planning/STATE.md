@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 09-14-PLAN.md
-last_updated: '2026-07-27T22:46:00+07:00'
-last_activity: 2026-07-27 -- Added safe route skeletons, action pending states, and loading performance guards
+last_updated: '2026-07-27T23:59:00+07:00'
+last_activity: 2026-07-27 -- Fixed stale catalog products during filter transitions
 progress:
   total_phases: 9
   completed_phases: 7
@@ -350,6 +350,7 @@ None yet.
 
 | #                                   | Description                                                                                                 | Date       | Directory                                                                             |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------- |
+| catalog-filter-double-render        | Replace stale catalog filter results with a stable skeleton until the final private projection settles     | 2026-07-27 | [catalog-filter-double-render](./debug/resolved/catalog-filter-double-render.md)       |
 | header-overlays                     | Fix header dropdown outside-click behavior and modal sheet/cart background interaction after header upgrade | 2026-06-27 | [header-overlays](./debug/header-overlays.md)                                         |
 | catalog-lcp-and-repeated-requests   | Verify catalog request behavior and remove the first product image LCP warning                              | 2026-07-06 | [catalog-lcp-and-repeated-requests](./debug/catalog-lcp-and-repeated-requests.md)     |
 | product-route-smooth-scroll-warning | Declare Next.js 16 smooth-scroll transition behavior and verify product navigation                          | 2026-07-06 | [product-route-smooth-scroll-warning](./debug/product-route-smooth-scroll-warning.md) |
