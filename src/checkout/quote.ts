@@ -41,6 +41,7 @@ export type QuoteCatalogProduct = {
   productType: 'pdf_pattern' | 'physical_finished';
   available: boolean;
   inStock: boolean;
+  availableQuantity?: number | null;
   currencyCode: CurrencyCode;
   priceMinor: number;
   imageUrl: string | null;
@@ -205,6 +206,63 @@ async function attachDiscountScopes(products: QuoteCatalogProduct[], input: Quot
   });
 }
 
+type CheckoutInventoryAvailability = {
+  product_id: string;
+  variant_id: string | null;
+  available_quantity: number;
+};
+
+export function applyCheckoutInventoryAvailability(
+  products: QuoteCatalogProduct[],
+  availability: CheckoutInventoryAvailability[]
+) {
+  const quantities = new Map(
+    availability.map((row) => [
+      `${row.product_id}::${row.variant_id ?? 'product'}`,
+      Math.max(0, row.available_quantity)
+    ])
+  );
+
+  return products.map((product) => {
+    if (product.productType !== 'physical_finished') {
+      return product;
+    }
+
+    const availableQuantity = quantities.get(`${product.productId}::product`) ?? 0;
+    const variants = product.variants.map((variant) => {
+      const variantQuantity = quantities.get(`${product.productId}::${variant.variantId}`) ?? 0;
+      return {
+        ...variant,
+        inStock: variantQuantity > 0,
+        availableQuantity: variantQuantity
+      };
+    });
+
+    return {
+      ...product,
+      inStock:
+        variants.length > 0 ? variants.some((variant) => variant.inStock) : availableQuantity > 0,
+      availableQuantity,
+      variants
+    };
+  });
+}
+
+async function attachInventoryAvailability(products: QuoteCatalogProduct[], input: QuoteCartInput) {
+  if (!input.client || products.length === 0) {
+    return products;
+  }
+
+  const {data, error} = await input.client.rpc('get_checkout_inventory_availability', {
+    p_product_ids: products.map((product) => product.productId)
+  });
+  if (error) {
+    throw new Error('checkout_inventory_availability_failed');
+  }
+
+  return applyCheckoutInventoryAvailability(products, data ?? []);
+}
+
 async function loadCatalogProducts(productIds: string[], input: QuoteCartInput) {
   const listed = await listCatalogProducts(
     { locale: input.locale, market: input.market },
@@ -225,7 +283,8 @@ async function loadCatalogProducts(productIds: string[], input: QuoteCartInput) 
     const mapped = mapDetailProduct(detail);
     return mapped ? [mapped] : [];
   });
-  return attachDiscountScopes(products, input);
+  const inventoryAwareProducts = await attachInventoryAvailability(products, input);
+  return attachDiscountScopes(inventoryAwareProducts, input);
 }
 
 function parseIntentLines(lines: unknown[]) {
@@ -460,7 +519,7 @@ function quoteLine(line: CartIntentLine, product: QuoteCatalogProduct): CartQuot
 
   const unitPriceMinor = variant?.priceMinor ?? product.priceMinor;
   const currencyCode = variant?.currencyCode ?? product.currencyCode;
-  const cap = variant?.availableQuantity ?? null;
+  const cap = variant?.availableQuantity ?? product.availableQuantity ?? null;
   const finalQuantity = cap === null ? line.quantity : Math.min(line.quantity, cap);
   const capped = finalQuantity < line.quantity;
   const lineSubtotalMinor = unitPriceMinor * finalQuantity;

@@ -2,7 +2,12 @@ import {describe, expect, it} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {diffMaterialQuotes} from '@/checkout/market-revalidation';
-import {diffCartQuotes, quoteCartIntent, type QuoteCatalogProduct} from '@/checkout/quote';
+import {
+  applyCheckoutInventoryAvailability,
+  diffCartQuotes,
+  quoteCartIntent,
+  type QuoteCatalogProduct
+} from '@/checkout/quote';
 import type {CartIntentLine} from '@/cart/types';
 import type {CartQuote} from '@/checkout/types';
 
@@ -122,6 +127,53 @@ describe('cart quote hydration', () => {
         quantity: 2,
         change: expect.objectContaining({type: 'quantity_capped', previousQuantity: 5, currentQuantity: 2})
       })
+    ]);
+  });
+
+  it('caps product and variant quantities with reservation-aware availability', async () => {
+    const inventoryAware = applyCheckoutInventoryAvailability(
+      [
+        {
+          ...physical,
+          productId: '10000000-0000-4000-8000-000000000003',
+          variants: []
+        },
+        physical
+      ],
+      [
+        {
+          product_id: '10000000-0000-4000-8000-000000000003',
+          variant_id: null,
+          available_quantity: 1
+        },
+        {
+          product_id: physical.productId,
+          variant_id: physical.variants[0].variantId,
+          available_quantity: 1
+        }
+      ]
+    );
+
+    const quote = await quoteCartIntent({
+      locale: 'vi',
+      market: 'vn',
+      lines: [
+        intent({
+          productId: '10000000-0000-4000-8000-000000000003',
+          quantity: 2
+        }),
+        intent({
+          productId: physical.productId,
+          variantId: physical.variants[0].variantId,
+          quantity: 2
+        })
+      ],
+      catalog: async () => inventoryAware
+    });
+
+    expect(quote.lines).toEqual([
+      expect.objectContaining({status: 'quantity_capped', requestedQuantity: 2, quantity: 1}),
+      expect.objectContaining({status: 'quantity_capped', requestedQuantity: 2, quantity: 1})
     ]);
   });
 

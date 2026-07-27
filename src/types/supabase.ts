@@ -3608,6 +3608,14 @@ export type Database = {
           used_count: number
         }[]
       }
+      get_checkout_inventory_availability: {
+        Args: { p_product_ids: string[] }
+        Returns: {
+          available_quantity: number
+          product_id: string
+          variant_id: string | null
+        }[]
+      }
       get_checkout_product_discount_scopes: {
         Args: { p_product_ids: string[] }
         Returns: {

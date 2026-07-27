@@ -63,6 +63,23 @@ test('checkout submit revalidates commercial facts privately before persistence'
   assert.doesNotMatch(migration, /highest[-_ ]first|package grouping/i);
 });
 
+test('checkout quotes use the same reservation-aware inventory authority as submit', () => {
+  const quote = readFileSync('src/checkout/quote.ts', 'utf8');
+  const migration = readFileSync(
+    'supabase/migrations/20260727140000_checkout_quote_available_inventory.sql',
+    'utf8'
+  );
+
+  assert.match(quote, /rpc\('get_checkout_inventory_availability'/);
+  assert.match(quote, /product\.availableQuantity/);
+  assert.match(migration, /public\.checkout_available_inventory\(ir\.id\)/);
+  assert.match(migration, /cardinality\(coalesce\(p_product_ids/);
+  assert.match(
+    migration,
+    /revoke all on function public\.get_checkout_inventory_availability\(uuid\[\]\)/
+  );
+});
+
 test('guest retry recovery keeps raw credentials server-only and persists hashes only', () => {
   const migration = readFileSync(
     'supabase/migrations/20260714162000_secure_guest_checkout_retry_recovery.sql',
