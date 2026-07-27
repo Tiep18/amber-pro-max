@@ -13,6 +13,8 @@ import {
   setGuestOrderAccessCookieFromServer
 } from '@/payments/guest-access';
 import {getAuthorizedOrderPayment} from '@/payments/queries';
+import type {CheckoutPaymentIntent} from './schemas';
+import {checkoutPaymentIntentForQuote} from './payment-method';
 import {quoteCartIntent} from './quote';
 import {submitCheckout} from './submit-checkout';
 import {quoteCartInputSchema, type CartQuote} from './types';
@@ -44,9 +46,19 @@ function guestRecoveryIntent(input: Record<string, unknown>) {
   return JSON.stringify({quoteHash, email, paymentIntent});
 }
 
+type CanonicalCheckoutInput = Record<string, unknown> & {
+  paymentIntent: CheckoutPaymentIntent;
+};
+
+function canonicalCheckoutInput(input: Record<string, unknown>): CanonicalCheckoutInput | null {
+  const paymentIntent = checkoutPaymentIntentForQuote(input.acceptedQuote);
+  return paymentIntent ? {...input, paymentIntent} : null;
+}
+
 export async function prepareGuestCheckoutRecoveryAction(input: unknown): Promise<{status: 'ready'} | {status: 'invalid'; code: string}> {
   const inputRecord = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : {};
-  const intent = guestRecoveryIntent(inputRecord);
+  const canonicalInput = canonicalCheckoutInput(inputRecord);
+  const intent = canonicalInput ? guestRecoveryIntent(canonicalInput) : null;
   if (!intent) return {status: 'invalid', code: 'invalid_guest_recovery_intent'};
   const client = await createSupabaseServerClient();
   const {data: {user}} = await client.auth.getUser();
@@ -96,14 +108,18 @@ export async function refreshCheckoutQuoteAction(input: unknown): Promise<Checko
 
 export async function submitCheckoutAction(input: unknown): Promise<SubmitCheckoutActionState> {
   const inputRecord = input && typeof input === 'object' && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
+  const canonicalInput = canonicalCheckoutInput(inputRecord);
+  if (!canonicalInput) {
+    return {status: 'invalid', code: 'invalid_payment_method_for_market'};
+  }
   return runMonitoredAction({
     area: 'checkout',
     action: 'checkout_submit',
     errorCode: 'checkout_submit_failed',
     summary: 'Checkout submit failed',
     facts: {
-      ...(typeof inputRecord.market === 'string' ? {market: inputRecord.market} : {}),
-      ...(typeof inputRecord.paymentIntent === 'string' ? {paymentIntent: inputRecord.paymentIntent} : {})
+      ...(typeof canonicalInput.market === 'string' ? {market: canonicalInput.market} : {}),
+      paymentIntent: canonicalInput.paymentIntent
     },
     errorResult: {status: 'error', code: 'checkout_submit_failed'} as const,
     operation: async () => {
@@ -111,14 +127,14 @@ export async function submitCheckoutAction(input: unknown): Promise<SubmitChecko
       const {
         data: {user}
       } = await client.auth.getUser();
-      const intent = guestRecoveryIntent(inputRecord);
+      const intent = guestRecoveryIntent(canonicalInput);
       const recovery = user || !intent ? null : await getGuestCheckoutRecoveryFromServer(intent);
       if (!user && !recovery) {
         return {status: 'invalid', code: 'guest_recovery_required'} as const;
       }
       const result = await submitCheckout(
         {
-          ...inputRecord,
+          ...canonicalInput,
           userId: user?.id ?? null,
           guestCartId: null,
           ...(recovery ? {guestRecovery: {attemptId: recovery.attemptId, proof: recovery.proof}} : {})
@@ -137,7 +153,7 @@ export async function submitCheckoutAction(input: unknown): Promise<SubmitChecko
         });
       }
 
-      const locale = inputRecord.locale === 'en' ? 'en' : 'vi';
+      const locale = canonicalInput.locale === 'en' ? 'en' : 'vi';
       return {
         status: 'success',
         orderId: result.orderId,

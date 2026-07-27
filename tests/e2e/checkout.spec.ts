@@ -168,7 +168,7 @@ test('discount code applies and removes through server quote without localStorag
   await expect(page.getByText('$25.00').last()).toBeVisible();
 });
 
-test('international digital checkout rejects a browser-selected VietQR override', async ({
+test('international digital checkout renders only the canonical PayPal method', async ({
   page
 }) => {
   const productId = await createPublishedDigitalProduct();
@@ -200,12 +200,8 @@ test('international digital checkout rejects a browser-selected VietQR override'
 
   await page.goto('/en/checkout');
   await expect(page.getByText('$25.00').last()).toBeVisible();
-  await page.getByLabel('Email').fill('customer@example.com');
-  await page.getByRole('button', { name: /VietQR bank transfer/i }).click();
-  await page.getByRole('button', { name: 'Confirm total and continue' }).click();
-
-  await expect(
-    page.getByText('Check your contact details and cart before continuing.')
-  ).toBeVisible();
-  await expect(page.getByText('Order is awaiting payment.')).toHaveCount(0);
+  const paymentMethod = page.getByTestId('checkout-payment-method');
+  await expect(paymentMethod).toContainText('PayPal');
+  await expect(paymentMethod).not.toContainText('VietQR');
+  await expect(page.getByRole('button', {name: /PayPal|VietQR/i})).toHaveCount(0);
 });

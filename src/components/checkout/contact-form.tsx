@@ -4,8 +4,8 @@ import {useEffect, useMemo} from 'react';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {useForm} from 'react-hook-form';
 import {z} from 'zod';
+import type {CheckoutPaymentIntent} from '@/checkout/schemas';
 import type {Locale} from '@/i18n/routing';
-import {Button} from '@/components/ui/button';
 import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
 import {Input} from '@/components/ui/input';
 
@@ -17,6 +17,8 @@ const copy = {
     paypalHint: 'Card or PayPal balance for international checkout.',
     vietqr: 'VietQR bank transfer',
     vietqrHint: 'Manual bank transfer for Vietnam orders.',
+    automatic: 'Selected automatically from the confirmed market and currency.',
+    pending: 'Payment method will appear after your current total is ready.',
     emailInvalid: 'Enter a valid email address.'
   },
   vi: {
@@ -26,14 +28,14 @@ const copy = {
     paypalHint: 'The quoc te hoac tai khoan PayPal.',
     vietqr: 'Chuyen khoan VietQR',
     vietqrHint: 'Chuyen khoan ngan hang thu cong cho don hang tai Viet Nam.',
+    automatic: 'Duoc chon tu dong theo thi truong va tien te da xac nhan.',
+    pending: 'Phuong thuc thanh toan se hien thi sau khi tong tien san sang.',
     emailInvalid: 'Nhap dia chi email hop le.'
   }
 } as const;
 
-export type CheckoutPaymentIntent = 'paypal_intent' | 'vietqr_intent';
 type ContactFormValues = {
   email: string;
-  paymentIntent: CheckoutPaymentIntent;
 };
 
 export function ContactForm({
@@ -41,15 +43,13 @@ export function ContactForm({
   email,
   paymentIntent,
   onEmailChange,
-  onPaymentIntentChange,
   onValidityChange,
   showValidation = false
 }: {
   locale: Locale;
   email: string;
-  paymentIntent: CheckoutPaymentIntent;
+  paymentIntent: CheckoutPaymentIntent | null;
   onEmailChange: (email: string) => void;
-  onPaymentIntentChange: (paymentIntent: CheckoutPaymentIntent) => void;
   onValidityChange?: (valid: boolean) => void;
   showValidation?: boolean;
 }) {
@@ -57,8 +57,7 @@ export function ContactForm({
   const schema = useMemo(
     () =>
       z.object({
-        email: z.string().trim().email({message: t.emailInvalid}),
-        paymentIntent: z.enum(['paypal_intent', 'vietqr_intent'])
+        email: z.string().trim().email({message: t.emailInvalid})
       }),
     [t.emailInvalid]
   );
@@ -66,32 +65,22 @@ export function ContactForm({
     resolver: zodResolver(schema),
     mode: 'onChange',
     defaultValues: {
-      email,
-      paymentIntent
+      email
     }
   });
   const watchedEmail = form.watch('email');
-  const watchedPaymentIntent = form.watch('paymentIntent');
-  const paymentOptions: Array<{
-    value: CheckoutPaymentIntent;
-    title: string;
-    body: string;
-  }> = [
-    {value: 'paypal_intent', title: t.paypal, body: t.paypalHint},
-    {value: 'vietqr_intent', title: t.vietqr, body: t.vietqrHint}
-  ];
+  const payment =
+    paymentIntent === 'paypal_intent'
+      ? {title: t.paypal, body: t.paypalHint}
+      : paymentIntent === 'vietqr_intent'
+        ? {title: t.vietqr, body: t.vietqrHint}
+        : null;
 
   useEffect(() => {
     if (watchedEmail !== email) {
       onEmailChange(watchedEmail);
     }
   }, [email, onEmailChange, watchedEmail]);
-
-  useEffect(() => {
-    if (watchedPaymentIntent !== paymentIntent) {
-      onPaymentIntentChange(watchedPaymentIntent);
-    }
-  }, [onPaymentIntentChange, paymentIntent, watchedPaymentIntent]);
 
   useEffect(() => {
     onValidityChange?.(form.formState.isValid);
@@ -120,40 +109,24 @@ export function ContactForm({
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="paymentIntent"
-          render={({field}) => (
-            <FormItem>
-              <FormLabel>{t.paymentIntent}</FormLabel>
-              <FormControl>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {paymentOptions.map((option) => {
-                    const selected = field.value === option.value;
-                    return (
-                      <Button
-                        key={option.value}
-                        type="button"
-                        variant={selected ? 'primary' : 'secondary'}
-                        onClick={() => field.onChange(option.value)}
-                        className="h-auto min-h-[76px] justify-start px-4 py-3 text-left"
-                        aria-pressed={selected}
-                      >
-                        <span className="grid gap-1">
-                          <span className="text-sm font-semibold">{option.title}</span>
-                          <span className={selected ? 'text-xs font-medium text-white/80' : 'text-xs font-medium text-[var(--muted-foreground)]'}>
-                            {option.body}
-                          </span>
-                        </span>
-                      </Button>
-                    );
-                  })}
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid gap-2">
+          <p className="text-sm font-medium text-[var(--foreground)]">{t.paymentIntent}</p>
+          <div
+            data-testid="checkout-payment-method"
+            aria-live="polite"
+            className="min-h-[76px] rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--muted)] px-4 py-3"
+          >
+            {payment ? (
+              <div className="grid gap-1">
+                <p className="text-sm font-semibold text-[var(--foreground)]">{payment.title}</p>
+                <p className="text-xs font-medium text-[var(--muted-foreground)]">{payment.body}</p>
+                <p className="text-xs text-[var(--muted-foreground)]">{t.automatic}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--muted-foreground)]">{t.pending}</p>
+            )}
+          </div>
+        </div>
       </form>
     </Form>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {useRouter} from 'next/navigation';
 import type {CustomerShippingAddress} from '@/account/addresses';
 import type {Locale} from '@/i18n/routing';
@@ -12,12 +12,14 @@ import {
   type SubmitCheckoutActionState
 } from '@/checkout/actions';
 import type {ShippingAddress} from '@/checkout/shipping-address';
+import {checkoutPaymentIntentForQuote} from '@/checkout/payment-method';
 import {
   acceptQuoteProposal,
   beginQuoteRequest,
   canSubmitAcceptedQuote,
   createCheckoutQuoteLifecycleState,
   reviewDestination,
+  shouldRequoteUpstreamForDestination,
   settleQuoteRequest,
   type CheckoutQuoteLifecycleState,
   type QuoteDestination
@@ -26,7 +28,7 @@ import {Alert} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {useCart} from '@/components/cart/cart-provider';
-import {ContactForm, type CheckoutPaymentIntent} from './contact-form';
+import {ContactForm} from './contact-form';
 import {DestinationForm} from './destination-form';
 import {DiscountCodeForm} from './discount-code-form';
 import {OrderSummary} from './order-summary';
@@ -51,6 +53,7 @@ const copy = {
     completeThese: 'Complete these before continuing:',
     missingContact: 'Enter a valid contact email.',
     missingQuote: 'Refresh the cart quote.',
+    missingPayment: 'Wait for the payment method to match the confirmed total.',
     missingShipping: 'Update the delivery destination.',
     unsupportedShipping: 'Choose a supported shipping destination.',
     invalid: 'Check your contact details and cart before continuing.',
@@ -77,6 +80,7 @@ const copy = {
     completeThese: 'Hoan tat cac muc nay truoc khi tiep tuc:',
     missingContact: 'Nhap email lien he hop le.',
     missingQuote: 'Cap nhat lai bao gia gio hang.',
+    missingPayment: 'Cho phuong thuc thanh toan khop voi tong tien da xac nhan.',
     missingShipping: 'Cap nhat dia diem giao hang.',
     unsupportedShipping: 'Chon dia diem giao hang duoc ho tro.',
     invalid: 'Kiem tra thong tin lien he va gio hang truoc khi tiep tuc.',
@@ -119,59 +123,37 @@ export function CheckoutPage({
   const {quote, cart} = useCart();
   const [lifecycle, setLifecycleState] = useState(() => createCheckoutQuoteLifecycleState(quote));
   const lifecycleRef = useRef(lifecycle);
+  const destinationAuthorityRef = useRef(false);
+  const idempotencyRef = useRef<{quoteHash: string; key: string} | null>(null);
   const acceptedQuote = lifecycle.acceptedQuote;
   const [email, setEmail] = useState('');
   const [contactReady, setContactReady] = useState(false);
-  const [paymentIntent, setPaymentIntent] = useState<CheckoutPaymentIntent>('paypal_intent');
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>(emptyShippingAddress);
   const [submitResult, setSubmitResult] = useState<SubmitCheckoutActionState | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const paymentIntent = checkoutPaymentIntentForQuote(acceptedQuote);
 
-  function setLifecycle(next: CheckoutQuoteLifecycleState) {
+  const setLifecycle = useCallback((next: CheckoutQuoteLifecycleState) => {
     lifecycleRef.current = next;
     setLifecycleState(next);
-  }
+  }, []);
 
-  useEffect(() => {
-    if (quote) {
-      setLifecycle(createCheckoutQuoteLifecycleState(quote));
-      if ((quote.shipping.status === 'ready' || quote.shipping.status === 'unsupported_destination') && quote.shipping.countryCode) {
-        const countryCode = quote.shipping.countryCode;
-        setShippingAddress((current) => ({...current, countryCode: current.countryCode || countryCode}));
-      }
+  const requestQuote = useCallback(async (
+    destination: QuoteDestination,
+    nextAddress?: ShippingAddress,
+    upstreamQuote?: CartQuote,
+    source: 'destination' | 'upstream' = 'destination'
+  ) => {
+    if (source === 'destination') {
+      destinationAuthorityRef.current = Boolean(destination.countryCode);
     }
-  }, [quote]);
-
-  const physicalCount = acceptedQuote?.lines.filter((line) => line.fulfillmentType === 'physical' && line.quantity > 0).length ?? 0;
-  const shippingAddressReady = canSubmitAcceptedQuote(lifecycle, physicalCount > 0 ? shippingAddress : null);
-  const readyToSubmit =
-    Boolean(acceptedQuote) &&
-    acceptedQuote?.status === 'ready' &&
-    acceptedQuote.shipping.status !== 'not_calculated' &&
-    (physicalCount === 0 || acceptedQuote.shipping.status === 'ready') &&
-    shippingAddressReady &&
-    contactReady &&
-    !submitting;
-  const submitIssues = Array.from(
-    new Set(
-      [
-        !acceptedQuote || acceptedQuote.lines.length === 0 ? t.missingQuote : null,
-        !contactReady ? t.missingContact : null,
-        physicalCount > 0 && !shippingAddressReady ? t.missingShipping : null,
-        physicalCount > 0 && acceptedQuote?.shipping.status === 'not_calculated' ? t.missingShipping : null,
-        physicalCount > 0 && acceptedQuote?.shipping.status === 'unsupported_destination' ? t.unsupportedShipping : null
-      ].filter(Boolean) as string[]
-    )
-  );
-
-  async function requestQuote(destination: QuoteDestination, nextAddress?: ShippingAddress) {
     const current = lifecycleRef.current;
     const transition = beginQuoteRequest(current, destination);
     setLifecycle(transition.state);
     if (nextAddress) setShippingAddress(nextAddress);
     try {
-      const baseQuote = current.acceptedQuote;
+      const baseQuote = upstreamQuote ?? current.acceptedQuote;
       const result = await refreshCheckoutQuoteAction({
         locale,
         market: baseQuote?.market ?? (locale === 'vi' ? 'vn' : 'intl'),
@@ -183,7 +165,7 @@ export function CheckoutPage({
         destinationRegionCode: destination.regionCode,
         shippingQuoteVersion: 2,
         discountCode: baseQuote?.discount.status === 'applied' || baseQuote?.discount.status === 'not_eligible' ? baseQuote.discount.code : null,
-        priorAcceptedQuoteHash: baseQuote?.hash ?? null
+        priorAcceptedQuoteHash: current.acceptedQuote?.hash ?? null
       });
       const latest = lifecycleRef.current;
       const settled = result.status === 'success'
@@ -193,10 +175,65 @@ export function CheckoutPage({
     } catch {
       setLifecycle(settleQuoteRequest(lifecycleRef.current, transition.request.requestId, {status: 'network_error'}));
     }
-  }
+  }, [cart?.lines, locale, setLifecycle]);
+
+  useEffect(() => {
+    if (!quote) return;
+    const destination = lifecycleRef.current.destination;
+    const preserveDestination = shouldRequoteUpstreamForDestination(
+      quote,
+      destinationAuthorityRef.current,
+      destination
+    );
+    if (preserveDestination) {
+      void requestQuote(destination, undefined, quote, 'upstream');
+      return;
+    }
+    if (!quote.lines.some((line) => line.fulfillmentType === 'physical' && line.requestedQuantity > 0)) {
+      destinationAuthorityRef.current = false;
+    }
+    setLifecycle(createCheckoutQuoteLifecycleState(quote));
+    if ((quote.shipping.status === 'ready' || quote.shipping.status === 'unsupported_destination') && quote.shipping.countryCode) {
+      const countryCode = quote.shipping.countryCode;
+      setShippingAddress((current) => ({...current, countryCode: current.countryCode || countryCode}));
+    }
+  }, [quote, requestQuote, setLifecycle]);
+
+  const physicalCount = acceptedQuote?.lines.filter((line) => line.fulfillmentType === 'physical' && line.quantity > 0).length ?? 0;
+  const shippingAddressReady = canSubmitAcceptedQuote(lifecycle, physicalCount > 0 ? shippingAddress : null);
+  const readyToSubmit =
+    Boolean(acceptedQuote) &&
+    acceptedQuote?.status === 'ready' &&
+    acceptedQuote.shipping.status !== 'not_calculated' &&
+    (physicalCount === 0 || acceptedQuote.shipping.status === 'ready') &&
+    shippingAddressReady &&
+    contactReady &&
+    paymentIntent !== null &&
+    !submitting;
+  const submitIssues = Array.from(
+    new Set(
+      [
+        !acceptedQuote || acceptedQuote.lines.length === 0 ? t.missingQuote : null,
+        !contactReady ? t.missingContact : null,
+        !paymentIntent ? t.missingPayment : null,
+        physicalCount > 0 && !shippingAddressReady ? t.missingShipping : null,
+        physicalCount > 0 && acceptedQuote?.shipping.status === 'not_calculated' ? t.missingShipping : null,
+        physicalCount > 0 && acceptedQuote?.shipping.status === 'unsupported_destination' ? t.unsupportedShipping : null
+      ].filter(Boolean) as string[]
+    )
+  );
 
   function acceptExternalQuote(nextQuote: CartQuote) {
     setLifecycle(createCheckoutQuoteLifecycleState(nextQuote, lifecycleRef.current.destination));
+  }
+
+  function idempotencyKeyForQuote(quoteHash: string) {
+    if (idempotencyRef.current?.quoteHash === quoteHash) {
+      return idempotencyRef.current.key;
+    }
+    const key = `checkout-${quoteHash.slice(0, 24)}-${globalThis.crypto.randomUUID()}`;
+    idempotencyRef.current = {quoteHash, key};
+    return key;
   }
 
   async function submit() {
@@ -204,7 +241,7 @@ export function CheckoutPage({
     if (!readyToSubmit) {
       return;
     }
-    if (!acceptedQuote || !cart) {
+    if (!acceptedQuote || !cart || !paymentIntent) {
       return;
     }
     setSubmitting(true);
@@ -215,7 +252,7 @@ export function CheckoutPage({
       lines: cart.lines,
       acceptedQuote,
       acceptedQuoteHash: acceptedQuote.hash,
-      idempotencyKey: `${acceptedQuote.hash.slice(0, 32)}-${email.trim().toLowerCase()}`,
+      idempotencyKey: idempotencyKeyForQuote(acceptedQuote.hash),
       contactEmail: email.trim(),
       paymentIntent,
       destinationCountryCode:
@@ -226,6 +263,7 @@ export function CheckoutPage({
       discountCode: acceptedQuote.discount.status === 'applied' || acceptedQuote.discount.status === 'not_eligible' ? acceptedQuote.discount.code : null
     };
     const prepared = await prepareGuestCheckoutRecoveryAction({
+      acceptedQuote,
       acceptedQuoteHash: submitInput.acceptedQuoteHash,
       contactEmail: submitInput.contactEmail,
       paymentIntent: submitInput.paymentIntent
@@ -263,7 +301,6 @@ export function CheckoutPage({
               email={email}
               paymentIntent={paymentIntent}
               onEmailChange={setEmail}
-              onPaymentIntentChange={setPaymentIntent}
               onValidityChange={setContactReady}
               showValidation={submitAttempted}
             />

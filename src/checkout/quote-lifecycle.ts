@@ -78,6 +78,20 @@ export function normalizeDestination(destination: Partial<QuoteDestination>): Qu
   };
 }
 
+export function shouldRequoteUpstreamForDestination(
+  quote: CartQuote,
+  destinationAuthority: boolean,
+  destination: QuoteDestination
+) {
+  return (
+    destinationAuthority &&
+    Boolean(destination.countryCode) &&
+    quote.lines.some(
+      (line) => line.fulfillmentType === 'physical' && line.requestedQuantity > 0
+    )
+  );
+}
+
 export function beginQuoteRequest(
   state: CheckoutQuoteLifecycleState,
   destination: Partial<QuoteDestination>

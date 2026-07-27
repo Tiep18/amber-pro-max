@@ -248,9 +248,19 @@ test('Vietnam destination overrides international browsing and requires the VND 
   await review.getByRole('button', { name: 'Use updated quote' }).click();
   await expect(page.getByText(/280[.,]000/).last()).toBeVisible();
 
-  const paypal = page.getByRole('button', { name: /PayPal Card or PayPal balance/i });
-  const vietqr = page.getByRole('button', { name: /VietQR bank transfer/i });
-  await vietqr.click();
-  await expect(vietqr).toHaveAttribute('aria-pressed', 'true');
-  await expect(paypal).toHaveAttribute('aria-pressed', 'false');
+  const paymentMethod = page.getByTestId('checkout-payment-method');
+  await expect(paymentMethod).toContainText('VietQR');
+  await expect(paymentMethod).not.toContainText('PayPal');
+
+  const marketTrigger = page.getByTestId('commerce-context-trigger');
+  await marketTrigger.click();
+  await page.getByRole('menuitemradio', {name: /Vietnam.*VND/i}).click();
+  await expect(page.getByText(/280[.,]000/).last()).toBeVisible();
+  await expect(paymentMethod).toContainText('VietQR');
+
+  await marketTrigger.click();
+  await page.getByRole('menuitemradio', {name: /International.*USD/i}).click();
+  await expect(page.getByText(/280[.,]000/).last()).toBeVisible();
+  await expect(paymentMethod).toContainText('VietQR');
+  await expect(paymentMethod).not.toContainText('PayPal');
 });

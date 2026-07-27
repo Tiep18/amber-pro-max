@@ -5,6 +5,7 @@ import {
   canSubmitAcceptedQuote,
   createCheckoutQuoteLifecycleState,
   reviewDestination,
+  shouldRequoteUpstreamForDestination,
   settleQuoteRequest
 } from '@/checkout/quote-lifecycle';
 import type { ShippingAddress } from '@/checkout/shipping-address';
@@ -20,6 +21,41 @@ const usAddress: ShippingAddress = {
   addressLine2: null,
   postalCode: '94105'
 };
+
+describe('upstream quote destination authority', () => {
+  it('requotes a physical cart through the committed destination', () => {
+    expect(
+      shouldRequoteUpstreamForDestination(
+        physicalQuote(),
+        true,
+        {countryCode: 'VN', regionCode: null}
+      )
+    ).toBe(true);
+  });
+
+  it('returns browsing-market authority to carts without a committed physical destination', () => {
+    const digitalQuote = physicalQuote({
+      lines: physicalQuote().lines.map((line) => ({
+        ...line,
+        fulfillmentType: 'digital'
+      }))
+    });
+    expect(
+      shouldRequoteUpstreamForDestination(
+        physicalQuote(),
+        false,
+        {countryCode: 'VN', regionCode: null}
+      )
+    ).toBe(false);
+    expect(
+      shouldRequoteUpstreamForDestination(
+        digitalQuote,
+        true,
+        {countryCode: 'VN', regionCode: null}
+      )
+    ).toBe(false);
+  });
+});
 
 function physicalQuote(overrides: Partial<CartQuote> = {}): CartQuote {
   return {

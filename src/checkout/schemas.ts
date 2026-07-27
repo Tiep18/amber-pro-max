@@ -3,6 +3,7 @@ import {quoteHasPhysicalLines, quoteShippingCountryCode, shippingAddressSchema} 
 import {quoteCartInputSchema} from './types';
 
 export const checkoutPaymentIntentSchema = z.enum(['paypal_intent', 'vietqr_intent']);
+export type CheckoutPaymentIntent = z.infer<typeof checkoutPaymentIntentSchema>;
 
 const guestRecoverySchema = z.object({
   attemptId: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
