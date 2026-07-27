@@ -470,6 +470,7 @@
     "actions": {
       "viewProduct": "Xem san pham",
       "addToCart": "Them vao gio",
+      "addingToCart": "Dang them...",
       "remove": "Xoa",
       "removing": "Dang xoa"
     },

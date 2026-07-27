@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import { PendingSubmitButton } from '@/components/ui/pending-submit-button';
 import {
   getAccountOrdersPath,
   getAccountPatternsPath,
@@ -41,7 +42,8 @@ const labels = {
     wishlist: 'Wishlist',
     admin: 'Admin dashboard',
     adminBadge: 'Admin',
-    signOut: 'Sign out'
+    signOut: 'Sign out',
+    signingOut: 'Signing out...'
   },
   vi: {
     signIn: 'Dang nhap',
@@ -51,7 +53,8 @@ const labels = {
     wishlist: 'Yeu thich',
     admin: 'Trang admin',
     adminBadge: 'Admin',
-    signOut: 'Dang xuat'
+    signOut: 'Dang xuat',
+    signingOut: 'Dang dang xuat...'
   }
 } as const;
 
@@ -180,13 +183,14 @@ export function AccountMenu({
           onSubmit={() => notifyStorefrontContextChanged()}
         >
           <input type="hidden" name="locale" value={locale} />
-          <button
-            type="submit"
+          <PendingSubmitButton
+            pendingLabel={t.signingOut}
+            variant="ghost"
             className="flex min-h-11 w-full items-center gap-3 rounded-[var(--radius-control)] px-3 text-left text-sm font-semibold text-[var(--destructive)] hover:bg-[var(--destructive-surface)]"
           >
             <LogOut className="h-4 w-4" aria-hidden="true" />
             <span>{t.signOut}</span>
-          </button>
+          </PendingSubmitButton>
         </form>
       </div>
     );
@@ -249,10 +253,14 @@ export function AccountMenu({
         <form action={signOutAction} onSubmit={() => notifyStorefrontContextChanged()}>
           <input type="hidden" name="locale" value={locale} />
           <DropdownMenuItem asChild variant="destructive">
-            <button type="submit" className="flex min-h-10 w-full items-center gap-2.5 font-medium">
+            <PendingSubmitButton
+              pendingLabel={t.signingOut}
+              variant="ghost"
+              className="flex min-h-10 w-full items-center gap-2.5 font-medium"
+            >
               <LogOut className="h-4 w-4" aria-hidden="true" />
               <span>{t.signOut}</span>
-            </button>
+            </PendingSubmitButton>
           </DropdownMenuItem>
         </form>
       </DropdownMenuContent>

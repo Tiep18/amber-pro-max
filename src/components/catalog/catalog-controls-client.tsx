@@ -1,7 +1,8 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { useFormStatus } from 'react-dom';
 import type { CatalogSort } from '@/catalog/queries';
 import type { CatalogListState } from '@/catalog/list-state';
 import { CatalogSortSelect } from '@/components/catalog/catalog-sort-select';
@@ -16,6 +17,26 @@ type CatalogControlLabels = {
   priceDesc: string;
   titleSort: string;
 };
+
+function SearchSubmitButton({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      aria-busy={pending}
+      className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--accent)] transition duration-200 hover:bg-[var(--surface-blush)] hover:text-[var(--accent-hover)] disabled:opacity-60"
+      aria-label={label}
+    >
+      {pending ? (
+        <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+      ) : (
+        <Search aria-hidden="true" className="size-4" />
+      )}
+    </button>
+  );
+}
 
 export function CatalogControlsClient({
   state,
@@ -73,13 +94,7 @@ export function CatalogControlsClient({
             placeholder={labels.searchPlaceholder}
             className="min-w-0 flex-1 bg-transparent py-2 text-sm font-normal outline-none placeholder:text-[var(--muted-foreground)]/72 sm:text-base"
           />
-          <button
-            type="submit"
-            className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--accent)] transition duration-200 hover:bg-[var(--surface-blush)] hover:text-[var(--accent-hover)]"
-            aria-label={labels.searchSubmit}
-          >
-            <Search aria-hidden="true" className="size-4" />
-          </button>
+          <SearchSubmitButton label={labels.searchSubmit} />
         </span>
       </label>
       <CatalogSortSelect name="sort" label={labels.sort} value={state.sort} options={sortOptions} />

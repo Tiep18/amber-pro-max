@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import type {ReactNode} from 'react';
-import {usePathname, useRouter, useSearchParams} from 'next/navigation';
-import {ChevronLeft, ChevronRight, Search, X} from 'lucide-react';
-import {Button} from '@/components/ui/button';
-import {Input} from '@/components/ui/input';
+import { type ReactNode, useTransition } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { ChevronLeft, ChevronRight, Loader2, Search, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import {cn} from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 type CatalogListControlsProps = {
   search: string;
@@ -31,19 +31,23 @@ type CatalogListControlsProps = {
 };
 
 const statusOptions = [
-  {value: 'all', label: 'All status'},
-  {value: 'published', label: 'Published'},
-  {value: 'draft', label: 'Draft'},
-  {value: 'archived', label: 'Archived'}
+  { value: 'all', label: 'All status' },
+  { value: 'published', label: 'Published' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'archived', label: 'Archived' }
 ];
 
 const typeOptions = [
-  {value: 'all', label: 'All types'},
-  {value: 'pdf_pattern', label: 'PDF pattern'},
-  {value: 'physical_finished', label: 'Handmade'}
+  { value: 'all', label: 'All types' },
+  { value: 'pdf_pattern', label: 'PDF pattern' },
+  { value: 'physical_finished', label: 'Handmade' }
 ];
 
-function paramHref(pathname: string, currentParams: URLSearchParams, patch: Record<string, string | number | null>) {
+function paramHref(
+  pathname: string,
+  currentParams: URLSearchParams,
+  patch: Record<string, string | number | null>
+) {
   const params = new URLSearchParams(currentParams.toString());
   for (const [key, value] of Object.entries(patch)) {
     if (value === null || value === '' || value === 'all') {
@@ -95,15 +99,21 @@ export function CatalogListControls({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [pending, startNavigation] = useTransition();
   const firstItem = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const lastItem = Math.min(page * pageSize, total);
 
   function updateFilter(key: 'status' | 'type', value: string) {
-    router.replace(paramHref(pathname, searchParams, {[key]: value, page: null}));
+    startNavigation(() => {
+      router.replace(paramHref(pathname, searchParams, { [key]: value, page: null }));
+    });
   }
 
   return (
-    <div className="grid gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 sm:px-5">
+    <div
+      className="grid gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 sm:px-5"
+      aria-busy={pending}
+    >
       <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold text-[var(--foreground)]">Catalog</span>
@@ -127,7 +137,9 @@ export function CatalogListControls({
           event.preventDefault();
           const formData = new FormData(event.currentTarget);
           const nextSearch = String(formData.get('search') ?? '').trim();
-          router.replace(paramHref(pathname, searchParams, {search: nextSearch, page: null}));
+          startNavigation(() => {
+            router.replace(paramHref(pathname, searchParams, { search: nextSearch, page: null }));
+          });
         }}
       >
         <label className="relative block">
@@ -140,7 +152,11 @@ export function CatalogListControls({
             className="min-h-10 pl-9 text-sm"
           />
         </label>
-        <Select value={status} onValueChange={(value) => updateFilter('status', value)}>
+        <Select
+          value={status}
+          disabled={pending}
+          onValueChange={(value) => updateFilter('status', value)}
+        >
           <SelectTrigger className="h-10 text-sm">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
@@ -152,7 +168,11 @@ export function CatalogListControls({
             ))}
           </SelectContent>
         </Select>
-        <Select value={type} onValueChange={(value) => updateFilter('type', value)}>
+        <Select
+          value={type}
+          disabled={pending}
+          onValueChange={(value) => updateFilter('type', value)}
+        >
           <SelectTrigger className="h-10 text-sm">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
@@ -165,8 +185,9 @@ export function CatalogListControls({
           </SelectContent>
         </Select>
         <div className="flex gap-2">
-          <Button type="submit" className="min-h-10 px-3 text-sm">
-            Search
+          <Button type="submit" disabled={pending} className="min-h-10 gap-2 px-3 text-sm">
+            {pending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+            {pending ? 'Loading...' : 'Search'}
           </Button>
           {search || status !== 'all' || type !== 'all' ? (
             <Link
@@ -183,7 +204,7 @@ export function CatalogListControls({
       <div className="flex justify-end text-sm text-[var(--muted-foreground)]">
         <div className="flex items-center gap-2">
           <PageLink
-            href={paramHref(pathname, searchParams, {page: page - 1})}
+            href={paramHref(pathname, searchParams, { page: page - 1 })}
             disabled={page <= 1}
             label="Previous catalog page"
           >
@@ -194,7 +215,7 @@ export function CatalogListControls({
             {page} / {totalPages}
           </span>
           <PageLink
-            href={paramHref(pathname, searchParams, {page: page + 1})}
+            href={paramHref(pathname, searchParams, { page: page + 1 })}
             disabled={page >= totalPages}
             label="Next catalog page"
           >

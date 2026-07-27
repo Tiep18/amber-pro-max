@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useRef, useState } from 'react';
+import { useFormStatus } from 'react-dom';
 import type { CatalogSort } from '@/catalog/queries';
 import {
   Select,
@@ -24,6 +25,7 @@ export function CatalogSortSelect({
   const labelId = useId();
   const [selected, setSelected] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { pending } = useFormStatus();
 
   function updateSort(nextValue: string) {
     const nextSort = nextValue as CatalogSort;
@@ -40,9 +42,10 @@ export function CatalogSortSelect({
         {label}
       </span>
       <input ref={inputRef} type="hidden" name={name} value={selected} />
-      <Select value={selected} onValueChange={updateSort}>
+      <Select value={selected} onValueChange={updateSort} disabled={pending}>
         <SelectTrigger
           aria-labelledby={labelId}
+          aria-busy={pending}
           className="!h-10 !min-h-10 bg-[var(--surface)] px-3 text-sm shadow-[inset_0_1px_0_rgb(255_255_255/55%)] hover:bg-[var(--surface-paper)] sm:!h-11 sm:!min-h-11 sm:text-base"
         >
           <SelectValue />

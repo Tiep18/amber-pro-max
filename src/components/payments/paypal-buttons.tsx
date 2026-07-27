@@ -1,9 +1,9 @@
 'use client';
 
-import {useCallback, useEffect, useRef, useState} from 'react';
-import {useRouter} from 'next/navigation';
-import {Button} from '@/components/ui/button';
-import {logPayPalStage} from '@/payments/paypal/logging';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { logPayPalStage } from '@/payments/paypal/logging';
 
 export const PAYPAL_RECHECK_COOLDOWN_MS = 5000;
 export const PAYPAL_POLLING_WINDOW_MS = 30000;
@@ -39,7 +39,7 @@ type PayPalButtonActions = {
 type PayPalNamespace = {
   Buttons: (options: {
     createOrder: () => Promise<string>;
-    onApprove: (data: {orderID?: string; orderId?: string}) => Promise<void>;
+    onApprove: (data: { orderID?: string; orderId?: string }) => Promise<void>;
     onCancel: () => void;
     onError: () => void;
   }) => PayPalButtonActions;
@@ -63,7 +63,7 @@ function readJson(response: Response) {
   return response.json().catch(() => ({})) as Promise<Record<string, unknown>>;
 }
 
-export function PayPalButtons({orderNumber, clientId, amountLabel, labels}: PayPalButtonsProps) {
+export function PayPalButtons({ orderNumber, clientId, amountLabel, labels }: PayPalButtonsProps) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const renderedRef = useRef(false);
@@ -71,11 +71,12 @@ export function PayPalButtons({orderNumber, clientId, amountLabel, labels}: PayP
   const [scriptState, setScriptState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [showLoading, setShowLoading] = useState(false);
   const [pending, setPending] = useState(false);
+  const [refreshPending, startRefresh] = useTransition();
 
   const moveToVerifying = useCallback(() => {
     setPending(false);
-    router.refresh();
-  }, [router]);
+    startRefresh(() => router.refresh());
+  }, [router, startRefresh]);
 
   useEffect(() => {
     const loadingTimer = window.setTimeout(() => setShowLoading(true), PAYPAL_SDK_LOADING_DELAY_MS);
@@ -121,17 +122,21 @@ export function PayPalButtons({orderNumber, clientId, amountLabel, labels}: PayP
         setPending(true);
         const response = await fetch('/api/paypal/orders', {
           method: 'POST',
-          headers: {'content-type': 'application/json'},
-          body: JSON.stringify({orderNumber})
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ orderNumber })
         });
         const body = await readJson(response);
         if (!response.ok) {
-          logPayPalStage('client.create_order_failed', {
-            orderNumber,
-            httpStatus: response.status,
-            status: typeof body.status === 'string' ? body.status : undefined,
-            code: typeof body.code === 'string' ? body.code : undefined
-          }, 'warn');
+          logPayPalStage(
+            'client.create_order_failed',
+            {
+              orderNumber,
+              httpStatus: response.status,
+              status: typeof body.status === 'string' ? body.status : undefined,
+              code: typeof body.code === 'string' ? body.code : undefined
+            },
+            'warn'
+          );
         }
         if (typeof body.paypalOrderId === 'string') {
           return body.paypalOrderId;
@@ -142,34 +147,42 @@ export function PayPalButtons({orderNumber, clientId, amountLabel, labels}: PayP
       onApprove: async (data) => {
         const paypalOrderId = data.orderID ?? data.orderId;
         if (paypalOrderId) {
-          const response = await fetch(`/api/paypal/orders/${encodeURIComponent(paypalOrderId)}/capture`, {method: 'POST'});
+          const response = await fetch(
+            `/api/paypal/orders/${encodeURIComponent(paypalOrderId)}/capture`,
+            { method: 'POST' }
+          );
           const body = await readJson(response);
           const status = typeof body.status === 'string' ? body.status : undefined;
           if (!response.ok || status !== 'paid') {
-            logPayPalStage('client.capture_not_paid_after_approval', {
-              orderNumber,
-              paypalOrderId,
-              httpStatus: response.status,
-              status,
-              paymentStatus: typeof body.paymentStatus === 'string' ? body.paymentStatus : undefined,
-              code: typeof body.code === 'string' ? body.code : undefined
-            }, 'warn');
+            logPayPalStage(
+              'client.capture_not_paid_after_approval',
+              {
+                orderNumber,
+                paypalOrderId,
+                httpStatus: response.status,
+                status,
+                paymentStatus:
+                  typeof body.paymentStatus === 'string' ? body.paymentStatus : undefined,
+                code: typeof body.code === 'string' ? body.code : undefined
+              },
+              'warn'
+            );
           }
         }
         moveToVerifying();
       },
       onCancel: () => {
-        logPayPalStage('client.cancelled_by_buyer', {orderNumber}, 'warn');
+        logPayPalStage('client.cancelled_by_buyer', { orderNumber }, 'warn');
         moveToVerifying();
       },
       onError: () => {
-        logPayPalStage('client.sdk_error', {orderNumber}, 'error');
+        logPayPalStage('client.sdk_error', { orderNumber }, 'error');
         moveToVerifying();
       }
     });
 
     void buttonsRef.current.render(containerRef.current).catch(() => {
-      logPayPalStage('client.button_render_failed', {orderNumber}, 'error');
+      logPayPalStage('client.button_render_failed', { orderNumber }, 'error');
       setScriptState('error');
       setPending(false);
     });
@@ -182,7 +195,7 @@ export function PayPalButtons({orderNumber, clientId, amountLabel, labels}: PayP
 
   if (scriptState === 'error') {
     return (
-      <div className="grid gap-3" aria-busy={pending}>
+      <div className="grid gap-3" aria-busy={pending || refreshPending}>
         <p className="text-sm text-[var(--muted-foreground)]">{labels.unavailable}</p>
         <Button variant="secondary" onClick={() => window.location.reload()}>
           {labels.reload}
@@ -192,21 +205,25 @@ export function PayPalButtons({orderNumber, clientId, amountLabel, labels}: PayP
   }
 
   return (
-    <div className="grid gap-3" aria-busy={pending}>
+    <div className="grid gap-3" aria-busy={pending || refreshPending}>
       <div>
         <p className="text-sm font-semibold">{labels.pay}</p>
         <p className="text-sm text-[var(--muted-foreground)]">{amountLabel}</p>
       </div>
-      {showLoading && scriptState === 'loading' ? <div className="min-h-12 rounded-[var(--radius-control)] bg-[var(--surface-muted)]" /> : null}
+      {showLoading && scriptState === 'loading' ? (
+        <div className="min-h-12 rounded-[var(--radius-control)] bg-[var(--surface-muted)]" />
+      ) : null}
       <div ref={containerRef} className="min-h-12" />
-      {pending ? <p className="text-sm text-[var(--muted-foreground)]">{labels.connecting}</p> : null}
+      {pending || refreshPending ? (
+        <p className="text-sm text-[var(--muted-foreground)]">{labels.connecting}</p>
+      ) : null}
     </div>
   );
 }
 
-export function PaymentStatusRecheck({labels}: {labels: PayPalRecheckLabels}) {
+export function PaymentStatusRecheck({ labels }: { labels: PayPalRecheckLabels }) {
   const router = useRouter();
-  const [pending, setPending] = useState(false);
+  const [pending, startRefresh] = useTransition();
   const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null);
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const startedAtRef = useRef<number | null>(null);
@@ -217,15 +234,13 @@ export function PaymentStatusRecheck({labels}: {labels: PayPalRecheckLabels}) {
       if (now < cooldownUntil || pending) {
         return;
       }
-      setPending(true);
       setCooldownUntil(now + PAYPAL_RECHECK_COOLDOWN_MS);
-      router.refresh();
+      startRefresh(() => router.refresh());
       if (announce) {
         setLastCheckedAt(new Date(now));
       }
-      window.setTimeout(() => setPending(false), 250);
     },
-    [cooldownUntil, pending, router]
+    [cooldownUntil, pending, router, startRefresh]
   );
 
   useEffect(() => {
@@ -246,7 +261,11 @@ export function PaymentStatusRecheck({labels}: {labels: PayPalRecheckLabels}) {
 
   return (
     <div className="grid gap-2" aria-busy={pending}>
-      <Button variant="secondary" disabled={pending || Date.now() < cooldownUntil} onClick={() => refreshStatus(true)}>
+      <Button
+        variant="secondary"
+        disabled={pending || Date.now() < cooldownUntil}
+        onClick={() => refreshStatus(true)}
+      >
         {pending ? labels.checking : labels.checkStatus}
       </Button>
       {lastCheckedAt ? (

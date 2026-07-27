@@ -1,7 +1,6 @@
-import {revalidatePath} from 'next/cache';
-import {z} from 'zod';
-import {runMonitoredAction} from '@/operations/monitoring';
-
+import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
+import { runMonitoredAction } from '@/operations/monitoring';
 
 const retryInputSchema = z.object({
   emailId: z.string().trim().min(1).max(120)
@@ -16,10 +15,10 @@ const resendInputSchema = z.object({
 });
 
 export type AdminEmailActionResult =
-  | {status: 'queued'}
-  | {status: 'stale'; code: 'email_retry_not_available'}
-  | {status: 'invalid'; code: 'invalid_email_action'}
-  | {status: 'error'; code: 'email_action_failed'};
+  | { status: 'queued' }
+  | { status: 'stale'; code: 'email_retry_not_available' }
+  | { status: 'invalid'; code: 'invalid_email_action' }
+  | { status: 'error'; code: 'email_action_failed' };
 
 type RetryCandidate = {
   status: string;
@@ -30,7 +29,7 @@ async function recordAdminEmailFailure(input: {
   action: string;
   errorCode: string;
   summary: string;
-  code: AdminEmailActionResult extends {status: 'error'; code: infer Code} ? Code : string;
+  code: AdminEmailActionResult extends { status: 'error'; code: infer Code } ? Code : string;
   emailId?: string;
   orderId?: string;
   orderNumber?: string;
@@ -42,7 +41,7 @@ async function recordAdminEmailFailure(input: {
     action: input.action,
     errorCode: input.errorCode,
     summary: input.summary,
-    errorResult: {status: 'error', code: input.code},
+    errorResult: { status: 'error', code: input.code },
     shouldRecordResult: () => true,
     facts: {
       referenceId: input.emailId ?? null,
@@ -51,7 +50,7 @@ async function recordAdminEmailFailure(input: {
       entitlementId: input.entitlementId ?? null,
       emailType: input.emailType ?? null
     },
-    operation: async () => ({status: 'error', code: input.code})
+    operation: async () => ({ status: 'error', code: input.code })
   });
 }
 
@@ -73,7 +72,12 @@ export function maskEmailForAdmin(email: string) {
 
 export function sanitizeEmailFailureCode(value: string | null | undefined) {
   const normalized = (value ?? '').toLowerCase();
-  if (!normalized || /(authorization|bearer|raw_token|signed_url|provider_payload|object_path|secret)/.test(normalized)) {
+  if (
+    !normalized ||
+    /(authorization|bearer|raw_token|signed_url|provider_payload|object_path|secret)/.test(
+      normalized
+    )
+  ) {
     return 'provider_error';
   }
   return normalized.replace(/[^a-z0-9_:-]/g, '_').slice(0, 80) || 'provider_error';
@@ -81,15 +85,15 @@ export function sanitizeEmailFailureCode(value: string | null | undefined) {
 
 export function validateRetryCandidate(row: RetryCandidate, now = new Date()) {
   if (row.status === 'failed') {
-    return {status: 'retryable' as const};
+    return { status: 'retryable' as const };
   }
   if (row.status === 'pending') {
     const availableMs = row.availableAt ? Date.parse(row.availableAt) : Number.NaN;
     if (!Number.isFinite(availableMs) || availableMs <= now.getTime()) {
-      return {status: 'retryable' as const};
+      return { status: 'retryable' as const };
     }
   }
-  return {status: 'stale' as const, code: 'email_retry_not_available' as const};
+  return { status: 'stale' as const, code: 'email_retry_not_available' as const };
 }
 
 export function buildDownloadResendIntent(input: {
@@ -126,24 +130,37 @@ export function buildDownloadResendIntent(input: {
   };
 }
 
-export async function retryTransactionalEmailAction(formData: FormData): Promise<AdminEmailActionResult> {
+export async function retryTransactionalEmailAction(
+  formData: FormData
+): Promise<AdminEmailActionResult> {
   'use server';
 
-  const {requireAdmin} = await import('@/auth/guards');
+  const { requireAdmin } = await import('@/auth/guards');
   await requireAdmin();
-  const parsed = retryInputSchema.safeParse({emailId: getFormString(formData, 'emailId')});
+  const parsed = retryInputSchema.safeParse({ emailId: getFormString(formData, 'emailId') });
   if (!parsed.success) {
-    return {status: 'invalid', code: 'invalid_email_action'};
+    return { status: 'invalid', code: 'invalid_email_action' };
   }
 
-  const {createSupabaseAdminClient} = await import('@/lib/supabase/admin');
+  const { createSupabaseAdminClient } = await import('@/lib/supabase/admin');
   const client = createSupabaseAdminClient() as unknown as {
     from: (table: string) => {
-      select: (columns: string) => {eq: (column: string, value: string) => {maybeSingle: () => Promise<{data: unknown; error: unknown}>}};
-      update: (value: Record<string, unknown>) => {eq: (column: string, value: string) => Promise<{data: unknown; error: unknown}>};
+      select: (columns: string) => {
+        eq: (
+          column: string,
+          value: string
+        ) => { maybeSingle: () => Promise<{ data: unknown; error: unknown }> };
+      };
+      update: (value: Record<string, unknown>) => {
+        eq: (column: string, value: string) => Promise<{ data: unknown; error: unknown }>;
+      };
     };
   };
-  const {data, error} = await client.from('transactional_email_outbox').select('id,status,available_at').eq('id', parsed.data.emailId).maybeSingle();
+  const { data, error } = await client
+    .from('transactional_email_outbox')
+    .select('id,status,available_at')
+    .eq('id', parsed.data.emailId)
+    .maybeSingle();
   if (error || !data || typeof data !== 'object' || Array.isArray(data)) {
     await recordAdminEmailFailure({
       action: 'email_retry_lookup',
@@ -152,10 +169,10 @@ export async function retryTransactionalEmailAction(formData: FormData): Promise
       code: 'email_action_failed',
       emailId: parsed.data.emailId
     });
-    return {status: 'error', code: 'email_action_failed'};
+    return { status: 'error', code: 'email_action_failed' };
   }
 
-  const row = data as {status?: unknown; available_at?: unknown};
+  const row = data as { status?: unknown; available_at?: unknown };
   const candidate = validateRetryCandidate(
     {
       status: typeof row.status === 'string' ? row.status : '',
@@ -167,7 +184,14 @@ export async function retryTransactionalEmailAction(formData: FormData): Promise
     return candidate;
   }
 
-  const retryUpdate = await client.from('transactional_email_outbox').update({status: 'pending', available_at: new Date().toISOString(), updated_at: new Date().toISOString()}).eq('id', parsed.data.emailId);
+  const retryUpdate = await client
+    .from('transactional_email_outbox')
+    .update({
+      status: 'pending',
+      available_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', parsed.data.emailId);
   if (retryUpdate.error) {
     await recordAdminEmailFailure({
       action: 'email_retry',
@@ -176,16 +200,18 @@ export async function retryTransactionalEmailAction(formData: FormData): Promise
       code: 'email_action_failed',
       emailId: parsed.data.emailId
     });
-    return {status: 'error', code: 'email_action_failed'};
+    return { status: 'error', code: 'email_action_failed' };
   }
   revalidatePath('/admin/orders');
-  return {status: 'queued'};
+  return { status: 'queued' };
 }
 
-export async function resendDownloadEmailAction(formData: FormData): Promise<AdminEmailActionResult> {
+export async function resendDownloadEmailAction(
+  formData: FormData
+): Promise<AdminEmailActionResult> {
   'use server';
 
-  const {requireAdmin} = await import('@/auth/guards');
+  const { requireAdmin } = await import('@/auth/guards');
   const admin = await requireAdmin();
   const parsed = resendInputSchema.safeParse({
     orderId: getFormString(formData, 'orderId'),
@@ -194,21 +220,41 @@ export async function resendDownloadEmailAction(formData: FormData): Promise<Adm
     recipientEmail: getFormString(formData, 'recipientEmail'),
     locale: getFormString(formData, 'locale') ?? 'en'
   });
-  if (!parsed.success || typeof admin !== 'object' || !admin || !('id' in admin) || typeof admin.id !== 'string') {
-    return {status: 'invalid', code: 'invalid_email_action'};
+  if (
+    !parsed.success ||
+    typeof admin !== 'object' ||
+    !admin ||
+    !('id' in admin) ||
+    typeof admin.id !== 'string'
+  ) {
+    return { status: 'invalid', code: 'invalid_email_action' };
   }
 
-  const {createSupabaseAdminClient} = await import('@/lib/supabase/admin');
+  const { createSupabaseAdminClient } = await import('@/lib/supabase/admin');
   const client = createSupabaseAdminClient() as unknown as {
     from: (table: string) => {
-      select: (columns: string) => {eq: (column: string, value: string) => {maybeSingle: () => Promise<{data: unknown; error: unknown}>}};
-      insert: (value: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
+      select: (columns: string) => {
+        eq: (
+          column: string,
+          value: string
+        ) => { maybeSingle: () => Promise<{ data: unknown; error: unknown }> };
+      };
+      insert: (value: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
     };
   };
   let recipientEmail = parsed.data.recipientEmail;
   if (!recipientEmail) {
-    const entitlement = await client.from('digital_entitlements').select('contact_email').eq('id', parsed.data.entitlementId).maybeSingle();
-    if (entitlement.error || !entitlement.data || typeof entitlement.data !== 'object' || Array.isArray(entitlement.data)) {
+    const entitlement = await client
+      .from('digital_entitlements')
+      .select('contact_email')
+      .eq('id', parsed.data.entitlementId)
+      .maybeSingle();
+    if (
+      entitlement.error ||
+      !entitlement.data ||
+      typeof entitlement.data !== 'object' ||
+      Array.isArray(entitlement.data)
+    ) {
       await recordAdminEmailFailure({
         action: 'download_email_recipient_lookup',
         errorCode: 'admin_download_resend_recipient_lookup_failed',
@@ -219,9 +265,9 @@ export async function resendDownloadEmailAction(formData: FormData): Promise<Adm
         entitlementId: parsed.data.entitlementId,
         emailType: 'digital_access_reissued'
       });
-      return {status: 'error', code: 'email_action_failed'};
+      return { status: 'error', code: 'email_action_failed' };
     }
-    const row = entitlement.data as {contact_email?: unknown};
+    const row = entitlement.data as { contact_email?: unknown };
     recipientEmail = typeof row.contact_email === 'string' ? row.contact_email : undefined;
   }
   if (!recipientEmail) {
@@ -235,10 +281,10 @@ export async function resendDownloadEmailAction(formData: FormData): Promise<Adm
       entitlementId: parsed.data.entitlementId,
       emailType: 'digital_access_reissued'
     });
-    return {status: 'error', code: 'email_action_failed'};
+    return { status: 'error', code: 'email_action_failed' };
   }
 
-  const intent = buildDownloadResendIntent({...parsed.data, recipientEmail, adminId: admin.id});
+  const intent = buildDownloadResendIntent({ ...parsed.data, recipientEmail, adminId: admin.id });
   const outbox = await client.from('transactional_email_outbox').insert(intent.outbox);
   const audit = await client.from('fulfillment_audit_events').insert(intent.audit);
   if (outbox.error || audit.error) {
@@ -252,8 +298,9 @@ export async function resendDownloadEmailAction(formData: FormData): Promise<Adm
       entitlementId: parsed.data.entitlementId,
       emailType: 'digital_access_reissued'
     });
-    return {status: 'error', code: 'email_action_failed'};
+    return { status: 'error', code: 'email_action_failed' };
   }
   revalidatePath('/admin/orders');
-  return {status: 'queued'};
+  revalidatePath(`/admin/orders/${encodeURIComponent(parsed.data.orderNumber)}`);
+  return { status: 'queued' };
 }

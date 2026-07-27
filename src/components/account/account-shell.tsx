@@ -22,7 +22,7 @@ import {
   getLocalizedPath,
   type Locale
 } from '@/i18n/routing';
-import { Button } from '@/components/ui/button';
+import { PendingSubmitButton } from '@/components/ui/pending-submit-button';
 import { Separator } from '@/components/ui/separator';
 import { Sheet } from '@/components/ui/sheet';
 import { notifyStorefrontContextChanged } from '@/components/storefront-context';
@@ -40,6 +40,7 @@ type AccountShellLabels = {
     addresses: string;
   };
   signOut: string;
+  signingOut: string;
 };
 
 const labels: Record<Locale, AccountShellLabels> = {
@@ -54,7 +55,8 @@ const labels: Record<Locale, AccountShellLabels> = {
       wishlist: 'Wishlist',
       addresses: 'Addresses'
     },
-    signOut: 'Sign out'
+    signOut: 'Sign out',
+    signingOut: 'Signing out...'
   },
   vi: {
     area: 'Tai khoan',
@@ -67,7 +69,8 @@ const labels: Record<Locale, AccountShellLabels> = {
       wishlist: 'Yeu thich',
       addresses: 'Dia chi'
     },
-    signOut: 'Dang xuat'
+    signOut: 'Dang xuat',
+    signingOut: 'Dang dang xuat...'
   }
 };
 
@@ -153,14 +156,14 @@ function SignOutButton({ locale }: { locale: Locale }) {
   return (
     <form action={signOutAction} onSubmit={() => notifyStorefrontContextChanged()}>
       <input type="hidden" name="locale" value={locale} />
-      <Button
-        type="submit"
+      <PendingSubmitButton
+        pendingLabel={labels[locale].signingOut}
         variant="ghost"
         className="min-h-10 w-full justify-start gap-3 px-3 text-sm font-semibold text-[var(--muted-foreground)] hover:text-[var(--destructive)]"
       >
         <LogOut className="h-4 w-4" aria-hidden="true" />
         {labels[locale].signOut}
-      </Button>
+      </PendingSubmitButton>
     </form>
   );
 }

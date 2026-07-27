@@ -1,6 +1,6 @@
 import { Download, FileText, LockKeyhole } from 'lucide-react';
 import type { CustomerPatternLibraryItem } from '@/fulfillment/account-queries';
-import { Button } from '@/components/ui/button';
+import { PendingSubmitButton } from '@/components/ui/pending-submit-button';
 import type { Locale } from '@/i18n/routing';
 
 type Labels = {
@@ -28,7 +28,9 @@ export function PatternLibraryCard({
       </div>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="min-w-0 text-lg font-semibold leading-tight sm:truncate">{pattern.title}</h2>
+          <h2 className="min-w-0 text-lg font-semibold leading-tight sm:truncate">
+            {pattern.title}
+          </h2>
           <span
             className={
               pattern.active
@@ -54,10 +56,13 @@ export function PatternLibraryCard({
           method="post"
           className="sm:justify-self-end"
         >
-          <Button type="submit" className="min-h-10 w-full gap-2 px-3 text-sm shadow-[0_10px_24px_rgba(150,73,50,0.14)] sm:w-auto">
+          <PendingSubmitButton
+            pendingLabel={`${labels.download}...`}
+            className="min-h-10 w-full gap-2 px-3 text-sm shadow-[0_10px_24px_rgba(150,73,50,0.14)] sm:w-auto"
+          >
             <Download aria-hidden="true" className="size-4" />
             {labels.download}
-          </Button>
+          </PendingSubmitButton>
         </form>
       ) : (
         <p className="inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-control)] bg-[var(--destructive-surface)] px-3 text-sm font-semibold text-[var(--destructive)] sm:justify-self-end">

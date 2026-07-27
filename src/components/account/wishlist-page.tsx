@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import {useEffect, useRef, useState, useTransition} from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { ArrowRight, Heart } from 'lucide-react';
 import { formatMoney } from '@/catalog/money';
 import type { MarketCode } from '@/catalog/market';
@@ -14,7 +14,7 @@ import {
   type WishlistRefreshResult
 } from '@/account/wishlist-actions';
 import { useCart } from '@/components/cart/cart-provider';
-import {useStorefrontContext} from '@/components/storefront-context';
+import { useStorefrontContext } from '@/components/storefront-context';
 import { useSetWishlistSelected } from '@/components/wishlist-context';
 import { Button } from '@/components/ui/button';
 import type { Locale } from '@/i18n/routing';
@@ -33,6 +33,7 @@ type WishlistLabels = {
   actions: {
     viewProduct: string;
     addToCart: string;
+    addingToCart: string;
     remove: string;
     removing: string;
   };
@@ -84,7 +85,7 @@ export function createWishlistProjectionState(
 export function beginWishlistRefresh(
   state: WishlistProjectionState,
   identity: WishlistProjectionIdentity
-): {state: WishlistProjectionState; request: WishlistRefreshRequest} {
+): { state: WishlistProjectionState; request: WishlistRefreshRequest } {
   const requestId = state.nextRequestId + 1;
   return {
     state: {
@@ -94,14 +95,11 @@ export function beginWishlistRefresh(
       activeRequestId: requestId,
       target: identity
     },
-    request: {...identity, requestId}
+    request: { ...identity, requestId }
   };
 }
 
-function matchesWishlistRequest(
-  state: WishlistProjectionState,
-  request: WishlistRefreshRequest
-) {
+function matchesWishlistRequest(state: WishlistProjectionState, request: WishlistRefreshRequest) {
   return (
     state.activeRequestId === request.requestId &&
     state.target?.market === request.market &&
@@ -112,7 +110,7 @@ function matchesWishlistRequest(
 export function settleWishlistRefresh(
   state: WishlistProjectionState,
   request: WishlistRefreshRequest,
-  result: Extract<WishlistRefreshResult, {status: 'success'}>
+  result: Extract<WishlistRefreshResult, { status: 'success' }>
 ): WishlistProjectionState {
   if (!matchesWishlistRequest(state, request) || result.market !== request.market) {
     return state;
@@ -202,9 +200,7 @@ export function WishlistPage({
   market: MarketCode;
   labels: WishlistLabels;
 }) {
-  const [projection, setProjection] = useState(() =>
-    createWishlistProjectionState(items, market)
-  );
+  const [projection, setProjection] = useState(() => createWishlistProjectionState(items, market));
   const projectionRef = useRef(projection);
   const refreshController = useRef<AbortController | null>(null);
   const [retryVersion, setRetryVersion] = useState(0);
@@ -213,6 +209,7 @@ export function WishlistPage({
   const [removing, startRemoving] = useTransition();
   const empty = emptyCopy[locale];
   const { addLine } = useCart();
+  const [quickAddingProductId, setQuickAddingProductId] = useState<string | null>(null);
   const context = useStorefrontContext();
   const setWishlistSelected = useSetWishlistSelected();
 
@@ -248,7 +245,7 @@ export function WishlistPage({
     const controller = new AbortController();
     refreshController.current = controller;
 
-    void refreshCustomerWishlistAction({locale})
+    void refreshCustomerWishlistAction({ locale })
       .then((result) => {
         if (controller.signal.aborted) {
           return;
@@ -284,13 +281,7 @@ export function WishlistPage({
       });
 
     return () => controller.abort();
-  }, [
-    context.contextVersion,
-    context.market,
-    context.status,
-    locale,
-    retryVersion
-  ]);
+  }, [context.contextVersion, context.market, context.status, locale, retryVersion]);
 
   const commerceAgrees =
     context.status === 'ready' &&
@@ -332,16 +323,23 @@ export function WishlistPage({
     setRetryVersion((version) => version + 1);
   }
 
-  function quickAdd(item: CustomerWishlistItem) {
-    if (agreedMarket === null) {
+  async function quickAdd(item: CustomerWishlistItem) {
+    if (agreedMarket === null || quickAddingProductId !== null) {
       return;
     }
-    void addLine({
-      productId: item.productId,
-      variantId: null,
-      quantity: 1,
-      marketAtAdd: agreedMarket
-    });
+    setQuickAddingProductId(item.productId);
+    try {
+      await addLine({
+        productId: item.productId,
+        variantId: null,
+        quantity: 1,
+        marketAtAdd: agreedMarket
+      });
+    } catch {
+      setRemoveStatus('error');
+    } finally {
+      setQuickAddingProductId(null);
+    }
   }
 
   return (
@@ -510,11 +508,14 @@ export function WishlistPage({
                           <ArrowRight className="h-4 w-4" aria-hidden="true" />
                         </Link>
                         <Button
-                          disabled={!canQuickAdd}
-                          onClick={() => quickAdd(item)}
+                          disabled={!canQuickAdd || quickAddingProductId !== null}
+                          aria-busy={quickAddingProductId === item.productId}
+                          onClick={() => void quickAdd(item)}
                           className="text-base"
                         >
-                          {labels.actions.addToCart}
+                          {quickAddingProductId === item.productId
+                            ? labels.actions.addingToCart
+                            : labels.actions.addToCart}
                         </Button>
                         <form action={(formData) => removeItem(formData, item.productId)}>
                           <input type="hidden" name="locale" value={locale} />

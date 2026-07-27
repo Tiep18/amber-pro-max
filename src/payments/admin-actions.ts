@@ -1,12 +1,16 @@
 'use server';
 
-import {revalidatePath} from 'next/cache';
+import { revalidatePath } from 'next/cache';
 
-import {requireAdmin} from '@/auth/guards';
-import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
-import {runMonitoredAction} from '@/operations/monitoring';
-import {createAdminOrderQueryClient, getAdminOrderDetail, type AdminOrderDetail} from '@/payments/queries';
-import {applyPaymentTransition} from '@/payments/transitions';
+import { requireAdmin } from '@/auth/guards';
+import { triggerTransactionalEmailOutboxNow } from '@/fulfillment/email-outbox.server';
+import { runMonitoredAction } from '@/operations/monitoring';
+import {
+  createAdminOrderQueryClient,
+  getAdminOrderDetail,
+  type AdminOrderDetail
+} from '@/payments/queries';
+import { applyPaymentTransition } from '@/payments/transitions';
 import {
   buildVietQrConfirmTransition,
   buildVietQrRejectTransition,
@@ -18,12 +22,12 @@ import {
 } from '@/payments/vietqr/evidence';
 
 export type VietQrAdminActionResult =
-  | {status: 'confirmed'; paymentStatus: string}
-  | {status: 'rejected'; paymentStatus: string}
-  | {status: 'duplicate'; paymentStatus?: string}
-  | {status: 'stale'; code: string}
-  | {status: 'invalid'; code: string}
-  | {status: 'error'; code: 'vietqr_action_failed'};
+  | { status: 'confirmed'; paymentStatus: string }
+  | { status: 'rejected'; paymentStatus: string }
+  | { status: 'duplicate'; paymentStatus?: string }
+  | { status: 'stale'; code: string }
+  | { status: 'invalid'; code: string }
+  | { status: 'error'; code: 'vietqr_action_failed' };
 
 function getFormString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -50,28 +54,28 @@ function expectedFromOrder(order: AdminOrderDetail): VietQrExpectedPayment | nul
 
 function mapConfirmResult(status: string, paymentStatus?: string): VietQrAdminActionResult {
   if (status === 'applied') {
-    return {status: 'confirmed', paymentStatus: paymentStatus ?? 'paid'};
+    return { status: 'confirmed', paymentStatus: paymentStatus ?? 'paid' };
   }
   if (status === 'duplicate') {
-    return {status: 'duplicate', paymentStatus};
+    return { status: 'duplicate', paymentStatus };
   }
   if (status === 'stale') {
-    return {status: 'stale', code: 'vietqr_transition_stale'};
+    return { status: 'stale', code: 'vietqr_transition_stale' };
   }
-  return {status: 'error', code: 'vietqr_action_failed'};
+  return { status: 'error', code: 'vietqr_action_failed' };
 }
 
 function mapRejectResult(status: string, paymentStatus?: string): VietQrAdminActionResult {
   if (status === 'applied') {
-    return {status: 'rejected', paymentStatus: paymentStatus ?? 'rejected'};
+    return { status: 'rejected', paymentStatus: paymentStatus ?? 'rejected' };
   }
   if (status === 'duplicate') {
-    return {status: 'duplicate', paymentStatus};
+    return { status: 'duplicate', paymentStatus };
   }
   if (status === 'stale') {
-    return {status: 'stale', code: 'vietqr_transition_stale'};
+    return { status: 'stale', code: 'vietqr_transition_stale' };
   }
-  return {status: 'error', code: 'vietqr_action_failed'};
+  return { status: 'error', code: 'vietqr_action_failed' };
 }
 
 async function recordVietQrAdminFailure(input: {
@@ -88,7 +92,7 @@ async function recordVietQrAdminFailure(input: {
     severity: input.severity ?? 'error',
     errorCode: input.code,
     summary: input.summary,
-    errorResult: {status: 'error', code: input.code},
+    errorResult: { status: 'error', code: input.code },
     shouldRecordResult: () => true,
     facts: {
       provider: 'vietqr',
@@ -99,7 +103,7 @@ async function recordVietQrAdminFailure(input: {
       amountValue: input.expected?.amountMinor ?? null,
       currency: input.expected?.currencyCode ?? null
     },
-    operation: async () => ({status: 'error', code: input.code})
+    operation: async () => ({ status: 'error', code: input.code })
   });
 }
 
@@ -111,21 +115,27 @@ async function loadExpectedPayment(orderId: string, admin: unknown) {
     requireAdmin: async () => admin
   });
   if (detail.status !== 'success') {
-    return {status: detail.status, client, expected: null as VietQrExpectedPayment | null};
+    return { status: detail.status, client, expected: null as VietQrExpectedPayment | null };
   }
 
   const expected = expectedFromOrder(detail.order);
-  if (!expected || !detail.order.vietQrEvidence?.actionAvailable || !isVietQrPaymentActionAvailable(expected)) {
-    return {status: 'stale', client, expected};
+  if (
+    !expected ||
+    !detail.order.vietQrEvidence?.actionAvailable ||
+    !isVietQrPaymentActionAvailable(expected)
+  ) {
+    return { status: 'stale', client, expected };
   }
 
-  return {status: 'success', client, expected};
+  return { status: 'success', client, expected };
 }
 
-export async function confirmVietQrPaymentAction(formData: FormData): Promise<VietQrAdminActionResult> {
+export async function confirmVietQrPaymentAction(
+  formData: FormData
+): Promise<VietQrAdminActionResult> {
   const admin = await requireAdmin();
   const parsed = vietQrEvidenceSchema
-    .extend({orderId: vietQrEvidenceSchema.shape.idempotencyKey.min(1).max(80)})
+    .extend({ orderId: vietQrEvidenceSchema.shape.idempotencyKey.min(1).max(80) })
     .safeParse({
       orderId: getFormString(formData, 'orderId'),
       bankReference: getFormString(formData, 'bankReference'),
@@ -143,7 +153,7 @@ export async function confirmVietQrPaymentAction(formData: FormData): Promise<Vi
       summary: 'VietQR admin confirmation evidence validation failed',
       orderId: getFormString(formData, 'orderId')
     });
-    return {status: 'invalid', code: 'invalid_vietqr_evidence'};
+    return { status: 'invalid', code: 'invalid_vietqr_evidence' };
   }
 
   const loaded = await loadExpectedPayment(parsed.data.orderId, admin);
@@ -156,7 +166,10 @@ export async function confirmVietQrPaymentAction(formData: FormData): Promise<Vi
       expected: loaded.expected,
       orderId: parsed.data.orderId
     });
-    return {status: loaded.status === 'stale' ? 'stale' : 'invalid', code: 'vietqr_action_not_available'};
+    return {
+      status: loaded.status === 'stale' ? 'stale' : 'invalid',
+      code: 'vietqr_action_not_available'
+    };
   }
 
   const comparison = compareVietQrEvidence(loaded.expected, parsed.data);
@@ -168,17 +181,24 @@ export async function confirmVietQrPaymentAction(formData: FormData): Promise<Vi
       summary: 'VietQR admin confirmation evidence rejected',
       expected: loaded.expected
     });
-    return {status: 'invalid', code: comparison.code};
+    return { status: 'invalid', code: comparison.code };
   }
 
   const transition = await applyPaymentTransition(
-    buildVietQrConfirmTransition({expected: loaded.expected, evidence: parsed.data}),
+    buildVietQrConfirmTransition({ expected: loaded.expected, evidence: parsed.data }),
     loaded.client
   );
-  if ((transition.status === 'applied' || transition.status === 'duplicate') && transition.paymentStatus === 'paid') {
-    await triggerTransactionalEmailOutboxNow({reason: 'vietqr_admin_paid'});
+  if (
+    (transition.status === 'applied' || transition.status === 'duplicate') &&
+    transition.paymentStatus === 'paid'
+  ) {
+    await triggerTransactionalEmailOutboxNow({ reason: 'vietqr_admin_paid' });
   }
-  if (transition.status !== 'applied' && transition.status !== 'duplicate' && transition.status !== 'stale') {
+  if (
+    transition.status !== 'applied' &&
+    transition.status !== 'duplicate' &&
+    transition.status !== 'stale'
+  ) {
     await recordVietQrAdminFailure({
       action: 'confirm',
       severity: 'error',
@@ -188,13 +208,16 @@ export async function confirmVietQrPaymentAction(formData: FormData): Promise<Vi
     });
   }
   revalidatePath('/admin/orders');
+  revalidatePath(`/admin/orders/${encodeURIComponent(loaded.expected.orderNumber)}`);
   return mapConfirmResult(transition.status, transition.paymentStatus);
 }
 
-export async function rejectVietQrPaymentAction(formData: FormData): Promise<VietQrAdminActionResult> {
+export async function rejectVietQrPaymentAction(
+  formData: FormData
+): Promise<VietQrAdminActionResult> {
   const admin = await requireAdmin();
   const parsed = vietQrRejectionSchema
-    .extend({orderId: vietQrEvidenceSchema.shape.idempotencyKey.min(1).max(80)})
+    .extend({ orderId: vietQrEvidenceSchema.shape.idempotencyKey.min(1).max(80) })
     .safeParse({
       orderId: getFormString(formData, 'orderId'),
       reason: getFormString(formData, 'reason'),
@@ -209,7 +232,7 @@ export async function rejectVietQrPaymentAction(formData: FormData): Promise<Vie
       summary: 'VietQR admin rejection validation failed',
       orderId: getFormString(formData, 'orderId')
     });
-    return {status: 'invalid', code: 'invalid_vietqr_rejection'};
+    return { status: 'invalid', code: 'invalid_vietqr_rejection' };
   }
 
   const loaded = await loadExpectedPayment(parsed.data.orderId, admin);
@@ -222,14 +245,21 @@ export async function rejectVietQrPaymentAction(formData: FormData): Promise<Vie
       expected: loaded.expected,
       orderId: parsed.data.orderId
     });
-    return {status: loaded.status === 'stale' ? 'stale' : 'invalid', code: 'vietqr_action_not_available'};
+    return {
+      status: loaded.status === 'stale' ? 'stale' : 'invalid',
+      code: 'vietqr_action_not_available'
+    };
   }
 
   const transition = await applyPaymentTransition(
-    buildVietQrRejectTransition({expected: loaded.expected, rejection: parsed.data}),
+    buildVietQrRejectTransition({ expected: loaded.expected, rejection: parsed.data }),
     loaded.client
   );
-  if (transition.status !== 'applied' && transition.status !== 'duplicate' && transition.status !== 'stale') {
+  if (
+    transition.status !== 'applied' &&
+    transition.status !== 'duplicate' &&
+    transition.status !== 'stale'
+  ) {
     await recordVietQrAdminFailure({
       action: 'reject',
       severity: 'error',
@@ -239,5 +269,6 @@ export async function rejectVietQrPaymentAction(formData: FormData): Promise<Vie
     });
   }
   revalidatePath('/admin/orders');
+  revalidatePath(`/admin/orders/${encodeURIComponent(loaded.expected.orderNumber)}`);
   return mapRejectResult(transition.status, transition.paymentStatus);
 }

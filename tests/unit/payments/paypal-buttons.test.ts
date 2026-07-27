@@ -1,5 +1,5 @@
-import {readFileSync} from 'node:fs';
-import {describe, expect, test} from 'vitest';
+import { readFileSync } from 'node:fs';
+import { describe, expect, test } from 'vitest';
 
 const sourcePath = 'src/components/payments/paypal-buttons.tsx';
 
@@ -12,7 +12,11 @@ describe('PayPal customer button boundary', () => {
     expect(source).toContain('aria-busy');
     expect(source).toContain('PAYPAL_RECHECK_COOLDOWN_MS');
     expect(source).toContain('PAYPAL_POLLING_WINDOW_MS');
-    expect(source).not.toMatch(/PAYPAL_CLIENT_SECRET|PAYPAL_WEBHOOK_ID|PAYPAL_EXPECTED_MERCHANT_ID/);
+    expect(source).toContain('useTransition');
+    expect(source).not.toContain('setPending(false), 250');
+    expect(source).not.toMatch(
+      /PAYPAL_CLIENT_SECRET|PAYPAL_WEBHOOK_ID|PAYPAL_EXPECTED_MERCHANT_ID/
+    );
     expect(source).not.toContain('localStorage');
   });
 });

@@ -470,6 +470,7 @@
     "actions": {
       "viewProduct": "View product",
       "addToCart": "Add to cart",
+      "addingToCart": "Adding...",
       "remove": "Remove",
       "removing": "Removing"
     },

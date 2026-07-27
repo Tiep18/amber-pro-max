@@ -38,11 +38,13 @@ async function reissueAction(_: EntitlementState, formData: FormData): Promise<E
 
 export function EntitlementActionControl({
   orderId,
+  orderNumber,
   entitlementId,
   expectedVersion,
   active
 }: {
   orderId: string;
+  orderNumber: string;
   entitlementId: string;
   expectedVersion: number;
   active: boolean;
@@ -56,6 +58,7 @@ export function EntitlementActionControl({
       className="grid gap-2 rounded-[var(--radius-card)] border border-[var(--border)] p-3"
     >
       <input type="hidden" name="orderId" value={orderId} />
+      <input type="hidden" name="orderNumber" value={orderNumber} />
       <input type="hidden" name="entitlementId" value={entitlementId} />
       <input type="hidden" name="expectedVersion" value={expectedVersion} />
       {active ? (

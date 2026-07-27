@@ -445,68 +445,72 @@ export function CheckoutPage({
 
     setSubmitting(true);
     setSubmitResult(null);
-    const refreshedLifecycle = await requestQuote(
-      lifecycleRef.current.destination,
-      undefined,
-      acceptedQuote,
-      'submit'
-    );
-    const refreshedQuote = refreshedLifecycle.acceptedQuote;
-    const refreshedPaymentIntent = checkoutPaymentIntentForQuote(refreshedQuote);
-    if (
-      !refreshedQuote ||
-      refreshedLifecycle.activeRequestId !== null ||
-      refreshedLifecycle.proposal ||
-      refreshedLifecycle.issue ||
-      !refreshedPaymentIntent
-    ) {
-      setSubmitting(false);
-      return;
-    }
-
-    const submitInput = {
-      locale,
-      market: refreshedQuote.market,
-      lines: quoteIntentLines(refreshedQuote),
-      acceptedQuote: refreshedQuote,
-      acceptedQuoteHash: refreshedQuote.hash,
-      idempotencyKey: idempotencyKeyForQuote(refreshedQuote.hash),
-      contactEmail: email.trim(),
-      paymentIntent: refreshedPaymentIntent,
-      destinationCountryCode:
-        refreshedQuote.shipping.status === 'ready' ||
-        refreshedQuote.shipping.status === 'unsupported_destination'
-          ? refreshedQuote.shipping.countryCode
-          : null,
-      shippingAddress: physicalCount > 0 ? shippingAddress : null,
-      discountCode: activeDiscountCode(refreshedQuote)
-    };
-    const prepared = await prepareGuestCheckoutRecoveryAction({
-      acceptedQuote: refreshedQuote,
-      acceptedQuoteHash: submitInput.acceptedQuoteHash,
-      contactEmail: submitInput.contactEmail,
-      paymentIntent: submitInput.paymentIntent
-    });
-    const result =
-      prepared.status === 'ready'
-        ? await submitCheckoutAction(submitInput)
-        : ({ status: 'invalid', code: prepared.code } as const);
-    setSubmitResult(result);
-    setSubmitting(false);
-    if (result.status === 'success') {
-      completeOrder(
-        refreshedQuote.lines
-          .filter(
-            (line) =>
-              (line.status === 'ready' || line.status === 'quantity_capped') && line.quantity > 0
-          )
-          .map((line) => ({
-            productId: line.productId,
-            variantId: line.variantId,
-            quantity: line.quantity
-          }))
+    try {
+      const refreshedLifecycle = await requestQuote(
+        lifecycleRef.current.destination,
+        undefined,
+        acceptedQuote,
+        'submit'
       );
-      window.location.assign(result.orderPath);
+      const refreshedQuote = refreshedLifecycle.acceptedQuote;
+      const refreshedPaymentIntent = checkoutPaymentIntentForQuote(refreshedQuote);
+      if (
+        !refreshedQuote ||
+        refreshedLifecycle.activeRequestId !== null ||
+        refreshedLifecycle.proposal ||
+        refreshedLifecycle.issue ||
+        !refreshedPaymentIntent
+      ) {
+        return;
+      }
+
+      const submitInput = {
+        locale,
+        market: refreshedQuote.market,
+        lines: quoteIntentLines(refreshedQuote),
+        acceptedQuote: refreshedQuote,
+        acceptedQuoteHash: refreshedQuote.hash,
+        idempotencyKey: idempotencyKeyForQuote(refreshedQuote.hash),
+        contactEmail: email.trim(),
+        paymentIntent: refreshedPaymentIntent,
+        destinationCountryCode:
+          refreshedQuote.shipping.status === 'ready' ||
+          refreshedQuote.shipping.status === 'unsupported_destination'
+            ? refreshedQuote.shipping.countryCode
+            : null,
+        shippingAddress: physicalCount > 0 ? shippingAddress : null,
+        discountCode: activeDiscountCode(refreshedQuote)
+      };
+      const prepared = await prepareGuestCheckoutRecoveryAction({
+        acceptedQuote: refreshedQuote,
+        acceptedQuoteHash: submitInput.acceptedQuoteHash,
+        contactEmail: submitInput.contactEmail,
+        paymentIntent: submitInput.paymentIntent
+      });
+      const result =
+        prepared.status === 'ready'
+          ? await submitCheckoutAction(submitInput)
+          : ({ status: 'invalid', code: prepared.code } as const);
+      setSubmitResult(result);
+      if (result.status === 'success') {
+        completeOrder(
+          refreshedQuote.lines
+            .filter(
+              (line) =>
+                (line.status === 'ready' || line.status === 'quantity_capped') && line.quantity > 0
+            )
+            .map((line) => ({
+              productId: line.productId,
+              variantId: line.variantId,
+              quantity: line.quantity
+            }))
+        );
+        window.location.assign(result.orderPath);
+      }
+    } catch {
+      setSubmitResult({ status: 'error', code: 'checkout_submit_failed' });
+    } finally {
+      setSubmitting(false);
     }
   }
 

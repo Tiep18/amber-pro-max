@@ -18,9 +18,11 @@ function actionCopy(status: string) {
 
 export function EntitlementActions({
   orderId,
+  orderNumber,
   entitlements
 }: {
   orderId: string;
+  orderNumber: string;
   entitlements: AdminDigitalEntitlementItem[];
 }) {
   return (
@@ -88,6 +90,7 @@ export function EntitlementActions({
                   <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                     <EntitlementActionControl
                       orderId={orderId}
+                      orderNumber={orderNumber}
                       entitlementId={entitlement.id}
                       expectedVersion={entitlement.version}
                       active={entitlement.status === 'active'}

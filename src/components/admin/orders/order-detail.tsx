@@ -116,7 +116,11 @@ export function OrderDetail({ order }: { order: AdminOrderDetail }) {
       ) : null}
       <ProviderEvidencePanel order={order} />
       <PhysicalFulfillmentForm order={order} />
-      <EntitlementActions orderId={order.orderId} entitlements={order.digitalEntitlements} />
+      <EntitlementActions
+        orderId={order.orderId}
+        orderNumber={order.orderNumber}
+        entitlements={order.digitalEntitlements}
+      />
       <EntitlementAuditList items={order.entitlementAudit} />
       <FailedEmailQueue emails={order.failedEmails} />
       <VietQrEvidenceForm order={order} />

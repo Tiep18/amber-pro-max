@@ -10,15 +10,16 @@ export const dynamic = 'force-dynamic';
 export async function renderAccountOrdersPage({ params }: { params: Promise<{ locale: Locale }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const user = await requireUser({ locale, next: getAccountOrdersPath(locale) });
-  const t = await getTranslations({ locale, namespace: 'accountPurchases.orders' });
-  const client = await createSupabaseServerClient();
-  const claims = await client.auth.getClaims();
+  const [user, t, client] = await Promise.all([
+    requireUser({ locale, next: getAccountOrdersPath(locale) }),
+    getTranslations({ locale, namespace: 'accountPurchases.orders' }),
+    createSupabaseServerClient()
+  ]);
   const result = await getCustomerOrderHistory({
     userId: user.id,
     client: client as never,
-    authRole: typeof claims.data?.claims?.role === 'string' ? claims.data.claims.role : null,
-    authState: claims.error || !claims.data?.claims?.sub ? 'claims_missing_after_require_user' : 'claims_present'
+    authRole: user.authRole,
+    authState: 'claims_present'
   });
 
   return result.status === 'success' ? (

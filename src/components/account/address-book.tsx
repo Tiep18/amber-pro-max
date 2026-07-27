@@ -1,17 +1,18 @@
 'use client';
 
-import {useActionState, useState} from 'react';
-import {CheckCircle2, Home, MapPin, Pencil, Plus, Star, Trash2} from 'lucide-react';
+import { useActionState, useState } from 'react';
+import { CheckCircle2, Home, MapPin, Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import {
   deleteCustomerShippingAddressAction,
   setDefaultCustomerShippingAddressAction,
   type AddressActionState
 } from '@/account/address-actions';
-import type {CustomerShippingAddress} from '@/account/addresses';
-import {AddressForm, type AddressFormLabels} from '@/components/account/address-form';
-import {AccountEmptyState} from '@/components/account/account-empty-state';
-import {Button} from '@/components/ui/button';
-import type {Locale} from '@/i18n/routing';
+import type { CustomerShippingAddress } from '@/account/addresses';
+import { AddressForm, type AddressFormLabels } from '@/components/account/address-form';
+import { AccountEmptyState } from '@/components/account/account-empty-state';
+import { Button } from '@/components/ui/button';
+import { PendingSubmitButton } from '@/components/ui/pending-submit-button';
+import type { Locale } from '@/i18n/routing';
 
 type AddressBookLabels = AddressFormLabels & {
   title: string;
@@ -70,7 +71,7 @@ export function AddressBook({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showNewForm, setShowNewForm] = useState(addresses.length === 0);
   const [savedNotice, setSavedNotice] = useState(false);
-  const [deleteState, deleteAction, deleting] = useActionState(
+  const [deleteState, deleteAction] = useActionState(
     deleteCustomerShippingAddressAction,
     initialState
   );
@@ -124,19 +125,28 @@ export function AddressBook({
 
       <div className="grid gap-4">
         {savedNotice ? (
-          <p role="status" className="inline-flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--success-surface)] px-3 py-2 text-sm font-semibold text-[var(--success)]">
+          <p
+            role="status"
+            className="inline-flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--success-surface)] px-3 py-2 text-sm font-semibold text-[var(--success)]"
+          >
             <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
             {labels.saved}
           </p>
         ) : null}
         {deleteState.status === 'deleted' ? (
-          <p role="status" className="inline-flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--success-surface)] px-3 py-2 text-sm font-semibold text-[var(--success)]">
+          <p
+            role="status"
+            className="inline-flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--success-surface)] px-3 py-2 text-sm font-semibold text-[var(--success)]"
+          >
             <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
             {labels.deleted}
           </p>
         ) : null}
         {defaultState.status === 'default_set' ? (
-          <p role="status" className="inline-flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--success-surface)] px-3 py-2 text-sm font-semibold text-[var(--success)]">
+          <p
+            role="status"
+            className="inline-flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--success-surface)] px-3 py-2 text-sm font-semibold text-[var(--success)]"
+          >
             <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
             {labels.defaultSet}
           </p>
@@ -157,7 +167,11 @@ export function AddressBook({
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-base font-semibold">{labels.newAddress}</h2>
               {hasAddresses ? (
-                <Button variant="ghost" onClick={() => setShowNewForm(false)} className="min-h-9 px-3 text-sm">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowNewForm(false)}
+                  className="min-h-9 px-3 text-sm"
+                >
                   {labels.cancel}
                 </Button>
               ) : null}
@@ -193,7 +207,11 @@ export function AddressBook({
                   <div className="min-w-0 space-y-2">
                     <div className="flex flex-wrap items-center gap-2.5">
                       <span className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-control)] bg-[var(--surface-muted)] text-[var(--accent)]">
-                        {address.isDefault ? <Star className="h-4 w-4" aria-hidden="true" /> : <Home className="h-4 w-4" aria-hidden="true" />}
+                        {address.isDefault ? (
+                          <Star className="h-4 w-4" aria-hidden="true" />
+                        ) : (
+                          <Home className="h-4 w-4" aria-hidden="true" />
+                        )}
                       </span>
                       <h2 className="text-base font-semibold leading-tight">{address.label}</h2>
                       {address.isDefault ? (
@@ -228,7 +246,12 @@ export function AddressBook({
                       <form action={defaultAction}>
                         <input type="hidden" name="locale" value={locale} />
                         <input type="hidden" name="addressId" value={address.id} />
-                        <Button type="submit" variant="ghost" disabled={settingDefault} className="min-h-10 gap-2 px-3 text-sm">
+                        <Button
+                          type="submit"
+                          variant="ghost"
+                          disabled={settingDefault}
+                          className="min-h-10 gap-2 px-3 text-sm"
+                        >
                           <Star className="h-4 w-4" aria-hidden="true" />
                           {settingDefault ? labels.settingDefault : labels.setDefault}
                         </Button>
@@ -242,15 +265,14 @@ export function AddressBook({
                     >
                       <input type="hidden" name="locale" value={locale} />
                       <input type="hidden" name="addressId" value={address.id} />
-                      <Button
-                        type="submit"
+                      <PendingSubmitButton
+                        pendingLabel={labels.deleting}
                         variant="ghost"
-                        disabled={deleting}
                         className="min-h-10 gap-2 px-3 text-sm text-[var(--destructive)] hover:bg-[var(--surface-muted)]"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        {deleting ? labels.deleting : labels.delete}
-                      </Button>
+                        {labels.delete}
+                      </PendingSubmitButton>
                     </form>
                   </div>
                 </div>

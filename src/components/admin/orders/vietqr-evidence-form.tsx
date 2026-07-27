@@ -88,6 +88,7 @@ export function VietQrEvidenceForm({ order }: { order: AdminOrderDetail }) {
   const [rejectState, rejectFormAction, rejectPending] = useActionState(rejectAction, initialState);
   const [receivedAt, setReceivedAt] = useState('');
   const evidence = order.vietQrEvidence;
+  const decisionPending = confirmPending || rejectPending;
 
   if (!evidence) {
     return null;
@@ -96,6 +97,7 @@ export function VietQrEvidenceForm({ order }: { order: AdminOrderDetail }) {
   return (
     <section
       aria-labelledby="vietqr-decision-heading"
+      aria-busy={decisionPending}
       className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4"
     >
       <h2 id="vietqr-decision-heading" className="text-xl font-semibold">
@@ -132,6 +134,7 @@ export function VietQrEvidenceForm({ order }: { order: AdminOrderDetail }) {
             <input
               name="bankReference"
               required
+              disabled={decisionPending}
               defaultValue={evidence.transferReference}
               className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] px-3"
             />
@@ -141,6 +144,7 @@ export function VietQrEvidenceForm({ order }: { order: AdminOrderDetail }) {
             <input
               name="receivedAmountMinor"
               required
+              disabled={decisionPending}
               inputMode="numeric"
               defaultValue={String(evidence.expectedAmountMinor)}
               className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] px-3"
@@ -153,6 +157,7 @@ export function VietQrEvidenceForm({ order }: { order: AdminOrderDetail }) {
               value={receivedAt}
               onChange={setReceivedAt}
               required
+              disabled={decisionPending}
               submissionFormat="iso"
               aria-label="Received at"
               placeholder="Choose received date and time"
@@ -162,6 +167,7 @@ export function VietQrEvidenceForm({ order }: { order: AdminOrderDetail }) {
             Private receipt path
             <input
               name="privateReceiptPath"
+              disabled={decisionPending}
               placeholder="private/vietqr/receipt.jpg"
               className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] px-3"
             />
@@ -170,13 +176,14 @@ export function VietQrEvidenceForm({ order }: { order: AdminOrderDetail }) {
             Admin note
             <textarea
               name="adminNote"
+              disabled={decisionPending}
               className="min-h-24 rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2"
             />
           </label>
           <Button
             type="submit"
-            disabled={!evidence.actionAvailable || !receivedAt || confirmPending}
-            aria-disabled={!evidence.actionAvailable || !receivedAt || confirmPending}
+            disabled={!evidence.actionAvailable || !receivedAt || decisionPending}
+            aria-disabled={!evidence.actionAvailable || !receivedAt || decisionPending}
           >
             {confirmPending ? 'Confirming payment' : 'Confirm payment'}
           </Button>
@@ -198,6 +205,7 @@ export function VietQrEvidenceForm({ order }: { order: AdminOrderDetail }) {
             <input
               name="reason"
               required
+              disabled={decisionPending}
               placeholder="amount_mismatch"
               className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] px-3"
             />
@@ -207,12 +215,14 @@ export function VietQrEvidenceForm({ order }: { order: AdminOrderDetail }) {
             <textarea
               name="note"
               required
+              disabled={decisionPending}
               className="min-h-24 rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2"
             />
           </label>
           <label className="flex min-h-11 items-start gap-2 text-sm font-semibold">
-            <input type="checkbox" required className="mt-1 h-5 w-5" />I understand this rejects the
-            payment evidence, releases held inventory, and the same order cannot be retried.
+            <input type="checkbox" required disabled={decisionPending} className="mt-1 h-5 w-5" />I
+            understand this rejects the payment evidence, releases held inventory, and the same
+            order cannot be retried.
           </label>
           <p className="text-sm text-[var(--muted-foreground)]">
             Rejecting releases reserved inventory and this same order cannot be retried.
@@ -220,8 +230,8 @@ export function VietQrEvidenceForm({ order }: { order: AdminOrderDetail }) {
           <Button
             type="submit"
             variant="destructive"
-            disabled={!evidence.actionAvailable || rejectPending}
-            aria-disabled={!evidence.actionAvailable || rejectPending}
+            disabled={!evidence.actionAvailable || decisionPending}
+            aria-disabled={!evidence.actionAvailable || decisionPending}
           >
             {rejectPending ? 'Rejecting payment' : 'Reject payment'}
           </Button>

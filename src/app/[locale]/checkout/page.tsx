@@ -1,21 +1,24 @@
-import type {Locale} from '@/i18n/routing';
-import {getCustomerShippingAddresses} from '@/account/addresses';
-import {CheckoutPage} from '@/components/checkout/checkout-page';
-import {getPublishedRequiredPolicyLinks} from '@/launch/settings';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
+import type { Locale } from '@/i18n/routing';
+import { getCustomerShippingAddresses } from '@/account/addresses';
+import { CheckoutPage } from '@/components/checkout/checkout-page';
+import { getPublishedRequiredPolicyLinks } from '@/launch/settings';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
-type Params = Promise<{locale: Locale}>;
+type Params = Promise<{ locale: Locale }>;
 
-export default async function CheckoutRoute({params}: {params: Params}) {
-  const {locale} = await params;
+export default async function CheckoutRoute({ params }: { params: Params }) {
+  const { locale } = await params;
+  const policyLinksPromise = getPublishedRequiredPolicyLinks(locale);
   const client = await createSupabaseServerClient();
   const {
-    data: {user}
+    data: { user }
   } = await client.auth.getUser();
-  const savedAddresses = user
-    ? await getCustomerShippingAddresses({userId: user.id, client: client as never})
-    : null;
-  const policyLinks = await getPublishedRequiredPolicyLinks(locale);
+  const [savedAddresses, policyLinks] = await Promise.all([
+    user
+      ? getCustomerShippingAddresses({ userId: user.id, client: client as never })
+      : Promise.resolve(null),
+    policyLinksPromise
+  ]);
 
   return (
     <CheckoutPage

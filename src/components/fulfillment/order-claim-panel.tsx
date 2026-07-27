@@ -1,7 +1,14 @@
-import {CheckCircle2, Link2, LockKeyhole, MailCheck} from 'lucide-react';
-import {claimGuestOrderAction} from '@/fulfillment/order-claim';
-import type {Locale} from '@/i18n/routing';
-import {Button} from '@/components/ui/button';
+'use client';
+
+import { useActionState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { CheckCircle2, Link2, LockKeyhole, MailCheck } from 'lucide-react';
+import {
+  claimGuestOrderFromPanelAction,
+  type ClaimGuestOrderPanelState
+} from '@/fulfillment/order-claim-actions';
+import { getOrderPath, type Locale } from '@/i18n/routing';
+import { PendingSubmitButton } from '@/components/ui/pending-submit-button';
 
 export type OrderClaimLabels = {
   title: string;
@@ -20,7 +27,11 @@ const copy = {
   vi: {
     eyebrow: 'Nhan don khach',
     cardTitle: 'Truoc khi gan don',
-    checks: ['Ban da dang nhap', 'Email tai khoan khop email thanh toan', 'Lien ket nay chua het han']
+    checks: [
+      'Ban da dang nhap',
+      'Email tai khoan khop email thanh toan',
+      'Lien ket nay chua het han'
+    ]
   }
 } as const;
 
@@ -36,6 +47,17 @@ export function OrderClaimPanel({
   labels: OrderClaimLabels;
 }) {
   const t = copy[locale];
+  const router = useRouter();
+  const [claimState, claimAction] = useActionState<ClaimGuestOrderPanelState, FormData>(
+    claimGuestOrderFromPanelAction,
+    null
+  );
+
+  useEffect(() => {
+    if (claimState?.status === 'claimed') {
+      router.replace(getOrderPath(locale, orderNumber));
+    }
+  }, [claimState, locale, orderNumber, router]);
 
   return (
     <section className="overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--surface-paper)] shadow-[0_28px_90px_rgb(73_52_32/10%)]">
@@ -47,8 +69,12 @@ export function OrderClaimPanel({
           />
           <div className="relative grid gap-3">
             <p className="text-xs font-semibold text-[var(--accent)]">{t.eyebrow}</p>
-            <h1 className="text-[32px] font-semibold leading-[1.05] sm:text-[40px]">{labels.title}</h1>
-            <p className="max-w-[52ch] text-sm leading-6 text-[var(--muted-foreground)]">{labels.intro}</p>
+            <h1 className="text-[32px] font-semibold leading-[1.05] sm:text-[40px]">
+              {labels.title}
+            </h1>
+            <p className="max-w-[52ch] text-sm leading-6 text-[var(--muted-foreground)]">
+              {labels.intro}
+            </p>
           </div>
           <div className="relative grid gap-3 rounded-[var(--radius-card)] bg-[var(--surface)]/72 p-4">
             <p className="text-sm font-semibold">{t.cardTitle}</p>
@@ -65,7 +91,7 @@ export function OrderClaimPanel({
 
         <div className="grid content-center gap-5 p-5 sm:p-7 lg:p-8">
           {token ? (
-            <form action={claimGuestOrderAction as unknown as (formData: FormData) => Promise<void>} className="grid gap-4">
+            <form action={claimAction} className="grid gap-4">
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="orderNumber" value={orderNumber} />
               <input type="hidden" name="token" value={token} />
@@ -75,14 +101,22 @@ export function OrderClaimPanel({
                   {labels.signedInOnly}
                 </p>
                 <p className="flex items-start gap-2 text-sm leading-6 text-[var(--muted-foreground)]">
-                  <MailCheck aria-hidden="true" className="mt-1 size-4 shrink-0 text-[var(--accent)]" />
+                  <MailCheck
+                    aria-hidden="true"
+                    className="mt-1 size-4 shrink-0 text-[var(--accent)]"
+                  />
                   {orderNumber}
                 </p>
               </div>
-              <Button type="submit" className="min-h-11 gap-2">
+              <PendingSubmitButton pendingLabel={`${labels.submit}...`} className="min-h-11 gap-2">
                 <CheckCircle2 aria-hidden="true" className="size-4" />
                 {labels.submit}
-              </Button>
+              </PendingSubmitButton>
+              {claimState && claimState.status !== 'claimed' ? (
+                <p role="alert" className="text-sm font-semibold text-[var(--destructive)]">
+                  {labels.genericDenied}
+                </p>
+              ) : null}
             </form>
           ) : (
             <p

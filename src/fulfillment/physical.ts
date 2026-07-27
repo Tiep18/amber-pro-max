@@ -1,7 +1,10 @@
-﻿import {revalidatePath} from 'next/cache';
-import {z} from 'zod';
-import {runMonitoredAction} from '@/operations/monitoring';
-import {physicalFulfillmentStatusSchema, type PhysicalFulfillmentStatus} from '@/fulfillment/schemas';
+﻿import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
+import { runMonitoredAction } from '@/operations/monitoring';
+import {
+  physicalFulfillmentStatusSchema,
+  type PhysicalFulfillmentStatus
+} from '@/fulfillment/schemas';
 
 const updateInputSchema = z.object({
   orderId: z.uuid(),
@@ -19,11 +22,14 @@ const updateInputSchema = z.object({
 
 export type PhysicalFulfillmentInput = z.input<typeof updateInputSchema>;
 export type PhysicalFulfillmentResult =
-  | {status: 'updated'; physicalStatus: PhysicalFulfillmentStatus; version: number}
-  | {status: 'stale'; code: 'physical_state_changed'}
-  | {status: 'invalid'; code: 'invalid_physical_transition' | 'invalid_tracking_url' | 'invalid_physical_request'}
-  | {status: 'not_found'; code: 'physical_fulfillment_not_found'}
-  | {status: 'error'; code: 'physical_update_failed'};
+  | { status: 'updated'; physicalStatus: PhysicalFulfillmentStatus; version: number }
+  | { status: 'stale'; code: 'physical_state_changed' }
+  | {
+      status: 'invalid';
+      code: 'invalid_physical_transition' | 'invalid_tracking_url' | 'invalid_physical_request';
+    }
+  | { status: 'not_found'; code: 'physical_fulfillment_not_found' }
+  | { status: 'error'; code: 'physical_update_failed' };
 
 type QueryClient = {
   from: (table: string) => unknown;
@@ -99,7 +105,7 @@ async function recordPhysicalFailure(
     action: input.action,
     errorCode: 'physical_update_failed',
     summary: input.summary,
-    errorResult: {status: 'error', code: 'physical_update_failed'},
+    errorResult: { status: 'error', code: 'physical_update_failed' },
     shouldRecordResult: () => true,
     facts: {
       orderId: input.orderId ?? null,
@@ -107,7 +113,7 @@ async function recordPhysicalFailure(
       fulfillmentStatus: input.fulfillmentStatus ?? null
     },
     recordOperationalFailure: recorder,
-    operation: async () => ({status: 'error', code: 'physical_update_failed'})
+    operation: async () => ({ status: 'error', code: 'physical_update_failed' })
   });
 }
 
@@ -120,7 +126,7 @@ export function buildPhysicalFulfillmentUpdate(input: {
 }) {
   const trackingUrl = clean(input.trackingUrl);
   if (trackingUrl && !trackingUrl.startsWith('https://')) {
-    return {status: 'invalid' as const, code: 'invalid_tracking_url' as const};
+    return { status: 'invalid' as const, code: 'invalid_tracking_url' as const };
   }
   const now = new Date().toISOString();
   return {
@@ -132,21 +138,29 @@ export function buildPhysicalFulfillmentUpdate(input: {
       tracking_url: trackingUrl,
       admin_note: clean(input.note),
       updated_at: now,
-      ...(input.status === 'shipped' ? {shipped_at: now} : {}),
-      ...(input.status === 'delivered' ? {delivered_at: now} : {})
+      ...(input.status === 'shipped' ? { shipped_at: now } : {}),
+      ...(input.status === 'delivered' ? { delivered_at: now } : {})
     }
   };
 }
 
 async function loadPhysical(client: QueryClient, orderId: string) {
   const query = client.from('physical_fulfillments') as {
-    select: (columns: string) => {eq: (column: string, value: string) => {maybeSingle: () => Promise<{data: unknown; error: unknown}>}};
+    select: (columns: string) => {
+      eq: (
+        column: string,
+        value: string
+      ) => { maybeSingle: () => Promise<{ data: unknown; error: unknown }> };
+    };
   };
-  const {data, error} = await query.select('id,order_id,status,version').eq('order_id', orderId).maybeSingle();
+  const { data, error } = await query
+    .select('id,order_id,status,version')
+    .eq('order_id', orderId)
+    .maybeSingle();
   if (error) {
-    return {status: 'error' as const};
+    return { status: 'error' as const };
   }
-  return {status: 'found' as const, row: asPhysicalRow(data)};
+  return { status: 'found' as const, row: asPhysicalRow(data) };
 }
 
 export async function updatePhysicalFulfillment(
@@ -156,7 +170,7 @@ export async function updatePhysicalFulfillment(
 ): Promise<PhysicalFulfillmentResult> {
   const parsed = updateInputSchema.safeParse(input);
   if (!parsed.success) {
-    return {status: 'invalid', code: 'invalid_physical_request'};
+    return { status: 'invalid', code: 'invalid_physical_request' };
   }
 
   const loaded = await loadPhysical(client, parsed.data.orderId);
@@ -168,16 +182,19 @@ export async function updatePhysicalFulfillment(
       orderNumber: parsed.data.orderNumber,
       fulfillmentStatus: parsed.data.status
     });
-    return {status: 'error', code: 'physical_update_failed'};
+    return { status: 'error', code: 'physical_update_failed' };
   }
   if (!loaded.row) {
-    return {status: 'not_found', code: 'physical_fulfillment_not_found'};
+    return { status: 'not_found', code: 'physical_fulfillment_not_found' };
   }
-  if (loaded.row.status !== parsed.data.expectedStatus || loaded.row.version !== parsed.data.expectedVersion) {
-    return {status: 'stale', code: 'physical_state_changed'};
+  if (
+    loaded.row.status !== parsed.data.expectedStatus ||
+    loaded.row.version !== parsed.data.expectedVersion
+  ) {
+    return { status: 'stale', code: 'physical_state_changed' };
   }
   if (!validNext(loaded.row.status, parsed.data.status)) {
-    return {status: 'invalid', code: 'invalid_physical_transition'};
+    return { status: 'invalid', code: 'invalid_physical_transition' };
   }
 
   const built = buildPhysicalFulfillmentUpdate(parsed.data);
@@ -186,16 +203,20 @@ export async function updatePhysicalFulfillment(
   }
   const nextVersion = loaded.row.version + 1;
   const update = client.from('physical_fulfillments') as {
-    update: (value: Record<string, unknown>) => {eq: (column: string, value: string) => Promise<{data: unknown; error: unknown}>};
+    update: (value: Record<string, unknown>) => {
+      eq: (column: string, value: string) => Promise<{ data: unknown; error: unknown }>;
+    };
   };
   const event = client.from('physical_fulfillment_events') as {
-    insert: (value: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
+    insert: (value: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
   };
   const outbox = client.from('transactional_email_outbox') as {
-    insert: (value: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
+    insert: (value: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
   };
 
-  const updated = await update.update({...built.update, version: nextVersion}).eq('id', loaded.row.id);
+  const updated = await update
+    .update({ ...built.update, version: nextVersion })
+    .eq('id', loaded.row.id);
   if (updated.error) {
     await recordPhysicalFailure(recordOperationalFailure, {
       action: 'update',
@@ -204,7 +225,7 @@ export async function updatePhysicalFulfillment(
       orderNumber: parsed.data.orderNumber,
       fulfillmentStatus: parsed.data.status
     });
-    return {status: 'error', code: 'physical_update_failed'};
+    return { status: 'error', code: 'physical_update_failed' };
   }
   await event.insert({
     physical_fulfillment_id: loaded.row.id,
@@ -237,11 +258,11 @@ export async function updatePhysicalFulfillment(
         orderNumber: parsed.data.orderNumber,
         fulfillmentStatus: parsed.data.status
       });
-      return {status: 'error', code: 'physical_update_failed'};
+      return { status: 'error', code: 'physical_update_failed' };
     }
   }
 
-  return {status: 'updated', physicalStatus: parsed.data.status, version: nextVersion};
+  return { status: 'updated', physicalStatus: parsed.data.status, version: nextVersion };
 }
 
 function formString(formData: FormData, key: string) {
@@ -249,13 +270,16 @@ function formString(formData: FormData, key: string) {
   return typeof value === 'string' ? value : undefined;
 }
 
-export async function updatePhysicalFulfillmentAction(formData: FormData): Promise<PhysicalFulfillmentResult> {
+export async function updatePhysicalFulfillmentAction(
+  formData: FormData
+): Promise<PhysicalFulfillmentResult> {
   'use server';
 
-  const {requireAdmin} = await import('@/auth/guards');
+  const { requireAdmin } = await import('@/auth/guards');
   await requireAdmin();
-  const {createSupabaseAdminClient} = await import('@/lib/supabase/admin');
-  const {recordOperationalFailure} = await import('@/operations/errors');
+  const { createSupabaseAdminClient } = await import('@/lib/supabase/admin');
+  const { recordOperationalFailure } = await import('@/operations/errors');
+  const orderNumber = formString(formData, 'orderNumber') ?? '';
   const result = await updatePhysicalFulfillment(
     {
       orderId: formString(formData, 'orderId') ?? '',
@@ -267,13 +291,15 @@ export async function updatePhysicalFulfillmentAction(formData: FormData): Promi
       trackingUrl: formString(formData, 'trackingUrl'),
       note: formString(formData, 'note'),
       locale: formString(formData, 'locale') === 'vi' ? 'vi' : 'en',
-      orderNumber: formString(formData, 'orderNumber') ?? '',
+      orderNumber,
       recipientEmail: formString(formData, 'recipientEmail') ?? ''
     },
     createSupabaseAdminClient() as unknown as QueryClient,
     recordOperationalFailure
   );
   revalidatePath('/admin/orders');
+  if (orderNumber) {
+    revalidatePath(`/admin/orders/${encodeURIComponent(orderNumber)}`);
+  }
   return result;
 }
-

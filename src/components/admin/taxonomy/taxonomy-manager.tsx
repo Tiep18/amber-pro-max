@@ -189,6 +189,7 @@ function TermEditor({
 }) {
   const [locale, setLocale] = useState<Locale>('vi');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [deletePending, setDeletePending] = useState(false);
   const inUse = Boolean(term?.usageCount);
 
   const validate = (event: FormEvent<HTMLFormElement>) => {
@@ -348,11 +349,12 @@ function TermEditor({
               type="submit"
               form={`delete-${term.id}`}
               variant="destructive"
-              disabled={inUse}
+              disabled={inUse || deletePending}
+              aria-busy={deletePending}
               className="gap-2"
             >
               <Trash2 className="size-4" aria-hidden="true" />
-              Delete item
+              {deletePending ? 'Deleting...' : 'Delete item'}
             </Button>
           ) : (
             <span />
@@ -367,7 +369,8 @@ function TermEditor({
                 type="submit"
                 form={`delete-${term.id}`}
                 variant="destructive"
-                disabled={inUse}
+                disabled={inUse || deletePending}
+                aria-busy={deletePending}
                 className="w-11 px-0"
               >
                 <Trash2 className="size-4" aria-hidden="true" />
@@ -384,8 +387,11 @@ function TermEditor({
           id={`delete-${term.id}`}
           action={deleteTaxonomyTermAction}
           onSubmit={(event) => {
-            if (!window.confirm(`Delete ${termLabel(term)}? This cannot be undone.`))
+            if (!window.confirm(`Delete ${termLabel(term)}? This cannot be undone.`)) {
               event.preventDefault();
+              return;
+            }
+            setDeletePending(true);
           }}
         >
           <input type="hidden" name="section" value={config.key} />

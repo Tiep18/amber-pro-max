@@ -47,6 +47,7 @@ export async function renderWishlistPage({ params }: { params: Promise<{ locale:
         actions: {
           viewProduct: t('actions.viewProduct'),
           addToCart: t('actions.addToCart'),
+          addingToCart: t('actions.addingToCart'),
           remove: t('actions.remove'),
           removing: t('actions.removing')
         },
