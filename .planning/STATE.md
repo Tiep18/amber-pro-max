@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 09-14-PLAN.md
-last_updated: "2026-07-27T13:23:33+07:00"
-last_activity: 2026-07-27 -- Unified accepted quote intent across checkout refresh and submit
+last_updated: "2026-07-27T13:47:50+07:00"
+last_activity: 2026-07-27 -- Aligned checkout quotes with reservation-aware inventory authority
 progress:
   total_phases: 9
   completed_phases: 7
@@ -354,6 +354,7 @@ None yet.
 | wishlist-invalid-product-id         | Accept PostgreSQL-valid product UUIDs in wishlist actions and client wishlist state                         | 2026-07-09 | [wishlist-invalid-product-id](./debug/wishlist-invalid-product-id.md)                 |
 | checkout-quote-state-stuck           | Synchronize checkout quote transitions, submit evidence, destination review, and transient coupon feedback  | 2026-07-27 | [checkout-quote-state-stuck](./debug/checkout-quote-state-stuck.md)                   |
 | checkout-quote-stale-on-submit       | Use accepted quote lines as the single intent source for checkout refresh and order creation                 | 2026-07-27 | [checkout-quote-stale-on-submit](./debug/checkout-quote-stale-on-submit.md)           |
+| prefill-checkout-stale-submit         | Align checkout quote inventory with active-reservation-aware order submission                                | 2026-07-27 | [prefill-checkout-stale-submit](./debug/prefill-checkout-stale-submit.md)             |
 
 ## Deferred Items
 
