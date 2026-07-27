@@ -60,52 +60,59 @@ export function DestinationForm({locale, shippingAddress, lifecycle, showValidat
             : !shippingAddress.countryCode ? t.awaitingCountry
               : isUs && !shippingAddress.region ? t.awaitingRegion : t.ready;
 
-  return <div className="grid gap-5">
-    <div className="grid gap-2">
-      <label className="font-semibold" id="shipping-country-label">{t.country} <span className="text-[var(--destructive)]">*</span></label>
+  return <div className="grid gap-4">
+    <div className="grid gap-1.5">
+      <label className="text-sm font-semibold" id="shipping-country-label">{t.country} <span className="text-[var(--destructive)]">*</span></label>
       <Select value={shippingAddress.countryCode} onValueChange={(countryCode) => {
         const region = countryCode === 'US' ? shippingAddress.region : null;
-        update({countryCode, region, postalCode: countryCode === 'US' ? shippingAddress.postalCode : shippingAddress.postalCode});
+        update({countryCode, region});
         onDestinationChange({countryCode, regionCode: region});
       }}>
-        <SelectTrigger aria-labelledby="shipping-country-label" aria-invalid={Boolean(errorFor('countryCode'))}><SelectValue placeholder={t.countryPlaceholder}/></SelectTrigger>
+        <SelectTrigger id="shipping-country-trigger" aria-labelledby="shipping-country-label" aria-invalid={Boolean(errorFor('countryCode'))}><SelectValue placeholder={t.countryPlaceholder}/></SelectTrigger>
         <SelectContent>{countries.map((country) => <SelectItem key={country.code} value={country.code}>{country.label} ({country.code})</SelectItem>)}</SelectContent>
       </Select>
       {errorFor('countryCode') ? <p className="text-sm font-medium text-[var(--destructive)]">{errorFor('countryCode')}</p> : null}
     </div>
 
-    {isUs ? <div className="grid gap-3 sm:grid-cols-2">
-      <div className="grid gap-2">
-        <label className="font-semibold" id="shipping-region-label">{t.region} <span className="text-[var(--destructive)]">*</span></label>
+    {shippingAddress.countryCode && isUs ? <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-1.5">
+        <label className="text-sm font-semibold" id="shipping-region-label">{t.region} <span className="text-[var(--destructive)]">*</span></label>
         <Select value={shippingAddress.region ?? ''} onValueChange={(region) => {update({region}); onDestinationChange({countryCode: 'US', regionCode: region});}}>
-          <SelectTrigger aria-labelledby="shipping-region-label" aria-invalid={Boolean(errorFor('region'))}><SelectValue placeholder={t.regionPlaceholder}/></SelectTrigger>
+          <SelectTrigger id="shipping-region-trigger" aria-labelledby="shipping-region-label" aria-invalid={Boolean(errorFor('region'))}><SelectValue placeholder={t.regionPlaceholder}/></SelectTrigger>
           <SelectContent>{US_SHIPPING_REGION_OPTIONS.map((option) => <SelectItem key={option.code} value={option.code}>{option.code}</SelectItem>)}</SelectContent>
         </Select>
         {errorFor('region') ? <p className="text-sm font-medium text-[var(--destructive)]">{errorFor('region')}</p> : null}
       </div>
-      <Field id="shipping-postal-code" label={t.postalCode} required value={shippingAddress.postalCode ?? ''} error={errorFor('postalCode')} onBlur={() => setTouched(true)} onChange={(postalCode) => update({postalCode})}/>
+      <Field id="shipping-postal-code" label={t.postalCode} autoComplete="postal-code" required value={shippingAddress.postalCode ?? ''} error={errorFor('postalCode')} onBlur={() => setTouched(true)} onChange={(postalCode) => update({postalCode})}/>
     </div> : null}
 
-    <div role="status" aria-live="polite" className="flex min-h-14 items-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-2 text-sm text-[var(--muted-foreground)]">{status}</div>
+    <div role="status" aria-live="polite" className="flex min-h-10 items-center gap-2 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 px-3 py-2 text-xs font-medium leading-5 text-[var(--muted-foreground)]">
+      <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${lifecycle.issue ? 'bg-[var(--warning)]' : lifecycle.activeRequestId !== null ? 'animate-pulse bg-[var(--accent)]' : 'bg-[var(--success)]'}`} />
+      {status}
+    </div>
 
-    <div className="grid gap-3 sm:grid-cols-2">
-      <Field id="shipping-recipient-name" label={t.recipient} required value={shippingAddress.recipientName} error={errorFor('recipientName')} onBlur={() => setTouched(true)} onChange={(recipientName) => update({recipientName})}/>
-      <Field id="shipping-phone-number" label={t.phone} required type="tel" value={shippingAddress.phoneNumber} error={errorFor('phoneNumber')} onBlur={() => setTouched(true)} onChange={(phoneNumber) => update({phoneNumber})}/>
-    </div>
-    <Field id="shipping-address-line-1" label={t.addressLine1} required value={shippingAddress.addressLine1} error={errorFor('addressLine1')} onBlur={() => setTouched(true)} onChange={(addressLine1) => update({addressLine1})}/>
-    <Field id="shipping-address-line-2" label={t.addressLine2} optional={t.optional} value={shippingAddress.addressLine2 ?? ''} onChange={(addressLine2) => update({addressLine2})}/>
-    <div className={`grid gap-3 ${isUs ? '' : 'sm:grid-cols-3'}`}>
-      <Field id="shipping-locality" label={t.locality} optional={t.optional} value={shippingAddress.locality ?? ''} onChange={(locality) => update({locality})}/>
-      {!isUs ? <Field id="shipping-region" label={t.region} optional={t.optional} value={shippingAddress.region ?? ''} onChange={(region) => update({region})}/> : null}
-      {!isUs ? <Field id="shipping-postal-code" label={t.postalCode} optional={t.optional} value={shippingAddress.postalCode ?? ''} onChange={(postalCode) => update({postalCode})}/> : null}
-    </div>
+    {shippingAddress.countryCode ? (
+      <div className="grid gap-4 border-t border-[var(--border)]/60 pt-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field id="shipping-recipient-name" label={t.recipient} autoComplete="name" required value={shippingAddress.recipientName} error={errorFor('recipientName')} onBlur={() => setTouched(true)} onChange={(recipientName) => update({recipientName})}/>
+          <Field id="shipping-phone-number" label={t.phone} autoComplete="tel" required type="tel" value={shippingAddress.phoneNumber} error={errorFor('phoneNumber')} onBlur={() => setTouched(true)} onChange={(phoneNumber) => update({phoneNumber})}/>
+        </div>
+        <Field id="shipping-address-line-1" label={t.addressLine1} autoComplete="address-line1" required value={shippingAddress.addressLine1} error={errorFor('addressLine1')} onBlur={() => setTouched(true)} onChange={(addressLine1) => update({addressLine1})}/>
+        <Field id="shipping-address-line-2" label={t.addressLine2} autoComplete="address-line2" optional={t.optional} value={shippingAddress.addressLine2 ?? ''} onChange={(addressLine2) => update({addressLine2})}/>
+        <div className={`grid gap-3 ${isUs ? '' : 'sm:grid-cols-3'}`}>
+          <Field id="shipping-locality" label={t.locality} autoComplete="address-level2" optional={t.optional} value={shippingAddress.locality ?? ''} onChange={(locality) => update({locality})}/>
+          {!isUs ? <Field id="shipping-region" label={t.region} autoComplete="address-level1" optional={t.optional} value={shippingAddress.region ?? ''} onChange={(region) => update({region})}/> : null}
+          {!isUs ? <Field id="shipping-postal-code" label={t.postalCode} autoComplete="postal-code" optional={t.optional} value={shippingAddress.postalCode ?? ''} onChange={(postalCode) => update({postalCode})}/> : null}
+        </div>
+      </div>
+    ) : null}
   </div>;
 }
 
-function Field({id, label, value, required, optional, type, error, onChange, onBlur}: {id: string; label: string; value: string; required?: boolean; optional?: string; type?: string; error?: string | null; onChange: (value: string) => void; onBlur?: () => void}) {
-  return <label className="grid gap-2" htmlFor={id}>
-    <span className="flex justify-between gap-3 font-semibold">{label}{required ? <span className="text-[var(--destructive)]">*</span> : optional ? <span className="text-xs font-medium text-[var(--muted-foreground)]">{optional}</span> : null}</span>
-    <Input id={id} type={type} value={value} aria-invalid={Boolean(error)} onBlur={onBlur} onChange={(event) => onChange(event.target.value)}/>
+function Field({id, label, value, required, optional, type, autoComplete, error, onChange, onBlur}: {id: string; label: string; value: string; required?: boolean; optional?: string; type?: string; autoComplete?: string; error?: string | null; onChange: (value: string) => void; onBlur?: () => void}) {
+  return <label className="grid gap-1.5" htmlFor={id}>
+    <span className="flex justify-between gap-3 text-sm font-semibold">{label}{required ? <span className="text-[var(--destructive)]">*</span> : optional ? <span className="text-xs font-medium text-[var(--muted-foreground)]">{optional}</span> : null}</span>
+    <Input id={id} type={type} autoComplete={autoComplete} value={value} aria-invalid={Boolean(error)} onBlur={onBlur} onChange={(event) => onChange(event.target.value)}/>
     {error ? <span className="text-sm font-medium text-[var(--destructive)]">{error}</span> : null}
   </label>;
 }

@@ -153,6 +153,7 @@ test('discount code applies and removes through server quote without localStorag
 
   await page.goto('/en/checkout');
   await expect(page.getByRole('heading', { name: 'Checkout' })).toBeVisible();
+  await page.getByRole('button', { name: 'Add a discount code' }).click();
   await page.getByLabel('Discount code').fill(code.toLowerCase());
   await page.getByRole('button', { name: 'Apply discount' }).click();
 
@@ -203,5 +204,5 @@ test('international digital checkout renders only the canonical PayPal method', 
   const paymentMethod = page.getByTestId('checkout-payment-method');
   await expect(paymentMethod).toContainText('PayPal');
   await expect(paymentMethod).not.toContainText('VietQR');
-  await expect(page.getByRole('button', {name: /PayPal|VietQR/i})).toHaveCount(0);
+  await expect(paymentMethod.getByRole('button')).toHaveCount(0);
 });

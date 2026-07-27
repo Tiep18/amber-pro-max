@@ -20,6 +20,7 @@ export default async function CheckoutRoute({params}: {params: Params}) {
   return (
     <CheckoutPage
       locale={locale}
+      initialEmail={user?.email?.trim() ?? ''}
       savedAddresses={savedAddresses?.status === 'success' ? savedAddresses.addresses : []}
       policyLinks={policyLinks}
     />

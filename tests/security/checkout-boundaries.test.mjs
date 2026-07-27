@@ -128,3 +128,17 @@ test('destination authority and exact payment pairs are enforced before persiste
   assert.match(migration, /insert into public\.checkout_order_shipping_allocations/);
   assert.match(migration, /on conflict \(order_line_id\) do nothing/);
 });
+
+test('checkout prefill uses authenticated server identity and deterministic destination defaults', () => {
+  const route = readFileSync('src/app/[locale]/checkout/page.tsx', 'utf8');
+  const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  const prefill = readFileSync('src/checkout/prefill.ts', 'utf8');
+
+  assert.match(route, /client\.auth\.getUser\(\)/);
+  assert.match(route, /initialEmail=\{user\?\.email\?\.trim\(\) \?\? ''\}/);
+  assert.doesNotMatch(client, /user_metadata|app_metadata|auth\.getUser/);
+  assert.match(prefill, /savedDestination/);
+  assert.match(prefill, /quotedDestination/);
+  assert.match(prefill, /market === 'vn'/);
+  assert.match(prefill, /countryCode: 'VN'/);
+});
