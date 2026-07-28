@@ -23,6 +23,7 @@ import { CatalogControlsClient } from '@/components/catalog/catalog-controls-cli
 import { CatalogMobileFilters } from '@/components/catalog/catalog-mobile-filters';
 import { CatalogResultGrid } from '@/components/catalog/catalog-result-grid';
 import { ProductCardView, type ProductCardLabels } from '@/components/catalog/product-card-view';
+import { ProductCardSkeleton } from '@/components/loading/page-skeletons';
 import { useStorefrontContext } from '@/components/storefront-context';
 
 type CatalogSurface = CatalogProjectionInput['surface'];
@@ -396,15 +397,7 @@ function CatalogProductGridSkeleton() {
       className="grid gap-y-6 min-[480px]:grid-cols-2 min-[480px]:gap-x-3 sm:gap-5 lg:grid-cols-3"
     >
       {Array.from({ length: 12 }, (_, index) => (
-        <div key={index} className="grid gap-3">
-          <Skeleton className="aspect-[4/3] w-full rounded-[var(--radius-card)]" />
-          <div className="grid gap-2 px-1">
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-5 w-4/5" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-          </div>
-        </div>
+        <ProductCardSkeleton key={index} />
       ))}
     </div>
   );
