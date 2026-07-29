@@ -143,7 +143,7 @@ export function OrderSummary({
 
   return (
     <Card className="overflow-hidden bg-[var(--surface-paper)] shadow-[0_18px_54px_rgb(73_52_32/9%)]">
-      <CardHeader className="mb-0 flex-row items-center justify-between border-b border-[var(--border)]/70 px-5 py-4">
+      <CardHeader className="mb-0 flex-row items-center justify-between border-b border-[var(--border)]/70 px-4 py-4 sm:px-5">
         <CardTitle className="text-lg">{t.title}</CardTitle>
         <Link
           href={getCartPath(locale)}
@@ -152,7 +152,7 @@ export function OrderSummary({
           {t.editCart}
         </Link>
       </CardHeader>
-      <CardContent className="grid gap-4 px-5 py-4">
+      <CardContent className="grid gap-4 px-4 py-4 sm:px-5">
         {visibleLines.length ? (
           <div className="grid gap-3">
             {visibleLines.map((line) => {

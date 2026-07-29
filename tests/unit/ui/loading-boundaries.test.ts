@@ -16,8 +16,11 @@ type LayoutContract = {
   skeleton: string;
   contentPath: string;
   classes: readonly string[];
+  contentClasses?: readonly string[];
+  skeletonClasses?: readonly string[];
   linkedPath?: string;
   linkedClasses?: readonly string[];
+  linkedOnlyClasses?: readonly string[];
 };
 
 const layoutContracts: readonly LayoutContract[] = [
@@ -51,9 +54,18 @@ const layoutContracts: readonly LayoutContract[] = [
     name: 'checkout',
     skeleton: 'CheckoutPageSkeleton',
     contentPath: 'src/components/checkout/checkout-page.tsx',
-    classes: ['pb-28', 'lg:grid-cols-[minmax(0,1fr)_400px]', 'lg:pb-10'],
+    classes: [
+      '!px-3 pb-28 pt-6 sm:!px-6 lg:!px-8',
+      'px-4 py-5 sm:px-6',
+      'pb-28',
+      'lg:grid-cols-[minmax(0,1fr)_400px]',
+      'lg:pb-10'
+    ],
+    contentClasses: ['!px-3 py-7 sm:!px-6 lg:!px-8', 'px-4 py-10', 'sm:px-5'],
+    skeletonClasses: ['p-4 sm:p-5'],
     linkedPath: 'src/components/checkout/order-summary.tsx',
-    linkedClasses: ['fixed inset-x-0 bottom-0', 'lg:hidden']
+    linkedClasses: ['fixed inset-x-0 bottom-0', 'px-3', 'lg:hidden'],
+    linkedOnlyClasses: ['px-4 py-4 sm:px-5']
   },
   {
     name: 'account',
@@ -100,7 +112,16 @@ describe('route loading boundaries', () => {
 
   test.each(layoutContracts)(
     '$name skeleton preserves the canonical responsive layout contract',
-    ({ skeleton, contentPath, classes, linkedPath, linkedClasses }) => {
+    ({
+      skeleton,
+      contentPath,
+      classes,
+      contentClasses,
+      skeletonClasses,
+      linkedPath,
+      linkedClasses,
+      linkedOnlyClasses
+    }) => {
       const source = readFileSync('src/components/loading/page-skeletons.tsx', 'utf8');
       const contentSource = readFileSync(contentPath, 'utf8');
       const skeletonStart = source.indexOf(`export function ${skeleton}`);
@@ -116,12 +137,21 @@ describe('route loading boundaries', () => {
         expect(contentSource).toContain(className);
         expect(contractSource).toContain(className);
       }
+      for (const className of contentClasses ?? []) {
+        expect(contentSource).toContain(className);
+      }
+      for (const className of skeletonClasses ?? []) {
+        expect(contractSource).toContain(className);
+      }
 
       if (linkedPath && linkedClasses) {
         const linkedSource = readFileSync(linkedPath, 'utf8');
         for (const className of linkedClasses) {
           expect(linkedSource).toContain(className);
           expect(skeletonSource).toContain(className);
+        }
+        for (const className of linkedOnlyClasses ?? []) {
+          expect(linkedSource).toContain(className);
         }
       }
     }

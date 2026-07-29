@@ -192,7 +192,7 @@ export function ProductPageSkeleton() {
 
 export function CheckoutPageSkeleton() {
   return (
-    <LoadingRegion className="container grid gap-5 pb-28 pt-6 lg:gap-6 lg:pb-10 lg:pt-8">
+    <LoadingRegion className="container grid gap-5 !px-3 pb-28 pt-6 sm:!px-6 lg:!px-8 lg:gap-6 lg:pb-10 lg:pt-8">
       <header className="grid max-w-[72ch] gap-1.5">
         <Skeleton className="h-10 w-32" />
         <Skeleton className="h-8 w-52" />
@@ -201,13 +201,13 @@ export function CheckoutPageSkeleton() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-7">
         <section className="grid content-start gap-4">
           <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-paper)]">
-            <div className="grid gap-3 px-5 py-5 sm:px-6">
+            <div className="grid gap-3 px-4 py-5 sm:px-6">
               <Skeleton className="h-5 w-36" />
               <Skeleton className="h-4 w-4/5" />
               <Skeleton className="h-11 w-full" />
             </div>
             <div className="border-t border-[var(--border)]" />
-            <div className="grid gap-4 px-5 py-5 sm:px-6">
+            <div className="grid gap-4 px-4 py-5 sm:px-6">
               <Skeleton className="h-5 w-44" />
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-11 w-full" />
@@ -218,7 +218,7 @@ export function CheckoutPageSkeleton() {
             </div>
           </div>
         </section>
-        <aside className="grid content-start gap-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-5 lg:sticky lg:top-24">
+        <aside className="grid content-start gap-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 lg:sticky lg:top-24">
           <Skeleton className="h-6 w-36" />
           <Skeleton className="h-20 w-full" />
           <SummaryRows />

@@ -516,7 +516,7 @@ export function CheckoutPage({
 
   if (isEmpty) {
     return (
-      <main className="container grid gap-5 py-7 lg:py-9">
+      <main className="container grid gap-5 !px-3 py-7 sm:!px-6 lg:!px-8 lg:py-9">
         <div className="grid max-w-[68ch] gap-1.5">
           <Link
             href={getCartPath(locale)}
@@ -527,7 +527,7 @@ export function CheckoutPage({
           </Link>
           <h1 className="text-[28px] font-semibold leading-tight">{t.title}</h1>
         </div>
-        <Card className="grid max-w-2xl justify-items-center gap-4 bg-[var(--surface-paper)] px-5 py-10 text-center shadow-[0_18px_54px_rgb(73_52_32/8%)]">
+        <Card className="grid max-w-2xl justify-items-center gap-4 bg-[var(--surface-paper)] px-4 py-10 text-center shadow-[0_18px_54px_rgb(73_52_32/8%)] sm:px-5">
           <span className="grid size-16 place-items-center rounded-[18px] bg-[var(--surface-muted)] text-[var(--accent)] ring-1 ring-[var(--border)]/60">
             <ShoppingBag aria-hidden="true" className="size-7" strokeWidth={1.6} />
           </span>
@@ -547,7 +547,7 @@ export function CheckoutPage({
   }
 
   return (
-    <main className="container grid gap-5 pb-28 pt-6 lg:gap-6 lg:pb-10 lg:pt-8">
+    <main className="container grid gap-5 !px-3 pb-28 pt-6 sm:!px-6 lg:!px-8 lg:gap-6 lg:pb-10 lg:pt-8">
       <header className="grid max-w-[72ch] gap-1.5">
         <Link
           href={getCartPath(locale)}
@@ -566,7 +566,7 @@ export function CheckoutPage({
             <CardContent className="space-y-0 p-0">
               <section
                 aria-labelledby="checkout-contact-heading"
-                className="grid gap-3 px-5 py-5 sm:px-6"
+                className="grid gap-3 px-4 py-5 sm:px-6"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -601,7 +601,7 @@ export function CheckoutPage({
                   <Separator className="border-[var(--border)]/70" />
                   <section
                     aria-labelledby="checkout-destination-heading"
-                    className="grid gap-4 px-5 py-5 sm:px-6"
+                    className="grid gap-4 px-4 py-5 sm:px-6"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
