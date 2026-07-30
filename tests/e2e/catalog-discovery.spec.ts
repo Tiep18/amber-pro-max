@@ -3,8 +3,15 @@ import { rest } from './fixtures/authenticated-users';
 
 const VARIANT_PRODUCT_ID = '50000000-0000-0000-0000-000000000003';
 
-async function addLongCategoryFacetFixture(page: import('@playwright/test').Page) {
+async function addLongCategoryFacetFixture(
+  page: import('@playwright/test').Page,
+  options: { delayFilteredMs?: number } = {}
+) {
   await page.route('**/api/storefront/catalog?**', async (route) => {
+    const selectedCategory = new URL(route.request().url()).searchParams.get('categorySlug');
+    if (selectedCategory && options.delayFilteredMs) {
+      await new Promise((resolve) => setTimeout(resolve, options.delayFilteredMs));
+    }
     const response = await route.fetch();
     const body = await response.json();
     if (body?.status === 'ready' && Array.isArray(body.projection?.facets)) {
@@ -210,7 +217,7 @@ test('desktop filter sidebar is viewport-bounded and independently scrollable', 
 });
 
 test('sidebar keeps its category universe after a category filter settles', async ({ page }) => {
-  await addLongCategoryFacetFixture(page);
+  await addLongCategoryFacetFixture(page, { delayFilteredMs: 700 });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/en/catalog');
   await expect(page.getByRole('main').getByRole('status')).toContainText(/store loaded/i, {
@@ -225,12 +232,39 @@ test('sidebar keeps its category universe after a category filter settles', asyn
 
   await categoryGroup.getByText('Needle category 2', { exact: true }).click();
   await expect(page).toHaveURL(/category=/);
+  await expect(page.getByTestId('catalog-result-stage')).toHaveAttribute('data-state', 'loading');
+  await expect(page.getByTestId('catalog-facet-skeleton')).toHaveCount(0);
+  await expect(categoryGroup.getByText('Needle category 17', { exact: true })).toBeVisible();
   await expect(page.getByRole('main').getByRole('status')).toContainText(/store loaded/i, {
     timeout: 20_000
   });
 
   const after = (await categoryLabels.allTextContents()).sort();
   expect(after).toEqual(before);
+});
+
+test('desktop facet navigation preserves the document scroll position', async ({ page }) => {
+  await addPagedProductFixture(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/en/catalog');
+  await expect(page.getByRole('main').getByRole('status')).toContainText(/store loaded/i, {
+    timeout: 20_000
+  });
+
+  await page.evaluate(() => window.scrollTo(0, 520));
+  const sidebar = page.getByRole('complementary', { name: 'Filters' });
+  const facetLink = sidebar.getByRole('group', { name: 'Category' }).getByRole('link').nth(1);
+  await facetLink.scrollIntoViewIfNeeded();
+  const before = await page.evaluate(() => window.scrollY);
+  await facetLink.click();
+  await expect(page).toHaveURL(/category=/);
+  await expect(page.getByRole('main').getByRole('status')).toContainText(/store loaded/i, {
+    timeout: 20_000
+  });
+  const after = await page.evaluate(() => window.scrollY);
+
+  expect(after).toBeGreaterThan(400);
+  expect(Math.abs(after - before)).toBeLessThanOrEqual(32);
 });
 
 test('mobile filter sheet handles long category lists and local search', async ({ page }) => {
@@ -267,7 +301,10 @@ test('search and sort controls follow URL state after clear and browser history'
   await page.getByRole('option', { name: 'Price: high to low' }).click();
   await expect(page).toHaveURL(/sort=price_desc/);
 
-  await page.getByRole('link', { name: 'Clear filters', exact: true }).click();
+  await page
+    .getByLabel('Active filters', { exact: true })
+    .getByRole('link', { name: 'Clear filters', exact: true })
+    .click();
   await expect(page).toHaveURL(/\/en\/catalog$/);
   await expect(page.getByLabel('Search products')).toHaveValue('');
   await expect(page.getByRole('combobox', { name: 'Sort products' })).toHaveText('Newest');

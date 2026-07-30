@@ -128,6 +128,7 @@ function FacetGroup({
           ) : null}
           <Link
             href={filterHref(basePath, state, { kind })}
+            scroll={false}
             aria-current={!selected ? 'page' : undefined}
             transitionTypes={!selected ? undefined : ['catalog-filter']}
             className={cn(
@@ -148,6 +149,7 @@ function FacetGroup({
                   {facet.label}
                 </span>
                 <span
+                  data-facet-count="true"
                   className={cn(
                     'text-xs tabular-nums',
                     active ? 'text-[var(--accent)]/75' : 'text-[var(--muted-foreground)]/80'
@@ -172,6 +174,7 @@ function FacetGroup({
               <Link
                 key={facet.id}
                 href={filterHref(basePath, state, { kind, slug: facet.slug })}
+                scroll={false}
                 aria-current={active ? 'page' : undefined}
                 transitionTypes={active ? undefined : ['catalog-filter']}
                 className={cn(

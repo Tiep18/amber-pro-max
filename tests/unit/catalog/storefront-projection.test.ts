@@ -399,6 +399,73 @@ describe('storefront catalog projection contracts', () => {
     expect(marketChanged.state.facets).toEqual([]);
   });
 
+  it('keys reusable facet snapshots by every authoritative context coordinate', async () => {
+    const { catalogFacetSnapshotKey } = await catalogCommerceModule();
+    const base = {
+      locale: 'en',
+      market: 'intl',
+      surface: 'catalog',
+      contextGeneration: 4,
+      contextVersion: 7
+    } as const;
+
+    expect(catalogFacetSnapshotKey(base, '/en/catalog')).not.toBe(
+      catalogFacetSnapshotKey({ ...base, market: 'vn' }, '/en/catalog')
+    );
+    expect(catalogFacetSnapshotKey(base, '/en/catalog')).not.toBe(
+      catalogFacetSnapshotKey({ ...base, contextGeneration: 5 }, '/en/catalog')
+    );
+    expect(catalogFacetSnapshotKey(base, '/en/catalog')).not.toBe(
+      catalogFacetSnapshotKey({ ...base, contextVersion: 8 }, '/en/catalog')
+    );
+    expect(catalogFacetSnapshotKey(base, '/en/category/bears')).not.toBe(
+      catalogFacetSnapshotKey(base, '/en/category/dolls')
+    );
+  });
+
+  it('keeps same-context facet navigation on projection failure but clears it on context failure', async () => {
+    const {
+      beginCatalogCommerceRequest,
+      createCatalogCommerceState,
+      failCatalogCommerceRequest,
+      settleCatalogCommerceRequest
+    } = await catalogCommerceModule();
+    const identity = {
+      locale: 'en',
+      market: 'intl',
+      surface: 'catalog',
+      contextGeneration: 4,
+      contextVersion: 7,
+      queryKey: 'sort=newest'
+    } as const;
+    const initial = createCatalogCommerceState([intlOnlyProduct]);
+    const begun = beginCatalogCommerceRequest(initial, identity);
+    const ready = settleCatalogCommerceRequest(begun.state, begun.request, {
+      locale: 'en',
+      market: 'intl',
+      surface: 'catalog',
+      products: [intlOnlyProduct],
+      facets: intlFacets,
+      totalCount: 1
+    });
+    const filtered = beginCatalogCommerceRequest(ready, {
+      ...identity,
+      queryKey: 'productType=pdf_pattern&sort=newest'
+    });
+
+    expect(
+      failCatalogCommerceRequest(
+        filtered.state,
+        filtered.request.generation,
+        'projection_unavailable'
+      ).facets
+    ).toEqual(intlFacets);
+    expect(
+      failCatalogCommerceRequest(filtered.state, filtered.request.generation, 'context_unavailable')
+        .facets
+    ).toEqual([]);
+  });
+
   it('keeps the market facet universe stable when contextual responses omit alternatives', async () => {
     const { mergeStableCatalogFacets } = await projectionModules();
     const { mergeCatalogFacetSnapshots } = await catalogCommerceModule();

@@ -105,6 +105,48 @@ textarea {
   background-clip: content-box;
 }
 
+@keyframes catalog-facet-count-pulse {
+  50% {
+    opacity: 0.42;
+  }
+}
+
+@keyframes catalog-results-loading-in {
+  from {
+    opacity: 0.45;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes catalog-results-ready-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.catalog-facets-pending [data-facet-count='true'] {
+  animation: catalog-facet-count-pulse 900ms ease-in-out infinite;
+}
+
+.catalog-result-stage[data-state='loading'] {
+  animation: catalog-results-loading-in 140ms ease-out both;
+}
+
+.catalog-result-stage[data-state='ready'] {
+  animation: catalog-results-ready-in 210ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 body::before {
   position: fixed;
   inset: 0;
@@ -231,6 +273,11 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  .catalog-facets-pending [data-facet-count='true'],
+  .catalog-result-stage {
+    animation: none !important;
   }
 
   .sheet-overlay,

@@ -1,8 +1,8 @@
 'use client';
 
 import { Loader2, Search } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
-import { useFormStatus } from 'react-dom';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState, useTransition, type FormEvent } from 'react';
 import type { CatalogSort } from '@/catalog/queries';
 import type { CatalogListState } from '@/catalog/list-state';
 import { CatalogSortSelect } from '@/components/catalog/catalog-sort-select';
@@ -18,9 +18,7 @@ type CatalogControlLabels = {
   titleSort: string;
 };
 
-function SearchSubmitButton({ label }: { label: string }) {
-  const { pending } = useFormStatus();
-
+function SearchSubmitButton({ label, pending }: { label: string; pending: boolean }) {
   return (
     <button
       type="submit"
@@ -45,7 +43,10 @@ export function CatalogControlsClient({
   state: CatalogListState;
   labels: CatalogControlLabels;
 }) {
+  const pathname = usePathname();
+  const router = useRouter();
   const [searchValue, setSearchValue] = useState(state.search ?? '');
+  const [navigationPending, startNavigation] = useTransition();
   const sortOptions: Array<{ value: CatalogSort; label: string }> = [
     { value: 'newest', label: labels.newest },
     { value: 'price_asc', label: labels.priceAsc },
@@ -57,27 +58,31 @@ export function CatalogControlsClient({
     setSearchValue(state.search ?? '');
   }, [state.search]);
 
-  function cleanEmptySearch(event: FormEvent<HTMLFormElement>) {
-    const search = event.currentTarget.elements.namedItem('search');
-    if (!(search instanceof HTMLInputElement)) return;
+  function navigateWithForm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const params = new URLSearchParams();
 
-    const cleaned = search.value.trim();
-    if (!cleaned) {
-      search.disabled = true;
-      window.setTimeout(() => {
-        search.disabled = false;
-      }, 0);
-      return;
+    for (const [key, value] of new FormData(form)) {
+      if (typeof value !== 'string') continue;
+      const cleaned = value.trim();
+      if (!cleaned || (key === 'sort' && cleaned === 'newest')) continue;
+      params.set(key, cleaned);
     }
 
-    search.value = cleaned;
-    setSearchValue(cleaned);
+    const cleanedSearch = params.get('search') ?? '';
+    setSearchValue(cleanedSearch);
+    const query = params.toString();
+    startNavigation(() => {
+      router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    });
   }
 
   return (
     <form
       method="get"
-      onSubmit={cleanEmptySearch}
+      action={pathname}
+      onSubmit={navigateWithForm}
       className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(92px,108px)] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(180px,220px)] sm:gap-3"
     >
       {state.productType ? <input type="hidden" name="type" value={state.productType} /> : null}
@@ -101,10 +106,16 @@ export function CatalogControlsClient({
             placeholder={labels.searchPlaceholder}
             className="min-w-0 flex-1 bg-transparent py-2 text-sm font-normal outline-none placeholder:text-[var(--muted-foreground)]/72 sm:text-base"
           />
-          <SearchSubmitButton label={labels.searchSubmit} />
+          <SearchSubmitButton label={labels.searchSubmit} pending={navigationPending} />
         </span>
       </label>
-      <CatalogSortSelect name="sort" label={labels.sort} value={state.sort} options={sortOptions} />
+      <CatalogSortSelect
+        name="sort"
+        label={labels.sort}
+        value={state.sort}
+        options={sortOptions}
+        pending={navigationPending}
+      />
     </form>
   );
 }

@@ -42,6 +42,33 @@ export type CatalogCommerceRequest = {
   identity: CatalogCommerceIdentity;
 };
 
+const catalogFacetSnapshotCache = new Map<string, readonly CatalogFacet[]>();
+const MAX_CATALOG_FACET_SNAPSHOTS = 12;
+
+export function catalogFacetSnapshotKey(
+  identity: Omit<CatalogCommerceIdentity, 'queryKey'>,
+  pathname: string
+) {
+  return [
+    identity.locale,
+    identity.market,
+    identity.surface,
+    pathname,
+    identity.contextGeneration,
+    identity.contextVersion
+  ].join(':');
+}
+
+function rememberCatalogFacetSnapshot(key: string, facets: readonly CatalogFacet[]) {
+  catalogFacetSnapshotCache.delete(key);
+  catalogFacetSnapshotCache.set(key, facets);
+  while (catalogFacetSnapshotCache.size > MAX_CATALOG_FACET_SNAPSHOTS) {
+    const oldestKey = catalogFacetSnapshotCache.keys().next().value;
+    if (typeof oldestKey !== 'string') break;
+    catalogFacetSnapshotCache.delete(oldestKey);
+  }
+}
+
 export type CatalogCommerceState = {
   status: 'resolving' | 'ready' | 'error';
   seedProducts: readonly unknown[];
@@ -195,7 +222,7 @@ export function failCatalogCommerceRequest(
     ...state,
     status: 'error',
     products: state.seedProducts,
-    facets: [],
+    facets: issue === 'projection_unavailable' ? state.facets : [],
     totalCount: state.seedProducts.length,
     activeGeneration: null,
     issue
@@ -425,7 +452,7 @@ function catalogHref(
 
 function CatalogFacetSkeletons() {
   return (
-    <div aria-hidden="true" className="grid gap-6">
+    <div data-testid="catalog-facet-skeleton" aria-hidden="true" className="grid gap-6">
       {[0, 1, 2].map((group) => (
         <div key={group} className="grid gap-3">
           <Skeleton className="h-3 w-20" />
@@ -519,12 +546,18 @@ export function CatalogCommerce({
       contextVersion: context.contextVersion,
       queryKey
     };
+    const facetSnapshotKey = catalogFacetSnapshotKey(identity, pathname);
     const base =
       stateRef.current.seedProducts === seoProducts
         ? stateRef.current
         : createCatalogCommerceState(seoProducts);
     const begun = beginCatalogCommerceRequest(base, identity);
-    commitState(begun.state);
+    const cachedFacets = catalogFacetSnapshotCache.get(facetSnapshotKey);
+    commitState(
+      begun.state.facets.length === 0 && cachedFacets
+        ? { ...begun.state, facets: cachedFacets }
+        : begun.state
+    );
 
     const controller = new AbortController();
     controllerRef.current = controller;
@@ -551,6 +584,9 @@ export function CatalogCommerce({
           return;
         }
         if (settled !== current) {
+          if (settled.facets.every(isCatalogFacet)) {
+            rememberCatalogFacetSnapshot(facetSnapshotKey, settled.facets);
+          }
           commitState(settled);
         }
       })
@@ -843,7 +879,10 @@ export function CatalogCommerce({
 
   const filterContent =
     facetsMatchContext && (state.status === 'ready' || facets.length > 0) ? (
-      <div aria-busy={resultsPending} className="relative">
+      <div
+        aria-busy={resultsPending}
+        className={`relative ${resultsPending ? 'catalog-facets-pending' : ''}`}
+      >
         <CatalogFilterContent
           basePath={pathname}
           state={normalizedState}
@@ -864,7 +903,7 @@ export function CatalogCommerce({
     ) : (
       <CatalogFacetSkeletons />
     );
-  const resultContent =
+  const resultBody =
     state.status === 'error' ? (
       <Alert variant="destructive" className="grid gap-3">
         <AlertTitle>{labels.errorTitle}</AlertTitle>
@@ -919,6 +958,15 @@ export function CatalogCommerce({
         )}
       </div>
     );
+  const resultContent = (
+    <div
+      data-testid="catalog-result-stage"
+      data-state={state.status === 'error' ? 'error' : resultsPending ? 'loading' : 'ready'}
+      className="catalog-result-stage"
+    >
+      {resultBody}
+    </div>
+  );
 
   return (
     <section
@@ -959,6 +1007,7 @@ export function CatalogCommerce({
                   href={catalogHref(pathname, normalizedState, {
                     productType: tab.productType ?? null
                   })}
+                  scroll={false}
                   aria-current={active ? 'page' : undefined}
                   transitionTypes={active ? undefined : ['catalog-filter']}
                   className="shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm font-semibold aria-[current=page]:border-[var(--accent)] aria-[current=page]:text-[var(--accent)] sm:px-4"
@@ -990,6 +1039,7 @@ export function CatalogCommerce({
                 {hasCatalogFilters(normalizedState) ? (
                   <Link
                     href={pathname}
+                    scroll={false}
                     transitionTypes={['catalog-filter']}
                     className="shrink-0 text-xs font-semibold text-[var(--accent)] transition-colors hover:text-[var(--accent-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                   >
@@ -1030,6 +1080,7 @@ export function CatalogCommerce({
                       <Link
                         key={filter.key}
                         href={filter.href}
+                        scroll={false}
                         transitionTypes={['catalog-filter']}
                         className="inline-flex min-h-7 max-w-[16rem] shrink-0 items-center rounded-full bg-[var(--surface-muted)]/58 px-2.5 py-1 text-xs font-semibold text-[var(--muted-foreground)] transition duration-200 hover:bg-[var(--surface-blush)] hover:text-[var(--accent)] active:scale-[0.98]"
                       >
@@ -1042,6 +1093,7 @@ export function CatalogCommerce({
                     {hasCatalogFilters(normalizedState) ? (
                       <Link
                         href={pathname}
+                        scroll={false}
                         transitionTypes={['catalog-filter']}
                         className="inline-flex min-h-7 shrink-0 items-center px-1 text-xs font-semibold text-[var(--accent)] transition duration-200 hover:text-[var(--accent-hover)]"
                       >

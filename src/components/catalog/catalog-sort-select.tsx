@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { useFormStatus } from 'react-dom';
 import type { CatalogSort } from '@/catalog/queries';
 import {
   Select,
@@ -15,17 +14,18 @@ export function CatalogSortSelect({
   name,
   label,
   value,
-  options
+  options,
+  pending = false
 }: {
   name: string;
   label: string;
   value: CatalogSort;
   options: Array<{ value: CatalogSort; label: string }>;
+  pending?: boolean;
 }) {
   const labelId = useId();
   const [selected, setSelected] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { pending } = useFormStatus();
 
   useEffect(() => {
     setSelected(value);
