@@ -5,6 +5,7 @@ import { ChevronDown } from 'lucide-react';
 import { useEffect, useId, useMemo, useState } from 'react';
 import type { CatalogFacet } from '@/catalog/queries';
 import type { CatalogListState } from '@/catalog/list-state';
+import { cn } from '@/lib/utils';
 
 type FacetKind = 'category' | 'technique' | 'tag';
 
@@ -129,7 +130,12 @@ function FacetGroup({
             href={filterHref(basePath, state, { kind })}
             aria-current={!selected ? 'page' : undefined}
             transitionTypes={!selected ? undefined : ['catalog-filter']}
-            className="relative flex min-h-11 items-center justify-between border-l-2 border-transparent px-3 text-sm text-[var(--muted-foreground)] transition duration-200 hover:bg-[var(--surface-muted)]/45 hover:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] aria-[current=page]:border-[var(--accent)] aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]"
+            className={cn(
+              'relative flex min-h-11 items-center justify-between rounded-[var(--radius-control)] px-3 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]',
+              !selected
+                ? 'bg-[var(--accent-soft,var(--surface-blush))] font-semibold text-[var(--accent)] shadow-[inset_3px_0_0_var(--accent)]'
+                : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] hover:text-[var(--accent)]'
+            )}
           >
             {allLabel}
           </Link>
@@ -141,13 +147,18 @@ function FacetGroup({
                 <span data-facet-label="true" className="min-w-0 break-words">
                   {facet.label}
                 </span>
-                <span className="text-xs tabular-nums text-[var(--muted-foreground)]/80">
+                <span
+                  className={cn(
+                    'text-xs tabular-nums',
+                    active ? 'text-[var(--accent)]/75' : 'text-[var(--muted-foreground)]/80'
+                  )}
+                >
                   {facet.product_count}
                 </span>
               </>
             );
             const className =
-              'relative flex min-h-11 items-center justify-between gap-3 border-l-2 border-transparent px-3 text-sm text-[var(--muted-foreground)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] aria-[current=page]:border-[var(--accent)] aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]';
+              'relative flex min-h-11 items-center justify-between gap-3 rounded-[var(--radius-control)] px-3 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]';
 
             return unavailable ? (
               <span
@@ -163,7 +174,12 @@ function FacetGroup({
                 href={filterHref(basePath, state, { kind, slug: facet.slug })}
                 aria-current={active ? 'page' : undefined}
                 transitionTypes={active ? undefined : ['catalog-filter']}
-                className={`${className} hover:bg-[var(--surface-muted)]/45 hover:text-[var(--foreground)]`}
+                className={cn(
+                  className,
+                  active
+                    ? 'bg-[var(--accent-soft,var(--surface-blush))] font-semibold text-[var(--accent)] shadow-[inset_3px_0_0_var(--accent)]'
+                    : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] hover:text-[var(--accent)]'
+                )}
               >
                 {content}
               </Link>
