@@ -54,29 +54,28 @@ async function catalogProjection(input: CatalogProjectionInput) {
   const unresolvedTaxonomy =
     (input.techniqueSlug !== null && techniqueId === undefined) ||
     (input.tagSlug !== null && tagId === undefined);
-  const products = unresolvedTaxonomy
+  const allProducts = unresolvedTaxonomy
     ? []
-    : (
-        await listCatalogProducts(
-          {
-            locale: input.locale,
-            market: input.market,
-            search: input.search,
-            productType: input.productType,
-            categorySlug: input.categorySlug,
-            collectionSlug: input.collectionSlug,
-            techniqueId,
-            tagId,
-            sort: input.sort
-          },
-          client
-        )
-      ).slice(0, input.limit);
-
-  return projectCatalog(input, {
+    : await listCatalogProducts(
+        {
+          locale: input.locale,
+          market: input.market,
+          search: input.search,
+          productType: input.productType,
+          categorySlug: input.categorySlug,
+          collectionSlug: input.collectionSlug,
+          techniqueId,
+          tagId,
+          sort: input.sort
+        },
+        client
+      );
+  const products = allProducts.slice(input.offset, input.offset + input.limit);
+  const projection = await projectCatalog(input, {
     loadProducts: async () => products,
     loadFacets: async () => facets
   });
+  return { ...projection, totalCount: allProducts.length };
 }
 
 async function productCommerce(locale: Locale, market: MarketCode, slug: string) {

@@ -1,8 +1,8 @@
 'use client';
 
-import {Children, type ReactNode, useEffect, useState} from 'react';
-import {Plus} from 'lucide-react';
-import {Button} from '@/components/ui/button';
+import { Children, type ReactNode, useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export const CATALOG_PAGE_SIZE = 12;
 
@@ -17,30 +17,50 @@ export function nextCatalogCount(currentCount: number, totalCount: number) {
 export function CatalogResultGrid({
   children,
   resultKey,
+  totalCount,
+  loadingMore = false,
+  onLoadMore,
   labels
 }: {
   children: ReactNode;
   resultKey: string;
+  totalCount?: number;
+  loadingMore?: boolean;
+  onLoadMore?: () => Promise<number>;
   labels: {
     showing: string;
     loadMore: string;
   };
 }) {
   const items = Children.toArray(children);
-  const [visibleCount, setVisibleCount] = useState(() =>
-    visibleCatalogCount(items.length, CATALOG_PAGE_SIZE)
-  );
+  const [requestedCount, setRequestedCount] = useState(CATALOG_PAGE_SIZE);
+  const authoritativeTotal = Math.max(totalCount ?? items.length, items.length);
+  const visibleCount = visibleCatalogCount(items.length, requestedCount);
 
   useEffect(() => {
-    setVisibleCount(visibleCatalogCount(items.length, CATALOG_PAGE_SIZE));
-  }, [items.length, resultKey]);
+    setRequestedCount(CATALOG_PAGE_SIZE);
+  }, [resultKey]);
 
-  const hasMore = visibleCount < items.length;
+  const hasMore = visibleCount < authoritativeTotal;
+
+  async function revealMore() {
+    if (visibleCount < items.length) {
+      setRequestedCount((current) => current + CATALOG_PAGE_SIZE);
+      return;
+    }
+
+    const added = await onLoadMore?.();
+    if (added) {
+      setRequestedCount((current) => current + CATALOG_PAGE_SIZE);
+    }
+  }
 
   return (
     <div className="grid gap-6">
       <p className="sr-only" aria-live="polite">
-        {labels.showing.replace('{visible}', String(visibleCount)).replace('{total}', String(items.length))}
+        {labels.showing
+          .replace('{visible}', String(visibleCount))
+          .replace('{total}', String(authoritativeTotal))}
       </p>
       <section
         data-testid="catalog-product-grid"
@@ -53,8 +73,10 @@ export function CatalogResultGrid({
           <Button
             variant="secondary"
             data-testid="catalog-load-more"
+            disabled={loadingMore}
+            aria-busy={loadingMore}
             className="group/load gap-2 border-[var(--brand)]/35 bg-transparent px-5 text-sm font-semibold text-[var(--brand)] shadow-[0_6px_20px_rgb(73_52_32/6%)] hover:border-[var(--accent)]/55 hover:bg-[var(--surface-blush)] hover:text-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--accent)]"
-            onClick={() => setVisibleCount((current) => nextCatalogCount(current, items.length))}
+            onClick={() => void revealMore()}
           >
             <Plus
               data-load-more-icon="true"

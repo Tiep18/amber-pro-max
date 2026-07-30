@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import type { CatalogSort } from '@/catalog/queries';
 import {
@@ -26,6 +26,10 @@ export function CatalogSortSelect({
   const [selected, setSelected] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
   const { pending } = useFormStatus();
+
+  useEffect(() => {
+    setSelected(value);
+  }, [value]);
 
   function updateSort(nextValue: string) {
     const nextSort = nextValue as CatalogSort;

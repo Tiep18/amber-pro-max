@@ -63,6 +63,7 @@ function projectionInput(
     techniqueSlug,
     tagSlug: null,
     sort: 'newest',
+    offset: 0,
     limit: 48
   };
 }

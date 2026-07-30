@@ -86,6 +86,7 @@ describe('storefront catalog projection contracts', () => {
         techniqueSlug: ' crochet ',
         tagSlug: ' gift ',
         sort: 'price_asc',
+        offset: '0',
         limit: '24'
       };
 
@@ -99,6 +100,7 @@ describe('storefront catalog projection contracts', () => {
         techniqueSlug: 'crochet',
         tagSlug: 'gift',
         sort: 'price_asc',
+        offset: 0,
         limit: 24
       });
     });
@@ -126,6 +128,8 @@ describe('storefront catalog projection contracts', () => {
         { locale: 'fr', surface: 'catalog' },
         { locale: 'en', surface: 'search' },
         { locale: 'en', surface: 'catalog', sort: 'popular' },
+        { locale: 'en', surface: 'catalog', offset: -1 },
+        { locale: 'en', surface: 'catalog', offset: 10_001 },
         { locale: 'en', surface: 'catalog', limit: 0 },
         { locale: 'en', surface: 'catalog', limit: 49 },
         { locale: 'en', surface: 'catalog', search: 'x'.repeat(101) },
@@ -171,6 +175,7 @@ describe('storefront catalog projection contracts', () => {
         techniqueSlug: null,
         tagSlug: null,
         sort: 'newest',
+        offset: 0,
         limit: 24
       },
       { loadProducts, loadFacets }
@@ -208,6 +213,7 @@ describe('storefront catalog projection contracts', () => {
       techniqueSlug: 'crochet',
       tagSlug: 'gift',
       sort: 'price_asc',
+      offset: 0,
       limit: 24
     } as const;
     const loadProducts = vi.fn(async (input: typeof base) => {
@@ -235,6 +241,7 @@ describe('storefront catalog projection contracts', () => {
       { ...base, techniqueSlug: 'knit' },
       { ...base, tagSlug: 'beginner' },
       { ...base, sort: 'title' },
+      { ...base, offset: 24 },
       { ...base, limit: 12 }
     ];
 
@@ -242,8 +249,8 @@ describe('storefront catalog projection contracts', () => {
       await projectCatalog(variant, { loadProducts, loadFacets });
     }
 
-    expect(new Set(loadProducts.mock.calls.map(([input]) => JSON.stringify(input))).size).toBe(12);
-    expect(new Set(loadFacets.mock.calls.map(([input]) => JSON.stringify(input))).size).toBe(12);
+    expect(new Set(loadProducts.mock.calls.map(([input]) => JSON.stringify(input))).size).toBe(13);
+    expect(new Set(loadFacets.mock.calls.map(([input]) => JSON.stringify(input))).size).toBe(13);
 
     await projectCatalog({ ...base, search: '  bear  ' }, { loadProducts, loadFacets });
     expect(loadProducts.mock.calls.at(-1)?.[0]).toEqual(base);
@@ -271,7 +278,8 @@ describe('storefront catalog projection contracts', () => {
       market: 'intl',
       surface: 'catalog',
       products: [intlOnlyProduct],
-      facets: intlFacets
+      facets: intlFacets,
+      totalCount: 1
     } as const;
 
     const settled = settleCatalogCommerceRequest(begun.state, begun.request, projection);
@@ -335,7 +343,8 @@ describe('storefront catalog projection contracts', () => {
       market: 'intl',
       surface: 'catalog',
       products: [intlOnlyProduct],
-      facets: intlFacets
+      facets: intlFacets,
+      totalCount: 1
     });
     expect(
       catalogResultsArePending({
@@ -346,6 +355,48 @@ describe('storefront catalog projection contracts', () => {
       })
     ).toBe(false);
     expect(settled.products).toEqual([intlOnlyProduct]);
+  });
+
+  it('retains non-authoritative facets only across same-context filter requests', async () => {
+    const {
+      beginCatalogCommerceRequest,
+      createCatalogCommerceState,
+      settleCatalogCommerceRequest
+    } = await catalogCommerceModule();
+    const readyIdentity = {
+      locale: 'en',
+      market: 'intl',
+      surface: 'catalog',
+      contextGeneration: 4,
+      contextVersion: 7,
+      queryKey: 'sort=newest'
+    } as const;
+    const initial = createCatalogCommerceState([intlOnlyProduct]);
+    const begun = beginCatalogCommerceRequest(initial, readyIdentity);
+    const ready = settleCatalogCommerceRequest(begun.state, begun.request, {
+      locale: 'en',
+      market: 'intl',
+      surface: 'catalog',
+      products: [intlOnlyProduct],
+      facets: intlFacets,
+      totalCount: 1
+    });
+
+    const filtered = beginCatalogCommerceRequest(ready, {
+      ...readyIdentity,
+      queryKey: 'sort=newest&productType=pdf_pattern'
+    });
+    expect(filtered.state.products).toEqual([]);
+    expect(filtered.state.facets).toEqual(intlFacets);
+
+    const marketChanged = beginCatalogCommerceRequest(ready, {
+      ...readyIdentity,
+      market: 'vn',
+      contextGeneration: 5,
+      contextVersion: 8
+    });
+    expect(marketChanged.state.products).toEqual([]);
+    expect(marketChanged.state.facets).toEqual([]);
   });
 
   it('accepts a ready catalog product without optional image metadata', async () => {
@@ -372,12 +423,14 @@ describe('storefront catalog projection contracts', () => {
             published_at: '2026-07-23T12:32:48.379769+00:00'
           }
         ],
-        facets: []
+        facets: [],
+        totalCount: 1
       }
     });
 
     expect(parsed).toMatchObject({
       market: 'intl',
+      totalCount: 1,
       products: [
         {
           product_id: 'product-without-image',
@@ -416,14 +469,16 @@ describe('storefront catalog projection contracts', () => {
       market: 'vn',
       surface: 'catalog',
       products: [vnOnlyProduct],
-      facets: vnFacets
+      facets: vnFacets,
+      totalCount: 1
     } as const;
     const wrongMarketProjection = {
       locale: 'vi',
       market: 'vn',
       surface: 'catalog',
       products: [bothMarketProduct],
-      facets: vnFacets
+      facets: vnFacets,
+      totalCount: 1
     } as const;
 
     expect(settleCatalogCommerceRequest(second.state, first.request, staleProjection)).toBe(

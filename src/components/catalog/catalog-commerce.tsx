@@ -47,6 +47,7 @@ export type CatalogCommerceState = {
   seedProducts: readonly unknown[];
   products: readonly unknown[];
   facets: readonly unknown[];
+  totalCount: number;
   generation: number;
   activeGeneration: number | null;
   identity: CatalogCommerceIdentity | null;
@@ -59,11 +60,22 @@ export function createCatalogCommerceState(seedProducts: readonly unknown[]): Ca
     seedProducts,
     products: seedProducts,
     facets: [],
+    totalCount: seedProducts.length,
     generation: 0,
     activeGeneration: null,
     identity: null,
     issue: null
   };
+}
+
+function sameCatalogContext(left: CatalogCommerceIdentity | null, right: CatalogCommerceIdentity) {
+  return (
+    left?.locale === right.locale &&
+    left.market === right.market &&
+    left.surface === right.surface &&
+    left.contextGeneration === right.contextGeneration &&
+    left.contextVersion === right.contextVersion
+  );
 }
 
 export function beginCatalogCommerceRequest(
@@ -74,12 +86,14 @@ export function beginCatalogCommerceRequest(
   request: CatalogCommerceRequest;
 } {
   const generation = state.generation + 1;
+  const retainFacets = sameCatalogContext(state.identity, identity);
   return {
     state: {
       ...state,
       status: 'resolving',
       products: [],
-      facets: [],
+      facets: retainFacets ? state.facets : [],
+      totalCount: 0,
       generation,
       activeGeneration: generation,
       identity,
@@ -137,6 +151,7 @@ export function settleCatalogCommerceRequest(
     status: 'ready',
     products: projection.products,
     facets: projection.facets,
+    totalCount: projection.totalCount,
     activeGeneration: null,
     issue: null
   };
@@ -156,6 +171,7 @@ export function failCatalogCommerceRequest(
     status: 'error',
     products: state.seedProducts,
     facets: [],
+    totalCount: state.seedProducts.length,
     activeGeneration: null,
     issue
   };
@@ -279,7 +295,10 @@ export function parseCatalogProjectionResponse(
     !Array.isArray(projection.products) ||
     !projection.products.every(isCatalogProduct) ||
     !Array.isArray(projection.facets) ||
-    !projection.facets.every(isCatalogFacet)
+    !projection.facets.every(isCatalogFacet) ||
+    typeof projection.totalCount !== 'number' ||
+    !Number.isSafeInteger(projection.totalCount) ||
+    projection.totalCount < projection.products.length
   ) {
     return null;
   }
@@ -289,7 +308,8 @@ export function parseCatalogProjectionResponse(
     market: projection.market,
     surface: projection.surface,
     products: projection.products,
-    facets: projection.facets
+    facets: projection.facets,
+    totalCount: projection.totalCount
   };
 }
 
@@ -298,7 +318,8 @@ function projectionQuery(
   surface: CatalogSurface,
   state: CatalogListState,
   fixed: CatalogFixedFilters,
-  limit: number
+  limit: number,
+  offset = 0
 ) {
   const values = {
     locale,
@@ -310,6 +331,7 @@ function projectionQuery(
     techniqueSlug: fixed.techniqueSlug ?? state.techniqueSlug,
     tagSlug: fixed.tagSlug ?? state.tagSlug,
     sort: state.sort,
+    offset,
     limit
   };
   const params = new URLSearchParams({
@@ -324,6 +346,7 @@ function projectionQuery(
   if (values.collectionSlug) params.set('collectionSlug', values.collectionSlug);
   if (values.techniqueSlug) params.set('techniqueSlug', values.techniqueSlug);
   if (values.tagSlug) params.set('tagSlug', values.tagSlug);
+  if (values.offset > 0) params.set('offset', String(values.offset));
   return params;
 }
 
@@ -429,11 +452,13 @@ export function CatalogCommerce({
   const queryKey = query.toString();
   const [retryVersion, setRetryVersion] = useState(0);
   const [navigationPending, setNavigationPending] = useState(false);
+  const [loadMorePending, setLoadMorePending] = useState(false);
   const [state, setState] = useState<CatalogCommerceState>(() =>
     createCatalogCommerceState(seoProducts)
   );
   const stateRef = useRef(state);
   const controllerRef = useRef<AbortController | null>(null);
+  const loadMoreControllerRef = useRef<AbortController | null>(null);
 
   function commitState(next: CatalogCommerceState) {
     stateRef.current = next;
@@ -443,6 +468,9 @@ export function CatalogCommerce({
   useEffect(() => {
     controllerRef.current?.abort();
     controllerRef.current = null;
+    loadMoreControllerRef.current?.abort();
+    loadMoreControllerRef.current = null;
+    setLoadMorePending(false);
 
     if (context.status !== 'ready' || context.market === null) {
       const next = createCatalogCommerceState(seoProducts);
@@ -521,7 +549,10 @@ export function CatalogCommerce({
         }
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      loadMoreControllerRef.current?.abort();
+    };
   }, [
     context.contextVersion,
     context.generation,
@@ -555,6 +586,15 @@ export function CatalogCommerce({
     navigationPending
   });
   const marketName = context.market === null ? '' : labels.marketNames[context.market];
+  const facetsMatchContext =
+    context.status === 'ready' &&
+    context.market !== null &&
+    state.identity !== null &&
+    state.identity.locale === locale &&
+    state.identity.market === context.market &&
+    state.identity.surface === surface &&
+    state.identity.contextGeneration === context.generation &&
+    state.identity.contextVersion === context.contextVersion;
   const filterSummary =
     [
       normalizedState.search,
@@ -665,6 +705,85 @@ export function CatalogCommerce({
     setRetryVersion((version) => version + 1);
   }
 
+  async function loadMoreProducts() {
+    const current = stateRef.current;
+    const expectedIdentity = current.identity;
+    if (
+      loadMorePending ||
+      current.status !== 'ready' ||
+      expectedIdentity === null ||
+      expectedIdentity.queryKey !== queryKey ||
+      current.products.length >= current.totalCount
+    ) {
+      return 0;
+    }
+
+    loadMoreControllerRef.current?.abort();
+    const controller = new AbortController();
+    loadMoreControllerRef.current = controller;
+    setLoadMorePending(true);
+    const offset = current.products.length;
+    const nextQuery = projectionQuery(
+      locale,
+      surface,
+      normalizedState,
+      fixedFilters,
+      safeLimit,
+      offset
+    );
+
+    try {
+      const response = await fetch(`/api/storefront/catalog?${nextQuery.toString()}`, {
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error('catalog_projection_unavailable');
+
+      const projection = parseCatalogProjectionResponse(await response.json());
+      if (
+        !projection ||
+        projection.locale !== expectedIdentity.locale ||
+        projection.market !== expectedIdentity.market ||
+        projection.surface !== expectedIdentity.surface
+      ) {
+        throw new Error('catalog_projection_unavailable');
+      }
+
+      const latest = stateRef.current;
+      if (
+        latest.status !== 'ready' ||
+        !sameIdentity(latest.identity, expectedIdentity) ||
+        latest.products.length !== offset
+      ) {
+        return 0;
+      }
+
+      const existingIds = new Set(
+        (latest.products as readonly CatalogProduct[]).map((product) => product.product_id)
+      );
+      const additions = projection.products.filter(
+        (product) => !existingIds.has(product.product_id)
+      );
+      if (additions.length === 0) return 0;
+
+      commitState({
+        ...latest,
+        products: [...latest.products, ...additions],
+        facets: projection.facets,
+        totalCount: projection.totalCount
+      });
+      return additions.length;
+    } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === 'AbortError') return 0;
+      return 0;
+    } finally {
+      if (loadMoreControllerRef.current === controller) {
+        loadMoreControllerRef.current = null;
+        setLoadMorePending(false);
+      }
+    }
+  }
+
   function beginLinkNavigation(event: MouseEvent<HTMLElement>) {
     if (
       event.defaultPrevented ||
@@ -698,15 +817,25 @@ export function CatalogCommerce({
   }
 
   const filterContent =
-    state.status === 'ready' && !resultsPending ? (
-      <CatalogFilterContent
-        basePath={pathname}
-        state={normalizedState}
-        categories={groups.categories}
-        techniques={groups.techniques}
-        tags={groups.tags}
-        labels={labels.filters}
-      />
+    facetsMatchContext && (state.status === 'ready' || facets.length > 0) ? (
+      <div aria-busy={resultsPending} className="relative">
+        <CatalogFilterContent
+          basePath={pathname}
+          state={normalizedState}
+          categories={groups.categories}
+          techniques={groups.techniques}
+          tags={groups.tags}
+          labels={labels.filters}
+        />
+        {resultsPending ? (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0 h-0.5 overflow-hidden rounded-full bg-[var(--surface-muted)]"
+          >
+            <span className="block h-full w-1/2 animate-pulse rounded-full bg-[var(--accent)]/70" />
+          </span>
+        ) : null}
+      </div>
     ) : (
       <CatalogFacetSkeletons />
     );
@@ -729,11 +858,11 @@ export function CatalogCommerce({
           {state.status === 'ready'
             ? replaceTokens(labels.loaded, {
                 market: marketName,
-                count: products.length
+                count: state.totalCount
               })
             : labels.resolving}
         </h2>
-        {state.status === 'ready' && products.length === 0 ? (
+        {state.status === 'ready' && state.totalCount === 0 ? (
           <div className="grid min-h-48 place-content-center gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
             <h3 className="text-xl font-semibold">{labels.emptyTitle}</h3>
             <p className="max-w-xl text-[var(--muted-foreground)]">
@@ -746,6 +875,9 @@ export function CatalogCommerce({
         ) : (
           <CatalogResultGrid
             resultKey={resultKey}
+            totalCount={state.totalCount}
+            loadingMore={loadMorePending}
+            onLoadMore={loadMoreProducts}
             labels={{ showing: labels.showing, loadMore: labels.loadMore }}
           >
             {products.map((product, index) => (
@@ -783,7 +915,7 @@ export function CatalogCommerce({
           : state.status === 'ready'
             ? replaceTokens(labels.loaded, {
                 market: marketName,
-                count: products.length
+                count: state.totalCount
               })
             : ''}
       </p>
@@ -813,7 +945,7 @@ export function CatalogCommerce({
           </nav>
           <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-6">
             <aside
-              className="hidden self-start border-r border-[var(--border)]/70 pr-5 lg:sticky lg:top-24 lg:block"
+              className="hidden self-start border-r border-[var(--border)]/70 pr-3 lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-15rem)] lg:overflow-y-auto lg:pb-4 lg:[scrollbar-gutter:stable]"
               aria-label={labels.shell.filtersTitle}
             >
               {filterContent}
@@ -826,7 +958,11 @@ export function CatalogCommerce({
                   </div>
                   <div className="shrink-0 lg:hidden">
                     <CatalogMobileFilters
-                      triggerLabel={labels.shell.openFilters}
+                      triggerLabel={
+                        activeFilters.length
+                          ? `${labels.shell.openFilters} (${activeFilters.length})`
+                          : labels.shell.openFilters
+                      }
                       title={labels.shell.filtersTitle}
                       closeLabel={labels.shell.closeFilters}
                     >
@@ -874,7 +1010,7 @@ export function CatalogCommerce({
                     <Skeleton aria-hidden="true" className="h-4 w-24" />
                   </>
                 ) : (
-                  replaceTokens(labels.shell.resultCount, { count: products.length })
+                  replaceTokens(labels.shell.resultCount, { count: state.totalCount })
                 )}
               </div>
               {resultContent}

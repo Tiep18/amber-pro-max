@@ -1,4 +1,4 @@
-import {describe, expect, it} from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   CATALOG_PAGE_SIZE,
   nextCatalogCount,
@@ -15,5 +15,10 @@ describe('catalog progressive disclosure', () => {
     expect(nextCatalogCount(12, 30)).toBe(24);
     expect(nextCatalogCount(24, 30)).toBe(30);
     expect(nextCatalogCount(30, 30)).toBe(30);
+  });
+
+  it('keeps the visible count bounded while a later server page is not loaded yet', () => {
+    expect(visibleCatalogCount(48, 60)).toBe(48);
+    expect(visibleCatalogCount(96, 60)).toBe(60);
   });
 });

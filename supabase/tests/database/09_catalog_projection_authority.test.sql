@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(11);
 
 select has_function(
   'public',
@@ -17,12 +17,17 @@ select has_function(
 );
 
 insert into public.categories (id)
-values ('09600000-0000-0000-0000-000000000010');
+values
+  ('09600000-0000-0000-0000-000000000010'),
+  ('09600000-0000-0000-0000-000000000011');
 insert into public.category_translations (
   category_id, locale, slug, name, description, seo_title, seo_description
 ) values (
   '09600000-0000-0000-0000-000000000010', 'en', 'projection-toys',
   'Projection toys', '', 'Projection toys', 'Projection test category.'
+), (
+  '09600000-0000-0000-0000-000000000011', 'en', 'projection-patterns',
+  'Projection patterns', '', 'Projection patterns', 'Projection alternate category.'
 );
 insert into public.techniques (id)
 values ('09600000-0000-0000-0000-000000000020');
@@ -85,6 +90,29 @@ update public.products
 set status = 'published'
 where id = '09600000-0000-0000-0000-000000000001';
 
+insert into public.products (id, product_type, status, published_at)
+values ('09600000-0000-0000-0000-000000000004', 'pdf_pattern', 'draft', now());
+insert into public.product_translations (
+  product_id, locale, slug, title, description, seo_title, seo_description
+) values (
+  '09600000-0000-0000-0000-000000000004', 'en', 'projection-rabbit-pattern',
+  'Projection rabbit pattern', 'Alternate facet fixture.',
+  'Projection rabbit pattern', 'Alternate facet fixture.'
+);
+insert into public.product_market_offers (
+  product_id, market_code, enabled, currency_code, price_minor
+) values (
+  '09600000-0000-0000-0000-000000000004', 'intl', true, 'USD', 900
+);
+insert into public.product_categories (product_id, category_id)
+values (
+  '09600000-0000-0000-0000-000000000004',
+  '09600000-0000-0000-0000-000000000011'
+);
+update public.products
+set status = 'published'
+where id = '09600000-0000-0000-0000-000000000004';
+
 select results_eq(
   $$select
       variants -> 0 ->> 'price_source',
@@ -110,20 +138,55 @@ select results_eq(
       null, '09600000-0000-0000-0000-000000000020',
       '09600000-0000-0000-0000-000000000030'
     )
+    where id in (
+      '09600000-0000-0000-0000-000000000010',
+      '09600000-0000-0000-0000-000000000011',
+      '09600000-0000-0000-0000-000000000020',
+      '09600000-0000-0000-0000-000000000030'
+    )
     order by facet_type$$,
   $$values
+    ('category'::text, 'projection-patterns'::text, 0::bigint),
     ('category'::text, 'projection-toys'::text, 1::bigint),
     ('tag'::text, '09600000-0000-0000-0000-000000000030'::text, 1::bigint),
     ('technique'::text, '09600000-0000-0000-0000-000000000020'::text, 1::bigint)$$,
-  'facet counts match normalized search and taxonomy filters'
+  'facet counts stay stable while matching normalized search and taxonomy filters'
 );
 
-select is_empty(
-  $$select *
+select results_eq(
+  $$select facet_type, count(*)::bigint, sum(product_count)::bigint
     from public.list_catalog_facets_filtered(
       'en', 'intl', 'missing', null, null, null, null, null
-    )$$,
-  'facet projection returns no stale counts when search has no matches'
+    )
+    where id in (
+      '09600000-0000-0000-0000-000000000010',
+      '09600000-0000-0000-0000-000000000011',
+      '09600000-0000-0000-0000-000000000020',
+      '09600000-0000-0000-0000-000000000030'
+    )
+    group by facet_type
+    order by facet_type$$,
+  $$values
+    ('category'::text, 2::bigint, 0::bigint),
+    ('tag'::text, 1::bigint, 0::bigint),
+    ('technique'::text, 1::bigint, 0::bigint)$$,
+  'no-result search retains stable market taxonomy with zero counts'
+);
+
+select results_eq(
+  $$select slug, product_count
+    from public.list_catalog_facets_filtered(
+      'en', 'intl', null, null, 'projection-toys', null, null, null
+    )
+    where id in (
+      '09600000-0000-0000-0000-000000000010',
+      '09600000-0000-0000-0000-000000000011'
+    )
+    order by slug$$,
+  $$values
+    ('projection-patterns'::text, 1::bigint),
+    ('projection-toys'::text, 1::bigint)$$,
+  'selected category does not remove alternative category choices'
 );
 
 set local role anon;

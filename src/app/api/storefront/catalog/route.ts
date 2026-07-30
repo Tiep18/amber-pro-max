@@ -42,6 +42,7 @@ export async function GET(request: Request) {
       techniqueSlug: query.techniqueSlug ?? null,
       tagSlug: query.tagSlug ?? null,
       sort: query.sort,
+      offset: query.offset,
       limit: query.limit
     });
     return json({ status: 'ready', projection });

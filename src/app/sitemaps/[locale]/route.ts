@@ -35,6 +35,7 @@ function taxonomyProjectionInput(locale: Locale, market: MarketCode): CatalogPro
     techniqueSlug: null,
     tagSlug: null,
     sort: 'newest',
+    offset: 0,
     limit: 1
   };
 }

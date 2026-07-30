@@ -61,7 +61,9 @@ function catalogCommerceLabels(
           marketNames: { vn: 'Viet Nam', intl: 'quoc te' },
           saveWishlist: 'Luu san pham vao yeu thich',
           removeWishlist: 'Xoa san pham khoi yeu thich',
-          placeholderStatus: 'Dang cap nhat anh'
+          placeholderStatus: 'Dang cap nhat anh',
+          searchCategories: 'Tim danh muc…',
+          noMatchingCategories: 'Khong tim thay danh muc phu hop.'
         }
       : {
           technique: 'Technique',
@@ -82,7 +84,9 @@ function catalogCommerceLabels(
           marketNames: { vn: 'Vietnam', intl: 'International' },
           saveWishlist: 'Save product to wishlist',
           removeWishlist: 'Remove product from wishlist',
-          placeholderStatus: 'Image coming soon'
+          placeholderStatus: 'Image coming soon',
+          searchCategories: 'Find a category…',
+          noMatchingCategories: 'No matching categories.'
         };
 
   return {
@@ -112,7 +116,9 @@ function catalogCommerceLabels(
       technique: copy.technique,
       allTechniques: copy.allTechniques,
       tag: copy.tag,
-      allTags: copy.allTags
+      allTags: copy.allTags,
+      searchCategories: copy.searchCategories,
+      noMatchingCategories: copy.noMatchingCategories
     },
     controls: {
       search: t('search'),

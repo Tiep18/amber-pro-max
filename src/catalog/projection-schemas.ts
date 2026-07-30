@@ -49,6 +49,7 @@ export const catalogProjectionQuerySchema = z.strictObject({
     (value) => (typeof value === 'string' ? value.trim() : value),
     z.enum(['newest', 'price_asc', 'price_desc', 'title']).default('newest')
   ),
+  offset: z.coerce.number().int().min(0).max(10_000).default(0),
   limit: z.coerce.number().int().min(1).max(48).default(24)
 });
 

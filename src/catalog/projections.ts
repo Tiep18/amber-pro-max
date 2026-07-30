@@ -14,6 +14,7 @@ export type CatalogProjectionInput = {
   techniqueSlug: string | null;
   tagSlug: string | null;
   sort: 'newest' | 'price_asc' | 'price_desc' | 'title';
+  offset: number;
   limit: number;
 };
 
@@ -31,6 +32,7 @@ export type CatalogProjection<TProduct = CatalogProduct, TFacet = CatalogFacet> 
   surface: CatalogProjectionInput['surface'];
   products: readonly TProduct[];
   facets: readonly TFacet[];
+  totalCount: number;
 };
 
 type ProjectionLoader = (...args: never[]) => Promise<readonly unknown[]>;
@@ -55,6 +57,7 @@ function normalizeCatalogProjectionInput(
     techniqueSlug: normalizeNullable(input.techniqueSlug),
     tagSlug: normalizeNullable(input.tagSlug),
     sort: input.sort as CatalogProjectionInput['sort'],
+    offset: input.offset,
     limit: input.limit
   };
 }
@@ -82,7 +85,8 @@ export async function projectCatalog<
     market: normalized.market,
     surface: normalized.surface,
     products,
-    facets
+    facets,
+    totalCount: products.length
   };
 }
 

@@ -157,7 +157,8 @@ describe('private storefront projection response policy (D-09, D-10, T-09-07)', 
       market: 'intl',
       surface: 'catalog',
       products: [],
-      facets: []
+      facets: [],
+      totalCount: 0
     });
     const { GET } = await import('@/app/api/storefront/catalog/route');
     const ready = await GET(
@@ -184,6 +185,7 @@ describe('private storefront projection response policy (D-09, D-10, T-09-07)', 
       techniqueSlug: null,
       tagSlug: null,
       sort: 'newest',
+      offset: 0,
       limit: 24
     });
   });

@@ -1,6 +1,9 @@
+'use client';
+
 import Link from 'next/link';
-import type {CatalogFacet} from '@/catalog/queries';
-import type {CatalogListState} from '@/catalog/list-state';
+import { useMemo, useState } from 'react';
+import type { CatalogFacet } from '@/catalog/queries';
+import type { CatalogListState } from '@/catalog/list-state';
 
 type FacetKind = 'category' | 'technique' | 'tag';
 
@@ -11,12 +14,14 @@ export type CatalogFilterLabels = {
   allTechniques?: string;
   tag?: string;
   allTags?: string;
+  searchCategories?: string;
+  noMatchingCategories?: string;
 };
 
 function filterHref(
   basePath: string,
   state: CatalogListState,
-  change?: {kind: FacetKind; slug?: string}
+  change?: { kind: FacetKind; slug?: string }
 ) {
   const params = new URLSearchParams();
   if (state.search) params.set('search', state.search);
@@ -38,7 +43,9 @@ function FacetGroup({
   kind,
   facets,
   label,
-  allLabel
+  allLabel,
+  localSearchLabel,
+  noMatchesLabel
 }: {
   basePath: string;
   state: CatalogListState;
@@ -46,6 +53,8 @@ function FacetGroup({
   facets: CatalogFacet[];
   label: string;
   allLabel: string;
+  localSearchLabel?: string;
+  noMatchesLabel?: string;
 }) {
   const selected =
     kind === 'category'
@@ -53,34 +62,80 @@ function FacetGroup({
       : kind === 'technique'
         ? state.techniqueSlug
         : state.tagSlug;
+  const [localSearch, setLocalSearch] = useState('');
+  const showLocalSearch = Boolean(localSearchLabel && facets.length > 8);
+  const visibleFacets = useMemo(() => {
+    const query = localSearch.trim().toLocaleLowerCase();
+    if (!query) return facets;
+    return facets.filter(
+      (facet) => facet.slug === selected || facet.label.toLocaleLowerCase().includes(query)
+    );
+  }, [facets, localSearch, selected]);
 
   return (
     <fieldset className="grid gap-1">
       <legend className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">
         {label}
       </legend>
+      {showLocalSearch ? (
+        <label className="mb-2 grid gap-1">
+          <span className="sr-only">{localSearchLabel}</span>
+          <input
+            type="search"
+            value={localSearch}
+            onChange={(event) => setLocalSearch(event.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={localSearchLabel}
+            className="min-h-10 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-normal outline-none transition-colors placeholder:text-[var(--muted-foreground)]/72 hover:bg-[var(--surface-paper)] focus-visible:border-[var(--accent)] focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
+          />
+        </label>
+      ) : null}
       <Link
-        href={filterHref(basePath, state, {kind})}
+        href={filterHref(basePath, state, { kind })}
         aria-current={!selected ? 'page' : undefined}
         transitionTypes={!selected ? undefined : ['catalog-filter']}
-        className="relative flex min-h-11 items-center justify-between border-l-2 border-transparent px-3 text-sm text-[var(--muted-foreground)] transition duration-200 hover:text-[var(--foreground)] aria-[current=page]:border-[var(--accent)] aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]"
+        className="relative flex min-h-11 items-center justify-between border-l-2 border-transparent px-3 text-sm text-[var(--muted-foreground)] transition duration-200 hover:bg-[var(--surface-muted)]/45 hover:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] aria-[current=page]:border-[var(--accent)] aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]"
       >
         {allLabel}
       </Link>
-      {facets.map((facet) => (
-        <Link
-          key={facet.id}
-          href={filterHref(basePath, state, {kind, slug: facet.slug})}
-          aria-current={selected === facet.slug ? 'page' : undefined}
-          transitionTypes={selected === facet.slug ? undefined : ['catalog-filter']}
-          className="relative flex min-h-11 items-center justify-between gap-3 border-l-2 border-transparent px-3 text-sm text-[var(--muted-foreground)] transition duration-200 hover:text-[var(--foreground)] aria-[current=page]:border-[var(--accent)] aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]"
-        >
-          <span className="min-w-0 break-words">{facet.label}</span>
-          <span className="text-xs tabular-nums text-[var(--muted-foreground)]/80">
-            {facet.product_count}
+      {visibleFacets.map((facet) => {
+        const active = selected === facet.slug;
+        const unavailable = facet.product_count === 0 && !active;
+        const content = (
+          <>
+            <span className="min-w-0 break-words">{facet.label}</span>
+            <span className="text-xs tabular-nums text-[var(--muted-foreground)]/80">
+              {facet.product_count}
+            </span>
+          </>
+        );
+        const className =
+          'relative flex min-h-11 items-center justify-between gap-3 border-l-2 border-transparent px-3 text-sm text-[var(--muted-foreground)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] aria-[current=page]:border-[var(--accent)] aria-[current=page]:font-semibold aria-[current=page]:text-[var(--accent)]';
+
+        return unavailable ? (
+          <span
+            key={facet.id}
+            aria-disabled="true"
+            className={`${className} cursor-not-allowed opacity-45`}
+          >
+            {content}
           </span>
-        </Link>
-      ))}
+        ) : (
+          <Link
+            key={facet.id}
+            href={filterHref(basePath, state, { kind, slug: facet.slug })}
+            aria-current={active ? 'page' : undefined}
+            transitionTypes={active ? undefined : ['catalog-filter']}
+            className={`${className} hover:bg-[var(--surface-muted)]/45 hover:text-[var(--foreground)]`}
+          >
+            {content}
+          </Link>
+        );
+      })}
+      {showLocalSearch && visibleFacets.length === 0 && noMatchesLabel ? (
+        <p className="px-3 py-3 text-sm text-[var(--muted-foreground)]">{noMatchesLabel}</p>
+      ) : null}
     </fieldset>
   );
 }
@@ -109,6 +164,8 @@ export function CatalogFilterContent({
         facets={categories}
         label={labels.category}
         allLabel={labels.allCategories}
+        localSearchLabel={labels.searchCategories}
+        noMatchesLabel={labels.noMatchingCategories}
       />
       {labels.technique && labels.allTechniques ? (
         <FacetGroup

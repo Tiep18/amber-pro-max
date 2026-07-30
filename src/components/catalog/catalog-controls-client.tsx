@@ -1,7 +1,7 @@
 'use client';
 
 import { Loader2, Search } from 'lucide-react';
-import type { FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useFormStatus } from 'react-dom';
 import type { CatalogSort } from '@/catalog/queries';
 import type { CatalogListState } from '@/catalog/list-state';
@@ -45,12 +45,17 @@ export function CatalogControlsClient({
   state: CatalogListState;
   labels: CatalogControlLabels;
 }) {
+  const [searchValue, setSearchValue] = useState(state.search ?? '');
   const sortOptions: Array<{ value: CatalogSort; label: string }> = [
     { value: 'newest', label: labels.newest },
     { value: 'price_asc', label: labels.priceAsc },
     { value: 'price_desc', label: labels.priceDesc },
     { value: 'title', label: labels.titleSort }
   ];
+
+  useEffect(() => {
+    setSearchValue(state.search ?? '');
+  }, [state.search]);
 
   function cleanEmptySearch(event: FormEvent<HTMLFormElement>) {
     const search = event.currentTarget.elements.namedItem('search');
@@ -66,6 +71,7 @@ export function CatalogControlsClient({
     }
 
     search.value = cleaned;
+    setSearchValue(cleaned);
   }
 
   return (
@@ -90,7 +96,8 @@ export function CatalogControlsClient({
             name="search"
             autoComplete="off"
             spellCheck={false}
-            defaultValue={state.search}
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
             placeholder={labels.searchPlaceholder}
             className="min-w-0 flex-1 bg-transparent py-2 text-sm font-normal outline-none placeholder:text-[var(--muted-foreground)]/72 sm:text-base"
           />
