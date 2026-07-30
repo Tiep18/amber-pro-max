@@ -131,6 +131,28 @@ function sameIdentity(left: CatalogCommerceIdentity | null, right: CatalogCommer
   );
 }
 
+export function mergeCatalogFacetSnapshots(
+  previousFacets: readonly CatalogFacet[],
+  incomingFacets: readonly CatalogFacet[]
+) {
+  if (previousFacets.length === 0) return [...incomingFacets];
+
+  const incomingByIdentity = new Map(
+    incomingFacets.map((facet) => [`${facet.facet_type}:${facet.id}`, facet])
+  );
+  const previousIdentities = new Set(
+    previousFacets.map((facet) => `${facet.facet_type}:${facet.id}`)
+  );
+
+  return [
+    ...previousFacets.map((facet) => {
+      const incoming = incomingByIdentity.get(`${facet.facet_type}:${facet.id}`);
+      return incoming ? { ...facet, product_count: incoming.product_count } : facet;
+    }),
+    ...incomingFacets.filter((facet) => !previousIdentities.has(`${facet.facet_type}:${facet.id}`))
+  ];
+}
+
 export function settleCatalogCommerceRequest(
   state: CatalogCommerceState,
   request: CatalogCommerceRequest,
@@ -150,7 +172,10 @@ export function settleCatalogCommerceRequest(
     ...state,
     status: 'ready',
     products: projection.products,
-    facets: projection.facets,
+    facets:
+      state.facets.every(isCatalogFacet) && projection.facets.every(isCatalogFacet)
+        ? mergeCatalogFacetSnapshots(state.facets, projection.facets)
+        : projection.facets,
     totalCount: projection.totalCount,
     activeGeneration: null,
     issue: null
@@ -945,10 +970,36 @@ export function CatalogCommerce({
           </nav>
           <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-6">
             <aside
-              className="hidden self-start border-r border-[var(--border)]/70 pr-3 lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-15rem)] lg:overflow-y-auto lg:pb-4 lg:[scrollbar-gutter:stable]"
+              className="hidden self-start overflow-hidden rounded-l-[var(--radius-card)] border-r border-[var(--border)]/70 bg-[var(--surface)]/35 lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100dvh-15rem)] lg:flex-col"
               aria-label={labels.shell.filtersTitle}
             >
-              {filterContent}
+              <div className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-[var(--border)]/75 bg-[var(--surface)]/88 px-3 backdrop-blur-sm">
+                <div className="flex min-w-0 items-center gap-2">
+                  <h2 className="truncate text-sm font-semibold text-[var(--foreground)]">
+                    {labels.shell.filtersTitle}
+                  </h2>
+                  {activeFilters.length ? (
+                    <span
+                      aria-label={`${labels.shell.activeFilters}: ${activeFilters.length}`}
+                      className="grid size-5 shrink-0 place-items-center rounded-full bg-[var(--accent)] text-[11px] font-bold text-white"
+                    >
+                      {activeFilters.length}
+                    </span>
+                  ) : null}
+                </div>
+                {hasCatalogFilters(normalizedState) ? (
+                  <Link
+                    href={pathname}
+                    transitionTypes={['catalog-filter']}
+                    className="shrink-0 text-xs font-semibold text-[var(--accent)] transition-colors hover:text-[var(--accent-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                  >
+                    {labels.shell.clearFilters}
+                  </Link>
+                ) : null}
+              </div>
+              <div className="catalog-filter-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-2 pr-3 [scrollbar-gutter:stable]">
+                {filterContent}
+              </div>
             </aside>
             <div className="grid min-w-0 content-start gap-4">
               <div className="grid gap-2 lg:sticky lg:top-20 lg:z-30 lg:-mx-2 lg:bg-[var(--background)]/94 lg:px-2 lg:py-2 lg:backdrop-blur-md">

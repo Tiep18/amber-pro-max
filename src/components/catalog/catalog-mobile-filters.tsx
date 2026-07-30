@@ -29,7 +29,7 @@ export function CatalogMobileFilters({
       triggerIcon={<SlidersHorizontal aria-hidden="true" className="h-4 w-4" />}
       triggerClassName="!h-10 !min-h-10 gap-1.5 px-3 text-sm shadow-sm"
       contentClassName="w-[min(360px,92vw)]"
-      bodyClassName="overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+      bodyClassName="catalog-filter-scroll overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
     >
       <div
         onClickCapture={(event) => {

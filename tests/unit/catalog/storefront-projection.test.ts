@@ -399,6 +399,54 @@ describe('storefront catalog projection contracts', () => {
     expect(marketChanged.state.facets).toEqual([]);
   });
 
+  it('keeps the market facet universe stable when contextual responses omit alternatives', async () => {
+    const { mergeStableCatalogFacets } = await projectionModules();
+    const { mergeCatalogFacetSnapshots } = await catalogCommerceModule();
+    const master = [
+      {
+        facet_type: 'category',
+        id: 'category-bears',
+        slug: 'bears',
+        label: 'Bears',
+        product_count: 4
+      },
+      {
+        facet_type: 'category',
+        id: 'category-dolls',
+        slug: 'dolls',
+        label: 'Dolls',
+        product_count: 3
+      }
+    ];
+    const narrowed = [{ ...master[0], product_count: 2 }];
+
+    expect(mergeStableCatalogFacets(master, narrowed)).toEqual([
+      { ...master[0], product_count: 2 },
+      master[1]
+    ]);
+    expect(mergeCatalogFacetSnapshots(master, narrowed)).toEqual([
+      { ...master[0], product_count: 2 },
+      master[1]
+    ]);
+  });
+
+  it('uses explicit zero counts from an authoritative contextual facet response', async () => {
+    const { mergeStableCatalogFacets } = await projectionModules();
+    const master = [
+      {
+        facet_type: 'category',
+        id: 'category-bears',
+        slug: 'bears',
+        label: 'Bears',
+        product_count: 4
+      }
+    ];
+
+    expect(mergeStableCatalogFacets(master, [{ ...master[0], product_count: 0 }])).toEqual([
+      { ...master[0], product_count: 0 }
+    ]);
+  });
+
   it('accepts a ready catalog product without optional image metadata', async () => {
     const { parseCatalogProjectionResponse } = await catalogCommerceModule();
     const parsed = parseCatalogProjectionResponse({

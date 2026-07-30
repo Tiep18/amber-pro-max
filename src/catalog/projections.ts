@@ -35,6 +35,23 @@ export type CatalogProjection<TProduct = CatalogProduct, TFacet = CatalogFacet> 
   totalCount: number;
 };
 
+export function mergeStableCatalogFacets(
+  masterFacets: readonly CatalogFacet[],
+  contextualFacets: readonly CatalogFacet[]
+): CatalogFacet[] {
+  const contextualByIdentity = new Map(
+    contextualFacets.map((facet) => [`${facet.facet_type}:${facet.id}`, facet])
+  );
+
+  return masterFacets.map((masterFacet) => {
+    const contextualFacet = contextualByIdentity.get(`${masterFacet.facet_type}:${masterFacet.id}`);
+    return {
+      ...masterFacet,
+      product_count: contextualFacet?.product_count ?? masterFacet.product_count
+    };
+  });
+}
+
 type ProjectionLoader = (...args: never[]) => Promise<readonly unknown[]>;
 type ProjectionLoaderItem<TLoader extends ProjectionLoader> = Awaited<ReturnType<TLoader>>[number];
 

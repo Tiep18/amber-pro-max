@@ -186,7 +186,8 @@ test('desktop filter sidebar is viewport-bounded and independently scrollable', 
 
   const sidebar = page.getByRole('complementary', { name: 'Filters' });
   await expect(sidebar).toBeVisible();
-  const geometry = await sidebar.evaluate((element) => {
+  const scrollRegion = sidebar.locator('.catalog-filter-scroll');
+  const geometry = await scrollRegion.evaluate((element) => {
     const style = getComputedStyle(element);
     const rect = element.getBoundingClientRect();
     return {
@@ -202,6 +203,34 @@ test('desktop filter sidebar is viewport-bounded and independently scrollable', 
   expect(geometry.top).toBeGreaterThanOrEqual(80);
   expect(geometry.bottom).toBeLessThanOrEqual(904);
   expect(geometry.scrollHeight).toBeGreaterThan(geometry.clientHeight);
+  await expect(sidebar.getByRole('button', { name: /Technique/i })).toHaveAttribute(
+    'aria-expanded',
+    'false'
+  );
+});
+
+test('sidebar keeps its category universe after a category filter settles', async ({ page }) => {
+  await addLongCategoryFacetFixture(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/en/catalog');
+  await expect(page.getByRole('main').getByRole('status')).toContainText(/store loaded/i, {
+    timeout: 20_000
+  });
+
+  const sidebar = page.getByRole('complementary', { name: 'Filters' });
+  const categoryGroup = sidebar.getByRole('group', { name: 'Category' });
+  const categoryLabels = categoryGroup.locator('[data-facet-label="true"]');
+  const before = (await categoryLabels.allTextContents()).sort();
+  expect(before.length).toBeGreaterThan(1);
+
+  await categoryGroup.getByText('Needle category 2', { exact: true }).click();
+  await expect(page).toHaveURL(/category=/);
+  await expect(page.getByRole('main').getByRole('status')).toContainText(/store loaded/i, {
+    timeout: 20_000
+  });
+
+  const after = (await categoryLabels.allTextContents()).sort();
+  expect(after).toEqual(before);
 });
 
 test('mobile filter sheet handles long category lists and local search', async ({ page }) => {

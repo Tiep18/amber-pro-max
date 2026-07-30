@@ -16,6 +16,7 @@ import {
   type CatalogListInput
 } from './queries';
 import {
+  mergeStableCatalogFacets,
   projectAuthoritativeProductCommerce,
   projectCatalog,
   type CatalogProjectionInput
@@ -43,7 +44,30 @@ async function catalogCollection(locale: Locale, market: MarketCode, slug: strin
 
 async function catalogProjection(input: CatalogProjectionInput) {
   const client = createSupabasePublicClient();
-  const facets = await listCatalogFacetsFiltered(input, client);
+  const masterFacetInput = {
+    ...input,
+    search: null,
+    productType: null,
+    categorySlug: null,
+    collectionSlug: null,
+    techniqueSlug: null,
+    tagSlug: null
+  };
+  const hasActiveFacetFilter =
+    input.search !== null ||
+    input.productType !== null ||
+    input.categorySlug !== null ||
+    input.collectionSlug !== null ||
+    input.techniqueSlug !== null ||
+    input.tagSlug !== null;
+  const [masterFacets, contextualFacets] = await Promise.all([
+    listCatalogFacetsFiltered(masterFacetInput, client),
+    hasActiveFacetFilter ? listCatalogFacetsFiltered(input, client) : Promise.resolve(null)
+  ]);
+  const facets =
+    contextualFacets === null
+      ? masterFacets
+      : mergeStableCatalogFacets(masterFacets, contextualFacets);
   const techniqueId = input.techniqueSlug
     ? facets.find((facet) => facet.facet_type === 'technique' && facet.slug === input.techniqueSlug)
         ?.id
