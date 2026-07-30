@@ -62,50 +62,53 @@ export function SubscribeForm({
 
   return (
     <Form {...form}>
-      <form id="newsletter" onSubmit={form.handleSubmit(onSubmit)} className="grid w-full gap-5">
+      <form id="newsletter" onSubmit={form.handleSubmit(onSubmit)} className="grid w-full gap-4">
         <div className="grid gap-2">
-          <p className="text-xl font-semibold tracking-[-0.015em] text-[var(--foreground)]">{labels.title}</p>
-          <p className="max-w-[32rem] text-sm leading-7 text-[var(--muted-foreground)]">{labels.consent}</p>
+          <h2 className="text-sm font-semibold text-[var(--foreground)]">{labels.title}</h2>
+          <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">{labels.consent}</p>
         </div>
-        <div className="grid gap-2">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({field}) => (
-              <FormItem className="grid gap-2">
-                <FormLabel className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
-                  {labels.email}
-                </FormLabel>
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                  <div className="flex min-h-12 w-full items-center rounded-[var(--radius-control)] border border-[var(--border)]/70 bg-white/68 px-2 shadow-[inset_0_1px_0_rgb(255_255_255_/_76%)] transition-colors focus-within:border-[var(--accent)]/55 focus-within:bg-white/88">
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="email"
-                      autoComplete="email"
-                      spellCheck={false}
-                      maxLength={320}
-                      className="min-h-10 flex-1 border-0 bg-transparent px-2 font-normal shadow-none focus-visible:outline-none"
-                    />
-                  </FormControl>
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={pending}
-                    className="min-h-12 w-full shrink-0 cursor-pointer gap-2 rounded-[var(--radius-control)] px-5 text-sm shadow-[0_10px_24px_rgb(169_71_52_/_16%)] transition-transform active:translate-y-px sm:w-auto"
-                  >
-                    <Mail aria-hidden="true" className="size-4" />
-                    {pending ? labels.pending : labels.submit}
-                  </Button>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        {state.status === 'subscribed' ? <p role="status">{labels.success}</p> : null}
-        {state.status === 'invalid' ? <p role="status">{labels.invalid}</p> : null}
-        {state.status === 'error' ? <p role="status">{labels.error}</p> : null}
+        <FormField
+          control={form.control}
+          name="email"
+          render={({field}) => (
+            <FormItem className="grid gap-1.5">
+              <FormLabel className="sr-only">
+                {labels.email}
+              </FormLabel>
+              <div className="flex items-stretch rounded-[var(--radius-control)] border border-[var(--border)]/60 bg-white/60 shadow-[inset_0_1px_0_rgb(255_255_255_/_60%)] transition-colors focus-within:border-[var(--accent)]/50 focus-within:bg-white/80 focus-within:ring-2 focus-within:ring-[var(--accent)]/12">
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="email"
+                    autoComplete="email"
+                    placeholder={labels.email}
+                    spellCheck={false}
+                    maxLength={320}
+                    className="min-h-[44px] flex-1 border-0 bg-transparent px-3 text-sm font-normal shadow-none ring-0 placeholder:text-[var(--muted-foreground)]/60 focus-visible:outline-none focus-visible:ring-0"
+                  />
+                </FormControl>
+                <Button
+                  type="submit"
+                  disabled={pending}
+                  className="m-[3px] min-h-[38px] shrink-0 cursor-pointer gap-1.5 rounded-[calc(var(--radius-control)-3px)] px-4 text-[13px] font-semibold shadow-[0_6px_16px_rgb(169_71_52_/_14%)] transition-all active:translate-y-px"
+                >
+                  <Mail aria-hidden="true" className="size-3.5" />
+                  {pending ? labels.pending : labels.submit}
+                </Button>
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        {state.status === 'subscribed' ? (
+          <p role="status" className="text-[13px] font-medium text-emerald-700">{labels.success}</p>
+        ) : null}
+        {state.status === 'invalid' ? (
+          <p role="status" className="text-[13px] font-medium text-amber-700">{labels.invalid}</p>
+        ) : null}
+        {state.status === 'error' ? (
+          <p role="status" className="text-[13px] font-medium text-red-700">{labels.error}</p>
+        ) : null}
       </form>
     </Form>
   );

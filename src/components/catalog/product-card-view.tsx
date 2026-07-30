@@ -71,7 +71,7 @@ export function ProductCardView({
   return (
     <article
       aria-label={product.title}
-      className="group relative grid h-full grid-rows-[auto_1fr] overflow-hidden rounded-[18px] bg-[var(--surface)] shadow-[0_18px_55px_rgb(73_52_32/8%)] ring-1 ring-[var(--border)]/70 transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_70px_rgb(73_52_32/14%)]"
+      className="group relative isolate grid h-full grid-rows-[auto_1fr] overflow-hidden rounded-[18px] bg-[var(--surface)] shadow-[0_18px_55px_rgb(73_52_32/8%)] ring-1 ring-[var(--border)]/70 transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_70px_rgb(73_52_32/14%)]"
     >
       <Link
         href={productPath}

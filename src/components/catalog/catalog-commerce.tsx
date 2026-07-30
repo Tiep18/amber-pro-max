@@ -819,7 +819,7 @@ export function CatalogCommerce({
               {filterContent}
             </aside>
             <div className="grid min-w-0 content-start gap-4">
-              <div className="grid gap-2 lg:sticky lg:top-20 lg:z-20 lg:-mx-2 lg:bg-[var(--background)]/94 lg:px-2 lg:py-2 lg:backdrop-blur-md">
+              <div className="grid gap-2 lg:sticky lg:top-20 lg:z-30 lg:-mx-2 lg:bg-[var(--background)]/94 lg:px-2 lg:py-2 lg:backdrop-blur-md">
                 <div className="flex min-w-0 items-end gap-2">
                   <div className="min-w-0 flex-1">
                     <CatalogControlsClient state={normalizedState} labels={labels.controls} />

@@ -196,7 +196,7 @@ export default async function CatalogPage({ params }: { params: Promise<{ locale
   const labels = catalogCommerceLabels(locale, t);
 
   return (
-    <main className="container grid gap-4 py-5 sm:py-6 lg:gap-5">
+    <main className="container grid gap-3 py-4 sm:py-5 lg:gap-4">
       <JsonLd
         data={[
           breadcrumbJsonLd([
@@ -211,21 +211,23 @@ export default async function CatalogPage({ params }: { params: Promise<{ locale
           )
         ]}
       />
-      <nav
-        aria-label={t('breadcrumb')}
-        className="hidden items-center gap-2 text-sm text-[var(--muted-foreground)] sm:flex"
-      >
-        <Link href={`/${locale}`} className="hover:text-[var(--foreground)]">
-          {t('breadcrumbHome')}
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span aria-current="page">{t('breadcrumbShop')}</span>
-      </nav>
-      <header className="grid max-w-[760px] gap-1.5">
-        <h1 className="text-[30px] font-semibold leading-tight text-balance text-[var(--brand)] sm:text-4xl">
-          {t('title')}
-        </h1>
-        <p className="max-w-[62ch] text-sm leading-relaxed text-[var(--muted-foreground)] sm:text-base">
+      <header className="flex flex-col gap-2 border-b border-[var(--border)]/40 pb-3.5 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+        <div className="grid gap-1">
+          <nav
+            aria-label={t('breadcrumb')}
+            className="flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]"
+          >
+            <Link href={`/${locale}`} className="transition-colors hover:text-[var(--foreground)]">
+              {t('breadcrumbHome')}
+            </Link>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page" className="font-medium text-[var(--foreground)]">{t('breadcrumbShop')}</span>
+          </nav>
+          <h1 className="text-xl font-semibold tracking-tight text-[var(--brand)] sm:text-2xl">
+            {t('title')}
+          </h1>
+        </div>
+        <p className="max-w-[44ch] text-xs leading-relaxed text-[var(--muted-foreground)] sm:text-sm sm:text-right">
           {t('intro')}
         </p>
       </header>
