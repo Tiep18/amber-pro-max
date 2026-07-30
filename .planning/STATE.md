@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 09-14-PLAN.md
-last_updated: '2026-07-31T00:12:15+07:00'
-last_activity: 2026-07-31 -- Completed quick task 260730-wqd: stabilized responsive catalog filtering while preserving SEO and ISR
+last_updated: '2026-07-31T00:46:00+07:00'
+last_activity: 2026-07-31 -- Completed quick task 260731-103: matched catalog sidebar active styling to admin navigation
 progress:
   total_phases: 9
   completed_phases: 7
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 09 (independent-locale-and-market-commerce-projection-with-seo-s) — EXECUTING
 Plan: 15 of 15
 Status: Ready to execute
-Last activity: 2026-07-31 -- Completed quick task 260730-wqd: stabilized responsive catalog filtering while preserving SEO and ISR
+Last activity: 2026-07-31 -- Completed quick task 260731-103: matched catalog sidebar active styling to admin navigation
 
 Progress: Phase 09 Plan 14 is complete; Plan 15 is next.
 
@@ -222,6 +222,7 @@ None yet.
 
 | #                                                     | Description                                                                                                                      | Date       | Commit      | Status                                                                                                                                                    | Directory                                                                  |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 260731-103                                            | Match catalog sidebar active category styling to the admin sidebar active state                                                  | 2026-07-31 | e3b2182     | Verified                                                                                                                                                  | [260731-103](./quick/260731-103-match-catalog-sidebar-active-category-st/) |
 | 260730-wqd                                            | Stabilize responsive catalog filters, exact totals, progressive loading, and sidebar reachability while preserving SEO and ISR   | 2026-07-31 | 4498bb3     | Verified                                                                                                                                                  | [260730-wqd](./quick/260730-wqd-optimize-store-catalog-filtering-ux-acro/) |
 | 260727-v05                                            | Add safe route skeletons, accurate action pending states, and request-level loading optimizations                                | 2026-07-27 | e452a8e     | Verified                                                                                                                                                  | [260727-v05](./quick/260727-v05-add-targeted-route-loading-skeletons-and/) |
 | 260727-jc0                                            | Clear only successfully ordered cart quantities while preserving capped or concurrent surplus                                    | 2026-07-27 | 58f54175    | Verified                                                                                                                                                  | [260727-jc0](./quick/260727-jc0-clear-only-successfully-ordered-cart-qua/) |
