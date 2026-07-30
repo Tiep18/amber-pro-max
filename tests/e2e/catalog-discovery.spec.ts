@@ -243,7 +243,9 @@ test('sidebar keeps its category universe after a category filter settles', asyn
   expect(after).toEqual(before);
 });
 
-test('desktop facet navigation preserves the document scroll position', async ({ page }) => {
+test('desktop facet navigation scrolls the product results to their sticky-safe start', async ({
+  page
+}) => {
   await addPagedProductFixture(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/en/catalog');
@@ -251,20 +253,26 @@ test('desktop facet navigation preserves the document scroll position', async ({
     timeout: 20_000
   });
 
-  await page.evaluate(() => window.scrollTo(0, 520));
+  await page.evaluate(() => window.scrollTo(0, 1200));
   const sidebar = page.getByRole('complementary', { name: 'Filters' });
   const facetLink = sidebar.getByRole('group', { name: 'Category' }).getByRole('link').nth(1);
   await facetLink.scrollIntoViewIfNeeded();
-  const before = await page.evaluate(() => window.scrollY);
+  const resultCount = page.getByTestId('catalog-result-count');
+  expect(await resultCount.evaluate((element) => element.getBoundingClientRect().top)).toBeLessThan(
+    0
+  );
   await facetLink.click();
   await expect(page).toHaveURL(/category=/);
   await expect(page.getByRole('main').getByRole('status')).toContainText(/store loaded/i, {
     timeout: 20_000
   });
-  const after = await page.evaluate(() => window.scrollY);
 
-  expect(after).toBeGreaterThan(400);
-  expect(Math.abs(after - before)).toBeLessThanOrEqual(32);
+  await expect
+    .poll(() => resultCount.evaluate((element) => element.getBoundingClientRect().top))
+    .toBeLessThanOrEqual(184);
+  expect(
+    await resultCount.evaluate((element) => element.getBoundingClientRect().top)
+  ).toBeGreaterThanOrEqual(168);
 });
 
 test('mobile filter sheet handles long category lists and local search', async ({ page }) => {
@@ -319,11 +327,24 @@ test('search and sort controls follow URL state after clear and browser history'
 });
 
 test('mobile filter trigger reports the number of active filters', async ({ page }) => {
+  await addPagedProductFixture(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/en/catalog');
   await page.getByRole('link', { name: 'PDF patterns', exact: true }).click();
   await expect(page).toHaveURL(/type=pdf_pattern/);
   await expect(page.getByRole('button', { name: 'Filters (1)', exact: true })).toBeVisible();
+  await expect
+    .poll(() =>
+      page
+        .getByTestId('catalog-result-count')
+        .evaluate((element) => element.getBoundingClientRect().top)
+    )
+    .toBeLessThanOrEqual(104);
+  expect(
+    await page
+      .getByTestId('catalog-result-count')
+      .evaluate((element) => element.getBoundingClientRect().top)
+  ).toBeGreaterThanOrEqual(88);
 });
 
 test('product cards use compact text treatment only on mobile', async ({ page }) => {

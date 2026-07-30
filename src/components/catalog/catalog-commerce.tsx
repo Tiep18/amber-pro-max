@@ -511,6 +511,8 @@ export function CatalogCommerce({
   const stateRef = useRef(state);
   const controllerRef = useRef<AbortController | null>(null);
   const loadMoreControllerRef = useRef<AbortController | null>(null);
+  const resultStartRef = useRef<HTMLDivElement | null>(null);
+  const previousQueryKeyRef = useRef(queryKey);
 
   function commitState(next: CatalogCommerceState) {
     stateRef.current = next;
@@ -635,6 +637,21 @@ export function CatalogCommerce({
       setNavigationPending(false);
     }
   }, [navigationPending, queryKey, state.identity?.queryKey, state.status]);
+
+  useEffect(() => {
+    const previousQueryKey = previousQueryKeyRef.current;
+    previousQueryKeyRef.current = queryKey;
+    if (previousQueryKey === queryKey) return;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      resultStartRef.current?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'start'
+      });
+    });
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [queryKey]);
 
   const products = state.products as readonly CatalogProduct[];
   const facets = state.facets as readonly CatalogFacet[];
@@ -1104,8 +1121,9 @@ export function CatalogCommerce({
                 ) : null}
               </div>
               <div
+                ref={resultStartRef}
                 data-testid="catalog-result-count"
-                className="min-h-5 text-sm text-[var(--muted-foreground)]"
+                className="min-h-5 scroll-mt-24 text-sm text-[var(--muted-foreground)] lg:scroll-mt-44"
               >
                 {resultsPending ? (
                   <>
