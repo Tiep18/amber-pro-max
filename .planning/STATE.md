@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 09-14-PLAN.md
-last_updated: '2026-07-31T01:50:43+07:00'
-last_activity: 2026-07-31 -- Completed quick task 260731-24q: smoothed catalog filtering transitions while preserving SEO and ISR
+last_updated: '2026-07-31T02:04:32+07:00'
+last_activity: 2026-07-31 -- Completed quick task 260731-2pm: scrolled filtered catalog results to their sticky-safe start
 progress:
   total_phases: 9
   completed_phases: 7
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 09 (independent-locale-and-market-commerce-projection-with-seo-s) — EXECUTING
 Plan: 15 of 15
 Status: Ready to execute
-Last activity: 2026-07-31 -- Completed quick task 260731-24q: smoothed catalog filtering transitions while preserving SEO and ISR
+Last activity: 2026-07-31 -- Completed quick task 260731-2pm: scrolled filtered catalog results to their sticky-safe start
 
 Progress: Phase 09 Plan 14 is complete; Plan 15 is next.
 
@@ -222,6 +222,7 @@ None yet.
 
 | #                                                     | Description                                                                                                                      | Date       | Commit      | Status                                                                                                                                                    | Directory                                                                  |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 260731-2pm                                            | Scroll filtered catalog product results to their sticky-safe viewport start on desktop and mobile                               | 2026-07-31 | 26a6f34     | Verified                                                                                                                                                  | [260731-2pm](./quick/260731-2pm-scroll-catalog-product-results-to-their-/) |
 | 260731-24q                                            | Smooth catalog filter transitions, preserve scroll, and retain sidebar facets without changing SEO or ISR                       | 2026-07-31 | 1564ac2     | Verified                                                                                                                                                  | [260731-24q](./quick/260731-24q-smooth-catalog-filtering-transitions-pre/) |
 | 260731-103                                            | Match catalog sidebar active category styling to the admin sidebar active state                                                  | 2026-07-31 | e3b2182     | Verified                                                                                                                                                  | [260731-103](./quick/260731-103-match-catalog-sidebar-active-category-st/) |
 | 260730-wqd                                            | Stabilize responsive catalog filters, exact totals, progressive loading, and sidebar reachability while preserving SEO and ISR   | 2026-07-31 | 4498bb3     | Verified                                                                                                                                                  | [260730-wqd](./quick/260730-wqd-optimize-store-catalog-filtering-ux-acro/) |
