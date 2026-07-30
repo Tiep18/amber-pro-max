@@ -272,68 +272,51 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
   return (
     <main className="overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
       <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
-      <section className="relative isolate overflow-hidden bg-[var(--background)]">
-        <div className="absolute inset-x-0 top-0 h-1/2 bg-[linear-gradient(180deg,#f7ead7,rgba(246,242,234,0))]" />
-        <div className="container relative grid min-h-[620px] items-center gap-10 pb-14 pt-20 sm:pt-24 lg:min-h-[540px] lg:grid-cols-[0.86fr_1.14fr] lg:gap-10 lg:pb-12 lg:pt-14">
-          <div className="relative z-10 grid max-w-2xl gap-5 text-pretty">
-            <p className="text-sm font-semibold text-[var(--accent)]">{t('hero.kicker')}</p>
-            <h1 className="max-w-full break-words text-[42px] font-bold leading-[0.96] text-balance text-[var(--brand)] sm:text-[60px] lg:text-[76px]">
-              Ambertinybear
-            </h1>
-            <p className="max-w-[620px] text-3xl font-semibold leading-[1.05] tracking-[-0.01em] text-balance sm:text-4xl lg:text-[46px]">
-              {t('hero.headline')}
-            </p>
-            <p className="max-w-[58ch] text-base leading-relaxed text-[var(--muted-foreground)] sm:text-lg">
+      <section className="relative isolate min-h-[520px] overflow-hidden sm:min-h-[560px] lg:min-h-[620px]">
+        {/* Full-bleed hero image */}
+        <Image
+          src="/images/home/hero-studio.png"
+          alt={t('hero.imageAlt')}
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center"
+        />
+
+        {/* Warm gradient overlay — left-heavy for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#f6f0e6]/95 via-[#f6f0e6]/70 to-transparent lg:via-[#f6f0e6]/45" />
+
+        {/* Content */}
+        <div className="container relative z-10 flex min-h-[inherit] items-center py-16 sm:py-20">
+          <div className="grid max-w-lg gap-6 lg:max-w-xl">
+            <div className="grid gap-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">
+                {t('hero.kicker')}
+              </p>
+              <h1 className="text-[2.75rem] font-bold leading-[0.93] text-[var(--brand)] sm:text-[3.5rem] lg:text-[4rem]">
+                Ambertinybear
+              </h1>
+              <p className="max-w-[480px] text-lg font-medium leading-snug text-[var(--foreground)]/90 sm:text-xl lg:text-[1.375rem]">
+                {t('hero.headline')}
+              </p>
+            </div>
+
+            <p className="max-w-[46ch] text-[15px] leading-relaxed text-[var(--muted-foreground)]">
               {t('hero.intro')}
             </p>
-            <div className="flex flex-col items-stretch gap-3 pt-2 min-[420px]:flex-row min-[420px]:items-center">
+
+            <div className="flex flex-col items-stretch gap-3 min-[420px]:flex-row min-[420px]:items-center">
               <ArrowLink href="#shop-path-handmade" testId="hero-handmade-cta">
                 {t('hero.handmadeCta')}
               </ArrowLink>
               <Link
                 href="#shop-path-patterns"
                 data-testid="hero-patterns-cta"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--foreground)]/18 bg-white/70 px-5 py-3 text-sm font-semibold text-[var(--foreground)] shadow-[0_16px_36px_rgb(38_35_31/8%)] transition duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 hover:border-[var(--foreground)]/35 hover:bg-white active:translate-y-0 active:scale-[0.98] sm:text-base"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--foreground)]/12 bg-white/70 px-5 py-3 text-sm font-semibold text-[var(--foreground)] backdrop-blur-sm transition duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 hover:border-[var(--foreground)]/25 hover:bg-white hover:shadow-md active:translate-y-0 active:scale-[0.98] sm:text-base"
               >
                 {t('hero.patternCta')}
                 <ArrowRight aria-hidden="true" className="size-4" />
               </Link>
-            </div>
-          </div>
-
-          <div className="relative min-h-[430px] lg:min-h-[500px]">
-            <div className="absolute inset-0 translate-x-5 rounded-[28px] bg-[#e8ded7]" />
-            <div className="relative ml-auto grid max-w-[760px] gap-4 rounded-[28px] bg-white/36 p-2 shadow-[0_30px_90px_rgb(98_34_12/10%)] ring-1 ring-white/60 sm:p-3 lg:grid-cols-[1.14fr_0.86fr] lg:grid-rows-2 lg:items-stretch">
-              <div className="relative aspect-[5/4] overflow-hidden rounded-[24px] bg-[var(--surface-muted)] shadow-[0_22px_60px_rgb(98_34_12/12%)] ring-1 ring-white/80 lg:row-span-2 lg:h-full lg:min-h-[430px] lg:aspect-auto">
-                <Image
-                  src="/images/home/handmade-category.png"
-                  alt={t('paths.handmadeImageAlt')}
-                  fill
-                  priority
-                  sizes="(min-width: 1024px) 58vw, 100vw"
-                  className="object-cover object-right saturate-[0.98]"
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-[0.92fr_1.08fr] lg:contents">
-                <div className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-white shadow-[0_18px_44px_rgb(98_34_12/10%)] ring-1 ring-white/80 lg:aspect-auto lg:h-full">
-                  <Image
-                    src="/images/home/hero-studio.png"
-                    alt={t('hero.imageAlt')}
-                    fill
-                    sizes="(min-width: 1024px) 24vw, 50vw"
-                    className="object-cover object-right-top"
-                  />
-                </div>
-                <div className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-white shadow-[0_18px_44px_rgb(98_34_12/10%)] ring-1 ring-white/80 sm:-mt-10 lg:mt-0 lg:aspect-auto lg:h-full">
-                  <Image
-                    src="/images/home/pattern-category.png"
-                    alt={t('paths.patternImageAlt')}
-                    fill
-                    sizes="(min-width: 1024px) 26vw, 50vw"
-                    className="object-cover"
-                  />
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -341,80 +324,80 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
 
       <section className="bg-[var(--surface-paper)]">
         <div className="container py-16 sm:py-24">
-          <section aria-labelledby="shop-paths-title" className="grid gap-9">
-            <div className="grid max-w-3xl gap-3">
+          <section aria-labelledby="shop-paths-title" className="grid gap-10 sm:gap-14">
+            <div className="mx-auto grid max-w-xl gap-3 text-center">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">
+                {locale === 'vi' ? 'Khám phá cửa hàng' : 'Explore the Shop'}
+              </p>
               <h2
                 id="shop-paths-title"
-                className="text-4xl font-semibold leading-[1.05] text-balance sm:text-5xl"
+                className="text-2xl font-semibold leading-snug text-[var(--brand)] sm:text-3xl lg:text-[2.25rem]"
               >
                 {t('paths.title')}
               </h2>
+              <div className="mx-auto mt-1 h-px w-12 bg-[var(--brand)]/30" />
             </div>
-            <div className="grid items-start gap-5 lg:grid-cols-[1.22fr_0.78fr]">
+
+            <div className="grid gap-5 sm:grid-cols-2 sm:gap-7">
+              {/* Card 1 — Handmade */}
               <Link
                 id="shop-path-handmade"
                 href={handmadePath}
                 transitionTypes={['nav-forward']}
                 data-testid="shop-path-handmade"
-                className="group grid scroll-mt-8 overflow-hidden rounded-[18px] bg-white shadow-[0_20px_70px_rgb(98_34_12/10%)] ring-1 ring-[var(--border)] transition duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:shadow-[0_30px_90px_rgb(98_34_12/14%)]"
+                className="group relative overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/[0.04] transition-shadow duration-500 hover:shadow-lg"
               >
-                <div className="grid gap-0 md:grid-cols-[1.04fr_0.96fr]">
-                  <div className="relative min-h-[320px] overflow-hidden bg-[var(--surface-muted)]">
-                    <Image
-                      src="/images/home/handmade-category.png"
-                      alt={t('paths.handmadeImageAlt')}
-                      fill
-                      sizes="(min-width: 1024px) 48vw, 100vw"
-                      className="object-cover transition-transform duration-700 group-hover:scale-[1.035]"
-                    />
-                  </div>
-                  <div className="grid content-between gap-8 p-6 sm:p-8">
-                    <div className="grid gap-4">
-                      <h3 className="text-3xl font-semibold leading-tight sm:text-4xl">
-                        {t('paths.handmadeTitle')}
-                      </h3>
-                      <p className="text-pretty text-[var(--muted-foreground)]">
-                        {t('paths.handmadeBody')}
-                      </p>
-                    </div>
-                    <span className="inline-flex items-center gap-2 font-semibold text-[var(--foreground)]">
-                      {t('hero.handmadeCta')}
-                      <ArrowRight
-                        aria-hidden="true"
-                        className="size-4 transition duration-300 group-hover:translate-x-1"
-                      />
-                    </span>
-                  </div>
+                <div className="aspect-[5/4] sm:aspect-[6/5]">
+                  <Image
+                    src="/images/home/handmade-category.png"
+                    alt={t('paths.handmadeImageAlt')}
+                    fill
+                    sizes="(min-width: 640px) 50vw, 100vw"
+                    className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                  />
+                </div>
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/30 to-transparent px-6 pb-7 pt-20 sm:px-8 sm:pb-9">
+                  <h3 className="text-2xl font-bold text-white sm:text-[1.75rem]">
+                    {t('paths.handmadeTitle')}
+                  </h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-white/80 line-clamp-2">
+                    {t('paths.handmadeBody')}
+                  </p>
+                  <span className="mt-4 inline-flex items-center gap-2 text-[15px] font-semibold text-[#e8b4a2] transition-colors duration-300 group-hover:text-white">
+                    {t('hero.handmadeCta')}
+                    <ArrowRight aria-hidden="true" className="size-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+                  </span>
                 </div>
               </Link>
+
+              {/* Card 2 — Patterns */}
               <Link
                 id="shop-path-patterns"
                 href={patternPath}
                 transitionTypes={['nav-forward']}
                 data-testid="shop-path-patterns"
-                className="group grid scroll-mt-8 gap-4 rounded-[18px] bg-[#ded0c8] p-4 shadow-[0_18px_55px_rgb(98_34_12/10%)] ring-1 ring-[#cbb9b0] transition duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:shadow-[0_28px_78px_rgb(98_34_12/14%)] lg:mt-16"
+                className="group relative overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/[0.04] transition-shadow duration-500 hover:shadow-lg"
               >
-                <div className="relative aspect-[4/3] overflow-hidden rounded-[14px] bg-[var(--surface-muted)]">
+                <div className="aspect-[5/4] sm:aspect-[6/5]">
                   <Image
                     src="/images/home/pattern-category.png"
                     alt={t('paths.patternImageAlt')}
                     fill
-                    sizes="(min-width: 1024px) 50vw, 100vw"
-                    className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                    sizes="(min-width: 640px) 50vw, 100vw"
+                    className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
                   />
                 </div>
-                <div className="grid gap-3 px-1 pb-2">
-                  <div className="flex items-end justify-between gap-4">
-                    <h3 className="text-2xl font-semibold leading-tight sm:text-3xl">
-                      {t('paths.patternTitle')}
-                    </h3>
-                    <span className="grid size-10 place-items-center rounded-[var(--radius-control)] bg-white/82 text-[var(--foreground)] transition duration-300 group-hover:translate-x-1">
-                      <ArrowRight aria-hidden="true" className="size-5" />
-                    </span>
-                  </div>
-                  <p className="text-pretty text-[var(--muted-foreground)]">
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/30 to-transparent px-6 pb-7 pt-20 sm:px-8 sm:pb-9">
+                  <h3 className="text-2xl font-bold text-white sm:text-[1.75rem]">
+                    {t('paths.patternTitle')}
+                  </h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-white/80 line-clamp-2">
                     {t('paths.patternBody')}
                   </p>
+                  <span className="mt-4 inline-flex items-center gap-2 text-[15px] font-semibold text-[#e8b4a2] transition-colors duration-300 group-hover:text-white">
+                    {t('hero.patternCta')}
+                    <ArrowRight aria-hidden="true" className="size-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+                  </span>
                 </div>
               </Link>
             </div>

@@ -39,7 +39,7 @@ type ProjectionSelectionIdentity = Pick<
 const copy = {
   en: {
     add: 'Add to cart',
-    addPdf: 'Buy and download',
+    addPdf: 'Add to cart',
     adding: 'Adding…',
     added: 'Added to cart.',
     select: 'Select an in-stock option before adding.',
@@ -55,7 +55,7 @@ const copy = {
   },
   vi: {
     add: 'Thêm vào giỏ',
-    addPdf: 'Mua và tải về',
+    addPdf: 'Thêm vào giỏ',
     adding: 'Đang thêm…',
     added: 'Đã thêm vào giỏ hàng.',
     select: 'Chọn một tùy chọn còn hàng trước khi thêm.',
@@ -201,8 +201,7 @@ export function AddToCart({
       })
     : null;
   const selectedLabel = variantLabel(selectedVariant);
-  const actionLabel =
-    projection.productType === 'pdf_pattern' ? t.addPdf : t.add;
+  const actionLabel = t.add;
   const blockedReason = submitting
     ? t.adding
     : quoteFailed

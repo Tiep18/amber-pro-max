@@ -8,11 +8,11 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variants: Record<ButtonVariant, string> = {
-  primary: 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]',
+  primary: 'bg-[var(--accent)] !text-white hover:bg-[var(--accent-hover)]',
   secondary:
     'border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-muted)]',
   ghost: 'text-[var(--foreground)] hover:bg-[var(--surface-muted)]',
-  destructive: 'bg-[var(--destructive)] text-white hover:bg-[#8f1c14]'
+  destructive: 'bg-[var(--destructive)] !text-white hover:bg-[#8f1c14]'
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(

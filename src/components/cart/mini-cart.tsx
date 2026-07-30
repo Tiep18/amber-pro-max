@@ -4,7 +4,7 @@ import { ArrowRight, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { formatMoney } from '@/catalog/money';
-import { getCartPath, getCheckoutPath, type Locale } from '@/i18n/routing';
+import { getCatalogPath, getCheckoutPath, type Locale } from '@/i18n/routing';
 import { useCart } from './cart-provider';
 import { CartLine } from './cart-line';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ const copy = {
     emptyTitle: 'Your cart is empty',
     emptyBody: 'Add a PDF pattern or handmade item to start your order.',
     loading: 'Refreshing your cart',
-    viewCart: 'View cart',
+    continueShopping: 'Continue shopping',
     checkout: 'Checkout',
     closeCart: 'Close cart',
     subtotal: 'Subtotal',
@@ -38,24 +38,24 @@ const copy = {
     retry: 'Try again'
   },
   vi: {
-    cart: 'Gio hang',
-    trigger: (count: number) => `Gio hang, ${count} san pham`,
-    emptyTitle: 'Gio hang dang trong',
-    emptyBody: 'Them mau PDF hoac san pham thu cong de bat dau don hang.',
-    loading: 'Dang cap nhat gio hang',
-    viewCart: 'Xem gio hang',
-    checkout: 'Tien hanh thanh toan',
-    closeCart: 'Dong gio hang',
-    subtotal: 'Tam tinh',
-    shipping: 'Chua tinh van chuyen',
-    blocked: 'Kiem tra san pham khong kha dung truoc khi thanh toan.',
-    pdf: 'Mau PDF',
-    physical: 'San pham thu cong',
-    unavailable: 'Khong kha dung trong bao gia hien tai',
-    quantityReduced: 'So luong da dieu chinh',
-    remove: 'Xoa',
-    decrease: 'Giam so luong',
-    increase: 'Tang so luong',
+    cart: 'Giỏ hàng',
+    trigger: (count: number) => `Giỏ hàng, ${count} sản phẩm`,
+    emptyTitle: 'Giỏ hàng đang trống',
+    emptyBody: 'Thêm mẫu PDF hoặc sản phẩm thủ công để bắt đầu đơn hàng.',
+    loading: 'Đang cập nhật giỏ hàng',
+    continueShopping: 'Tiếp tục mua sắm',
+    checkout: 'Tiến hành thanh toán',
+    closeCart: 'Đóng giỏ hàng',
+    subtotal: 'Tạm tính',
+    shipping: 'Chưa tính phí vận chuyển',
+    blocked: 'Vui lòng kiểm tra sản phẩm không khả dụng trước khi thanh toán.',
+    pdf: 'Mẫu PDF',
+    physical: 'Sản phẩm thủ công',
+    unavailable: 'Không khả dụng trong báo giá hiện tại',
+    quantityReduced: 'Số lượng đã điều chỉnh',
+    remove: 'Xóa',
+    decrease: 'Giảm số lượng',
+    increase: 'Tăng số lượng',
     marketVn: 'Việt Nam',
     marketIntl: 'Quốc tế',
     refreshError: 'Không thể cập nhật giỏ hàng. Hãy thử lại trước khi thanh toán.',
@@ -152,16 +152,24 @@ export function MiniCart({ locale }: { locale: Locale }) {
               <span className="sr-only">{t.loading}</span>
             </div>
           ) : displayLines.length === 0 && !blockReason ? (
-            <div className="grid min-h-[52dvh] place-content-center justify-items-center gap-4 text-center">
-              <div className="grid h-16 w-16 place-items-center rounded-[18px] bg-[var(--surface-muted)]/72 text-[var(--accent)] ring-1 ring-[var(--border)]/55">
+            <div className="grid min-h-[52dvh] place-content-center justify-items-center gap-5 px-4 text-center">
+              <div className="grid h-16 w-16 place-items-center rounded-2xl bg-[var(--surface-muted)]/70 text-[var(--accent)] ring-1 ring-[var(--border)]/60 shadow-xs">
                 <ShoppingBag aria-hidden="true" className="h-7 w-7" strokeWidth={1.5} />
               </div>
               <div className="grid max-w-[28ch] gap-2">
-                <h3 className="text-xl font-semibold">{t.emptyTitle}</h3>
+                <h3 className="text-xl font-semibold tracking-tight">{t.emptyTitle}</h3>
                 <p className="text-sm leading-relaxed text-[var(--muted-foreground)]">
                   {t.emptyBody}
                 </p>
               </div>
+              <Link
+                href={getCatalogPath(locale)}
+                onClick={() => setOpen(false)}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-5 py-2.5 text-sm font-medium text-[var(--foreground)] shadow-xs transition duration-200 hover:border-[var(--accent)]/40 hover:bg-[var(--surface-blush)]/50 hover:text-[var(--accent)] active:translate-y-0"
+              >
+                {t.continueShopping}
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              </Link>
             </div>
           ) : (
             <div className="divide-y divide-[var(--border)]/65">
@@ -190,7 +198,7 @@ export function MiniCart({ locale }: { locale: Locale }) {
             </div>
           )}
         </div>
-        <div className="grid gap-3 border-t border-[var(--border)]/70 bg-[var(--surface-paper)] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-18px_48px_rgb(73_52_32/8%)] sm:px-6">
+        <div className="grid gap-3.5 border-t border-[var(--border)]/60 bg-[var(--surface)]/95 px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:px-6">
           {pending ? (
             <Alert variant="warning" aria-live="polite" aria-atomic="true">
               {t.loading}
@@ -220,11 +228,11 @@ export function MiniCart({ locale }: { locale: Locale }) {
           {hasBlocking ? <Alert variant="destructive">{t.blocked}</Alert> : null}
           <div className="flex items-end justify-between gap-3 tabular-nums">
             <div className="grid gap-0.5">
-              <span className="text-sm text-[var(--muted-foreground)]">{t.subtotal}</span>
+              <span className="text-sm font-medium text-[var(--muted-foreground)]">{t.subtotal}</span>
               <span className="text-xs text-[var(--muted-foreground)]">{t.shipping}</span>
             </div>
             {!quoteUnsafe && quote.currencyCode ? (
-              <strong className="text-xl text-[var(--accent)]">
+              <strong className="text-xl font-bold text-[var(--accent)]">
                 {formatMoney({
                   amountMinor: quote.subtotalMinor,
                   currencyCode: quote.currencyCode
@@ -237,29 +245,32 @@ export function MiniCart({ locale }: { locale: Locale }) {
               />
             )}
           </div>
-          {hasBlocking || quoteUnsafe || !quote?.lines.length ? (
-            <Button className="min-h-12" disabled>
-              {t.checkout}
-            </Button>
-          ) : (
+          <div className="grid gap-2.5 pt-1">
+            {hasBlocking || quoteUnsafe || !quote?.lines.length ? (
+              <Button className="min-h-12 w-full text-base font-semibold !text-white" disabled>
+                {t.checkout}
+              </Button>
+            ) : (
+              <Link
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-3 text-base font-semibold !text-white shadow-[0_8px_24px_rgb(169_71_52/20%)] transition duration-200 hover:-translate-y-0.5 hover:bg-[var(--accent-hover)] hover:shadow-[0_12px_28px_rgb(169_71_52/25%)] active:translate-y-0 active:scale-[0.995]"
+                href={getCheckoutPath(locale)}
+                onClick={() => setOpen(false)}
+              >
+                {t.checkout}
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              </Link>
+            )}
             <Link
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-base font-semibold !text-[var(--surface)] shadow-[0_14px_30px_rgb(169_71_52/18%)] transition duration-200 hover:-translate-y-0.5 hover:bg-[var(--accent-hover)] active:translate-y-0 active:scale-[0.99]"
-              href={getCheckoutPath(locale)}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)]/80 bg-[var(--surface-paper)] px-4 py-2.5 text-sm font-medium text-[var(--foreground)] shadow-xs transition duration-200 hover:border-[var(--accent)]/40 hover:bg-[var(--surface-blush)]/60 hover:text-[var(--accent)] active:translate-y-0"
+              href={getCatalogPath(locale)}
               onClick={() => setOpen(false)}
             >
-              {t.checkout}
-              <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              {t.continueShopping}
             </Link>
-          )}
-          <Link
-            className="inline-flex min-h-10 items-center justify-center text-sm font-semibold text-[var(--foreground)] underline decoration-[var(--accent)]/35 underline-offset-4 transition hover:text-[var(--accent)] hover:decoration-[var(--accent)]"
-            href={getCartPath(locale)}
-            onClick={() => setOpen(false)}
-          >
-            {t.viewCart}
-          </Link>
+          </div>
         </div>
       </Sheet>
     </>
   );
 }
+
