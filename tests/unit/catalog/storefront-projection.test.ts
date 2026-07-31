@@ -603,4 +603,13 @@ describe('storefront catalog projection contracts', () => {
       second.state
     );
   });
+
+  it('starts catalog form navigation only for an explicit GET method attribute', async () => {
+    const { isExplicitCatalogGetMethod } = await catalogCommerceModule();
+
+    expect(isExplicitCatalogGetMethod('get')).toBe(true);
+    expect(isExplicitCatalogGetMethod('GET')).toBe(true);
+    expect(isExplicitCatalogGetMethod(null)).toBe(false);
+    expect(isExplicitCatalogGetMethod('post')).toBe(false);
+  });
 });

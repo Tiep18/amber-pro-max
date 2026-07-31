@@ -147,6 +147,10 @@ export function catalogResultsArePending({
   return filtersActive || state.activeGeneration !== null;
 }
 
+export function isExplicitCatalogGetMethod(methodAttribute: string | null) {
+  return methodAttribute?.trim().toLowerCase() === 'get';
+}
+
 function sameIdentity(left: CatalogCommerceIdentity | null, right: CatalogCommerceIdentity) {
   return (
     left?.locale === right.locale &&
@@ -889,7 +893,10 @@ export function CatalogCommerce({
 
   function beginFormNavigation(event: FormEvent<HTMLElement>) {
     const form = event.target;
-    if (form instanceof HTMLFormElement && form.method.toLowerCase() === 'get') {
+    if (
+      form instanceof HTMLFormElement &&
+      isExplicitCatalogGetMethod(form.getAttribute('method'))
+    ) {
       setNavigationPending(true);
     }
   }
