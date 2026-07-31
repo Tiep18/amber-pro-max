@@ -57,11 +57,11 @@ const marketOptions: MarketCode[] = ['vn', 'intl'];
 
 function OptionCheck({ active }: { active: boolean }) {
   return active ? (
-    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent)]/12 text-[var(--accent)]">
-      <Check className="size-3.5" aria-hidden="true" />
+    <span className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-[var(--accent)]/12 text-[var(--accent)]">
+      <Check className="size-3" aria-hidden="true" />
     </span>
   ) : (
-    <span className="size-6 shrink-0" aria-hidden="true" />
+    <span className="size-[18px] shrink-0" aria-hidden="true" />
   );
 }
 
@@ -145,14 +145,13 @@ export function CommerceContextSwitcher({
           setOpen(false);
         }}
         className={cn(
-          'flex min-h-11 w-full items-center justify-between gap-3 rounded-[var(--radius-control)] px-3 py-2 text-left text-base font-normal outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]',
+          'flex min-h-[34px] flex-1 items-center justify-center gap-1.5 rounded-[7px] px-2 py-1 text-center text-[13px] font-medium outline-none transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]',
           active
-            ? 'bg-[var(--surface-muted)] text-[var(--accent)]'
-            : 'text-[var(--foreground)] hover:bg-[var(--surface-muted)]/60'
+            ? 'bg-[var(--surface-paper)] text-[var(--accent)] shadow-[0_1px_2px_rgb(0_0_0/6%)]'
+            : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
         )}
       >
-        <span>{labels.languages[optionLocale]}</span>
-        <OptionCheck active={active} />
+        <span className="whitespace-nowrap">{labels.languages[optionLocale]}</span>
       </Link>
     );
   }
@@ -173,10 +172,10 @@ export function CommerceContextSwitcher({
       </>
     );
     const className = cn(
-      'flex min-h-11 w-full items-center justify-between gap-3 rounded-[var(--radius-control)] px-3 py-2 text-left text-base font-normal outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:cursor-wait disabled:opacity-70',
+      'flex min-h-[36px] w-full items-center justify-between gap-2 rounded-[7px] px-2.5 py-1 text-left text-[13px] font-normal outline-none transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:cursor-wait disabled:opacity-60',
       active
-        ? 'bg-[var(--surface-muted)] text-[var(--accent)]'
-        : 'text-[var(--foreground)] hover:bg-[var(--surface-muted)]/60'
+        ? 'text-[var(--accent)] font-medium'
+        : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
     );
 
     if (desktop) {
@@ -244,18 +243,18 @@ export function CommerceContextSwitcher({
 
   if (mode === 'mobile') {
     return (
-      <div className={cn('grid gap-4', className)}>
-        <fieldset className="grid gap-2">
-          <legend className="mb-1 text-sm font-semibold">{labels.language}</legend>
-          <div className="grid grid-cols-2 gap-2">{mobileLocaleChoices}</div>
-        </fieldset>
-        <fieldset className="grid gap-2" aria-busy={marketBusy || undefined}>
-          <legend className="mb-1 text-sm font-semibold">{labels.shoppingRegion}</legend>
-          <div role="radiogroup" aria-label={labels.shoppingRegion} className="grid gap-2">
+      <div className={cn('grid gap-3', className)}>
+        <div className="grid gap-1.5">
+          <span className="text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--muted-foreground)]/70">{labels.language}</span>
+          <div className="flex gap-0.5 rounded-[9px] bg-[var(--surface-muted)]/40 p-[3px]">{mobileLocaleChoices}</div>
+        </div>
+        <fieldset className="grid gap-1" aria-busy={marketBusy || undefined}>
+          <legend className="text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--muted-foreground)]/70">{labels.shoppingRegion}</legend>
+          <div role="radiogroup" aria-label={labels.shoppingRegion} className="grid">
             {mobileMarketChoices}
           </div>
         </fieldset>
-        <p className="text-sm font-normal leading-5 text-[var(--muted-foreground)]">
+        <p className="text-[11px] leading-[1.4] text-[var(--muted-foreground)]/60">
           {labels.helper}
         </p>
         {feedback}

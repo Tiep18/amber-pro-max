@@ -99,7 +99,7 @@ export function Sheet({
         >
           <div
             className={cn(
-              'flex min-h-16 items-center justify-between gap-4 border-b border-[var(--border)]/65 bg-[var(--surface)]/72 px-5 py-4',
+              'flex min-h-[52px] items-center justify-between gap-4 border-b border-[var(--border)]/25 px-4 py-2',
               headerClassName
             )}
           >
@@ -109,9 +109,9 @@ export function Sheet({
             <SheetPrimitive.Close asChild>
               <Button
                 variant="ghost"
-                className="h-11 min-h-11 w-11 shrink-0 rounded-[var(--radius-control)] !px-0 text-[var(--muted-foreground)] transition duration-200 hover:rotate-3 hover:bg-[var(--surface-muted)]/70 hover:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                className="h-10 min-h-10 w-10 shrink-0 rounded-full !px-0 text-[var(--muted-foreground)] transition-all duration-200 hover:bg-[var(--surface-muted)]/60 hover:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               >
-                <X aria-hidden="true" className="h-5 w-5 shrink-0" strokeWidth={1.7} />
+                <X aria-hidden="true" className="h-[18px] w-[18px] shrink-0" strokeWidth={1.5} />
                 <span className="sr-only">{closeLabel}</span>
               </Button>
             </SheetPrimitive.Close>

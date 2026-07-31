@@ -15,7 +15,6 @@ import { HeaderAccount } from './header-account';
 import { HeaderMarket } from './header-market';
 import { HeaderNav } from './header-nav';
 import { Sheet } from './ui/sheet';
-import { Separator } from './ui/separator';
 
 export async function SiteHeader({ locale }: { locale: Locale }) {
   const [t, marketT] = await Promise.all([
@@ -67,7 +66,7 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
                 alt={siteBrand.logo.alt}
                 width={132}
                 height={59}
-                className="h-auto w-[118px]"
+                className="h-auto w-[100px]"
                 priority
               />
             }
@@ -80,7 +79,7 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
             bodyClassName="p-0"
           >
             <div className="flex h-full flex-col">
-              <div className="px-5 pt-5">
+              <div className="flex-1 px-4 pt-3">
                 <HeaderNav
                   links={links}
                   label={t('primary')}
@@ -89,8 +88,7 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
                 />
               </div>
 
-              <div className="mt-auto bg-[linear-gradient(180deg,transparent,var(--surface-honey))] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-8">
-                <Separator className="mb-4 opacity-70" />
+              <div className="border-t border-[var(--border)]/30 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
                 <Suspense fallback={null}>
                   <HeaderMarket
                     locale={locale}
@@ -98,7 +96,7 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
                     mode="mobile"
                   />
                 </Suspense>
-                <div className="mt-3 border-t border-[var(--border)]/60 pt-3">
+                <div className="mt-2.5 border-t border-[var(--border)]/25 pt-2.5">
                   <Suspense fallback={null}>
                     <HeaderAccount locale={locale} mode="panel" />
                   </Suspense>

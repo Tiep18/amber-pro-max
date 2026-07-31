@@ -136,10 +136,10 @@ export function AccountMenu({
       return (
         <Link
           href={getLocalizedPath('/sign-in', locale)}
-          className="flex min-h-12 items-center justify-between rounded-[12px] bg-[var(--surface)]/55 px-3 text-sm font-medium text-[var(--muted-foreground)] ring-1 ring-[var(--border)]/55 transition duration-200 hover:bg-[var(--surface)] hover:text-[var(--accent)]"
+          className="flex min-h-[36px] items-center justify-between rounded-[7px] px-2.5 text-[13px] font-medium text-[var(--muted-foreground)] transition-colors duration-150 hover:text-[var(--accent)]"
         >
           <span>{t.signIn}</span>
-          <UserRound className="h-4 w-4 text-[var(--muted-foreground)]" aria-hidden="true" />
+          <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>
       );
     }

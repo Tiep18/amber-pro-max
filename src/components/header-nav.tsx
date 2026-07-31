@@ -40,10 +40,10 @@ export function HeaderNav({
     <nav
       aria-label={label}
       className={
-        orientation === 'vertical' ? 'flex flex-col gap-1' : 'hidden items-center gap-2 md:flex'
+        orientation === 'vertical' ? 'flex flex-col' : 'hidden items-center gap-2 md:flex'
       }
     >
-      {links.map((link) => {
+      {links.map((link, index) => {
         const active = isActivePath(pathname, link.href);
 
         const linkElement = (
@@ -52,20 +52,23 @@ export function HeaderNav({
             href={link.href}
             aria-current={active ? 'page' : undefined}
             transitionTypes={active ? undefined : ['nav-forward']}
+            style={orientation === 'vertical' ? { '--nav-i': index } as React.CSSProperties : undefined}
             className={cn(
               'group relative inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-3 text-base font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)] aria-[current=page]:font-semibold aria-[current=page]:text-[var(--foreground)] after:absolute after:inset-x-3 after:bottom-1.5 after:h-px after:origin-center after:scale-x-0 after:bg-[var(--accent)] after:transition-transform after:duration-200 aria-[current=page]:after:scale-x-100',
               orientation === 'vertical' &&
-                'min-h-14 justify-between rounded-none border-b border-[var(--border)]/60 px-1 text-lg font-medium after:hidden hover:!text-[var(--accent)] aria-[current=page]:pl-4 aria-[current=page]:font-semibold',
-              orientation === 'vertical' &&
-                (active ? '!text-[var(--accent)]' : '!text-[var(--muted-foreground)]')
+                'sheet-nav-item min-h-[44px] justify-between rounded-none border-b border-[var(--border)]/30 px-0 text-[15px] font-medium tracking-[-0.006em] after:hidden transition-colors duration-150',
+              orientation === 'vertical' && active &&
+                '!text-[var(--accent)]',
+              orientation === 'vertical' && !active &&
+                '!text-[var(--foreground)] hover:!text-[var(--accent)]'
             )}
           >
             {orientation === 'vertical' ? (
               <span
                 aria-hidden="true"
                 className={cn(
-                  'absolute inset-y-4 left-0 w-0.5 rounded-full bg-transparent transition-colors',
-                  active && 'bg-[var(--accent)]'
+                  'absolute -left-4 inset-y-2.5 w-[2px] rounded-full transition-all duration-200',
+                  active ? 'bg-[var(--accent)]' : 'bg-transparent'
                 )}
               />
             ) : null}
@@ -73,8 +76,13 @@ export function HeaderNav({
             {orientation === 'vertical' ? (
               <ArrowRight
                 aria-hidden="true"
-                className="h-5 w-5 text-[var(--muted-foreground)]/70 transition-transform duration-200 group-hover:translate-x-1 group-hover:text-[var(--accent)]"
-                strokeWidth={1.6}
+                className={cn(
+                  'h-4 w-4 transition-all duration-150 group-hover:translate-x-0.5',
+                  active
+                    ? 'text-[var(--accent)]/50'
+                    : 'text-[var(--muted-foreground)]/30 group-hover:text-[var(--accent)]/50'
+                )}
+                strokeWidth={1.5}
               />
             ) : null}
           </Link>
