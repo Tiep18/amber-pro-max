@@ -433,6 +433,39 @@ describe('cart market synchronization contract', () => {
       }
     }
   );
+
+  it('does not classify a user-removed intent as a market removal', async () => {
+    const sync = await loadMarketSync();
+    const userRemoval = sync.beginMarketRequote(readyState(), {
+      locale: 'vi',
+      committedMarket: 'vn',
+      contextVersion: 4,
+      lines: [physicalIntent]
+    });
+    const settledUserRemoval = sync.settleMarketRequote(
+      userRemoval.state,
+      userRemoval.request.requestId,
+      physicalVnQuote
+    );
+
+    expect(settledUserRemoval.changes.removed).toEqual([]);
+
+    const marketRemoval = sync.beginMarketRequote(readyState(), {
+      locale: 'vi',
+      committedMarket: 'vn',
+      contextVersion: 4,
+      lines: mixedIntent
+    });
+    const settledMarketRemoval = sync.settleMarketRequote(
+      marketRemoval.state,
+      marketRemoval.request.requestId,
+      physicalVnQuote
+    );
+
+    expect(settledMarketRemoval.changes.removed).toEqual([
+      expect.objectContaining({ lineId: 'digital-line', title: 'Bear pattern' })
+    ]);
+  });
 });
 
 describe('CartProvider storefront context integration', () => {

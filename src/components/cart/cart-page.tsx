@@ -2,6 +2,7 @@
 
 import { ArrowRight, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
+import { selectCartDisplayLines } from '@/cart/display-lines';
 import { formatMoney } from '@/catalog/money';
 import { getCatalogPath, getCheckoutPath, type Locale } from '@/i18n/routing';
 import { Alert } from '@/components/ui/alert';
@@ -86,13 +87,13 @@ export function CartPageContent({ locale }: { locale: Locale }) {
     retry
   } = useCart();
   const removedLineIds = new Set(changes.removed.map((change) => change.lineId));
-  const currentLineIds = new Set(quote?.lines.map((line) => line.lineId) ?? []);
-  const displayLines = [
-    ...(quote?.lines ?? (pending || blockReason ? (previousQuote?.lines ?? []) : [])),
-    ...((quote ? previousQuote?.lines : []) ?? []).filter(
-      (line) => removedLineIds.has(line.lineId) && !currentLineIds.has(line.lineId)
-    )
-  ];
+  const displayLines = selectCartDisplayLines({
+    quote,
+    previousQuote,
+    intentLines: cart?.lines ?? [],
+    removedLineIds,
+    usePreviousQuoteFallback: pending || blockReason !== null
+  });
   const hasBlocking =
     quote?.status === 'blocked' ||
     changes.unavailable.length > 0 ||

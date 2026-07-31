@@ -3,6 +3,7 @@
 import { ArrowRight, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { selectCartDisplayLines } from '@/cart/display-lines';
 import { formatMoney } from '@/catalog/money';
 import { getCatalogPath, getCheckoutPath, type Locale } from '@/i18n/routing';
 import { useCart } from './cart-provider';
@@ -82,13 +83,13 @@ export function MiniCart({ locale }: { locale: Locale }) {
   const [mounted, setMounted] = useState(false);
   const visibleCount = mounted ? count : 0;
   const removedLineIds = new Set(changes.removed.map((change) => change.lineId));
-  const currentLineIds = new Set(quote?.lines.map((line) => line.lineId) ?? []);
-  const displayLines = [
-    ...(quote?.lines ?? (pending || blockReason ? (previousQuote?.lines ?? []) : [])),
-    ...((quote ? previousQuote?.lines : []) ?? []).filter(
-      (line) => removedLineIds.has(line.lineId) && !currentLineIds.has(line.lineId)
-    )
-  ];
+  const displayLines = selectCartDisplayLines({
+    quote,
+    previousQuote,
+    intentLines: cart?.lines ?? [],
+    removedLineIds,
+    usePreviousQuoteFallback: pending || blockReason !== null
+  });
   const hasBlocking =
     quote?.status === 'blocked' ||
     changes.unavailable.length > 0 ||

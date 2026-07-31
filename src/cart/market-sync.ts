@@ -1,7 +1,7 @@
 import type {MarketCode} from '@/catalog/market';
 import type {Locale} from '@/i18n/routing';
 import type {CartQuote, CartQuoteLine} from '@/checkout/types';
-import type {CartIntentLine} from './types';
+import {cartLineKey, type CartIntentLine} from './types';
 
 export type CartMarketChangeFact = {
   lineId: string;
@@ -115,13 +115,23 @@ export function settleMarketRequote(
     return failMarketRequote(state, requestId, {code: 'requote_failed'});
   }
 
+  const intendedLineKeys = new Set(state.intentLines.map((line) => cartLineKey(line)));
+  const previousQuoteForDiff = state.previousQuote
+    ? {
+        ...state.previousQuote,
+        lines: state.previousQuote.lines.filter((line) =>
+          intendedLineKeys.has(cartLineKey(line))
+        )
+      }
+    : null;
+
   return {
     ...state,
     status: 'ready',
     activeRequestId: null,
     quote,
-    changes: state.previousQuote
-      ? diffMarketCartQuotes(state.previousQuote, quote)
+    changes: previousQuoteForDiff
+      ? diffMarketCartQuotes(previousQuoteForDiff, quote)
       : emptyCartMarketChanges(),
     issue: null,
     rollbackContext: null
