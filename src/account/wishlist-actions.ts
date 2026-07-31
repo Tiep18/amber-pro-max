@@ -1,6 +1,5 @@
 'use server';
 
-import {revalidatePath} from 'next/cache';
 import {getCustomerWishlist, type CustomerWishlistItem} from '@/account/wishlist';
 import {requireUser} from '@/auth/guards';
 import {isPostgresUuid} from '@/account/wishlist-client-state';
@@ -56,19 +55,6 @@ function wishlistPath(locale: Locale) {
 function formValue(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === 'string' ? value : undefined;
-}
-
-function revalidateWishlistPages() {
-  revalidatePath('/en/account/wishlist');
-  revalidatePath('/vi/tai-khoan/yeu-thich');
-}
-
-function revalidateWishlistSurfaces(locale: Locale, formData: FormData) {
-  revalidateWishlistPages();
-  const returnTo = actionReturnPath(locale, formData);
-  if (returnTo.startsWith('/')) {
-    revalidatePath(returnTo);
-  }
 }
 
 function actionReturnPath(locale: Locale, formData: FormData) {
@@ -205,7 +191,6 @@ export async function removeCustomerWishlistItemAction(
     productId: formValue(formData, 'productId') ?? '',
     client: client as unknown as DeleteClient
   });
-  if (result.status === 'removed') revalidateWishlistSurfaces(locale, formData);
   return result;
 }
 
@@ -221,6 +206,5 @@ export async function addCustomerWishlistItemAction(
     productId: formValue(formData, 'productId') ?? '',
     client: client as unknown as UpsertClient
   });
-  if (result.status === 'saved') revalidateWishlistSurfaces(locale, formData);
   return result;
 }

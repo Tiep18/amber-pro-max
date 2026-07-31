@@ -1,4 +1,5 @@
 import {describe, expect, test, vi} from 'vitest';
+import {revalidatePath} from 'next/cache';
 
 vi.mock('server-only', () => ({}));
 vi.mock('next/cache', () => ({revalidatePath: vi.fn()}));
@@ -16,8 +17,10 @@ import {
 import {wishlistSignInPath} from '@/auth/redirect';
 import {
   addCustomerWishlistItem,
+  addCustomerWishlistItemAction,
   refreshCustomerWishlistAction,
-  removeCustomerWishlistItem
+  removeCustomerWishlistItem,
+  removeCustomerWishlistItemAction
 } from '@/account/wishlist-actions';
 import {requireUser} from '@/auth/guards';
 import {getRequestMarket} from '@/catalog/page-context';
@@ -223,6 +226,35 @@ describe('account wishlist contracts (ACC-04, D-05, D-06, D-07)', () => {
       {user_id: ownerId, product_id: productId},
       {onConflict: 'user_id,product_id', ignoreDuplicates: true}
     );
+  });
+
+  test('does not revalidate routes after client-managed wishlist mutations', async () => {
+    const addSelect = vi.fn(() => Promise.resolve({data: [{id: wishlistId}], error: null}));
+    const upsert = vi.fn(() => ({select: addSelect}));
+    const removeEqProduct = vi.fn(() =>
+      Promise.resolve({data: [{id: wishlistId}], error: null})
+    );
+    const removeEqUser = vi.fn(() => ({eq: removeEqProduct}));
+    const removeSelect = vi.fn(() => ({eq: removeEqUser}));
+    const deleteCall = vi.fn(() => ({select: removeSelect}));
+    const client = {from: vi.fn(() => ({upsert, delete: deleteCall}))};
+    const formData = new FormData();
+    formData.set('locale', 'en');
+    formData.set('productId', postgresProductId);
+    formData.set('returnTo', '/en/catalog');
+
+    vi.mocked(requireUser).mockResolvedValue({id: ownerId} as never);
+    vi.mocked(createSupabaseServerClient).mockResolvedValue(client as never);
+    vi.mocked(revalidatePath).mockClear();
+
+    await expect(
+      addCustomerWishlistItemAction({status: 'idle'}, formData)
+    ).resolves.toEqual({status: 'saved'});
+    await expect(
+      removeCustomerWishlistItemAction({status: 'idle'}, formData)
+    ).resolves.toEqual({status: 'removed'});
+
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 
   test('accepts PostgreSQL UUID product ids that are not RFC-versioned', async () => {
