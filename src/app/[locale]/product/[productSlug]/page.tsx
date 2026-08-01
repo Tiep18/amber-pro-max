@@ -366,7 +366,25 @@ export default async function ProductPage({ params }: { params: Params }) {
       />
       <main className="container grid gap-7 py-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.75fr)] lg:gap-12 lg:py-12">
         <div className="lg:sticky lg:top-24 lg:self-start">
-          <ProductGallery images={mediaImages} alt={product.primary_image_alt || product.title} />
+          <ProductGallery
+            images={mediaImages}
+            alt={product.primary_image_alt || product.title}
+            labels={{
+              carousel: t('gallery.carousel'),
+              previous: t('gallery.previous'),
+              next: t('gallery.next'),
+              thumbnails: t('gallery.thumbnails'),
+              showImages: mediaImages.map((_, index) =>
+                t('gallery.showImage', { index: index + 1 })
+              ),
+              imagePositions: mediaImages.map((_, index) =>
+                t('gallery.imagePosition', {
+                  current: index + 1,
+                  total: mediaImages.length
+                })
+              )
+            }}
+          />
         </div>
         <section className="grid content-start gap-5 lg:pt-1">
           <nav aria-label="Breadcrumb" className="text-xs text-[var(--muted-foreground)]">

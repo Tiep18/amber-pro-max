@@ -96,6 +96,14 @@
     "inStock": "In stock",
     "outOfStock": "Out of stock",
     "selectVariant": "Select a product option",
+    "gallery": {
+      "carousel": "product image carousel",
+      "previous": "Previous product image",
+      "next": "Next product image",
+      "thumbnails": "Product image thumbnails",
+      "showImage": "Show product image {index}",
+      "imagePosition": "Product image {current} of {total}"
+    },
     "wishlist": {
       "save": "Save {title} to wishlist",
       "remove": "Remove {title} from wishlist",

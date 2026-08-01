@@ -96,6 +96,14 @@
     "inStock": "Con hang",
     "outOfStock": "Het hang",
     "selectVariant": "Chon tuy chon san pham",
+    "gallery": {
+      "carousel": "bo anh san pham",
+      "previous": "Xem anh san pham truoc",
+      "next": "Xem anh san pham tiep theo",
+      "thumbnails": "Anh thu nho cua san pham",
+      "showImage": "Xem anh san pham {index}",
+      "imagePosition": "Anh san pham {current} tren {total}"
+    },
     "wishlist": {
       "save": "Luu {title} vao yeu thich",
       "remove": "Xoa {title} khoi yeu thich",
