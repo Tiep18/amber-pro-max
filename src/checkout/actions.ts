@@ -1,6 +1,7 @@
 'use server';
 
 import {suggestMarketFromCountry} from '@/catalog/market';
+import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
 import {getOrderPath} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {runMonitoredAction} from '@/operations/monitoring';
@@ -8,6 +9,7 @@ import {
   acknowledgeGuestCheckoutRecoveryFromServer,
   getGuestCheckoutRecoveryFromServer,
   getGuestOrderAccessHashFromServer,
+  getGuestOrderAccessTokenFromServer,
   hashGuestOrderAccessToken,
   prepareGuestCheckoutRecoveryFromServer,
   setGuestOrderAccessCookieFromServer
@@ -153,6 +155,13 @@ export async function submitCheckoutAction(input: unknown): Promise<SubmitChecko
         });
       }
 
+      try {
+        await triggerTransactionalEmailOutboxNow({reason: 'checkout_submitted'});
+      } catch {
+        // The customer is already being redirected to the payment page; the
+        // outbox worker will retry this on its own schedule.
+      }
+
       const locale = canonicalInput.locale === 'en' ? 'en' : 'vi';
       return {
         status: 'success',
@@ -163,6 +172,29 @@ export async function submitCheckoutAction(input: unknown): Promise<SubmitChecko
       } as const;
     }
   });
+}
+
+export async function refreshGuestOrderAccessCookieAction(orderNumber: string): Promise<{status: 'refreshed' | 'skipped'}> {
+  const normalizedOrderNumber = orderNumber.trim().toUpperCase();
+  if (!normalizedOrderNumber) return {status: 'skipped'};
+
+  const client = await createSupabaseServerClient();
+  const {
+    data: {user}
+  } = await client.auth.getUser();
+  if (user) return {status: 'skipped'};
+
+  const rawToken = await getGuestOrderAccessTokenFromServer(normalizedOrderNumber);
+  if (!rawToken) return {status: 'skipped'};
+
+  const guestSecretHash = await getGuestOrderAccessHashFromServer(normalizedOrderNumber);
+  const authorized = await getAuthorizedOrderPayment({orderNumber: normalizedOrderNumber, guestSecretHash, client: client as never});
+  if (authorized.status !== 'found' || authorized.order.customerPaymentStatus !== 'paid') {
+    return {status: 'skipped'};
+  }
+
+  await setGuestOrderAccessCookieFromServer({orderNumber: normalizedOrderNumber, rawToken, paid: true});
+  return {status: 'refreshed'};
 }
 
 export async function acknowledgeGuestCheckoutRecoveryAction(orderNumber: string): Promise<{status: 'cleared' | 'kept'}> {

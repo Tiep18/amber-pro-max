@@ -5,9 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { logPayPalStage } from '@/payments/paypal/logging';
 
-export const PAYPAL_RECHECK_COOLDOWN_MS = 5000;
-export const PAYPAL_POLLING_WINDOW_MS = 30000;
-const PAYPAL_POLLING_INTERVAL_MS = 5000;
 const PAYPAL_SDK_LOADING_DELAY_MS = 300;
 const PAYPAL_SCRIPT_ID = 'paypal-js-sdk';
 
@@ -23,12 +20,6 @@ type PayPalButtonsProps = {
   clientId: string;
   amountLabel: string;
   labels: PayPalButtonLabels;
-};
-
-type PayPalRecheckLabels = {
-  checkStatus: string;
-  checking: string;
-  lastChecked: string;
 };
 
 type PayPalButtonActions = {
@@ -216,62 +207,6 @@ export function PayPalButtons({ orderNumber, clientId, amountLabel, labels }: Pa
       <div ref={containerRef} className="min-h-12" />
       {pending || refreshPending ? (
         <p className="text-sm text-[var(--muted-foreground)]">{labels.connecting}</p>
-      ) : null}
-    </div>
-  );
-}
-
-export function PaymentStatusRecheck({ labels }: { labels: PayPalRecheckLabels }) {
-  const router = useRouter();
-  const [pending, startRefresh] = useTransition();
-  const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null);
-  const [cooldownUntil, setCooldownUntil] = useState(0);
-  const startedAtRef = useRef<number | null>(null);
-
-  const refreshStatus = useCallback(
-    (announce: boolean) => {
-      const now = Date.now();
-      if (now < cooldownUntil || pending) {
-        return;
-      }
-      setCooldownUntil(now + PAYPAL_RECHECK_COOLDOWN_MS);
-      startRefresh(() => router.refresh());
-      if (announce) {
-        setLastCheckedAt(new Date(now));
-      }
-    },
-    [cooldownUntil, pending, router, startRefresh]
-  );
-
-  useEffect(() => {
-    startedAtRef.current = Date.now();
-    const interval = window.setInterval(() => {
-      const startedAt = startedAtRef.current;
-      if (!startedAt || Date.now() - startedAt > PAYPAL_POLLING_WINDOW_MS) {
-        window.clearInterval(interval);
-        return;
-      }
-      if (document.visibilityState === 'visible') {
-        refreshStatus(false);
-      }
-    }, PAYPAL_POLLING_INTERVAL_MS);
-
-    return () => window.clearInterval(interval);
-  }, [refreshStatus]);
-
-  return (
-    <div className="grid gap-2" aria-busy={pending}>
-      <Button
-        variant="secondary"
-        disabled={pending || Date.now() < cooldownUntil}
-        onClick={() => refreshStatus(true)}
-      >
-        {pending ? labels.checking : labels.checkStatus}
-      </Button>
-      {lastCheckedAt ? (
-        <p className="text-sm text-[var(--muted-foreground)]" aria-live="polite">
-          {labels.lastChecked}: {lastCheckedAt.toLocaleTimeString()}
-        </p>
       ) : null}
     </div>
   );

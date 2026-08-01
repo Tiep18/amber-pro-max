@@ -42,11 +42,14 @@ const fulfillmentPhysicalFiles = [
 
 const fulfillmentGuestClaimFiles = [
   'src/fulfillment/order-claim.ts',
+  'src/fulfillment/guest-order-tokens.ts',
+  'src/fulfillment/order-reopen.ts',
   'src/fulfillment/guest-access.ts',
   'src/components/fulfillment/guest-reopen-form.tsx',
   'src/components/fulfillment/order-claim-panel.tsx',
   'src/app/[locale]/guest-order/page.tsx',
-  'src/app/[locale]/orders/[orderNumber]/claim/page.tsx'
+  'src/app/[locale]/orders/[orderNumber]/claim/page.tsx',
+  'src/app/api/orders/access/route.ts'
 ];
 
 const fulfillmentAdminEntitlementFiles = [
@@ -153,6 +156,16 @@ test('guest reopen and order claim keep token material out of UI and durable pay
   assert.match(source, /guest_order_claim/);
   assert.match(source, /hashGuestOrderAccessToken/);
   assert.doesNotMatch(source, /console\.(log|error|warn)|rawToken.*payload|token_hash.*payload|signedUrl|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+});
+
+test('guest order reopen redemption only redirects and never returns order data as JSON', () => {
+  const route = readFileSync('src/app/api/orders/access/route.ts', 'utf8');
+
+  assert.match(route, /NextResponse\.redirect/);
+  assert.match(route, /redeemGuestOrderReopenToken/);
+  assert.match(route, /no-referrer/i);
+  assert.doesNotMatch(route, /NextResponse\.json/);
+  assert.doesNotMatch(route, /console\.(log|error|warn)/);
 });
 
 test('admin entitlement actions keep revoke and reissue behind safe RPC and UI boundaries', () => {

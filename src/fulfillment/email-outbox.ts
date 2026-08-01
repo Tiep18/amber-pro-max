@@ -1,14 +1,23 @@
 import {renderTransactionalEmail, type TransactionalEmailRow} from '@/emails/transactional';
 import {runMonitoredAction} from '@/operations/monitoring';
+import {buildQuickLinkUrl, maskAccountNo} from '@/payments/vietqr/instructions';
 
 const DEFAULT_BATCH_SIZE = 10;
 const MAX_BATCH_SIZE = 25;
 const RETRY_BACKOFF_MS = 15 * 60 * 1000;
 
+export type TransactionalEmailVietQrBankConfig = {
+  bankId: string;
+  accountNo: string;
+  accountName: string;
+  template: string;
+};
+
 export type TransactionalEmailConfig = {
   siteUrl: string;
   fromEmail: string | null | undefined;
   batchSize?: number;
+  vietqr?: TransactionalEmailVietQrBankConfig | null;
 };
 
 export type TransactionalEmailRepository = {
@@ -62,7 +71,13 @@ function safeCode(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9_:-]/g, '_').slice(0, 80) || 'email_send_failed';
 }
 
-async function renderContextForRow(row: TransactionalEmailRow, repository: TransactionalEmailRepository, siteUrl: string, now: Date) {
+function stringPayloadValue(row: TransactionalEmailRow, key: string) {
+  const value = row.payload[key];
+  return typeof value === 'string' ? value : null;
+}
+
+async function renderContextForRow(row: TransactionalEmailRow, repository: TransactionalEmailRepository, config: TransactionalEmailConfig, now: Date) {
+  const siteUrl = config.siteUrl;
   if (row.eventType === 'digital_access_granted' || row.eventType === 'digital_access_reissued') {
     const token = await repository.issueDownloadToken(row, now);
     return {siteUrl, downloadToken: token?.rawToken ?? null, expiresAt: token?.expiresAt ?? null};
@@ -77,6 +92,27 @@ async function renderContextForRow(row: TransactionalEmailRow, repository: Trans
       throw new Error('newsletter unsubscribe token could not be issued');
     }
     return {siteUrl, newsletterToken: token.rawToken, expiresAt: token.expiresAt};
+  }
+  if (row.eventType === 'order_created') {
+    const isGuest = row.payload.isGuest === true;
+    const token = isGuest ? await repository.issueGuestToken(row, 'reopen_order', now) : null;
+    const paymentIntent = stringPayloadValue(row, 'paymentIntent');
+    const totalMinor = typeof row.payload.totalMinor === 'number' ? row.payload.totalMinor : null;
+    const orderNumber = stringPayloadValue(row, 'orderNumber');
+    const vietqr =
+      paymentIntent === 'vietqr_intent' && totalMinor !== null && orderNumber && config.vietqr
+        ? {
+            bankId: config.vietqr.bankId,
+            accountName: config.vietqr.accountName,
+            accountNoMasked: maskAccountNo(config.vietqr.accountNo),
+            qrImageUrl: buildQuickLinkUrl(
+              {status: 'configured', ...config.vietqr},
+              totalMinor,
+              orderNumber
+            )
+          }
+        : null;
+    return {siteUrl, guestToken: token?.rawToken ?? null, expiresAt: token?.expiresAt ?? null, vietqr};
   }
   return {siteUrl};
 }
@@ -120,7 +156,7 @@ export async function processTransactionalEmailBatch(input: ProcessInput) {
 
   for (const row of rows) {
     try {
-      const context = await renderContextForRow(row, input.repository, input.config.siteUrl, now);
+      const context = await renderContextForRow(row, input.repository, input.config, now);
       const rendered = renderTransactionalEmail(row, context);
       const result = await input.sender.send({
         to: row.recipientEmail,

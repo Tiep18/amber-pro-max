@@ -60,7 +60,16 @@ export async function POST(request: Request) {
     config: {
       siteUrl: env.NEXT_PUBLIC_SITE_URL,
       fromEmail: env.transactionalEmail.fromEmail,
-      batchSize: parsed.batchSize
+      batchSize: parsed.batchSize,
+      vietqr:
+        env.vietqr.status === 'configured' && env.vietqr.bankId && env.vietqr.accountNo && env.vietqr.accountName
+          ? {
+              bankId: env.vietqr.bankId,
+              accountNo: env.vietqr.accountNo,
+              accountName: env.vietqr.accountName,
+              template: env.vietqr.template
+            }
+          : null
     },
     operationalFailureRecorder: recordOperationalFailure
   });

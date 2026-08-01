@@ -179,7 +179,12 @@ export function createProductionEmailOutboxRepository() {
   return createSupabaseEmailOutboxRepository(createSupabaseAdminClient() as unknown as SupabaseLike);
 }
 
-export type ImmediateEmailOutboxTriggerReason = 'paypal_capture_paid' | 'paypal_webhook_paid' | 'vietqr_admin_paid' | 'newsletter_subscribed';
+export type ImmediateEmailOutboxTriggerReason =
+  | 'paypal_capture_paid'
+  | 'paypal_webhook_paid'
+  | 'vietqr_admin_paid'
+  | 'newsletter_subscribed'
+  | 'checkout_submitted';
 
 export async function triggerTransactionalEmailOutboxNow(input: {reason: ImmediateEmailOutboxTriggerReason; batchSize?: number}) {
   const env = getServerEnv();
@@ -194,7 +199,16 @@ export async function triggerTransactionalEmailOutboxNow(input: {reason: Immedia
       config: {
         siteUrl: env.NEXT_PUBLIC_SITE_URL,
         fromEmail: env.transactionalEmail.fromEmail,
-        batchSize: input.batchSize
+        batchSize: input.batchSize,
+        vietqr:
+          env.vietqr.status === 'configured' && env.vietqr.bankId && env.vietqr.accountNo && env.vietqr.accountName
+            ? {
+                bankId: env.vietqr.bankId,
+                accountNo: env.vietqr.accountNo,
+                accountName: env.vietqr.accountName,
+                template: env.vietqr.template
+              }
+            : null
       },
       operationalFailureRecorder: recordOperationalFailure
     });

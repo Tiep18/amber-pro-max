@@ -1,8 +1,7 @@
 'use client';
 
-import {useEffect, useState, useTransition} from 'react';
+import {useEffect, useState} from 'react';
 import {Check, ChevronDown} from 'lucide-react';
-import {refreshCheckoutQuoteAction} from '@/checkout/actions';
 import type {CartQuote} from '@/checkout/types';
 import type {Locale} from '@/i18n/routing';
 import {Alert} from '@/components/ui/alert';
@@ -32,36 +31,33 @@ const copy = {
   }
 } as const;
 
+export type DiscountApplyOutcome = {
+  status: 'applied' | 'not_eligible' | 'failed';
+  quoteHash: string | null;
+};
+
 type DiscountCodeFormProps = {
   locale: Locale;
   acceptedQuote: CartQuote | null;
   feedbackRevision: number;
-  onAcceptedQuote: (quote: CartQuote) => void;
+  pending: boolean;
+  onApply: (code: string | null) => Promise<DiscountApplyOutcome>;
 };
-
-function quoteLines(quote: CartQuote) {
-  return quote.lines.map((line) => ({
-    productId: line.productId,
-    variantId: line.variantId,
-    quantity: line.requestedQuantity,
-    marketAtAdd: line.marketAtAdd,
-    addedAt: quote.quotedAt,
-    updatedAt: quote.quotedAt
-  }));
-}
 
 export function DiscountCodeForm({
   locale,
   acceptedQuote,
   feedbackRevision,
-  onAcceptedQuote
+  pending,
+  onApply
 }: DiscountCodeFormProps) {
   const t = copy[locale];
   const [code, setCode] = useState('');
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<{message: string; quoteHash: string | null} | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [submitting, setSubmitting] = useState(false);
   const appliedCode = acceptedQuote?.discount.status === 'applied' ? acceptedQuote.discount.code : null;
+  const busy = pending || submitting;
 
   useEffect(() => {
     setError((current) =>
@@ -73,41 +69,31 @@ export function DiscountCodeForm({
     setError(null);
   }, [feedbackRevision]);
 
-  function refresh(discountCode: string | null) {
+  async function submit(discountCode: string | null) {
     if (!acceptedQuote) {
       return;
     }
     setError(null);
-    startTransition(async () => {
-      const result = await refreshCheckoutQuoteAction({
-        locale,
-        market: acceptedQuote.market,
-        lines: quoteLines(acceptedQuote),
-        destinationCountryCode:
-          acceptedQuote.shipping.status === 'ready' || acceptedQuote.shipping.status === 'unsupported_destination'
-            ? acceptedQuote.shipping.countryCode
-            : null,
-        destinationRegionCode: 'regionCode' in acceptedQuote.shipping ? acceptedQuote.shipping.regionCode ?? null : null,
-        shippingQuoteVersion: 2,
-        discountCode,
-        priorAcceptedQuoteHash: acceptedQuote.hash
-      });
-      if (result.status !== 'success') {
+    setSubmitting(true);
+    try {
+      const outcome = await onApply(discountCode);
+      if (outcome.status === 'failed') {
         setError({message: t.invalid, quoteHash: acceptedQuote.hash});
         return;
       }
-      onAcceptedQuote(result.quote);
-      if (result.quote.discount.status === 'not_eligible') {
+      if (outcome.status === 'not_eligible') {
         setCode('');
         setExpanded(false);
-        setError({message: t.notEligible, quoteHash: result.quote.hash});
+        setError({message: t.notEligible, quoteHash: outcome.quoteHash});
         return;
       }
       if (discountCode === null) {
         setCode('');
       }
       setExpanded(false);
-    });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -119,7 +105,7 @@ export function DiscountCodeForm({
             <Check aria-hidden="true" className="size-4 shrink-0" />
             <span className="truncate">{t.applied}: {appliedCode}</span>
           </span>
-          <Button type="button" variant="ghost" disabled={pending || !acceptedQuote} onClick={() => refresh(null)} className="min-h-9 shrink-0 px-2 text-sm">
+          <Button type="button" variant="ghost" disabled={busy || !acceptedQuote} onClick={() => void submit(null)} className="min-h-9 shrink-0 px-2 text-sm">
             {t.remove}
           </Button>
         </div>
@@ -156,8 +142,8 @@ export function DiscountCodeForm({
                   }}
                   className="uppercase"
                 />
-                <Button type="button" variant="secondary" disabled={pending || !acceptedQuote || code.trim().length === 0} onClick={() => refresh(code.trim().toUpperCase())}>
-                  {pending ? t.pending : t.apply}
+                <Button type="button" variant="secondary" disabled={busy || !acceptedQuote || code.trim().length === 0} onClick={() => void submit(code.trim().toUpperCase())}>
+                  {busy ? t.pending : t.apply}
                 </Button>
               </div>
             </div>

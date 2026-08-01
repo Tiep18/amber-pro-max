@@ -252,131 +252,145 @@
   },
   "orders": {
     "labels": {
-      "order": "Don hang",
-      "deadline": "Han giu hang",
-      "lastChecked": "Kiem tra lan cuoi"
+      "order": "Đơn hàng",
+      "deadline": "Hạn giữ hàng",
+      "lastChecked": "Kiểm tra lần cuối"
     },
     "actions": {
-      "newCheckout": "Tao don hang moi",
-      "checkStatus": "Kiem tra lai trang thai",
-      "checkingStatus": "Dang kiem tra trang thai"
+      "newCheckout": "Tạo đơn hàng mới",
+      "checkStatus": "Kiểm tra lại trạng thái",
+      "checkingStatus": "Đang kiểm tra trạng thái"
     },
     "accessDenied": {
-      "heading": "Khong the mo don hang nay",
-      "body": "Lien ket khong hop le, da het han hoac ban khong co quyen truy cap."
+      "heading": "Không thể mở đơn hàng này",
+      "body": "Liên kết không hợp lệ, đã hết hạn hoặc bạn không có quyền truy cập."
     },
     "summary": {
-      "title": "Tom tat don hang",
-      "total": "Tong cong"
+      "title": "Tóm tắt đơn hàng",
+      "total": "Tổng cộng"
+    },
+    "recovery": {
+      "heading": "Đơn hàng này đã hết hạn",
+      "body": "Hạn giữ hàng đã qua trước khi thanh toán được xác nhận. Khôi phục các sản phẩm về giỏ hàng để thử lại.",
+      "restore": "Khôi phục vào giỏ hàng",
+      "restoring": "Đang khôi phục…",
+      "unavailable": "Các sản phẩm này không còn để khôi phục."
     },
     "shippingAddress": {
-      "title": "Dia chi giao hang"
+      "title": "Địa chỉ giao hàng"
     },
     "fulfillment": {
-      "lockedHeading": "Quyen nhan hang dang khoa",
-      "lockedBody": "File PDF va xu ly giao hang chi bat dau sau khi toan bo don hang duoc xac nhan da thanh toan.",
-      "eligibleHeading": "Cong xu ly da mo",
-      "eligibleBody": "Thanh toan da duoc xac nhan. Don hang da du dieu kien cho buoc xu ly tiep theo."
+      "lockedHeading": "Quyền nhận hàng đang khóa",
+      "lockedBody": "File PDF và xử lý giao hàng chỉ bắt đầu sau khi toàn bộ đơn hàng được xác nhận đã thanh toán.",
+      "eligibleHeading": "Cổng xử lý đã mở",
+      "eligibleBody": "Thanh toán đã được xác nhận. Đơn hàng đã đủ điều kiện cho bước xử lý tiếp theo."
     },
     "downloads": {
-      "title": "Tai mau PDF",
-      "readyBody": "Mau PDF da thanh toan co the duoc yeu cau tu trang don hang nay. Moi lan yeu cau tao mot lien ket rieng co thoi han ngan.",
-      "lockedBody": "Quyen tai xuong se xuat hien sau khi toan bo don hang duoc xac nhan da thanh toan.",
-      "expiredBody": "Neu lien ket trong email da het han, hay yeu cau lien ket moi tu trang don hang nay sau khi thanh toan duoc xac nhan.",
-      "action": "Tai mau PDF"
+      "title": "Tải mẫu PDF",
+      "readyBody": "Mẫu PDF đã thanh toán có thể được yêu cầu từ trang đơn hàng này. Mỗi lần yêu cầu tạo một liên kết riêng có thời hạn ngắn.",
+      "lockedBody": "Quyền tải xuống sẽ xuất hiện sau khi toàn bộ đơn hàng được xác nhận đã thanh toán.",
+      "expiredBody": "Nếu liên kết trong email đã hết hạn, hãy yêu cầu liên kết mới từ trang đơn hàng này sau khi thanh toán được xác nhận.",
+      "action": "Tải mẫu PDF"
     },
     "status": {
       "awaiting_payment": {
-        "heading": "Dang cho thanh toan",
-        "body": "Kiem tra dung tong tien va hoan tat thanh toan truoc han giu hang.",
-        "vietqrBody": "Chuyen dung so tien VND va noi dung hien thi truoc han. Nguoi ban phai kiem tra chuyen khoan ngan hang truoc khi don hang duoc tinh la da thanh toan."
+        "heading": "Đang chờ thanh toán",
+        "body": "Kiểm tra đúng tổng tiền và hoàn tất thanh toán trước hạn giữ hàng.",
+        "vietqrBody": "Chuyển đúng số tiền VND và nội dung hiển thị trước hạn. Người bán phải kiểm tra chuyển khoản ngân hàng trước khi đơn hàng được tính là đã thanh toán."
       },
       "verifying_payment": {
-        "heading": "Dang xac minh thanh toan",
-        "body": "PayPal da dua ban tro lai cua hang. Chung toi dang xac minh thanh toan truoc khi cap nhat don hang.",
-        "vietqrBody": "Chuyen khoan dang cho nguoi ban kiem tra. Quyen PDF va xu ly giao hang van bi khoa den khi toan bo don hang duoc xac nhan da thanh toan."
+        "heading": "Đang xác minh thanh toán",
+        "body": "PayPal đã đưa bạn trở lại cửa hàng. Chúng tôi đang xác minh thanh toán trước khi cập nhật đơn hàng.",
+        "vietqrBody": "Chuyển khoản đang chờ người bán kiểm tra. Quyền PDF và xử lý giao hàng vẫn bị khóa đến khi toàn bộ đơn hàng được xác nhận đã thanh toán."
       },
       "paid": {
-        "heading": "Da thanh toan",
-        "body": "Thanh toan cho toan bo don hang da duoc xac nhan."
+        "heading": "Đã thanh toán",
+        "body": "Thanh toán cho toàn bộ đơn hàng đã được xác nhận."
       },
       "failed": {
-        "heading": "Thanh toan khong thanh cong",
-        "body": "Don hang nay khong the thu lai. Hay tao don moi de tinh lai gia va hang ton hien tai."
+        "heading": "Thanh toán không thành công",
+        "body": "Đơn hàng này không thể thử lại. Hãy tạo đơn mới để tính lại giá và hàng tồn hiện tại."
       },
       "cancelled": {
-        "heading": "Thanh toan da huy",
-        "body": "Thanh toan da huy va san pham khong con duoc giu cho don hang nay."
+        "heading": "Thanh toán đã hủy",
+        "body": "Thanh toán đã hủy và sản phẩm không còn được giữ cho đơn hàng này."
       },
       "rejected": {
-        "heading": "Chuyen khoan khong duoc chap nhan",
-        "body": "Bang chung thanh toan khong khop so tien hoac noi dung chuyen khoan. Cong thanh toan van dong va don hang nay khong the thu lai."
+        "heading": "Chuyển khoản không được chấp nhận",
+        "body": "Bằng chứng thanh toán không khớp số tiền hoặc nội dung chuyển khoản. Cổng thanh toán vẫn đóng và đơn hàng này không thể thử lại."
       },
       "expired": {
-        "heading": "Da het han thanh toan",
-        "body": "Han giu hang da qua va san pham khong con duoc giu cho don hang nay.",
-        "vietqrBody": "Thoi han chuyen khoan VietQR da het. Don hang nay khong the thanh toan hoac xu ly; hay tao don moi voi ton kho va gia hien tai."
+        "heading": "Đã hết hạn thanh toán",
+        "body": "Hạn giữ hàng đã qua và sản phẩm không còn được giữ cho đơn hàng này.",
+        "vietqrBody": "Thời hạn chuyển khoản VietQR đã hết. Đơn hàng này không thể thanh toán hoặc xử lý; hãy tạo đơn mới với tồn kho và giá hiện tại."
       },
       "partially_refunded": {
-        "heading": "Da hoan tien mot phan",
-        "body": "Don hang co ghi nhan hoan tien mot phan. Khong co hanh dong moi cho khach tai day."
+        "heading": "Đã hoàn tiền một phần",
+        "body": "Đơn hàng có ghi nhận hoàn tiền một phần. Không có hành động mới cho khách tại đây."
       },
       "refunded": {
-        "heading": "Da hoan tien",
-        "body": "Don hang da duoc hoan tien. Khong co hanh dong moi cho khach tai day."
+        "heading": "Đã hoàn tiền",
+        "body": "Đơn hàng đã được hoàn tiền. Không có hành động mới cho khách tại đây."
       },
       "review_required": {
-        "heading": "Dang kiem tra thanh toan",
-        "body": "Chung toi dang xem lai thong tin thanh toan da xac minh truoc khi doi trang thai don hang.",
-        "vietqrBody": "Nguoi ban dang kiem tra chi tiet chuyen khoan ngan hang truoc khi doi trang thai don hang."
+        "heading": "Đang kiểm tra thanh toán",
+        "body": "Chúng tôi đang xem lại thông tin thanh toán đã xác minh trước khi đổi trạng thái đơn hàng.",
+        "vietqrBody": "Người bán đang kiểm tra chi tiết chuyển khoản ngân hàng trước khi đổi trạng thái đơn hàng."
       }
     },
     "tracks": {
-      "title": "Tien do xu ly",
+      "title": "Tiến độ xử lý",
       "digital": "PDF",
-      "physical": "Hang giao",
-      "digitalReady": "Quyen PDF da san sang sau khi thanh toan duoc xac nhan.",
-      "digitalLocked": "Quyen PDF bi khoa den khi toan bo don hang duoc xac nhan da thanh toan.",
-      "physicalAwaiting": "San pham handmade dang cho xu ly.",
-      "physicalPacking": "San pham handmade dang duoc dong goi.",
-      "physicalShipped": "San pham handmade da duoc gui.",
-      "physicalDelivered": "San pham handmade da giao xong."
+      "physical": "Hàng giao",
+      "digitalReady": "Quyền PDF đã sẵn sàng sau khi thanh toán được xác nhận.",
+      "digitalLocked": "Quyền PDF bị khóa đến khi toàn bộ đơn hàng được xác nhận đã thanh toán.",
+      "physicalAwaiting": "Sản phẩm handmade đang chờ xử lý.",
+      "physicalPacking": "Sản phẩm handmade đang được đóng gói.",
+      "physicalShipped": "Sản phẩm handmade đã được gửi.",
+      "physicalDelivered": "Sản phẩm handmade đã giao xong."
     },
     "tracking": {
-      "title": "Theo doi van chuyen",
-      "awaiting": "Don hang chua bat dau van chuyen.",
-      "packing": "Don hang dang duoc dong goi. Thong tin theo doi co the xuat hien sau khi gui.",
-      "shippedNoTracking": "Don hang da duoc gui nhung chua co thong tin theo doi. Thong tin se duoc cap nhat khi co.",
-      "shippedTracking": "Don hang da duoc gui. Dung thong tin ben duoi de theo doi voi don vi van chuyen.",
-      "delivered": "Don hang duoc danh dau da giao.",
-      "carrier": "Don vi van chuyen",
-      "trackingNumber": "Ma theo doi",
-      "openTracking": "Mo trang theo doi"
+      "title": "Theo dõi vận chuyển",
+      "awaiting": "Đơn hàng chưa bắt đầu vận chuyển.",
+      "packing": "Đơn hàng đang được đóng gói. Thông tin theo dõi có thể xuất hiện sau khi gửi.",
+      "shippedNoTracking": "Đơn hàng đã được gửi nhưng chưa có thông tin theo dõi. Thông tin sẽ được cập nhật khi có.",
+      "shippedTracking": "Đơn hàng đã được gửi. Dùng thông tin bên dưới để theo dõi với đơn vị vận chuyển.",
+      "delivered": "Đơn hàng được đánh dấu đã giao.",
+      "carrier": "Đơn vị vận chuyển",
+      "trackingNumber": "Mã theo dõi",
+      "openTracking": "Mở trang theo dõi"
     }
   },
   "payments": {
     "paypal": {
-      "pay": "Thanh toan bang PayPal",
-      "connecting": "Dang ket noi voi PayPal",
-      "reload": "Tai lai PayPal",
-      "unavailable": "PayPal hien khong kha dung cho don hang nay.",
-      "amountContext": "Ban se thanh toan {amount} qua PayPal."
+      "pay": "Thanh toán bằng PayPal",
+      "connecting": "Đang kết nối với PayPal",
+      "reload": "Tải lại PayPal",
+      "unavailable": "PayPal hiện không khả dụng cho đơn hàng này.",
+      "amountContext": "Bạn sẽ thanh toán {amount} qua PayPal."
     },
     "vietqr": {
-      "title": "Chuyen khoan dung so tien va noi dung",
-      "body": "Don hang chi duoc xac nhan sau khi nguoi ban kiem tra tai khoan ngan hang. Khong chinh sua so tien hoac noi dung chuyen khoan.",
-      "amount": "So tien chinh xac",
-      "qrAlt": "Ma VietQR cho don hang {orderNumber}",
-      "bank": "Ngan hang",
-      "accountName": "Ten tai khoan",
-      "accountNumber": "So tai khoan",
-      "reference": "Noi dung chuyen khoan",
-      "deadline": "Han thanh toan",
-      "copyAmount": "Sao chep so tien",
-      "copyReference": "Sao chep noi dung",
-      "copied": "Da sao chep",
-      "loadingQr": "Dang tai ma VietQR",
-      "unavailable": "Huong dan VietQR hien khong kha dung cho don hang nay."
+      "title": "Chuyển khoản đúng số tiền và nội dung",
+      "body": "Đơn hàng chỉ được xác nhận sau khi người bán kiểm tra tài khoản ngân hàng. Không chỉnh sửa số tiền hoặc nội dung chuyển khoản.",
+      "amount": "Số tiền chính xác",
+      "qrAlt": "Mã VietQR cho đơn hàng {orderNumber}",
+      "bank": "Ngân hàng",
+      "accountName": "Tên tài khoản",
+      "accountNumber": "Số tài khoản",
+      "reference": "Nội dung chuyển khoản",
+      "deadline": "Hạn thanh toán",
+      "copyAmount": "Sao chép số tiền",
+      "copyReference": "Sao chép nội dung",
+      "copied": "Đã sao chép",
+      "loadingQr": "Đang tải mã VietQR",
+      "unavailable": "Hướng dẫn VietQR hiện không khả dụng cho đơn hàng này.",
+      "declareWarning": "Chỉ xác nhận sau khi đã chuyển khoản thành công.",
+      "declareButton": "Tôi đã chuyển khoản",
+      "declaring": "Đang ghi nhận…",
+      "declaredStatus": "Đã ghi nhận — chúng tôi đang đối soát.",
+      "checkStatus": "Kiểm tra trạng thái thanh toán",
+      "checkingStatus": "Đang kiểm tra",
+      "lastChecked": "Kiểm tra lần cuối"
     }
   },
   "footer": {
@@ -489,24 +503,24 @@
   },
   "guestAccess": {
     "fields": {
-      "orderNumber": "Ma don hang",
+      "orderNumber": "Mã đơn hàng",
       "email": "Email"
     },
-    "genericSuccess": "Neu don hang va email khop nhau, lien ket an toan se duoc gui som.",
+    "genericSuccess": "Nếu đơn hàng và email khớp nhau, liên kết an toàn sẽ được gửi sớm.",
     "reopen": {
-      "title": "Mo lai don hang khach",
-      "intro": "Yeu cau lien ket moi co thoi han 24 gio cho don hang khach ma khong tiet lo don hang co ton tai hay khong.",
-      "submit": "Gui lien ket mo lai"
+      "title": "Mở lại đơn hàng khách",
+      "intro": "Yêu cầu liên kết mới có thời hạn 24 giờ cho đơn hàng khách mà không tiết lộ đơn hàng có tồn tại hay không.",
+      "submit": "Gửi liên kết mở lại"
     },
     "claimEmail": {
-      "submit": "Gui lien ket nhan don"
+      "submit": "Gửi liên kết nhận đơn"
     },
     "claim": {
-      "title": "Nhan don hang",
-      "intro": "Gan don hang khach nay vao tai khoan da dang nhap co cung dia chi email.",
-      "submit": "Nhan don hang",
-      "signedInOnly": "Ban can dang nhap bang dung email da dung khi thanh toan.",
-      "genericDenied": "Lien ket nhan don khong hop le, da het han, da duoc dung, hoac khong kha dung cho tai khoan nay."
+      "title": "Nhận đơn hàng",
+      "intro": "Gắn đơn hàng khách này vào tài khoản đã đăng nhập có cùng địa chỉ email.",
+      "submit": "Nhận đơn hàng",
+      "signedInOnly": "Bạn cần đăng nhập bằng đúng email đã dùng khi thanh toán.",
+      "genericDenied": "Liên kết nhận đơn không hợp lệ, đã hết hạn, đã được dùng, hoặc không khả dụng cho tài khoản này."
     }
   }
 }

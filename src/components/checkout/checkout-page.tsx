@@ -20,6 +20,7 @@ import {
   type CheckoutQuoteChangeSource
 } from '@/checkout/prefill';
 import { quoteIntentLines } from '@/checkout/quote-intent';
+import { writeOrderSnapshot } from '@/cart/order-snapshot';
 import {
   acceptQuoteProposal,
   beginQuoteRequest,
@@ -41,6 +42,7 @@ import { Separator } from '@/components/ui/separator';
 import { getCartPath, getCatalogPath, type Locale } from '@/i18n/routing';
 import { ContactForm } from './contact-form';
 import { DestinationForm } from './destination-form';
+import type { DiscountApplyOutcome } from './discount-code-form';
 import { MobileCheckoutDock, OrderSummary } from './order-summary';
 import { QuoteDiffDialog } from './quote-diff-dialog';
 import { SavedAddressSelector } from './saved-address-selector';
@@ -206,7 +208,8 @@ export function CheckoutPage({
       destination: QuoteDestination,
       nextAddress?: ShippingAddress,
       upstreamQuote?: CartQuote,
-      source: CheckoutQuoteChangeSource = 'destination'
+      source: CheckoutQuoteChangeSource = 'destination',
+      discountCodeOverride?: { code: string | null }
     ) => {
       beginCheckoutInteraction();
       if (source !== 'upstream') {
@@ -225,7 +228,7 @@ export function CheckoutPage({
           destinationCountryCode: destination.countryCode,
           destinationRegionCode: destination.regionCode,
           shippingQuoteVersion: 2,
-          discountCode: activeDiscountCode(baseQuote),
+          discountCode: discountCodeOverride ? discountCodeOverride.code : activeDiscountCode(baseQuote),
           priorAcceptedQuoteHash: current.acceptedQuote?.hash ?? null
         });
         const latest = lifecycleRef.current;
@@ -372,9 +375,28 @@ export function CheckoutPage({
     acceptedQuote?.status === 'empty' ||
     (!pending && Boolean(cart) && (cart?.lines.length ?? 0) === 0);
 
-  function acceptExternalQuote(nextQuote: CartQuote) {
-    setSubmitResult(null);
-    setLifecycle(createCheckoutQuoteLifecycleState(nextQuote, lifecycleRef.current.destination));
+  async function applyDiscountCode(code: string | null): Promise<DiscountApplyOutcome> {
+    if (!acceptedQuote) {
+      return { status: 'failed', quoteHash: null };
+    }
+    const settled = await requestQuote(
+      lifecycleRef.current.destination,
+      undefined,
+      acceptedQuote,
+      'discount',
+      { code }
+    );
+    if (settled.issue) {
+      return { status: 'failed', quoteHash: null };
+    }
+    const settledQuote = settled.proposal?.quote ?? settled.acceptedQuote;
+    if (!settledQuote) {
+      return { status: 'failed', quoteHash: null };
+    }
+    return {
+      status: settledQuote.discount.status === 'not_eligible' ? 'not_eligible' : 'applied',
+      quoteHash: settledQuote.hash
+    };
   }
 
   function acceptProposedQuote() {
@@ -493,18 +515,28 @@ export function CheckoutPage({
           : ({ status: 'invalid', code: prepared.code } as const);
       setSubmitResult(result);
       if (result.status === 'success') {
-        completeOrder(
-          refreshedQuote.lines
-            .filter(
-              (line) =>
-                (line.status === 'ready' || line.status === 'quantity_capped') && line.quantity > 0
-            )
-            .map((line) => ({
-              productId: line.productId,
-              variantId: line.variantId,
-              quantity: line.quantity
-            }))
-        );
+        const completedLines = refreshedQuote.lines
+          .filter(
+            (line) =>
+              (line.status === 'ready' || line.status === 'quantity_capped') && line.quantity > 0
+          )
+          .map((line) => ({
+            productId: line.productId,
+            variantId: line.variantId,
+            quantity: line.quantity
+          }));
+        const snapshotLines = completedLines.flatMap((completed) => {
+          const intentLine = cart?.lines.find(
+            (candidate) =>
+              candidate.productId === completed.productId &&
+              (candidate.variantId ?? null) === completed.variantId
+          );
+          return intentLine ? [{ ...intentLine, quantity: completed.quantity }] : [];
+        });
+        if (snapshotLines.length > 0) {
+          writeOrderSnapshot({ orderNumber: result.orderNumber, lines: snapshotLines });
+        }
+        completeOrder(completedLines);
         window.location.assign(result.orderPath);
       }
     } catch {
@@ -720,7 +752,8 @@ export function CheckoutPage({
             actionDisabled={actionDisabled}
             onSubmit={() => void submit()}
             policyLinks={policyLinks}
-            onAcceptedQuote={acceptExternalQuote}
+            discountPending={lifecycle.activeRequestId !== null}
+            onApplyDiscount={applyDiscountCode}
           />
         </aside>
       </div>

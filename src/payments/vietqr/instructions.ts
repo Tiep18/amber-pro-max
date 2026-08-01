@@ -69,12 +69,12 @@ function isAsciiReference(value: string) {
   return /^[\x20-\x7E]+$/.test(value) && value.trim() === value && value.length <= 80;
 }
 
-function maskAccountNo(accountNo: string) {
+export function maskAccountNo(accountNo: string) {
   const visible = accountNo.slice(-4);
   return `${'*'.repeat(Math.max(accountNo.length - visible.length, 0))}${visible}`;
 }
 
-function buildQuickLinkUrl(config: Extract<VietQrServerConfig, {status: 'configured'}>, amountMinor: number, reference: string) {
+export function buildQuickLinkUrl(config: Extract<VietQrServerConfig, {status: 'configured'}>, amountMinor: number, reference: string) {
   const bankPath = `${encodeURIComponent(config.bankId)}-${encodeURIComponent(config.accountNo)}-${encodeURIComponent(config.template)}.png`;
   const url = new URL(`https://img.vietqr.io/image/${bankPath}`);
   url.searchParams.set('amount', String(amountMinor));

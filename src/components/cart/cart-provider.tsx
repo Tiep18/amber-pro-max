@@ -13,6 +13,7 @@ import {
 import type { Locale } from '@/i18n/routing';
 import { refreshCartQuoteAction } from '@/cart/actions';
 import { readGuestCart, writeGuestCart } from '@/cart/guest-storage';
+import { mergeCartIntents } from '@/cart/merge';
 import { clearCartQuoteCache, readCartQuoteCache, writeCartQuoteCache } from '@/cart/quote-cache';
 import {
   beginMarketRequote,
@@ -24,6 +25,7 @@ import {
   type CartMarketSyncState
 } from '@/cart/market-sync';
 import { subtractCompletedOrderLines, type CompletedOrderLine } from '@/cart/order-completion';
+import { clearOrderSnapshot, readOrderSnapshot } from '@/cart/order-snapshot';
 import {
   cartLineKey,
   type AddToCartIntent,
@@ -58,6 +60,7 @@ type CartContextValue = {
   undoRemove: () => Promise<void>;
   removedLine: CartIntentLine | null;
   completeOrder: (lines: CompletedOrderLine[]) => void;
+  restoreOrderSnapshot: (orderNumber: string) => Promise<boolean>;
   refresh: (lines?: CartIntentLine[]) => Promise<void>;
   retry: () => Promise<void>;
 };
@@ -365,6 +368,25 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
     writeGuestCart({ lines });
   }, []);
 
+  const restoreOrderSnapshot = useCallback(
+    async (orderNumber: string) => {
+      const snapshot = readOrderSnapshot(orderNumber);
+      if (!snapshot) {
+        return false;
+      }
+      const current = readGuestCart() ?? emptyCart(new Date());
+      const merged = mergeCartIntents({
+        baseLines: current.lines,
+        incomingLines: snapshot.lines,
+        now: new Date().toISOString()
+      });
+      clearOrderSnapshot(orderNumber);
+      await persist(merged.lines);
+      return true;
+    },
+    [persist]
+  );
+
   const retry = useCallback(async () => {
     if (storefrontContext.status === 'error' || storefrontContext.status === 'retrying') {
       await storefrontContext.retryContext();
@@ -424,6 +446,7 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
       undoRemove,
       removedLine: removed?.line ?? null,
       completeOrder,
+      restoreOrderSnapshot,
       refresh,
       retry
     }),
@@ -432,6 +455,7 @@ export function CartProvider({ locale, children }: { locale: Locale; children: R
       blockReason,
       cart,
       completeOrder,
+      restoreOrderSnapshot,
       contextReady,
       hydrated,
       open,

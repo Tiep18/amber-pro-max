@@ -5,7 +5,7 @@ export type CheckoutPrefillDestination = {
   regionCode: string | null;
 };
 
-export type CheckoutQuoteChangeSource = 'prefill' | 'destination' | 'upstream' | 'submit';
+export type CheckoutQuoteChangeSource = 'prefill' | 'destination' | 'upstream' | 'submit' | 'discount';
 
 function normalizeCode(value: string | null | undefined, maxLength: number) {
   const normalized = value?.trim().toUpperCase() ?? '';

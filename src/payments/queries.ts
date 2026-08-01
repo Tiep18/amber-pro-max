@@ -37,6 +37,7 @@ export type CustomerOrderPaymentProjection = {
   amountMinor: number;
   currencyCode: 'USD' | 'VND';
   reservationExpiresAt: string | null;
+  customerTransferDeclaredAt?: string | null;
   shippingAddress: ShippingAddress | null;
 };
 
@@ -57,6 +58,7 @@ export type AdminOrderQueueItem = {
   currencyCode: 'USD' | 'VND';
   provider: PaymentProvider;
   reservationExpiresAt: string | null;
+  customerTransferDeclaredAt: string | null;
   shippingAddress: ShippingAddress | null;
   updatedAt: string | null;
   failedEmailCount: number;
@@ -299,6 +301,7 @@ export async function getAuthorizedOrderPayment({
     amountMinor: data.amountMinor,
     currencyCode: asCurrencyCode(data.currencyCode),
     reservationExpiresAt: typeof data.reservationExpiresAt === 'string' ? data.reservationExpiresAt : null,
+    customerTransferDeclaredAt: typeof data.customerTransferDeclaredAt === 'string' ? data.customerTransferDeclaredAt : null,
     shippingAddress: asShippingAddress(data.shippingAddress)
   };
   if (typeof data.digitalFulfillmentStatus === 'string') {
@@ -335,7 +338,7 @@ export async function getAuthorizedOrderPayment({
 }
 
 const ADMIN_QUEUE_SELECT =
-  'order_id,order_number,contact_email,customer_payment_status,payment_status,fulfillment_gate_status,physical_fulfillment_status,total_minor,currency_code,provider,reservation_expires_at,shipping_address,updated_at';
+  'order_id,order_number,contact_email,customer_payment_status,payment_status,fulfillment_gate_status,physical_fulfillment_status,total_minor,currency_code,provider,reservation_expires_at,customer_transfer_declared_at,shipping_address,updated_at';
 
 const ADMIN_DETAIL_SELECT = `${ADMIN_QUEUE_SELECT},owner_user_id,payment_id,digital_fulfillment_status,physical_fulfillment_status,refund_status,refunded_amount_minor,review_reason`;
 
@@ -356,6 +359,7 @@ function mapQueueItem(row: Record<string, unknown>): AdminOrderQueueItem | null 
     currencyCode: asCurrencyCode(row.currency_code),
     provider: asPaymentProvider(row.provider),
     reservationExpiresAt: typeof row.reservation_expires_at === 'string' ? row.reservation_expires_at : null,
+    customerTransferDeclaredAt: typeof row.customer_transfer_declared_at === 'string' ? row.customer_transfer_declared_at : null,
     shippingAddress: asShippingAddress(row.shipping_address),
     updatedAt: typeof row.updated_at === 'string' ? row.updated_at : null,
     failedEmailCount: typeof row.failed_email_count === 'number' ? row.failed_email_count : 0

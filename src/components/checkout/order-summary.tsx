@@ -15,7 +15,7 @@ import {Alert} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Separator} from '@/components/ui/separator';
-import {DiscountCodeForm} from './discount-code-form';
+import {DiscountCodeForm, type DiscountApplyOutcome} from './discount-code-form';
 
 const copy = {
   en: {
@@ -112,7 +112,8 @@ export function OrderSummary({
   actionDisabled,
   onSubmit,
   policyLinks,
-  onAcceptedQuote
+  discountPending,
+  onApplyDiscount
 }: {
   quote: CartQuote | null;
   locale: Locale;
@@ -125,7 +126,8 @@ export function OrderSummary({
   actionDisabled: boolean;
   onSubmit: () => void;
   policyLinks: CheckoutPolicyLink[];
-  onAcceptedQuote: (quote: CartQuote) => void;
+  discountPending: boolean;
+  onApplyDiscount: (code: string | null) => Promise<DiscountApplyOutcome>;
 }) {
   const t = copy[locale];
   const currencyCode = quote?.currencyCode;
@@ -194,7 +196,8 @@ export function OrderSummary({
             locale={locale}
             acceptedQuote={quote}
             feedbackRevision={feedbackRevision}
-            onAcceptedQuote={onAcceptedQuote}
+            pending={discountPending}
+            onApply={onApplyDiscount}
           />
         </div>
 

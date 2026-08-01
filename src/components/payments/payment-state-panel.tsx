@@ -2,7 +2,7 @@ import Link from 'next/link';
 import {Ban, CircleCheck, CircleX, Clock3, LoaderCircle, RotateCcw, TimerOff, Undo2} from 'lucide-react';
 import {Alert, AlertTitle} from '@/components/ui/alert';
 import type {PaymentStatusPresentation} from '@/payments/status';
-import {PaymentStatusRecheck} from './paypal-buttons';
+import {PaymentStatusRecheck} from './payment-status-recheck';
 
 type PaymentStatePanelProps = {
   orderNumber: string;

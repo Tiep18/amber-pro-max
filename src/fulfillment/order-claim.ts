@@ -2,7 +2,7 @@
 import type {AuthUser} from '@/auth/guards';
 import type {Locale} from '@/i18n/routing';
 import {runMonitoredAction} from '@/operations/monitoring';
-import {hashGuestOrderAccessToken} from '@/payments/guest-access';
+import {findGuestOrderToken, isGuestOrderTokenUsable} from '@/fulfillment/guest-order-tokens';
 
 const reopenSchema = z.object({
   orderNumber: z.string().trim().min(1).max(80),
@@ -26,14 +26,6 @@ type OrderRow = {
   contact_email: string;
   locale?: Locale;
   owner_user_id?: string | null;
-};
-
-type GuestTokenRow = {
-  id: string;
-  order_id: string;
-  contact_email: string;
-  status: string;
-  expires_at: string;
 };
 
 export type GuestReopenResult = {status: 'sent'};
@@ -64,19 +56,6 @@ function asOrderRow(value: unknown): OrderRow | null {
   };
 }
 
-function asTokenRow(value: unknown): GuestTokenRow | null {
-  if (!isRecord(value) || typeof value.id !== 'string' || typeof value.order_id !== 'string' || typeof value.contact_email !== 'string') {
-    return null;
-  }
-  return {
-    id: value.id,
-    order_id: value.order_id,
-    contact_email: value.contact_email,
-    status: typeof value.status === 'string' ? value.status : 'active',
-    expires_at: typeof value.expires_at === 'string' ? value.expires_at : ''
-  };
-}
-
 async function findOrderByNumberAndEmail(client: QueryClient, orderNumber: string, email: string) {
   const query = client.from('checkout_orders') as {
     select: (columns: string) => {
@@ -101,36 +80,6 @@ async function findOrderByNumber(client: QueryClient, orderNumber: string) {
     return null;
   }
   return asOrderRow(data);
-}
-
-async function findClaimToken(client: QueryClient, orderId: string, rawToken: string) {
-  const query = client.from('guest_order_access_tokens') as {
-    select: (columns: string) => {
-      eq: (column: string, value: string) => {
-        eq: (column: string, value: string) => {
-          eq: (column: string, value: string) => {maybeSingle: () => Promise<{data: unknown; error: unknown}>};
-        };
-      };
-    };
-  };
-  const {data, error} = await query
-    .select('id,order_id,contact_email,status,expires_at')
-    .eq('order_id', orderId)
-    .eq('purpose', 'claim_order')
-    .eq('token_hash', hashGuestOrderAccessToken(rawToken))
-    .maybeSingle();
-  if (error) {
-    return null;
-  }
-  return asTokenRow(data);
-}
-
-function tokenUsable(row: GuestTokenRow | null, now = new Date()) {
-  if (!row || row.status !== 'active') {
-    return false;
-  }
-  const expiresMs = Date.parse(row.expires_at);
-  return Number.isFinite(expiresMs) && expiresMs > now.getTime();
 }
 
 async function recordGuestOrderFailure({
@@ -243,8 +192,13 @@ export async function claimGuestOrder(input: z.input<typeof claimSchema>, client
     return {status: 'denied', code: 'claim_not_available'};
   }
 
-  const token = await findClaimToken(client, order.id, parsed.data.rawToken);
-  if (!tokenUsable(token) || !token || !sameEmail(token.contact_email, parsed.data.user.email)) {
+  const token = await findGuestOrderToken({
+    client,
+    orderId: order.id,
+    rawToken: parsed.data.rawToken,
+    purpose: 'claim_order'
+  });
+  if (!isGuestOrderTokenUsable(token) || !token || !sameEmail(token.contact_email, parsed.data.user.email)) {
     return {status: 'denied', code: 'claim_not_available'};
   }
 

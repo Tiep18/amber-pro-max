@@ -269,6 +269,13 @@
       "title": "Order summary",
       "total": "Total"
     },
+    "recovery": {
+      "heading": "This order expired",
+      "body": "The reservation ended before payment was confirmed. Restore these items to your cart to try again.",
+      "restore": "Restore items to cart",
+      "restoring": "Restoring…",
+      "unavailable": "These items are no longer available to restore."
+    },
     "shippingAddress": {
       "title": "Shipping address"
     },
@@ -376,7 +383,14 @@
       "copyReference": "Copy reference",
       "copied": "Copied",
       "loadingQr": "Loading VietQR code",
-      "unavailable": "VietQR instructions are not available for this order right now."
+      "unavailable": "VietQR instructions are not available for this order right now.",
+      "declareWarning": "Only confirm this after the transfer has actually completed.",
+      "declareButton": "I have transferred",
+      "declaring": "Recording…",
+      "declaredStatus": "Recorded — we are checking the bank account.",
+      "checkStatus": "Check payment status",
+      "checkingStatus": "Checking status",
+      "lastChecked": "Last checked"
     }
   },
   "footer": {

@@ -51,6 +51,7 @@ describe('payment order projections', () => {
         amountMinor: 1200,
         currencyCode: 'USD',
         reservationExpiresAt: '2026-06-16T12:00:00.000Z',
+        customerTransferDeclaredAt: null,
         shippingAddress
       }
     });

@@ -66,10 +66,134 @@ describe('transactional email renderer', () => {
       {siteUrl: 'https://shop.example.test'}
     );
 
-    expect(guest.subject).toContain('don hang');
+    expect(guest.subject).toContain('đơn hàng');
     expect(guest.html).toContain('guest-token');
     expect(shipped.text).toContain('VNPost');
     expect(shipped.html).toContain('https://tracking.example.test/TRACK123');
+  });
+
+  test('renders the order_created reopen link through the token redemption route, not the order page directly', () => {
+    const row = {
+      id: 'email-order-created',
+      eventType: 'order_created' as const,
+      recipientEmail: 'buyer@example.test',
+      locale: 'en' as const,
+      orderId: 'order-1',
+      entitlementId: null,
+      payload: {
+        orderNumber: 'ATB-20260619-0002',
+        totalMinor: 4250,
+        currencyCode: 'USD',
+        paymentIntent: 'paypal_intent',
+        reservationExpiresAt: '2026-06-19T10:25:00.000Z'
+      }
+    };
+
+    const email = renderTransactionalEmail(row, {
+      siteUrl: 'https://shop.example.test',
+      guestToken: 'reopen-raw-token'
+    });
+
+    expect(email.subject).toContain('ATB-20260619-0002');
+    expect(email.html).toContain('/api/orders/access?');
+    expect(email.html).toContain('token=reopen-raw-token');
+    expect(email.html).toContain('$42.50');
+    expect(JSON.stringify(email)).not.toMatch(/signedUrl|signed_url|guest_secret_hash/i);
+  });
+
+  test('renders complete VietQR transfer details as text for order_created so the customer can pay without the QR image', () => {
+    const row = {
+      id: 'email-order-created-vietqr',
+      eventType: 'order_created' as const,
+      recipientEmail: 'buyer@example.test',
+      locale: 'vi' as const,
+      orderId: 'order-2',
+      entitlementId: null,
+      payload: {
+        orderNumber: 'ATB-20260619-0003',
+        totalMinor: 250000,
+        currencyCode: 'VND',
+        paymentIntent: 'vietqr_intent',
+        reservationExpiresAt: '2026-06-20T10:00:00.000Z',
+        isGuest: true
+      }
+    };
+
+    const email = renderTransactionalEmail(row, {
+      siteUrl: 'https://shop.example.test',
+      guestToken: 'reopen-raw-token',
+      vietqr: {
+        bankId: 'MBBank',
+        accountName: 'AMBERTINYBEAR STUDIO',
+        accountNoMasked: '****4321',
+        qrImageUrl: 'https://img.vietqr.io/image/MBBank-1234-compact.png'
+      }
+    });
+
+    expect(email.text).toContain('MBBank');
+    expect(email.text).toContain('AMBERTINYBEAR STUDIO');
+    expect(email.text).toContain('****4321');
+    expect(email.text).toContain('ATB-20260619-0003');
+    expect(JSON.stringify(email)).not.toMatch(/qrImageUrl|accountNo[^M]|signed_url/i);
+  });
+
+  test('order_created falls back to the plain order page when no reopen token could be issued', () => {
+    const row = {
+      id: 'email-order-created-no-token',
+      eventType: 'order_created' as const,
+      recipientEmail: 'buyer@example.test',
+      locale: 'en' as const,
+      orderId: 'order-3',
+      entitlementId: null,
+      payload: {orderNumber: 'ATB-20260619-0004', totalMinor: 1000, currencyCode: 'USD', paymentIntent: 'paypal_intent'}
+    };
+
+    const email = renderTransactionalEmail(row, {siteUrl: 'https://shop.example.test', guestToken: null});
+
+    expect(email.html).not.toContain('/api/orders/access');
+    expect(email.html).toContain('/en/orders/ATB-20260619-0004');
+  });
+
+  test('renders payment_received with next steps for a mixed digital and physical order', () => {
+    const row = {
+      id: 'email-payment-received',
+      eventType: 'payment_received' as const,
+      recipientEmail: 'buyer@example.test',
+      locale: 'vi' as const,
+      orderId: 'order-4',
+      entitlementId: null,
+      payload: {
+        orderNumber: 'ATB-20260619-0005',
+        totalMinor: 500000,
+        currencyCode: 'VND',
+        hasDigitalLines: true,
+        hasPhysicalLines: true
+      }
+    };
+
+    const email = renderTransactionalEmail(row, {siteUrl: 'https://shop.example.test'});
+
+    expect(email.subject).toContain('ATB-20260619-0005');
+    expect(email.text).toContain('PDF');
+    expect(email.text).toContain('đóng gói');
+    expect(email.html).toContain('/vi/don-hang/ATB-20260619-0005');
+  });
+
+  test('renders payment_received with digital-only next steps', () => {
+    const row = {
+      id: 'email-payment-received-digital',
+      eventType: 'payment_received' as const,
+      recipientEmail: 'buyer@example.test',
+      locale: 'en' as const,
+      orderId: 'order-5',
+      entitlementId: null,
+      payload: {orderNumber: 'ATB-20260619-0006', totalMinor: 1500, currencyCode: 'USD', hasDigitalLines: true, hasPhysicalLines: false}
+    };
+
+    const email = renderTransactionalEmail(row, {siteUrl: 'https://shop.example.test'});
+
+    expect(email.text).toContain('separate email');
+    expect(email.text).not.toContain('packed and shipped');
   });
 });
 

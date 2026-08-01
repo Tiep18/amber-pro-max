@@ -88,6 +88,12 @@ export function OrderDetail({ order }: { order: AdminOrderDetail }) {
               <dt className="font-semibold">Reservation</dt>
               <dd>{formatAdminDate(order.reservationExpiresAt)}</dd>
             </div>
+            {order.customerTransferDeclaredAt ? (
+              <div>
+                <dt className="font-semibold">Customer declared transfer</dt>
+                <dd>{formatAdminDate(order.customerTransferDeclaredAt)} (unverified — confirm against bank evidence below)</dd>
+              </div>
+            ) : null}
             <div>
               <dt className="font-semibold">Refund</dt>
               <dd>

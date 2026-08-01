@@ -42,5 +42,6 @@ describe('checkout prefill', () => {
     expect(shouldReviewCheckoutQuoteChange('prefill')).toBe(false);
     expect(shouldReviewCheckoutQuoteChange('destination')).toBe(true);
     expect(shouldReviewCheckoutQuoteChange('submit')).toBe(true);
+    expect(shouldReviewCheckoutQuoteChange('discount')).toBe(true);
   });
 });

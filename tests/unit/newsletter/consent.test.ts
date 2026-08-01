@@ -192,7 +192,7 @@ describe('newsletter unsubscribe contracts (NEWS-02, D-14, D-16)', () => {
       newsletterToken: 'raw-newsletter-token'
     } as never);
 
-    expect(email.subject).toContain('ban tin');
+    expect(email.subject).toContain('bản tin');
     expect(email.html).toContain('/vi/ban-tin/huy-dang-ky?token=raw-newsletter-token');
     expect(email.text).not.toContain('token_hash');
   });

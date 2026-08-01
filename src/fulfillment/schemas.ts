@@ -23,6 +23,9 @@ export const guestOrderAccessTokenStatusSchema = z.enum([
   'expired'
 ]);
 
+// Keep in sync with the `transactional_email_outbox_event_type_check`
+// constraint added by supabase/migrations/20260619085118_fulfillment_purchase_access.sql
+// and extended by supabase/migrations/20260801150000_order_lifecycle_emails.sql.
 export const transactionalEmailEventTypeSchema = z.enum([
   'digital_access_granted',
   'digital_access_revoked',
@@ -30,7 +33,9 @@ export const transactionalEmailEventTypeSchema = z.enum([
   'physical_shipped',
   'guest_order_reopen',
   'guest_order_claim',
-  'newsletter_subscribed'
+  'newsletter_subscribed',
+  'order_created',
+  'payment_received'
 ]);
 
 export const transactionalEmailStatusSchema = z.enum([

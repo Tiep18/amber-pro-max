@@ -7,16 +7,18 @@ import {DownloadPanel} from '@/components/fulfillment/download-panel';
 import {FulfillmentTrackSummary} from '@/components/fulfillment/fulfillment-track-summary';
 import {PhysicalTrackingPanel} from '@/components/fulfillment/physical-tracking-panel';
 import type {Locale} from '@/i18n/routing';
-import {getCheckoutPath} from '@/i18n/routing';
+import {getCartPath, getCheckoutPath} from '@/i18n/routing';
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {formatPaymentDateTime} from '@/payments/format';
 import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
 import {getAuthorizedOrderPayment} from '@/payments/queries';
+import {declareVietQrTransferAction} from '@/payments/vietqr/customer-actions';
 import {getPaymentStatusPresentation, mapCustomerPaymentStatus} from '@/payments/status';
 import {getVietQrInstructions, type VietQrInstructionResult} from '@/payments/vietqr/instructions';
 import {PaymentStatePanel} from './payment-state-panel';
-import {GuestRecoveryAcknowledger} from './guest-recovery-acknowledger';
+import {GuestOrderSessionSync} from './guest-order-session-sync';
+import {OrderRecoveryBanner} from './order-recovery-banner';
 import {PayPalButtons} from './paypal-buttons';
 import {VietQrInstructions} from './vietqr-instructions';
 
@@ -109,7 +111,7 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
 
   return (
     <main className="container grid gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_380px]">
-      <GuestRecoveryAcknowledger orderNumber={result.order.orderNumber} />
+      <GuestOrderSessionSync orderNumber={result.order.orderNumber} paid={status.isPaid} />
       <section className="grid content-start gap-5">
         <PaymentStatePanel
           orderNumber={result.order.orderNumber}
@@ -127,9 +129,24 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
           }}
         />
 
+        <OrderRecoveryBanner
+          orderNumber={result.order.orderNumber}
+          recoverable={['expired', 'cancelled', 'failed', 'rejected'].includes(status.status)}
+          paid={status.isPaid}
+          cartHref={getCartPath(locale)}
+          labels={{
+            heading: t('recovery.heading'),
+            body: t('recovery.body'),
+            restore: t('recovery.restore'),
+            restoring: t('recovery.restoring'),
+            unavailable: t('recovery.unavailable')
+          }}
+        />
+
         {vietQrInstruction ? (
           <VietQrInstructions
             amountLabel={total}
+            amountMinor={result.order.amountMinor}
             bankName={vietQrInstruction.bankId}
             accountName={vietQrInstruction.accountName}
             accountNumberMasked={vietQrInstruction.accountNoMasked}
@@ -137,6 +154,8 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
             deadlineLabel={formatPaymentDateTime(vietQrInstruction.paymentDeadlineAt, locale) ?? deadlineValue ?? vietQrInstruction.paymentDeadlineAt}
             qrImageUrl={vietQrInstruction.qrImageUrl}
             qrAlt={vietqrT('qrAlt', {orderNumber: result.order.orderNumber})}
+            declared={Boolean(result.order.customerTransferDeclaredAt)}
+            onDeclare={declareVietQrTransferAction.bind(null, result.order.orderNumber)}
             labels={{
               title: vietqrT('title'),
               body: vietqrT('body'),
@@ -153,7 +172,13 @@ export async function OrderPaymentPage({locale, orderNumber}: OrderPaymentPagePr
               loadingQr: vietqrT('loadingQr'),
               lockHeading: t('fulfillment.lockedHeading'),
               lockBody: t('fulfillment.lockedBody'),
-              checkStatus: t('actions.checkStatus')
+              checkStatus: vietqrT('checkStatus'),
+              checking: vietqrT('checkingStatus'),
+              lastChecked: vietqrT('lastChecked'),
+              declareWarning: vietqrT('declareWarning'),
+              declareButton: vietqrT('declareButton'),
+              declaring: vietqrT('declaring'),
+              declaredStatus: vietqrT('declaredStatus')
             }}
           />
         ) : null}

@@ -4,6 +4,7 @@ import {cookies} from 'next/headers';
 const GUEST_ORDER_COOKIE_PREFIX = 'atb_guest_order_';
 const GUEST_CHECKOUT_RECOVERY_COOKIE = 'atb_guest_checkout_recovery';
 const DEFAULT_MAX_AGE_SECONDS = 60 * 60 * 24;
+const PAID_GUEST_ORDER_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const RECOVERY_MAX_AGE_SECONDS = 60 * 30;
 const RECOVERY_CREDENTIAL_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
@@ -33,6 +34,7 @@ export type SetGuestOrderAccessCookieInput = {
   orderNumber: string;
   rawToken: string | null | undefined;
   reservationExpiresAt?: string | null;
+  paid?: boolean;
   cookieStore?: CookieStore;
   production?: boolean;
 };
@@ -142,17 +144,27 @@ export function acknowledgeGuestCheckoutRecovery({
   return {status: 'cleared'};
 }
 
-function guestCookieOptions(reservationExpiresAt: string | null | undefined, production: boolean): CookieOptions {
+function guestCookieOptions({
+  reservationExpiresAt,
+  paid,
+  production
+}: {
+  reservationExpiresAt: string | null | undefined;
+  paid: boolean;
+  production: boolean;
+}): CookieOptions {
+  const base = {httpOnly: true as const, sameSite: 'lax' as const, secure: production, path: '/'};
+
+  if (paid) {
+    return {...base, maxAge: PAID_GUEST_ORDER_MAX_AGE_SECONDS};
+  }
+
   const expires = reservationExpiresAt ? new Date(reservationExpiresAt) : null;
   const validExpires = expires && Number.isFinite(expires.getTime()) && expires.getTime() > Date.now() ? expires : null;
+  const minExpires = new Date(Date.now() + DEFAULT_MAX_AGE_SECONDS * 1000);
+  const effectiveExpires = validExpires && validExpires.getTime() > minExpires.getTime() ? validExpires : minExpires;
 
-  return {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: production,
-    path: '/',
-    ...(validExpires ? {expires: validExpires} : {maxAge: DEFAULT_MAX_AGE_SECONDS})
-  };
+  return {...base, expires: effectiveExpires};
 }
 
 export function setGuestOrderAccessCookie(input: SetGuestOrderAccessCookieInput): SetGuestOrderAccessCookieResult {
@@ -169,10 +181,24 @@ export function setGuestOrderAccessCookie(input: SetGuestOrderAccessCookieInput)
   cookieStore.set(
     cookieName,
     input.rawToken,
-    guestCookieOptions(input.reservationExpiresAt, input.production ?? process.env.NODE_ENV === 'production')
+    guestCookieOptions({
+      reservationExpiresAt: input.reservationExpiresAt,
+      paid: input.paid ?? false,
+      production: input.production ?? process.env.NODE_ENV === 'production'
+    })
   );
 
   return {status: 'set', cookieName};
+}
+
+export function getGuestOrderAccessToken({
+  cookieStore,
+  orderNumber
+}: {
+  cookieStore: Pick<CookieStore, 'get'>;
+  orderNumber: string;
+}) {
+  return cookieStore.get(buildGuestOrderCookieName(orderNumber))?.value ?? null;
 }
 
 export function getGuestOrderAccessHash({
@@ -182,7 +208,7 @@ export function getGuestOrderAccessHash({
   cookieStore: Pick<CookieStore, 'get'>;
   orderNumber: string;
 }) {
-  const token = cookieStore.get(buildGuestOrderCookieName(orderNumber))?.value;
+  const token = getGuestOrderAccessToken({cookieStore, orderNumber});
   return token ? hashGuestOrderAccessToken(token) : null;
 }
 
@@ -194,6 +220,11 @@ export async function setGuestOrderAccessCookieFromServer(input: Omit<SetGuestOr
 export async function getGuestOrderAccessHashFromServer(orderNumber: string) {
   const cookieStore = await cookies();
   return getGuestOrderAccessHash({cookieStore, orderNumber});
+}
+
+export async function getGuestOrderAccessTokenFromServer(orderNumber: string) {
+  const cookieStore = await cookies();
+  return getGuestOrderAccessToken({cookieStore, orderNumber});
 }
 
 export async function prepareGuestCheckoutRecoveryFromServer(intent: string) {

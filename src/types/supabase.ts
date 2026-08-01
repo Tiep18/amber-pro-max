@@ -720,6 +720,7 @@ export type Database = {
           contact_email: string
           created_at: string
           currency_code: string
+          customer_transfer_declared_at: string | null
           digital_fulfillment_status: string
           discount_minor: number
           guest_secret_hash: string | null
@@ -755,6 +756,7 @@ export type Database = {
           contact_email: string
           created_at?: string
           currency_code: string
+          customer_transfer_declared_at?: string | null
           digital_fulfillment_status?: string
           discount_minor?: number
           guest_secret_hash?: string | null
@@ -790,6 +792,7 @@ export type Database = {
           contact_email?: string
           created_at?: string
           currency_code?: string
+          customer_transfer_declared_at?: string | null
           digital_fulfillment_status?: string
           discount_minor?: number
           guest_secret_hash?: string | null
@@ -3390,6 +3393,7 @@ export type Database = {
           created_at: string | null
           currency_code: string | null
           customer_payment_status: string | null
+          customer_transfer_declared_at: string | null
           digital_fulfillment_status: string | null
           fulfillment_gate_status: string | null
           guest_secret_hash: string | null
@@ -3467,6 +3471,10 @@ export type Database = {
       }
       create_market_exception_request: {
         Args: { p_payload: Json }
+        Returns: Json
+      }
+      declare_vietqr_transfer: {
+        Args: { p_guest_secret_hash?: string; p_order_number: string }
         Returns: Json
       }
       delete_customer_shipping_address: {
@@ -3613,7 +3621,7 @@ export type Database = {
         Returns: {
           available_quantity: number
           product_id: string
-          variant_id: string | null
+          variant_id: string
         }[]
       }
       get_checkout_product_discount_scopes: {

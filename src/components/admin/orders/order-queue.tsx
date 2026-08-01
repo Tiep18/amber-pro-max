@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, MailWarning, PackageCheck, WalletCards } from 'lucide-react';
+import { ArrowRight, MailWarning, MessageCircleMore, PackageCheck, WalletCards } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { AdminOrderQueueItem } from '@/payments/queries';
@@ -89,6 +89,12 @@ export function OrderQueue({ orders }: { orders: AdminOrderQueueItem[] }) {
                       <p className="mt-1 text-xs text-[var(--muted-foreground)]">
                         {order.provider}
                       </p>
+                      {order.customerTransferDeclaredAt ? (
+                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-[var(--accent)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--accent)]">
+                          <MessageCircleMore className="size-3" aria-hidden="true" />
+                          Customer declared {formatAdminDate(order.customerTransferDeclaredAt)}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-4 align-top">
                       <p className="font-semibold">

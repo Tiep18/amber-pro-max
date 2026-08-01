@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "check:vi-diacritics": "node scripts/check-vi-diacritics.mjs",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "test:unit": "vitest run",
@@ -18,7 +19,7 @@
     "db:lint": "supabase db lint --local --fail-on error",
     "db:test": "supabase test db",
     "db:types": "supabase gen types typescript --local > src/types/supabase.ts",
-    "ci": "npm run lint && npm run typecheck && npm run test:unit && npm run db:reset && npm run db:lint && npm run db:test && npm run db:types && git diff --exit-code src/types/supabase.ts && npm run build && npm run test:security && npm run test:e2e"
+    "ci": "npm run lint && npm run typecheck && npm run check:vi-diacritics && npm run test:unit && npm run db:reset && npm run db:lint && npm run db:test && npm run db:types && git diff --exit-code src/types/supabase.ts && npm run build && npm run test:security && npm run test:e2e"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

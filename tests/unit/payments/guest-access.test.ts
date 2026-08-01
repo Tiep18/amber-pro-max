@@ -4,6 +4,7 @@ import {
   buildGuestOrderCookieName,
   getGuestCheckoutRecovery,
   getGuestOrderAccessHash,
+  getGuestOrderAccessToken,
   hashGuestOrderAccessToken,
   prepareGuestCheckoutRecovery,
   setGuestOrderAccessCookie
@@ -38,6 +39,61 @@ describe('guest order access', () => {
     expect(getGuestOrderAccessHash({cookieStore, orderNumber: 'ATB-20260616-0001'})).toBe(
       '5b09b3bd2cc307168ebae2cebd35bef0b93738b0cd8635c4d269895e2fcc793f'
     );
+  });
+
+  test('exposes the raw cookie value only to server-side callers, never in a hashed form', () => {
+    const cookieStore = {get: vi.fn().mockReturnValue({value: 'raw-guest-token'})};
+    expect(getGuestOrderAccessToken({cookieStore, orderNumber: 'ATB-1'})).toBe('raw-guest-token');
+  });
+
+  test('paid orders get a long-lived cookie regardless of the reservation deadline', () => {
+    const set = vi.fn();
+    setGuestOrderAccessCookie({
+      cookieStore: {set, get: vi.fn()},
+      orderNumber: 'ATB-1',
+      rawToken: 'raw-guest-token',
+      reservationExpiresAt: '2020-01-01T00:00:00.000Z',
+      paid: true,
+      production: true
+    });
+
+    expect(set).toHaveBeenCalledWith(
+      'atb_guest_order_ATB-1',
+      'raw-guest-token',
+      expect.objectContaining({maxAge: 60 * 60 * 24 * 30})
+    );
+  });
+
+  test('an unpaid order with an already-past reservation deadline still gets a recoverable window', () => {
+    const set = vi.fn();
+    setGuestOrderAccessCookie({
+      cookieStore: {set, get: vi.fn()},
+      orderNumber: 'ATB-1',
+      rawToken: 'raw-guest-token',
+      reservationExpiresAt: '2020-01-01T00:00:00.000Z',
+      paid: false,
+      production: true
+    });
+
+    const options = set.mock.calls[0][2] as {expires?: Date};
+    expect(options.expires).toBeInstanceOf(Date);
+    expect(options.expires!.getTime()).toBeGreaterThan(Date.now() + 23 * 60 * 60 * 1000);
+  });
+
+  test('an unpaid order with a future reservation deadline keeps that deadline as the cookie expiry', () => {
+    const set = vi.fn();
+    const future = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    setGuestOrderAccessCookie({
+      cookieStore: {set, get: vi.fn()},
+      orderNumber: 'ATB-1',
+      rawToken: 'raw-guest-token',
+      reservationExpiresAt: future,
+      paid: false,
+      production: true
+    });
+
+    const options = set.mock.calls[0][2] as {expires?: Date};
+    expect(options.expires?.toISOString()).toBe(future);
   });
 });
 

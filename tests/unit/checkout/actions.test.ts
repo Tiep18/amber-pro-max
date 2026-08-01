@@ -10,7 +10,8 @@ const {
   quoteCartIntentMock,
   recordOperationalFailureMock,
   setGuestOrderAccessCookieMock,
-  submitCheckoutMock
+  submitCheckoutMock,
+  triggerTransactionalEmailOutboxNowMock
 } = vi.hoisted(() => ({
   createSupabaseServerClientMock: vi.fn(),
   acknowledgeRecoveryMock: vi.fn(),
@@ -21,7 +22,8 @@ const {
   quoteCartIntentMock: vi.fn(),
   recordOperationalFailureMock: vi.fn(),
   setGuestOrderAccessCookieMock: vi.fn(),
-  submitCheckoutMock: vi.fn()
+  submitCheckoutMock: vi.fn(),
+  triggerTransactionalEmailOutboxNowMock: vi.fn()
 }));
 
 vi.mock('next/cache', () => ({
@@ -51,6 +53,9 @@ vi.mock('@/payments/guest-access', () => ({
 vi.mock('@/payments/queries', () => ({getAuthorizedOrderPayment: getAuthorizedOrderPaymentMock}));
 vi.mock('@/operations/errors', () => ({
   recordOperationalFailure: recordOperationalFailureMock
+}));
+vi.mock('@/fulfillment/email-outbox.server', () => ({
+  triggerTransactionalEmailOutboxNow: triggerTransactionalEmailOutboxNowMock
 }));
 
 import {
@@ -115,6 +120,7 @@ describe('checkout operational error instrumentation', () => {
     });
     getGuestCheckoutRecoveryMock.mockResolvedValue({attemptId: 'a'.repeat(43), proof: 'b'.repeat(43)});
     prepareRecoveryMock.mockResolvedValue({status: 'ready'});
+    triggerTransactionalEmailOutboxNowMock.mockResolvedValue({status: 'processed', claimed: 0, sent: 0, retry: 0, failed: 0});
   });
 
   it('records checkout quote exceptions and returns the operational error id', async () => {
@@ -245,5 +251,15 @@ describe('checkout operational error instrumentation', () => {
       expect.anything()
     );
     expect(setGuestOrderAccessCookieMock).not.toHaveBeenCalled();
+  });
+
+  it('flushes the transactional email outbox after a successful submit without blocking on failure', async () => {
+    submitCheckoutMock.mockResolvedValue({
+      status: 'success', orderId: 'order-1', orderNumber: 'ATB-1', reservationExpiresAt: '2026-07-14T10:00:00Z'
+    });
+    triggerTransactionalEmailOutboxNowMock.mockRejectedValue(new Error('worker unavailable'));
+
+    await expect(submitCheckoutAction(validCheckoutInput())).resolves.toMatchObject({status: 'success'});
+    expect(triggerTransactionalEmailOutboxNowMock).toHaveBeenCalledWith({reason: 'checkout_submitted'});
   });
 });
