@@ -31,6 +31,12 @@ type DragState = {
   offset: number;
 };
 
+const navigationButtonClassName =
+  'group/nav absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center opacity-75 transition-opacity duration-200 hover:!opacity-100 focus-visible:!opacity-100 sm:opacity-60 sm:group-hover:opacity-90 disabled:pointer-events-none disabled:opacity-0 motion-reduce:transition-none';
+
+const navigationButtonSurfaceClassName =
+  'flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface)]/50 text-[var(--foreground)]/70 ring-1 ring-white/40 backdrop-blur-[2px] transition-[background-color,color,box-shadow] duration-200 group-hover:bg-[var(--surface)]/65 group-hover/nav:!bg-[var(--surface)]/90 group-hover/nav:!text-[var(--foreground)] group-hover/nav:shadow-sm group-focus-visible/nav:!bg-[var(--surface)]/90 group-focus-visible/nav:!text-[var(--foreground)] group-focus-visible/nav:shadow-sm motion-reduce:transition-none';
+
 export function ProductGallery({
   images,
   alt,
@@ -199,22 +205,26 @@ export function ProductGallery({
                 aria-label={labels.previous}
                 aria-controls={trackId}
                 disabled={selectedIndex === 0}
-                className="absolute left-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)]/80 bg-[var(--surface)]/90 text-[var(--foreground)] shadow-sm backdrop-blur-sm transition-[background-color,opacity,transform] duration-200 hover:bg-[var(--surface-paper)] active:scale-95 disabled:pointer-events-none disabled:opacity-30 motion-reduce:transition-none"
+                className={`${navigationButtonClassName} left-1 sm:left-2`}
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={() => selectImage(selectedIndex - 1)}
               >
-                <ChevronLeft aria-hidden="true" className="h-5 w-5" />
+                <span className={navigationButtonSurfaceClassName}>
+                  <ChevronLeft aria-hidden="true" className="h-4 w-4" />
+                </span>
               </button>
               <button
                 type="button"
                 aria-label={labels.next}
                 aria-controls={trackId}
                 disabled={selectedIndex === normalizedImages.length - 1}
-                className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)]/80 bg-[var(--surface)]/90 text-[var(--foreground)] shadow-sm backdrop-blur-sm transition-[background-color,opacity,transform] duration-200 hover:bg-[var(--surface-paper)] active:scale-95 disabled:pointer-events-none disabled:opacity-30 motion-reduce:transition-none"
+                className={`${navigationButtonClassName} right-1 sm:right-2`}
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={() => selectImage(selectedIndex + 1)}
               >
-                <ChevronRight aria-hidden="true" className="h-5 w-5" />
+                <span className={navigationButtonSurfaceClassName}>
+                  <ChevronRight aria-hidden="true" className="h-4 w-4" />
+                </span>
               </button>
               <span
                 aria-hidden="true"
