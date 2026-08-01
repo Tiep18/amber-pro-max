@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 09-14-PLAN.md
 last_updated: '2026-07-31T02:04:32+07:00'
-last_activity: 2026-07-31 -- Completed quick task 260731-o5m: replaced cool-toned home imagery with a warm brand-aligned set
+last_activity: 2026-08-01 -- Completed quick task 260801-e9i: added an animated, swipeable product image carousel
 progress:
   total_phases: 9
   completed_phases: 7
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 09 (independent-locale-and-market-commerce-projection-with-seo-s) — EXECUTING
 Plan: 15 of 15
 Status: Ready to execute
-Last activity: 2026-07-31 -- Completed quick task 260731-o5m: replaced cool-toned home imagery with a warm brand-aligned set
+Last activity: 2026-08-01 -- Completed quick task 260801-e9i: added an animated, swipeable product image carousel
 
 Progress: Phase 09 Plan 14 is complete; Plan 15 is next.
 
@@ -222,6 +222,7 @@ None yet.
 
 | #                                                     | Description                                                                                                                      | Date       | Commit      | Status                                                                                                                                                    | Directory                                                                  |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 260801-e9i                                            | Add an animated, swipeable product image carousel with accessible controls and localized labels                                  | 2026-08-01 | cb377799    | Complete                                                                                                                                                  | [260801-e9i](./quick/260801-e9i-them-carousel-anh-co-animation-nut-dieu-/) |
 | 260731-o5m                                            | Replace cool-toned home imagery with a warm cream, terracotta, blush, honey, and chocolate brand palette                         | 2026-07-31 | 7bb08949    | Complete                                                                                                                                                  | [260731-o5m](./quick/260731-o5m-t-o-v-thay-th-c-c-nh-home-b-m-xanh-trong/) |
 | 260731-2pm                                            | Scroll filtered catalog product results to their sticky-safe viewport start on desktop and mobile                               | 2026-07-31 | 26a6f34     | Verified                                                                                                                                                  | [260731-2pm](./quick/260731-2pm-scroll-catalog-product-results-to-their-/) |
 | 260731-24q                                            | Smooth catalog filter transitions, preserve scroll, and retain sidebar facets without changing SEO or ISR                       | 2026-07-31 | 1564ac2     | Verified                                                                                                                                                  | [260731-24q](./quick/260731-24q-smooth-catalog-filtering-transitions-pre/) |
