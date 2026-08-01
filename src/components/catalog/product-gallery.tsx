@@ -210,7 +210,7 @@ export function ProductGallery({
                 onClick={() => selectImage(selectedIndex - 1)}
               >
                 <span className={navigationButtonSurfaceClassName}>
-                  <ChevronLeft aria-hidden="true" className="h-4 w-4" />
+                  <ChevronLeft aria-hidden="true" className="size-[18px]" />
                 </span>
               </button>
               <button
@@ -223,7 +223,7 @@ export function ProductGallery({
                 onClick={() => selectImage(selectedIndex + 1)}
               >
                 <span className={navigationButtonSurfaceClassName}>
-                  <ChevronRight aria-hidden="true" className="h-4 w-4" />
+                  <ChevronRight aria-hidden="true" className="size-[18px]" />
                 </span>
               </button>
               <span
