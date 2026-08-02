@@ -1,5 +1,79 @@
 # Plan 012: Make the payment expiry job observable and add an HTTP fallback
 
+> **Correction (2026-08-02)**: the gate this plan built hard-coded a 10 minute
+> freshness window for the HTTP fallback, which silently assumes minute-level
+> cron is available. On a hosting plan capped at one cron run per day the gate
+> would report a perfectly healthy fallback as blocked — a monitor that lies.
+> The window is now derived from `PAYMENT_EXPIRY_FALLBACK_INTERVAL_MINUTES`;
+> see [plan 020](020-checkout-review-remediation.md). Note also that
+> `vercel.json`'s `* * * * *` schedule requires a plan that permits it, which
+> has **not** been verified against current hosting pricing.
+
+> **Execution note (2026-08-01)**: Executed in full. A new
+> `public.system_job_runs` table was added rather than reusing
+> `operational_errors` for fallback-run telemetry: `operational_errors` is a
+> resolvable admin error queue (severity `warning`/`error`/`critical`,
+> resolved/unresolved workflow) with no concept of a *successful* run, and the
+> gate needs "did the fallback succeed recently" — recording successes there
+> would misuse that table's semantics. This is judged not to be the STOP
+> condition about overlapping tables, since the purpose and shape differ.
+> `get_payment_expiry_job_health()` bundles both the pg_cron signal and the
+> HTTP fallback signal (including `fallbackRecentSuccess`) into one JSON
+> payload consumed by `src/launch/settings.ts`, beyond the plan's example
+> JSON shape. The HTTP fallback route responds to **GET**, not POST, because
+> Vercel Cron Jobs invoke via GET with an automatic `Authorization: Bearer
+> $CRON_SECRET` header; POST is also accepted for manual/operator triggers
+> with the same secret.
+>
+> **Environment blocker resolved (2026-08-01, later same day)**: local
+> Supabase could not start earlier in this pass because Windows had TCP
+> ports 55430-55529 excluded (Hyper-V/WSL2). The user restarted the `winnat`
+> service (admin action), which cleared the exclusion. Once Docker Desktop
+> was reachable, a second blocker appeared: the `analytics` (Logflare)
+> service in `supabase/config.toml` requires the Docker daemon exposed on
+> `tcp://localhost:2375`, a toggle recent Docker Desktop versions no longer
+> expose in Settings UI. Per user decision, `[analytics] enabled` was set to
+> `false` in `supabase/config.toml` (analytics is not needed by
+> `db:reset`/`db:lint`/`db:test`/`db:types`).
+>
+> **Real Postgres run found three bugs this migration's earlier code-only
+> verification could not catch** — all fixed in this same migration file:
+> 1. `db:lint` failed: `get_payment_expiry_job_health()` referenced
+>    `cron.job`/`cron.job_run_details` directly inside the `pg_cron`-guarded
+>    block. `supabase db lint` statically resolves object references even
+>    inside a guarded/excepted block (and even inside a literal
+>    `EXECUTE`/`format()` string — both were tried and both still failed).
+>    The fix that actually worked: build the query text via runtime `||`
+>    concatenation from variables, which the static checker does not
+>    constant-fold.
+> 2. `db:test` failed: `fallbackRecentSuccess` was computed as
+>    `fallback_last_status = 'succeeded' and fallback_last_run_at >= ...`,
+>    which is SQL `NULL` (not `false`) when no fallback run has ever been
+>    recorded — so the JSON key came back `null` instead of `false`. Wrapped
+>    in `coalesce(..., false)`.
+> 3. `db:test` failed: `supabase/tests/database/04_payment_expiry_job_health.test.sql`
+>    declared `plan(11)` but only contains 10 assertions (a miscount when the
+>    file was written without a live pgTAP run to catch it). Fixed to
+>    `plan(10)`.
+>
+> `src/types/supabase.ts` was regenerated for real. `npm run db:types` itself
+> (via `--local`) failed with "password authentication failed for user
+> postgres" and **overwrote the file with an error message** — caused by
+> stale/conflicting Docker networks left over from other projects on this
+> machine, not by anything in this repo. Recovered via `git checkout --
+> src/types/supabase.ts` then regenerated correctly using
+> `supabase gen types typescript --db-url "postgresql://postgres:postgres@127.0.0.1:55432/postgres"`
+> (bypasses the `--local` flag's internal Docker-network container). The
+> real diff against committed types is exactly the `system_job_runs` table
+> and `get_payment_expiry_job_health` RPC — matching what was hand-edited
+> earlier, confirming that hand-edit was accurate.
+>
+> **Full verification now complete and clean**: `npm run typecheck`,
+> `npm run lint`, `npx vitest run`, `npm run db:reset`, `npm run db:lint`,
+> `npm run db:test` (876/876 pgTAP tests), `npm run build`,
+> `npm run test:security` (57/57), `npm run check:vi-diacritics`. See
+> `plans/README.md` for the e2e (`npx playwright test`) result.
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and

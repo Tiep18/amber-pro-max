@@ -27,6 +27,10 @@ export type VietQrInstructionSnapshot = {
   transferReference: string;
   bankId: string;
   accountName: string;
+  // The shop's own receiving account. The customer cannot complete a manual
+  // transfer without it, so the authorized payment surface gets it in full;
+  // `accountNoMasked` is what goes into audit facts and anywhere else.
+  accountNo: string;
   accountNoMasked: string;
   template: string;
   qrImageUrl: string;
@@ -120,6 +124,7 @@ function buildInstruction({
     transferReference: order.orderNumber,
     bankId: config.bankId,
     accountName: config.accountName,
+    accountNo: config.accountNo,
     accountNoMasked: maskAccountNo(config.accountNo),
     template: config.template,
     qrImageUrl: buildQuickLinkUrl(config, order.amountMinor, order.orderNumber),
@@ -193,7 +198,7 @@ export async function getVietQrInstructions({
         accountNoMasked: instruction.accountNoMasked,
         transferReference: instruction.transferReference,
         paymentDeadlineAt: instruction.paymentDeadlineAt,
-        qrImageUrl: instruction.qrImageUrl
+        qrImageAvailable: true
       }
     },
     transitionClient

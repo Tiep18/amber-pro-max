@@ -4,7 +4,12 @@ import {randomUUID} from 'node:crypto';
 import {Resend} from 'resend';
 import type {TransactionalEmailRow} from '@/emails/transactional';
 import {hashFulfillmentAccessToken} from '@/fulfillment/downloads';
-import {processTransactionalEmailBatch, type TransactionalEmailRepository, type TransactionalEmailSender} from '@/fulfillment/email-outbox';
+import {
+  processTransactionalEmailBatch,
+  type ClaimedTransactionalEmailRow,
+  type TransactionalEmailRepository,
+  type TransactionalEmailSender
+} from '@/fulfillment/email-outbox';
 import {getServerEnv} from '@/lib/env/server';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 import {recordOperationalFailure} from '@/operations/errors';
@@ -12,6 +17,7 @@ import {createNewsletterUnsubscribeToken, hashNewsletterUnsubscribeToken} from '
 
 type SupabaseLike = {
   from: (table: string) => unknown;
+  rpc: (fn: string, args: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
 };
 
 function newRawToken() {
@@ -34,48 +40,90 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function mapRow(row: Record<string, unknown>): TransactionalEmailRow | null {
-  if (typeof row.id !== 'string' || typeof row.event_type !== 'string' || typeof row.recipient_email !== 'string') {
-    return null;
+function mapRow(row: Record<string, unknown>): ClaimedTransactionalEmailRow {
+  if (
+    typeof row.id !== 'string' ||
+    typeof row.event_type !== 'string' ||
+    typeof row.recipient_email !== 'string' ||
+    (row.locale !== 'en' && row.locale !== 'vi') ||
+    (row.order_id !== null && typeof row.order_id !== 'string') ||
+    (row.entitlement_id !== null && typeof row.entitlement_id !== 'string') ||
+    !isRecord(row.payload) ||
+    typeof row.attempt_count !== 'number' ||
+    !Number.isInteger(row.attempt_count) ||
+    row.attempt_count < 1 ||
+    typeof row.claim_token !== 'string' ||
+    row.claim_token.length === 0
+  ) {
+    throw new Error('claim_transactional_emails returned a malformed row');
   }
   return {
     id: row.id,
     eventType: row.event_type as TransactionalEmailRow['eventType'],
     recipientEmail: row.recipient_email,
-    locale: row.locale === 'vi' ? 'vi' : 'en',
+    locale: row.locale,
     orderId: typeof row.order_id === 'string' ? row.order_id : null,
     entitlementId: typeof row.entitlement_id === 'string' ? row.entitlement_id : null,
-    payload: isRecord(row.payload) ? row.payload : {}
+    payload: row.payload,
+    attemptCount: row.attempt_count,
+    claimToken: row.claim_token
   };
+}
+
+// Long enough that a slow provider call cannot lose its own claim, short
+// enough that a crashed worker's rows are retried within one cron cycle.
+const OUTBOX_LEASE_SECONDS = 300;
+
+async function transitionClaim(
+  client: SupabaseLike,
+  input: {
+    id: string;
+    claimToken: string;
+    status: 'sent' | 'pending' | 'failed';
+    providerMessageId?: string;
+    errorCode?: string;
+    availableAt?: Date;
+    transitionedAt: Date;
+  }
+) {
+  const {data, error} = await client.rpc('transition_transactional_email_claim', {
+    p_id: input.id,
+    p_claim_token: input.claimToken,
+    p_status: input.status,
+    p_provider_message_id: input.providerMessageId ?? null,
+    p_error_code: input.errorCode ?? null,
+    p_available_at: input.availableAt?.toISOString() ?? null,
+    p_transitioned_at: input.transitionedAt.toISOString()
+  });
+  if (error) {
+    throw new Error('transition_transactional_email_claim failed', {cause: error});
+  }
+  if (typeof data !== 'boolean') {
+    throw new Error('transition_transactional_email_claim returned a malformed result');
+  }
+  if (!data) {
+    throw new Error('transactional email claim ownership was lost');
+  }
 }
 
 export function createSupabaseEmailOutboxRepository(client: SupabaseLike): TransactionalEmailRepository {
   return {
-    async claimDueRows(limit, now) {
-      const query = client.from('transactional_email_outbox') as {
-        select: (columns: string) => {
-          eq: (column: string, value: string) => {
-            lte: (column: string, value: string) => {
-              order: (column: string, options: {ascending: boolean}) => {
-                limit: (count: number) => Promise<{data: unknown[] | null; error: unknown}>;
-              };
-            };
-          };
-        };
-        update: (value: Record<string, unknown>) => {eq: (column: string, value: string) => Promise<{data: unknown; error: unknown}>};
-      };
-      const {data, error} = await query
-        .select('id,event_type,recipient_email,locale,order_id,entitlement_id,payload')
-        .eq('status', 'pending')
-        .lte('available_at', now.toISOString())
-        .order('available_at', {ascending: true})
-        .limit(limit);
-      if (error || !Array.isArray(data)) {
-        return [];
+    async claimDueRows(limit) {
+      // One atomic RPC: FOR UPDATE SKIP LOCKED assigns each row to exactly one
+      // worker, and the same call reclaims rows whose lease expired because a
+      // previous worker died mid-send. A read-then-write pair here would let
+      // two overlapping workers send the same email twice.
+      const {data, error} = await client.rpc('claim_transactional_emails', {
+        p_limit: limit,
+        p_lease_seconds: OUTBOX_LEASE_SECONDS
+      });
+      if (error) {
+        throw new Error('claim_transactional_emails failed', {cause: error});
       }
-      const rows = data.filter(isRecord).map(mapRow).filter((row): row is TransactionalEmailRow => Boolean(row));
-      await Promise.all(rows.map((row) => query.update({status: 'sending', updated_at: now.toISOString()}).eq('id', row.id)));
-      return rows;
+      if (!Array.isArray(data) || data.some((row) => !isRecord(row))) {
+        throw new Error('claim_transactional_emails returned malformed data');
+      }
+      return data.map(mapRow);
     },
     async issueDownloadToken(row, now) {
       if (!row.entitlementId) {
@@ -127,23 +175,20 @@ export function createSupabaseEmailOutboxRepository(client: SupabaseLike): Trans
       });
       return error ? null : {rawToken, expiresAt: expiresAt.toISOString()};
     },
-    async markSent(id, providerMessageId, now) {
-      const update = client.from('transactional_email_outbox') as {
-        update: (value: Record<string, unknown>) => {eq: (column: string, value: string) => Promise<{data: unknown; error: unknown}>};
-      };
-      await update.update({status: 'sent', sent_at: now.toISOString(), updated_at: now.toISOString()}).eq('id', id);
+    async markSent(claim, providerMessageId, now) {
+      await transitionClaim(client, {...claim, status: 'sent', providerMessageId, transitionedAt: now});
     },
-    async markRetry(id, code, availableAt) {
-      const update = client.from('transactional_email_outbox') as {
-        update: (value: Record<string, unknown>) => {eq: (column: string, value: string) => Promise<{data: unknown; error: unknown}>};
-      };
-      await update.update({status: 'pending', available_at: availableAt.toISOString(), updated_at: new Date().toISOString()}).eq('id', id);
+    async markRetry(claim, code, availableAt) {
+      await transitionClaim(client, {
+        ...claim,
+        status: 'pending',
+        errorCode: code,
+        availableAt,
+        transitionedAt: new Date()
+      });
     },
-    async markFailed(id, code, now) {
-      const update = client.from('transactional_email_outbox') as {
-        update: (value: Record<string, unknown>) => {eq: (column: string, value: string) => Promise<{data: unknown; error: unknown}>};
-      };
-      await update.update({status: 'failed', updated_at: now.toISOString()}).eq('id', id);
+    async markFailed(claim, code, now) {
+      await transitionClaim(client, {...claim, status: 'failed', errorCode: code, transitionedAt: now});
     }
   };
 }

@@ -254,12 +254,16 @@
     "labels": {
       "order": "Order",
       "deadline": "Reservation deadline",
-      "lastChecked": "Last checked"
+      "lastChecked": "Last checked",
+      "countdownRemaining": "Time remaining:",
+      "countdownExpired": "Reservation expired"
     },
     "actions": {
       "newCheckout": "Start a new checkout",
       "checkStatus": "Check payment status",
-      "checkingStatus": "Checking status"
+      "checkingStatus": "Checking status",
+      "continueShopping": "Continue shopping",
+      "myOrders": "My orders"
     },
     "accessDenied": {
       "heading": "This order cannot be opened",
@@ -267,8 +271,14 @@
     },
     "summary": {
       "title": "Order summary",
-      "total": "Total"
+      "total": "Total",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "shipping": "Shipping",
+      "quantity": "Qty"
     },
+    "pageHeading": "Order {orderNumber}",
+    "guestNote": "We emailed a link to this order to {email}. Keep it to come back later.",
     "recovery": {
       "heading": "This order expired",
       "body": "The reservation ended before payment was confirmed. Restore these items to your cart to try again.",
@@ -284,6 +294,11 @@
       "lockedBody": "PDF access and shipping work begin only after the full order is confirmed paid.",
       "eligibleHeading": "Payment gate is open",
       "eligibleBody": "Payment is confirmed. This order is now eligible for the next fulfillment step."
+    },
+    "nextSteps": {
+      "title": "What happens next",
+      "digital": "Your download link is on its way to {email}.",
+      "physical": "We will email tracking once your parcel ships."
     },
     "downloads": {
       "title": "Pattern downloads",
@@ -390,7 +405,13 @@
       "declaredStatus": "Recorded — we are checking the bank account.",
       "checkStatus": "Check payment status",
       "checkingStatus": "Checking status",
-      "lastChecked": "Last checked"
+      "lastChecked": "Last checked",
+      "copyFailed": "Could not copy automatically — select the text and copy it manually.",
+      "copyAccountNumber": "Copy account number",
+      "qrUnavailable": "The QR code could not load. Transfer manually with these details:",
+      "declareNotEligible": "This order can no longer accept a transfer confirmation. Refresh the page to see its current status.",
+      "declareForbidden": "Your access to this order expired. Reopen it from the link in your order email, then confirm again.",
+      "declareFailed": "We could not record your confirmation. Please try again in a moment."
     }
   },
   "footer": {

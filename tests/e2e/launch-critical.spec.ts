@@ -29,4 +29,12 @@ test('ADM-01 OPS-03 OPS-04 D-11 private launch surfaces and provider routes fail
   const response = await request.post('/api/paypal/orders', {data: {}});
   expect(response.status()).toBe(400);
   await expect(response.json()).resolves.toEqual({status: 'invalid', code: 'invalid_paypal_order_request'});
+
+  const expiryFallbackNoSecret = await request.get('/api/cron/expire-payments');
+  expect(expiryFallbackNoSecret.status()).toBe(404);
+
+  const expiryFallbackWrongSecret = await request.get('/api/cron/expire-payments', {
+    headers: {authorization: 'Bearer not-the-real-secret'}
+  });
+  expect(expiryFallbackWrongSecret.status()).toBe(404);
 });

@@ -10,13 +10,14 @@ import {
   validateRetryCandidate
 } from '@/fulfillment/admin-email-actions';
 import {processTransactionalEmailBatch} from '@/fulfillment/email-outbox';
-import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
+import {createSupabaseEmailOutboxRepository, triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
 import {renderTransactionalEmail} from '@/emails/transactional';
 
 const now = new Date('2026-06-19T10:00:00.000Z');
 
 const digitalRow = {
   id: 'email-1',
+  claimToken: '10000000-0000-4000-8000-000000000001',
   eventType: 'digital_access_granted' as const,
   recipientEmail: 'buyer@example.test',
   locale: 'en' as const,
@@ -228,9 +229,21 @@ describe('transactional email outbox worker', () => {
 
     expect(result).toEqual({status: 'processed', claimed: 3, sent: 1, retry: 1, failed: 1});
     expect(sender.send).toHaveBeenCalledWith(expect.objectContaining({idempotencyKey: 'transactional-email:email-1'}));
-    expect(repository.markSent).toHaveBeenCalledWith('email-1', 'resend_1', now);
-    expect(repository.markRetry).toHaveBeenCalledWith('email-2', 'rate_limited', expect.any(Date));
-    expect(repository.markFailed).toHaveBeenCalledWith('email-3', 'invalid_recipient', now);
+    expect(repository.markSent).toHaveBeenCalledWith(
+      {id: 'email-1', claimToken: digitalRow.claimToken},
+      'resend_1',
+      now
+    );
+    expect(repository.markRetry).toHaveBeenCalledWith(
+      {id: 'email-2', claimToken: digitalRow.claimToken},
+      'rate_limited',
+      expect.any(Date)
+    );
+    expect(repository.markFailed).toHaveBeenCalledWith(
+      {id: 'email-3', claimToken: digitalRow.claimToken},
+      'invalid_recipient',
+      now
+    );
   });
 
   test('returns unconfigured without claiming rows when sender config is missing', async () => {
@@ -280,7 +293,10 @@ describe('transactional email outbox worker', () => {
       config: {siteUrl: 'https://shop.example.test', fromEmail: 'orders@example.test', batchSize: 5}
     });
 
-    expect(result).toEqual({status: 'processed', claimed: 3, sent: 0, retry: 1, failed: 2});
+    // A worker exception is transient (dropped connection, provider timeout,
+    // token-minting hiccup) and is retried rather than burned, so this batch
+    // is two retries and one permanent failure.
+    expect(result).toEqual({status: 'processed', claimed: 3, sent: 0, retry: 2, failed: 1});
     expect(operationalFailureRecorder).toHaveBeenCalledTimes(3);
     expect(operationalFailureRecorder).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -303,13 +319,100 @@ describe('transactional email outbox worker', () => {
     expect(operationalFailureRecorder).toHaveBeenCalledWith(
       expect.objectContaining({
         area: 'email',
-        severity: 'error',
+        severity: 'warning',
         errorCode: 'email_worker_error',
-        summary: 'Transactional email worker failed',
+        summary: 'Transactional email worker failed, scheduled for retry',
         facts: expect.objectContaining({emailType: 'digital_access_granted', orderId: 'order-exception'})
       })
     );
     expect(JSON.stringify(operationalFailureRecorder.mock.calls)).not.toMatch(/buyer@example\.test|boom@example\.test|retry-token|failed-token/i);
+  });
+
+  test('retries a transient worker exception instead of burning the email on the first failure', async () => {
+    const repository = {
+      claimDueRows: vi.fn().mockResolvedValue([
+        {...digitalRow, id: 'email-transient', orderId: 'order-transient', attemptCount: 1}
+      ]),
+      issueDownloadToken: vi.fn().mockRejectedValue(new Error('provider timeout')),
+      issueGuestToken: vi.fn(),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markRetry: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined)
+    };
+
+    const result = await processTransactionalEmailBatch({
+      repository: repository as never,
+      sender: {send: vi.fn()},
+      now: () => now,
+      config: {siteUrl: 'https://shop.example.test', fromEmail: 'orders@example.test', batchSize: 5}
+    });
+
+    expect(result).toMatchObject({retry: 1, failed: 0});
+    expect(repository.markRetry).toHaveBeenCalledWith(
+      {id: 'email-transient', claimToken: digitalRow.claimToken},
+      'email_worker_error',
+      expect.any(Date)
+    );
+    expect(repository.markFailed).not.toHaveBeenCalled();
+  });
+
+  test('gives up on a transient exception once the attempt budget is exhausted', async () => {
+    const repository = {
+      claimDueRows: vi.fn().mockResolvedValue([
+        {...digitalRow, id: 'email-exhausted', orderId: 'order-exhausted', attemptCount: 5}
+      ]),
+      issueDownloadToken: vi.fn().mockRejectedValue(new Error('provider timeout')),
+      issueGuestToken: vi.fn(),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markRetry: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined)
+    };
+
+    const result = await processTransactionalEmailBatch({
+      repository: repository as never,
+      sender: {send: vi.fn()},
+      now: () => now,
+      config: {siteUrl: 'https://shop.example.test', fromEmail: 'orders@example.test', batchSize: 5}
+    });
+
+    expect(result).toMatchObject({retry: 0, failed: 1});
+    expect(repository.markFailed).toHaveBeenCalledWith(
+      {id: 'email-exhausted', claimToken: digitalRow.claimToken},
+      'email_worker_error',
+      now
+    );
+    expect(repository.markRetry).not.toHaveBeenCalled();
+  });
+
+  test('marks a provider-declared retry as failed when the attempt budget is exhausted', async () => {
+    const repository = {
+      claimDueRows: vi.fn().mockResolvedValue([
+        {...digitalRow, id: 'email-provider-exhausted', attemptCount: 5}
+      ]),
+      issueDownloadToken: vi.fn().mockResolvedValue({
+        rawToken: 'retry-token',
+        expiresAt: new Date(now.getTime() + 86_400_000).toISOString()
+      }),
+      issueGuestToken: vi.fn(),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markRetry: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined)
+    };
+
+    const result = await processTransactionalEmailBatch({
+      repository,
+      sender: {send: vi.fn().mockResolvedValue({status: 'retry', code: 'rate_limited'})},
+      now: () => now,
+      config: {siteUrl: 'https://shop.example.test', fromEmail: 'orders@example.test', batchSize: 5}
+    });
+
+    expect(result).toEqual({status: 'processed', claimed: 1, sent: 0, retry: 0, failed: 1});
+    expect(repository.markFailed).toHaveBeenCalledWith(
+      {id: 'email-provider-exhausted', claimToken: digitalRow.claimToken},
+      'rate_limited',
+      now
+    );
+    expect(repository.markRetry).not.toHaveBeenCalled();
   });
 
   test('keeps email worker counts stable when operational recording fails', async () => {
@@ -351,6 +454,97 @@ describe('transactional email outbox worker', () => {
       status: 'unconfigured',
       code: 'missing_transactional_email_config'
     });
+  });
+});
+
+describe('Supabase transactional email outbox repository', () => {
+  test('maps claim ownership and passes it to the fenced transition RPC', async () => {
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: '20000000-0000-4000-8000-000000000001',
+            event_type: 'digital_access_granted',
+            recipient_email: 'buyer@example.test',
+            locale: 'en',
+            order_id: '30000000-0000-4000-8000-000000000001',
+            entitlement_id: '40000000-0000-4000-8000-000000000001',
+            payload: {orderNumber: 'ATB-20260619-0001'},
+            attempt_count: 1,
+            claim_token: '50000000-0000-4000-8000-000000000001'
+          }
+        ],
+        error: null
+      })
+      .mockResolvedValueOnce({data: true, error: null});
+    const repository = createSupabaseEmailOutboxRepository({rpc, from: vi.fn()} as never);
+
+    const [row] = await repository.claimDueRows(1, now);
+    expect(row).toMatchObject({
+      id: '20000000-0000-4000-8000-000000000001',
+      claimToken: '50000000-0000-4000-8000-000000000001',
+      attemptCount: 1
+    });
+
+    await repository.markSent(
+      {id: row.id, claimToken: row.claimToken},
+      'resend_1',
+      now
+    );
+
+    expect(rpc).toHaveBeenLastCalledWith('transition_transactional_email_claim', {
+      p_id: row.id,
+      p_claim_token: row.claimToken,
+      p_status: 'sent',
+      p_provider_message_id: 'resend_1',
+      p_error_code: null,
+      p_available_at: null,
+      p_transitioned_at: now.toISOString()
+    });
+  });
+
+  test('throws on claim errors, malformed claim rows, transition errors, and lost ownership', async () => {
+    const claimErrorRepository = createSupabaseEmailOutboxRepository({
+      from: vi.fn(),
+      rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'database unavailable'}})
+    } as never);
+    await expect(claimErrorRepository.claimDueRows(1, now)).rejects.toThrow('claim_transactional_emails failed');
+
+    const malformedRepository = createSupabaseEmailOutboxRepository({
+      from: vi.fn(),
+      rpc: vi.fn().mockResolvedValue({
+        data: [{id: '20000000-0000-4000-8000-000000000001'}],
+        error: null
+      })
+    } as never);
+    await expect(malformedRepository.claimDueRows(1, now)).rejects.toThrow(
+      'claim_transactional_emails returned a malformed row'
+    );
+
+    const transitionErrorRepository = createSupabaseEmailOutboxRepository({
+      from: vi.fn(),
+      rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'database unavailable'}})
+    } as never);
+    await expect(
+      transitionErrorRepository.markFailed(
+        {id: '20000000-0000-4000-8000-000000000001', claimToken: '50000000-0000-4000-8000-000000000001'},
+        'provider_error',
+        now
+      )
+    ).rejects.toThrow('transition_transactional_email_claim failed');
+
+    const ownershipLostRepository = createSupabaseEmailOutboxRepository({
+      from: vi.fn(),
+      rpc: vi.fn().mockResolvedValue({data: false, error: null})
+    } as never);
+    await expect(
+      ownershipLostRepository.markFailed(
+        {id: '20000000-0000-4000-8000-000000000001', claimToken: '50000000-0000-4000-8000-000000000001'},
+        'provider_error',
+        now
+      )
+    ).rejects.toThrow('transactional email claim ownership was lost');
   });
 });
 

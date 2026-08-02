@@ -229,6 +229,47 @@ describe('checkout operational error instrumentation', () => {
     expect(submitCheckoutMock).not.toHaveBeenCalled();
   });
 
+  it('does not record a known, mapped submit failure code as an operational error', async () => {
+    submitCheckoutMock.mockResolvedValue({status: 'stale', code: 'stale_commercial_quote'});
+    await expect(submitCheckoutAction(validCheckoutInput())).resolves.toEqual({
+      status: 'stale',
+      code: 'stale_commercial_quote'
+    });
+    expect(recordOperationalFailureMock).not.toHaveBeenCalled();
+  });
+
+  it('records a generic submit error even though its code has customer-facing copy', async () => {
+    submitCheckoutMock.mockResolvedValue({status: 'error', code: 'checkout_submit_failed'});
+    await expect(submitCheckoutAction(validCheckoutInput())).resolves.toEqual({
+      status: 'error',
+      code: 'checkout_submit_failed',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    });
+    expect(recordOperationalFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'checkout',
+        errorCode: 'checkout_submit_failed',
+        facts: expect.objectContaining({code: 'checkout_submit_failed'})
+      })
+    );
+  });
+
+  it('records and tags with an incident id a submit failure code the checkout UI does not know how to present', async () => {
+    submitCheckoutMock.mockResolvedValue({status: 'error', code: 'some_future_server_code_not_yet_mapped'});
+    await expect(submitCheckoutAction(validCheckoutInput())).resolves.toEqual({
+      status: 'error',
+      code: 'some_future_server_code_not_yet_mapped',
+      errorId: '76000000-0000-4000-8000-000000000001'
+    });
+    expect(recordOperationalFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: 'checkout',
+        errorCode: 'checkout_submit_failed',
+        facts: expect.objectContaining({code: 'some_future_server_code_not_yet_mapped'})
+      })
+    );
+  });
+
   it('clears recovery only after the order cookie authorizes the same order', async () => {
     getGuestOrderAccessHashMock.mockResolvedValue(`hash:${'b'.repeat(43)}`);
     getAuthorizedOrderPaymentMock.mockResolvedValue({status: 'found', order: {}});

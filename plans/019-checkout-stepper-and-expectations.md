@@ -1,5 +1,50 @@
 # Plan 019: Checkout stepper and expectation-setting microcopy
 
+> **Correction (2026-08-02)**: three defects in this plan's output were found
+> by the later review and fixed in
+> [plan 020](020-checkout-review-remediation.md) — the Step 4 "what happens
+> next" block keyed off `isPaid`, which is also true for refunded orders, so a
+> refunded customer was told their download was on its way; the two countdown
+> instances each guarded themselves but not each other, so both called
+> `router.refresh()` at expiry; and the countdown seeded state from
+> `Date.now()` during render, risking a hydration mismatch. The missing `<h1>`
+> this plan flagged but left alone has also been added.
+
+> **Execution note (2026-08-01)**: Executed in full. `CheckoutStepper`
+> (`src/components/checkout/checkout-stepper.tsx`) carries its own
+> per-locale copy dictionary rather than `next-intl`, matching the pattern
+> confirmed by plans 015/017/018: every component it mounts into
+> (`cart-page.tsx`, `checkout-page.tsx`) is `'use client'` and already
+> sources copy this way, and `order-payment-page.tsx` (a server component
+> using `getTranslations`) needed the same component to work in both
+> contexts without prop-drilling translated strings through three different
+> call sites. The `payment`/`done` step on the order page is chosen from the
+> already-computed `status.isPaid` (covers `paid`/`partially_refunded`/
+> `refunded`), matching the plan's `paid` -> `done` row; every other status
+> maps to `payment`, which the plan's table didn't enumerate but is the only
+> sensible default for a flow that never reached `done`. Step 3's mobile
+> microcopy shares the same single-line slot Step 6 of plan 018 already
+> added above the dock button (`blockingIssue`), rather than adding a
+> second line, to avoid the exact "pushes the button below the fold" risk
+> this plan's own STOP condition warns about. **Accessibility pass
+> (Step 5) findings**: the stepper introduces no headings and no live
+> region, and renders at most one focusable element (the cart step becomes
+> a `<Link>` only once it's no longer active) — verified by code review, not
+> a live browser pass, since local Supabase is still blocked (same as
+> plans 012/013/016/017/018) so `/cart`, `/checkout`, and `/orders/...`
+> cannot actually be loaded this session. One **pre-existing** finding, not
+> fixed here (out of scope): `order-payment-page.tsx` has no `<h1>` at all
+> — its highest heading is the `<h2>` inside `PaymentStatePanel`'s
+> `AlertTitle` — so "heading order stays h1 -> section h2s" does not hold on
+> that page independent of anything in this plan; flagging for a future
+> pass. `npm run db:reset`/`db:lint`/`db:test`/`db:types`/`build` were not
+> run (no migration in this plan, so not gated by the blocker); the e2e
+> specs (`checkout.spec.ts`, `foundation-ux.spec.ts`) and the manual
+> 375px/1280px check were not run for the same Supabase-availability reason.
+> What *was* run and is clean: `npm run typecheck`, `npm run lint`,
+> `npx vitest run` (839/840, same pre-existing unrelated failure),
+> `npm run test:security` (57/57), `npm run check:vi-diacritics`.
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and

@@ -40,6 +40,12 @@ function shippingAmount(quote: CartQuote) {
   return quote.shipping.amountMinor;
 }
 
+// Mirrors the `totalMinor` formula in `quote.ts`: only an *applied* discount
+// is subtracted from the total.
+function appliedDiscountMinor(quote: CartQuote) {
+  return quote.discount.status === 'applied' ? quote.discount.amountMinor : 0;
+}
+
 function shippingEvidence(quote: CartQuote) {
   const shipping = quote.shipping;
   if (shipping.status !== 'ready') {
@@ -104,7 +110,17 @@ export function diffMaterialQuotes(previous: CartQuote, current: CartQuote): Mat
     }
   }
 
-  if (previous.totalMinor !== current.totalMinor) {
+  // Compare totals *net of the applied discount*. Applying or removing a
+  // discount code is a change the customer just asked for, so it must not
+  // raise the "something changed, please confirm" gate on the happy path.
+  // Everything else that moves the total (line prices, quantities, shipping)
+  // survives this subtraction and still raises the gate — including the case
+  // where a price rise and a new discount happen to cancel out, which the
+  // previous raw `totalMinor` comparison silently missed.
+  if (
+    previous.totalMinor + appliedDiscountMinor(previous) !==
+    current.totalMinor + appliedDiscountMinor(current)
+  ) {
     changes.push({type: 'total_changed', previousTotalMinor: previous.totalMinor, currentTotalMinor: current.totalMinor});
   }
 

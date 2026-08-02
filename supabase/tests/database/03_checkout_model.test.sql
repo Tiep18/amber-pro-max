@@ -37,8 +37,8 @@ select lives_ok(
 
 select is(
   public.checkout_reservation_expires_at('paypal_intent', '2026-06-15T00:00:00Z'::timestamptz),
-  '2026-06-15T00:15:00Z'::timestamptz,
-  'PayPal intent reserves for 15 minutes'
+  '2026-06-15T00:25:00Z'::timestamptz,
+  'PayPal intent reserves for 25 minutes'
 );
 
 select is(

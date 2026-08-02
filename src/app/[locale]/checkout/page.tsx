@@ -26,6 +26,7 @@ export default async function CheckoutRoute({ params }: { params: Params }) {
       initialEmail={user?.email?.trim() ?? ''}
       savedAddresses={savedAddresses?.status === 'success' ? savedAddresses.addresses : []}
       policyLinks={policyLinks}
+      isSignedIn={Boolean(user)}
     />
   );
 }

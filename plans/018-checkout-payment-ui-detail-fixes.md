@@ -1,5 +1,42 @@
 # Plan 018: Checkout and payment UI detail fixes
 
+> **Correction (2026-08-02)**: the execution note below records Step 3 as
+> "already implemented" because the `onError` handler existed. The handler did
+> exist — but the fallback it showed was unusable, because the account number
+> was masked everywhere, so a QR outage left the customer with no way to pay.
+> The plan's premise ("the transfer details below ... are sufficient to
+> complete the payment manually") was simply false, and was accepted without
+> checking. Confirming a mechanism exists is not confirming it works. Fixed in
+> [plan 020](020-checkout-review-remediation.md).
+
+> **Execution note (2026-08-01)**: Steps 1-6 executed; steps 7-8 skipped per
+> shop owner decision (2026-08-01) — no blocking policy checkbox, no
+> customer order note field. Findings while executing:
+> - **Steps 1 and 3 were already implemented** in the live code before this
+>   pass started (found during the drift check): the amount copy button
+>   already used `amountMinor` directly, and the QR `<img>` already had an
+>   `onError` fallback plus `referrerPolicy="no-referrer"`. No changes were
+>   needed for either.
+> - **Step 2** had the `try/catch` already in place (no unhandled
+>   rejection) but was missing the plan's "select the text node so the
+>   customer can copy manually" and the failure message — both added, using
+>   refs on the amount/reference display nodes and a new `copyFailed` label.
+> - Steps 4-6 executed as described: `OrderSummary` takes a new `pending`
+>   prop (wired to the same `lifecycle.activeRequestId !== null` check
+>   `discountPending` already used) that skeletons the shipping and total
+>   rows; `focusFirstIncompleteField` now also handles
+>   `unsupported_destination`; `MobileCheckoutDock` takes a new
+>   `blockingIssue` prop showing the first `submitIssues` entry above the
+>   button once a submit has been attempted.
+> **`npm run db:reset`/`db:lint`/`db:test`/`db:types`/`build` were not run
+> this pass** (no migration in the executed steps, so this plan is not
+> actually gated by the environment blocker recorded in plans
+> 012/013/016/017's execution notes — only `npx playwright test
+> tests/e2e/checkout.spec.ts` and the manual QR-image-blocked / 375px checks
+> were skipped). What *was* run and is clean: `npm run typecheck`,
+> `npm run lint`, `npx vitest run` (839/840, same pre-existing unrelated
+> failure), `npm run test:security` (57/57), `npm run check:vi-diacritics`.
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and

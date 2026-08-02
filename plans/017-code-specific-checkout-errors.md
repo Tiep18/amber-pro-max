@@ -1,5 +1,35 @@
 # Plan 017: Give checkout failures accurate, actionable messages
 
+> **Execution note (2026-08-01)**: Executed with one deviation from Step 2.
+> The plan's dependency ("plan 015: messages live in next-intl by then") did
+> not hold: plan 015's own execution note records that its
+> `NextIntlClientProvider` consolidation was descoped because "no client
+> component in this codebase currently calls `useTranslations()`" —
+> `checkout-page.tsx` is `'use client'` and, like every other client
+> component here (e.g. `OrderSummary`), sources its copy from a local
+> `{en: {...}, vi: {...}}` dictionary, not `next-intl`. Adding
+> `checkout.errors.*` to `src/messages/{en,vi}.json` as literally instructed
+> would have produced dead, unread keys. Instead the same Vietnamese/English
+> copy text from the plan's own table was added directly into
+> `checkout-page.tsx`'s existing `copy` object under a new `errors` key,
+> matching how `invalid`/`stale`/`conflict` (which it replaces) already
+> worked. The "log through the existing monitoring facts" requirement (Step
+> 1) is implemented server-side in `submitCheckoutAction`
+> (`src/checkout/actions.ts`, added to scope) by reusing
+> `runMonitoredAction`'s existing `shouldRecordResult` hook — it already
+> puts the unmapped code into the recorded facts via `errorCodeFromResult`,
+> so no new logging call was needed. **`npm run db:reset`, `db:lint`,
+> `db:test`, `db:types`, `build`, and the e2e cookie-blocked scenario in
+> `tests/e2e/checkout.spec.ts` were not run this pass** — same local
+> Supabase Docker/port-exclusion blocker recorded in plans 012/013/016's
+> execution notes (this plan has no migration, so nothing here is actually
+> gated by that blocker beyond the e2e run). What *was* run and is clean:
+> `npm run typecheck`, `npm run lint`, `npx vitest run` (839/840, same
+> pre-existing unrelated `loading-boundaries.test.ts` failure),
+> `npm run test:security` (57/57), `npm run check:vi-diacritics` (this
+> plan's Vietnamese strings live outside `vi.json`, so the script does not
+> scan them — verified by eye against the plan's own translation table).
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and

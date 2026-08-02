@@ -12,6 +12,12 @@ export type TransactionalEmailRow = {
   orderId: string | null;
   entitlementId: string | null;
   payload: Record<string, unknown>;
+  /**
+   * Incremented by the claim RPC; bounds transient-failure retries. Optional
+   * because rows are also constructed directly by callers that never go
+   * through the outbox claim path.
+   */
+  attemptCount?: number;
 };
 
 export type TransactionalEmailVietQrContext = {
@@ -242,12 +248,18 @@ export function renderTransactionalEmail(row: TransactionalEmailRow, context: Tr
   }
 
   if (row.eventType === 'payment_received') {
+    // Same rule as `order_created`: prefer a redeemable reopen link so the
+    // customer can open the order on any device, not just the one that still
+    // has the guest cookie.
     const totalMinor = typeof row.payload.totalMinor === 'number' ? row.payload.totalMinor : null;
     const currencyCode = row.payload.currencyCode === 'VND' || row.payload.currencyCode === 'USD' ? row.payload.currencyCode : null;
     const totalLabel = totalMinor !== null && currencyCode ? formatMoney({amountMinor: totalMinor, currencyCode}) : '';
     const hasDigital = row.payload.hasDigitalLines === true;
     const hasPhysical = row.payload.hasPhysicalLines === true;
-    const link = absoluteUrl(siteUrl, orderPath(locale, order));
+    const link = absoluteUrl(
+      siteUrl,
+      context.guestToken ? orderReopenPath(locale, order, context.guestToken) : orderPath(locale, order)
+    );
 
     const nextStep =
       locale === 'vi'

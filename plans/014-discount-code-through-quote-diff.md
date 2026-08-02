@@ -1,5 +1,14 @@
 # Plan 014: Route discount-code changes through the quote diff gate
 
+> **Correction (2026-08-02)**: this plan was marked DONE while its own STOP
+> condition was live. Because `diffMaterialQuotes` classified any `totalMinor`
+> movement as material, *every* successful discount apply raised
+> `QuoteDiffDialog` — and cancelling that dialog dropped the discount while the
+> form still reported it as applied. Step 4's three required tests were never
+> written, which is why nobody noticed. Fixed in
+> [plan 020](020-checkout-review-remediation.md); the tests now exist in
+> `tests/unit/checkout/quote-lifecycle.test.ts`.
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and

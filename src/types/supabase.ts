@@ -3019,6 +3019,33 @@ export type Database = {
           },
         ]
       }
+      system_job_runs: {
+        Row: {
+          created_at: string
+          detail: Json
+          id: string
+          job_name: string
+          ran_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: Json
+          id?: string
+          job_name: string
+          ran_at?: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          detail?: Json
+          id?: string
+          job_name?: string
+          ran_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       tag_translations: {
         Row: {
           id: string
@@ -3118,42 +3145,57 @@ export type Database = {
       }
       transactional_email_outbox: {
         Row: {
+          attempt_count: number
           available_at: string
+          claim_token: string | null
+          claimed_at: string | null
           created_at: string
           entitlement_id: string | null
           event_type: string
           id: string
+          last_error_code: string | null
           locale: string
           order_id: string | null
           payload: Json
+          provider_message_id: string | null
           recipient_email: string
           sent_at: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          attempt_count?: number
           available_at?: string
+          claim_token?: string | null
+          claimed_at?: string | null
           created_at?: string
           entitlement_id?: string | null
           event_type: string
           id?: string
+          last_error_code?: string | null
           locale: string
           order_id?: string | null
           payload?: Json
+          provider_message_id?: string | null
           recipient_email: string
           sent_at?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          attempt_count?: number
           available_at?: string
+          claim_token?: string | null
+          claimed_at?: string | null
           created_at?: string
           entitlement_id?: string | null
           event_type?: string
           id?: string
+          last_error_code?: string | null
           locale?: string
           order_id?: string | null
           payload?: Json
+          provider_message_id?: string | null
           recipient_email?: string
           sent_at?: string | null
           status?: string
@@ -3469,6 +3511,34 @@ export type Database = {
         Args: { p_now?: string; p_payment_intent: string }
         Returns: string
       }
+      claim_transactional_emails: {
+        Args: { p_lease_seconds?: number; p_limit?: number }
+        Returns: {
+          attempt_count: number
+          available_at: string
+          claim_token: string | null
+          claimed_at: string | null
+          created_at: string
+          entitlement_id: string | null
+          event_type: string
+          id: string
+          last_error_code: string | null
+          locale: string
+          order_id: string | null
+          payload: Json
+          provider_message_id: string | null
+          recipient_email: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "transactional_email_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       create_market_exception_request: {
         Args: { p_payload: Json }
         Returns: Json
@@ -3680,6 +3750,10 @@ export type Database = {
         Args: { p_guest_secret_hash?: string; p_order_number: string }
         Returns: Json
       }
+      get_payment_expiry_job_health: {
+        Args: { p_fallback_interval_minutes?: number }
+        Returns: Json
+      }
       get_published_blog_post_by_slug: {
         Args: { target_locale: string; target_slug: string }
         Returns: {
@@ -3830,6 +3904,14 @@ export type Database = {
           published: boolean
         }[]
       }
+      redeem_guest_order_reopen_token: {
+        Args: {
+          p_new_guest_secret_hash: string
+          p_order_number: string
+          p_token_hash: string
+        }
+        Returns: Json
+      }
       reissue_digital_access_token: {
         Args: {
           p_entitlement_id: string
@@ -3896,6 +3978,18 @@ export type Database = {
           p_user_agent_hash: string
         }
         Returns: Json
+      }
+      transition_transactional_email_claim: {
+        Args: {
+          p_available_at?: string
+          p_claim_token: string
+          p_error_code?: string
+          p_id: string
+          p_provider_message_id?: string
+          p_status: string
+          p_transitioned_at?: string
+        }
+        Returns: boolean
       }
       unsubscribe_newsletter: { Args: { p_token_hash: string }; Returns: Json }
       upsert_review_admin_reply: {

@@ -25,9 +25,27 @@ describe('payment order projections', () => {
         customerPaymentStatus: 'awaiting_payment',
         fulfillmentGateStatus: 'locked',
         amountMinor: 1200,
+        subtotalMinor: 1300,
+        discountMinor: 100,
+        shippingMinor: 0,
+        discountCode: 'WELCOME10',
         currencyCode: 'USD',
         reservationExpiresAt: '2026-06-16T12:00:00.000Z',
-        shippingAddress
+        contactEmail: 'customer@example.com',
+        shippingAddress,
+        lines: [
+          {
+            lineId: 'line-1',
+            title: 'Amigurumi Bear Pattern',
+            variantLabel: null,
+            sku: 'PAT-001',
+            fulfillmentType: 'digital',
+            quantity: 1,
+            unitPriceMinor: 1300,
+            lineSubtotalMinor: 1300,
+            discountAllocationMinor: 100
+          }
+        ]
       },
       error: null
     });
@@ -52,7 +70,59 @@ describe('payment order projections', () => {
         currencyCode: 'USD',
         reservationExpiresAt: '2026-06-16T12:00:00.000Z',
         customerTransferDeclaredAt: null,
-        shippingAddress
+        shippingAddress,
+        contactEmailMasked: 'c***r@example.com',
+        lines: [
+          {
+            lineId: 'line-1',
+            title: 'Amigurumi Bear Pattern',
+            variantLabel: null,
+            sku: 'PAT-001',
+            fulfillmentType: 'digital',
+            quantity: 1,
+            unitPriceMinor: 1300,
+            lineSubtotalMinor: 1300,
+            discountAllocationMinor: 100
+          }
+        ],
+        money: {
+          subtotalMinor: 1300,
+          discountMinor: 100,
+          shippingMinor: 0,
+          totalMinor: 1200,
+          discountCode: 'WELCOME10'
+        }
+      }
+    });
+  });
+
+  test('customer lookup defaults lines and money fields when the RPC omits them (older cached response)', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        status: 'found',
+        orderNumber: 'ATB-20260616-0002',
+        customerPaymentStatus: 'awaiting_payment',
+        fulfillmentGateStatus: 'locked',
+        amountMinor: 500,
+        currencyCode: 'USD',
+        reservationExpiresAt: null,
+        shippingAddress: null
+      },
+      error: null
+    });
+
+    const result = await getAuthorizedOrderPayment({
+      orderNumber: 'ATB-20260616-0002',
+      guestSecretHash: 'hash',
+      client: {rpc} as never
+    });
+
+    expect(result).toMatchObject({
+      status: 'found',
+      order: {
+        lines: [],
+        money: {subtotalMinor: 0, discountMinor: 0, shippingMinor: 0, totalMinor: 500, discountCode: null},
+        contactEmailMasked: null
       }
     });
   });

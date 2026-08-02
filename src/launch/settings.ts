@@ -4,6 +4,7 @@ import { requireAdmin as requireAdminGuard } from '@/auth/guards';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Locale } from '@/i18n/routing';
 import { runMonitoredAction } from '@/operations/monitoring';
+import { PAYMENT_EXPIRY_FALLBACK_INTERVAL_MINUTES } from '@/payments/reservation';
 import {
   evaluateLaunchReadiness,
   requiredPolicyKinds,
@@ -45,7 +46,10 @@ const emptyPolicyStatus = Object.fromEntries(
   requiredPolicyKinds.map((kind) => [kind, false])
 ) as RequiredPolicyStatus;
 
-function normalizeSettings(row: LaunchSettingsRow | null): LaunchSettingsSnapshot {
+function normalizeSettings(
+  row: LaunchSettingsRow | null,
+  paymentExpiryJob: LaunchSettingsSnapshot['paymentExpiryJob']
+): LaunchSettingsSnapshot {
   return {
     brandName: row?.brand_name ?? null,
     enabledCountryCodes: row?.enabled_country_codes ?? [],
@@ -55,7 +59,21 @@ function normalizeSettings(row: LaunchSettingsRow | null): LaunchSettingsSnapsho
     vietqrBankEvidence: row?.vietqr_bank_evidence ?? null,
     e2eEvidence: row?.e2e_evidence ?? null,
     monitoringReady: row?.monitoring_ready ?? false,
-    redactionReady: row?.redaction_ready ?? false
+    redactionReady: row?.redaction_ready ?? false,
+    paymentExpiryJob
+  };
+}
+
+type PaymentExpiryJobHealth = {
+  scheduled?: boolean;
+  fallbackRecentSuccess?: boolean;
+};
+
+function normalizePaymentExpiryJobHealth(data: unknown): LaunchSettingsSnapshot['paymentExpiryJob'] {
+  const health = (data ?? {}) as PaymentExpiryJobHealth;
+  return {
+    scheduled: health.scheduled === true,
+    fallbackRecentSuccess: health.fallbackRecentSuccess === true
   };
 }
 
@@ -91,7 +109,7 @@ export async function getAdminLaunchReadiness({
 } = {}): Promise<AdminLaunchReadinessResult> {
   await requireAdmin();
   const supabase = await createSupabaseServerClient();
-  const [settingsResult, policiesResult] = await Promise.all([
+  const [settingsResult, policiesResult, paymentExpiryJobResult] = await Promise.all([
     supabase
       .from('launch_settings')
       .select(
@@ -99,7 +117,10 @@ export async function getAdminLaunchReadiness({
       )
       .eq('singleton_id', true)
       .maybeSingle(),
-    supabase.from('policy_pages').select('policy_kind, status')
+    supabase.from('policy_pages').select('policy_kind, status'),
+    supabase.rpc('get_payment_expiry_job_health', {
+      p_fallback_interval_minutes: PAYMENT_EXPIRY_FALLBACK_INTERVAL_MINUTES
+    })
   ]);
 
   if (settingsResult.error || policiesResult.error) {
@@ -122,7 +143,10 @@ export async function getAdminLaunchReadiness({
     }
   }
 
-  const settings = normalizeSettings(settingsResult.data as LaunchSettingsRow | null);
+  const paymentExpiryJob = normalizePaymentExpiryJobHealth(
+    paymentExpiryJobResult.error ? null : paymentExpiryJobResult.data
+  );
+  const settings = normalizeSettings(settingsResult.data as LaunchSettingsRow | null, paymentExpiryJob);
   return {
     status: 'success',
     settings,

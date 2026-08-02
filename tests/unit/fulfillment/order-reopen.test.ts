@@ -1,181 +1,118 @@
-import {describe, expect, test} from 'vitest';
+import {describe, expect, test, vi} from 'vitest';
 import {redeemGuestOrderReopenToken} from '@/fulfillment/order-reopen';
 
-const activeToken = (overrides: Record<string, unknown> = {}) => ({
-  id: 'token-1',
-  order_id: 'order-1',
-  contact_email: 'buyer@example.test',
-  status: 'active',
-  expires_at: new Date(Date.now() + 60_000).toISOString(),
-  ...overrides
-});
+type RpcCall = {fn: string; args: Record<string, unknown>};
 
-function makeClient({
-  order,
-  token,
-  updateError,
-  tokenUpdateError
-}: {
-  order: Record<string, unknown> | null;
-  token: Record<string, unknown> | null;
-  updateError?: {message: string};
-  tokenUpdateError?: {message: string};
-}) {
-  const updates: unknown[] = [];
+/**
+ * Redemption is now a single transactional RPC, so these tests assert the
+ * boundary contract: what we send, and how each server verdict is mapped.
+ * The atomicity itself (single-shot consume under concurrency) is proven in
+ * `supabase/tests/database/04_guest_order_reopen_redemption.test.sql`.
+ */
+function makeClient(response: {data?: unknown; error?: unknown}) {
+  const calls: RpcCall[] = [];
   return {
-    updates,
-    from: (table: string) => {
-      if (table === 'order_payment_statuses') {
-        return {
-          select: () => ({
-            eq: () => ({maybeSingle: () => Promise.resolve({data: order, error: null})})
-          })
-        };
-      }
-      if (table === 'guest_order_access_tokens') {
-        return {
-          select: () => ({
-            eq: () => ({
-              eq: () => ({
-                eq: () => ({maybeSingle: () => Promise.resolve({data: token, error: null})})
-              })
-            })
-          }),
-          update: (value: unknown) => ({
-            eq: () => {
-              updates.push({table, value});
-              return Promise.resolve({data: null, error: tokenUpdateError ?? null});
-            }
-          })
-        };
-      }
-      if (table === 'checkout_orders') {
-        return {
-          update: (value: unknown) => ({
-            eq: () => {
-              updates.push({table, value});
-              return Promise.resolve({data: null, error: updateError ?? null});
-            }
-          })
-        };
-      }
-      throw new Error(`unexpected table ${table}`);
+    calls,
+    rpc: (fn: string, args: Record<string, unknown>) => {
+      calls.push({fn, args});
+      return Promise.resolve({data: response.data ?? null, error: response.error ?? null});
     }
   };
 }
 
-describe('redeemGuestOrderReopenToken', () => {
-  test('grants access, consumes the token, and rotates the guest secret for an unowned order', async () => {
-    const order = {
-      order_id: 'order-1',
-      order_number: 'ATB-1',
-      owner_user_id: null,
-      payment_status: 'pending',
-      reservation_expires_at: '2026-07-01T00:00:00.000Z'
-    };
-    const client = makeClient({order, token: activeToken()});
+const grantedResponse = (overrides: Record<string, unknown> = {}) => ({
+  status: 'granted',
+  orderNumber: 'ATB-1',
+  paid: false,
+  reservationExpiresAt: '2026-07-01T00:00:00.000Z',
+  ...overrides
+});
 
-    const result = await redeemGuestOrderReopenToken({orderNumber: 'atb-1', rawToken: 'reopen-token'}, client as never);
+describe('redeemGuestOrderReopenToken', () => {
+  test('grants access and returns a raw secret the caller can put in a cookie', async () => {
+    const client = makeClient({data: grantedResponse()});
+
+    const result = await redeemGuestOrderReopenToken(
+      {orderNumber: 'atb-1', rawToken: 'reopen-token'},
+      client as never
+    );
 
     expect(result.status).toBe('granted');
     if (result.status !== 'granted') throw new Error('expected granted');
     expect(result.orderNumber).toBe('ATB-1');
     expect(result.paid).toBe(false);
     expect(result.rawSecret).toMatch(/^[A-Za-z0-9_-]{40,}$/);
-    expect(client.updates).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({table: 'guest_order_access_tokens', value: expect.objectContaining({status: 'consumed'})}),
-        expect.objectContaining({table: 'checkout_orders', value: expect.objectContaining({guest_secret_hash: expect.any(String)})})
-      ])
+    expect(result.reservationExpiresAt).toBe('2026-07-01T00:00:00.000Z');
+  });
+
+  test('redeems through one atomic RPC, never a multi-step read-then-write', async () => {
+    const client = makeClient({data: grantedResponse()});
+    await redeemGuestOrderReopenToken({orderNumber: 'ATB-1', rawToken: 'reopen-token'}, client as never);
+
+    expect(client.calls).toHaveLength(1);
+    expect(client.calls[0].fn).toBe('redeem_guest_order_reopen_token');
+  });
+
+  test('sends only hashes, never the raw token or the new raw secret', async () => {
+    const client = makeClient({data: grantedResponse()});
+    const result = await redeemGuestOrderReopenToken(
+      {orderNumber: 'ATB-1', rawToken: 'reopen-token'},
+      client as never
     );
+    if (result.status !== 'granted') throw new Error('expected granted');
+
+    const args = client.calls[0].args;
+    const serialized = JSON.stringify(args);
+    expect(serialized).not.toContain('reopen-token');
+    expect(serialized).not.toContain(result.rawSecret);
+    expect(args.p_token_hash).toMatch(/^[a-f0-9]{64}$/);
+    expect(args.p_new_guest_secret_hash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  test('normalizes the order number before sending it', async () => {
+    const client = makeClient({data: grantedResponse()});
+    await redeemGuestOrderReopenToken({orderNumber: '  atb-1 ', rawToken: 'reopen-token'}, client as never);
+
+    expect(client.calls[0].args.p_order_number).toBe('ATB-1');
   });
 
   test('reports paid orders so the caller can mint a long-lived cookie', async () => {
-    const order = {
-      order_id: 'order-1',
-      order_number: 'ATB-1',
-      owner_user_id: null,
-      payment_status: 'paid',
-      reservation_expires_at: '2026-07-01T00:00:00.000Z'
-    };
-    const client = makeClient({order, token: activeToken()});
+    const client = makeClient({data: grantedResponse({paid: true})});
 
-    const result = await redeemGuestOrderReopenToken({orderNumber: 'ATB-1', rawToken: 'reopen-token'}, client as never);
-
-    expect(result).toMatchObject({status: 'granted', paid: true});
-  });
-
-  test('denies when the order does not exist', async () => {
-    const client = makeClient({order: null, token: null});
-    await expect(
-      redeemGuestOrderReopenToken({orderNumber: 'ATB-404', rawToken: 'reopen-token'}, client as never)
-    ).resolves.toEqual({status: 'denied'});
-  });
-
-  test('denies when the order already has an owner account (claim flow applies instead)', async () => {
-    const order = {
-      order_id: 'order-1',
-      order_number: 'ATB-1',
-      owner_user_id: 'user-1',
-      payment_status: 'paid',
-      reservation_expires_at: '2026-07-01T00:00:00.000Z'
-    };
-    const client = makeClient({order, token: activeToken()});
     await expect(
       redeemGuestOrderReopenToken({orderNumber: 'ATB-1', rawToken: 'reopen-token'}, client as never)
-    ).resolves.toEqual({status: 'denied'});
-    expect(client.updates).toEqual([]);
+    ).resolves.toMatchObject({status: 'granted', paid: true});
   });
 
-  test('denies expired, consumed, or mismatched tokens', async () => {
-    const order = {
-      order_id: 'order-1',
-      order_number: 'ATB-1',
-      owner_user_id: null,
-      payment_status: 'pending',
-      reservation_expires_at: '2026-07-01T00:00:00.000Z'
-    };
-
-    await expect(
-      redeemGuestOrderReopenToken(
-        {orderNumber: 'ATB-1', rawToken: 'x'},
-        makeClient({order, token: activeToken({status: 'consumed'})}) as never
-      )
-    ).resolves.toEqual({status: 'denied'});
-
-    await expect(
-      redeemGuestOrderReopenToken(
-        {orderNumber: 'ATB-1', rawToken: 'x'},
-        makeClient({order, token: activeToken({expires_at: new Date(Date.now() - 1000).toISOString()})}) as never
-      )
-    ).resolves.toEqual({status: 'denied'});
-
-    await expect(
-      redeemGuestOrderReopenToken({orderNumber: 'ATB-1', rawToken: 'x'}, makeClient({order, token: null}) as never)
-    ).resolves.toEqual({status: 'denied'});
+  test('denies whenever the server does not grant (unknown order, owned order, spent or expired token)', async () => {
+    for (const data of [{status: 'denied'}, null, {status: 'granted'}]) {
+      await expect(
+        redeemGuestOrderReopenToken(
+          {orderNumber: 'ATB-1', rawToken: 'reopen-token'},
+          makeClient({data}) as never
+        )
+      ).resolves.toEqual({status: 'denied'});
+    }
   });
 
-  test('denies when rotating the guest secret fails', async () => {
-    const order = {
-      order_id: 'order-1',
-      order_number: 'ATB-1',
-      owner_user_id: null,
-      payment_status: 'pending',
-      reservation_expires_at: '2026-07-01T00:00:00.000Z'
-    };
-    const client = makeClient({order, token: activeToken(), updateError: {message: 'write failed'}});
+  test('denies when the RPC itself errors', async () => {
+    const client = makeClient({error: {message: 'write failed'}});
 
     await expect(
       redeemGuestOrderReopenToken({orderNumber: 'ATB-1', rawToken: 'reopen-token'}, client as never)
     ).resolves.toEqual({status: 'denied'});
   });
 
-  test('rejects empty order number or token without querying the database', async () => {
-    let calls = 0;
-    const client = {from: () => { calls += 1; return {}; }};
+  test('rejects empty order number or token without touching the database', async () => {
+    const rpc = vi.fn();
+    const client = {rpc};
 
-    await expect(redeemGuestOrderReopenToken({orderNumber: '  ', rawToken: 'x'}, client as never)).resolves.toEqual({status: 'denied'});
-    await expect(redeemGuestOrderReopenToken({orderNumber: 'ATB-1', rawToken: ''}, client as never)).resolves.toEqual({status: 'denied'});
-    expect(calls).toBe(0);
+    await expect(
+      redeemGuestOrderReopenToken({orderNumber: '  ', rawToken: 'x'}, client as never)
+    ).resolves.toEqual({status: 'denied'});
+    await expect(
+      redeemGuestOrderReopenToken({orderNumber: 'ATB-1', rawToken: ''}, client as never)
+    ).resolves.toEqual({status: 'denied'});
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

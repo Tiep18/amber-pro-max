@@ -1,5 +1,33 @@
 # Plan 016: Show what the customer is paying for on the payment page
 
+> **Execution note (2026-08-01)**: Executed with one architectural deviation
+> from Step 1's literal instruction. `checkout_order_lines` has no `anon`
+> grant at all (`revoke all ... from public, anon, authenticated; grant
+> select ... to authenticated;`), so a second client-side
+> `.from('checkout_order_lines').select()` query from `queries.ts` would
+> fail for every guest order (a large share of this store's orders) unless
+> RLS/grants were relaxed for `anon` — which Step 1's own STOP condition
+> forbids. Instead, `get_order_payment_status()` — the existing
+> `security definer` RPC that already re-checks `owner_user_id` /
+> `guest_secret_hash` / admin before returning anything — was extended
+> (`supabase/migrations/20260801190000_order_payment_status_lines.sql`) to
+> embed the line snapshot, money breakdown, and a discount code lookup
+> (`discount_redemptions` joined to `discount_codes`) in its existing jsonb
+> result, keeping one authorization boundary instead of adding a second.
+> Also added: `contactEmail` in that same RPC result, masked in
+> `queries.ts` via the existing `maskEmailForAdmin` helper into
+> `contactEmailMasked` — the raw address is never returned to a component.
+> A new security test in `tests/security/payment-boundaries.test.mjs`
+> enforces both (no direct `checkout_order_lines`/`discount_redemptions`
+> table reads from payment surfaces, no raw `order.contactEmail` reference).
+> **`npm run db:reset`, `db:lint`, `db:test`, `db:types`, `build`, and the
+> e2e/manual test plan were not run this pass** — same local Supabase
+> Docker/port-exclusion blocker recorded in plans 012 and 013's execution
+> notes. What *was* run and is clean: `npm run typecheck`, `npm run lint`,
+> `npx vitest run` (829/830, same pre-existing unrelated
+> `loading-boundaries.test.ts` failure), `npm run test:security` (57/57),
+> `npm run check:vi-diacritics`.
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and

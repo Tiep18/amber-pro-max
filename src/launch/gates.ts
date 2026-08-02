@@ -8,6 +8,10 @@ export type LaunchSettingsSnapshot = {
   e2eEvidence: string | null;
   monitoringReady: boolean;
   redactionReady: boolean;
+  paymentExpiryJob: {
+    scheduled: boolean;
+    fallbackRecentSuccess: boolean;
+  };
 };
 
 export type RequiredPolicyKind = 'privacy' | 'terms_of_sale' | 'returns' | 'digital_downloads';
@@ -100,6 +104,13 @@ export function evaluateLaunchReadiness({
       settings.monitoringReady && settings.redactionReady,
       'Monitoring and operational redaction readiness are confirmed.',
       'Monitoring readiness and redaction readiness must both be confirmed.'
+    ),
+    gate(
+      'payment-expiry-job',
+      'Payment expiry job',
+      settings.paymentExpiryJob.scheduled || settings.paymentExpiryJob.fallbackRecentSuccess,
+      'The payment expiry job is running (pg_cron or the HTTP fallback).',
+      'Enable the pg_cron extension in the Supabase project, or configure the CRON_SECRET fallback.'
     )
   ];
 

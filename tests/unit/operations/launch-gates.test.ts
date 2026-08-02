@@ -10,7 +10,11 @@ const emptySettings: LaunchSettingsSnapshot = {
   vietqrBankEvidence: null,
   e2eEvidence: null,
   monitoringReady: false,
-  redactionReady: false
+  redactionReady: false,
+  paymentExpiryJob: {
+    scheduled: false,
+    fallbackRecentSuccess: false
+  }
 };
 
 const allPolicies = Object.fromEntries(requiredPolicyKinds.map((kind) => [kind, true])) as Record<
@@ -46,13 +50,54 @@ describe('launch gates (LEGAL-02, D-14, D-15, D-16)', () => {
         vietqrBankEvidence: 'Seller verified exact bank reference manually.',
         e2eEvidence: 'Critical local E2E suite passed.',
         monitoringReady: true,
-        redactionReady: true
+        redactionReady: true,
+        paymentExpiryJob: {
+          scheduled: true,
+          fallbackRecentSuccess: false
+        }
       },
       policies: allPolicies
     });
 
     expect(readiness.ready).toBe(true);
     expect(readiness.gates.every((gate) => gate.status === 'ready')).toBe(true);
+  });
+
+  it('is ready when the fallback recorded a recent success even without pg_cron scheduled', () => {
+    const readiness = evaluateLaunchReadiness({
+      settings: {
+        ...emptySettings,
+        paymentExpiryJob: {
+          scheduled: false,
+          fallbackRecentSuccess: true
+        }
+      },
+      policies: {
+        privacy: false,
+        terms_of_sale: false,
+        returns: false,
+        digital_downloads: false
+      }
+    });
+
+    const gate = readiness.gates.find((item) => item.id === 'payment-expiry-job');
+    expect(gate?.status).toBe('ready');
+  });
+
+  it('blocks the payment expiry gate with an actionable reason when neither scheduler ran', () => {
+    const readiness = evaluateLaunchReadiness({
+      settings: emptySettings,
+      policies: {
+        privacy: false,
+        terms_of_sale: false,
+        returns: false,
+        digital_downloads: false
+      }
+    });
+
+    const gate = readiness.gates.find((item) => item.id === 'payment-expiry-job');
+    expect(gate?.status).toBe('blocked');
+    expect(gate?.reason).toMatch(/pg_cron|CRON_SECRET/);
   });
 
   it('does not include raw evidence values in gate reasons', () => {

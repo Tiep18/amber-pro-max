@@ -100,7 +100,29 @@ test('guest retry recovery keeps raw credentials server-only and persists hashes
   assert.match(action, /prepareGuestCheckoutRecoveryFromServer/);
   assert.match(action, /setGuestOrderAccessCookieFromServer/);
   assert.match(client, /await prepareGuestCheckoutRecoveryAction/);
-  assert.doesNotMatch(client, /guestRecovery|attemptId|\bproof\b|localStorage|sessionStorage/);
+  // The invariant being protected is that guest recovery credentials live in
+  // httpOnly cookies and never reach JS-readable storage. Credential names
+  // stay banned outright, as does localStorage (long-lived and cross-tab —
+  // nothing in checkout needs it).
+  assert.doesNotMatch(client, /guestRecovery|attemptId|\bproof\b|localStorage/);
+
+  // sessionStorage is permitted for exactly one thing: the submit idempotency
+  // key. That is not a credential — the client mints it and sends it in the
+  // request body anyway, and holding it only prevents duplicate orders rather
+  // than granting access to any. It is confined to a dedicated module so this
+  // exemption cannot silently widen; that module is held to the same ban.
+  const idempotency = readFileSync('src/checkout/idempotency.ts', 'utf8');
+  assert.doesNotMatch(idempotency, /guestRecovery|attemptId|\bproof\b|guestAccessToken|localStorage/);
+  assert.match(idempotency, /sessionStorage/);
+  for (const match of client.matchAll(/sessionStorage/g)) {
+    const context = client.slice(Math.max(0, match.index - 200), match.index + 200);
+    assert.match(
+      context,
+      /checkoutSessionStorage/,
+      'checkout may only reach sessionStorage through the reviewed idempotency helper'
+    );
+  }
+
   assert.doesNotMatch(submit, /guestAccessToken/);
 });
 

@@ -254,12 +254,16 @@
     "labels": {
       "order": "Đơn hàng",
       "deadline": "Hạn giữ hàng",
-      "lastChecked": "Kiểm tra lần cuối"
+      "lastChecked": "Kiểm tra lần cuối",
+      "countdownRemaining": "Thời gian còn lại:",
+      "countdownExpired": "Đã hết hạn giữ hàng"
     },
     "actions": {
       "newCheckout": "Tạo đơn hàng mới",
       "checkStatus": "Kiểm tra lại trạng thái",
-      "checkingStatus": "Đang kiểm tra trạng thái"
+      "checkingStatus": "Đang kiểm tra trạng thái",
+      "continueShopping": "Tiếp tục mua sắm",
+      "myOrders": "Đơn hàng của tôi"
     },
     "accessDenied": {
       "heading": "Không thể mở đơn hàng này",
@@ -267,8 +271,14 @@
     },
     "summary": {
       "title": "Tóm tắt đơn hàng",
-      "total": "Tổng cộng"
+      "total": "Tổng cộng",
+      "subtotal": "Tạm tính",
+      "discount": "Giảm giá",
+      "shipping": "Giao hàng",
+      "quantity": "SL"
     },
+    "pageHeading": "Đơn hàng {orderNumber}",
+    "guestNote": "Chúng tôi đã gửi liên kết đơn hàng này tới {email}. Hãy lưu lại để quay lại sau.",
     "recovery": {
       "heading": "Đơn hàng này đã hết hạn",
       "body": "Hạn giữ hàng đã qua trước khi thanh toán được xác nhận. Khôi phục các sản phẩm về giỏ hàng để thử lại.",
@@ -284,6 +294,11 @@
       "lockedBody": "File PDF và xử lý giao hàng chỉ bắt đầu sau khi toàn bộ đơn hàng được xác nhận đã thanh toán.",
       "eligibleHeading": "Cổng xử lý đã mở",
       "eligibleBody": "Thanh toán đã được xác nhận. Đơn hàng đã đủ điều kiện cho bước xử lý tiếp theo."
+    },
+    "nextSteps": {
+      "title": "Bước tiếp theo",
+      "digital": "Liên kết tải xuống đang được gửi tới {email}.",
+      "physical": "Chúng tôi sẽ gửi mã vận đơn qua email khi kiện hàng được gửi đi."
     },
     "downloads": {
       "title": "Tải mẫu PDF",
@@ -390,7 +405,13 @@
       "declaredStatus": "Đã ghi nhận — chúng tôi đang đối soát.",
       "checkStatus": "Kiểm tra trạng thái thanh toán",
       "checkingStatus": "Đang kiểm tra",
-      "lastChecked": "Kiểm tra lần cuối"
+      "lastChecked": "Kiểm tra lần cuối",
+      "copyFailed": "Không thể tự động sao chép — hãy bôi đen văn bản và sao chép thủ công.",
+      "copyAccountNumber": "Sao chép số tài khoản",
+      "qrUnavailable": "Không tải được mã QR. Hãy chuyển khoản thủ công với thông tin sau:",
+      "declareNotEligible": "Đơn hàng này không còn nhận xác nhận chuyển khoản. Hãy tải lại trang để xem trạng thái hiện tại.",
+      "declareForbidden": "Quyền truy cập đơn hàng của bạn đã hết hạn. Hãy mở lại đơn từ liên kết trong email rồi xác nhận lại.",
+      "declareFailed": "Chúng tôi chưa ghi nhận được xác nhận của bạn. Vui lòng thử lại sau giây lát."
     }
   },
   "footer": {

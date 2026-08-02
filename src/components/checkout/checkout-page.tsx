@@ -15,6 +15,13 @@ import {
 } from '@/checkout/actions';
 import { checkoutPaymentIntentForQuote } from '@/checkout/payment-method';
 import {
+  clearStoredIdempotency,
+  resolveIdempotencyKey,
+  type StoredIdempotency
+} from '@/checkout/idempotency';
+import { presentSubmitError } from '@/checkout/submit-error-copy';
+import { CheckoutStepper } from './checkout-stepper';
+import {
   checkoutPrefillDestination,
   shouldReviewCheckoutQuoteChange,
   type CheckoutQuoteChangeSource
@@ -70,11 +77,22 @@ const copy = {
     missingPayment: 'Wait for the payment method to match the confirmed total.',
     missingShipping: 'Complete the delivery address.',
     unsupportedShipping: 'Choose a supported shipping destination.',
-    invalid: 'Check your contact details and cart before continuing.',
-    stale: 'The quote changed. Review the updated total and try again.',
-    conflict: 'Checkout could not reserve the current items. Review your cart and try again.',
     success: 'Order is awaiting payment.',
-    deadline: 'Reservation deadline'
+    deadline: 'Reservation deadline',
+    errors: {
+      cookiesBlocked: 'Your browser is blocking cookies, so the order could not be held. Enable cookies or exit private/incognito mode and try again.',
+      staleQuote: 'The price or stock just changed. Review the updated total and try again.',
+      staleShipping: 'The shipping fee just changed. Confirm the delivery address again.',
+      addressRequired: 'The delivery address is incomplete.',
+      addressIncompleteUs: 'Orders shipping to the US need a state and ZIP code.',
+      paymentMethodDrift: 'The payment method no longer matches this market. Reload the page.',
+      conflict: 'Checkout could not reserve the current items. Review your cart and try again.',
+      network: 'Could not reach the server. Your order was not created — please try again.',
+      networkUnconfirmed:
+        'We could not confirm whether your order went through. Check "My orders" before trying again so you do not order twice.',
+      unknown: 'Something went wrong. Try again; if it keeps happening, send us the incident code below.',
+      incidentCode: 'Incident code'
+    }
   },
   vi: {
     title: 'Thanh toán',
@@ -98,11 +116,22 @@ const copy = {
     missingPayment: 'Chờ phương thức thanh toán khớp với tổng tiền đã xác nhận.',
     missingShipping: 'Hoàn tất địa chỉ giao hàng.',
     unsupportedShipping: 'Chọn địa chỉ giao hàng được hỗ trợ.',
-    invalid: 'Kiểm tra thông tin liên hệ và giỏ hàng trước khi tiếp tục.',
-    stale: 'Báo giá đã thay đổi. Hãy xem lại tổng tiền và thử lại.',
-    conflict: 'Không thể giữ các sản phẩm hiện tại. Hãy xem lại giỏ hàng và thử lại.',
     success: 'Đơn hàng đang chờ thanh toán.',
-    deadline: 'Hạn giữ hàng'
+    deadline: 'Hạn giữ hàng',
+    errors: {
+      cookiesBlocked: 'Trình duyệt đang chặn cookie nên không giữ được đơn. Bật cookie hoặc thoát chế độ ẩn danh rồi thử lại.',
+      staleQuote: 'Giá hoặc tình trạng hàng vừa thay đổi. Xem lại tổng tiền rồi thử lại.',
+      staleShipping: 'Phí giao hàng vừa thay đổi. Xác nhận lại địa chỉ giao hàng.',
+      addressRequired: 'Địa chỉ giao hàng chưa đầy đủ.',
+      addressIncompleteUs: 'Đơn giao tới Mỹ cần bang và mã ZIP.',
+      paymentMethodDrift: 'Phương thức thanh toán chưa khớp thị trường. Hãy tải lại trang.',
+      conflict: 'Không giữ được sản phẩm trong giỏ. Xem lại giỏ hàng rồi thử lại.',
+      network: 'Không kết nối được máy chủ. Đơn của bạn chưa được tạo — hãy thử lại.',
+      networkUnconfirmed:
+        'Chúng tôi chưa xác nhận được đơn của bạn đã tạo hay chưa. Hãy kiểm tra "Đơn hàng của tôi" trước khi thử lại để tránh đặt trùng.',
+      unknown: 'Có lỗi xảy ra. Hãy thử lại; nếu vẫn lỗi, gửi cho chúng tôi mã sự cố bên dưới.',
+      incidentCode: 'Mã sự cố'
+    }
   }
 } as const;
 
@@ -151,16 +180,27 @@ function activeDiscountCode(quote: CartQuote | null) {
   return quote?.discount.status === 'applied' ? quote.discount.code : null;
 }
 
+function checkoutSessionStorage() {
+  try {
+    return typeof window === 'undefined' ? null : window.sessionStorage;
+  } catch {
+    // Blocked storage (private mode / cookie policy) must not break checkout.
+    return null;
+  }
+}
+
 export function CheckoutPage({
   locale,
   initialEmail = '',
   savedAddresses = [],
-  policyLinks = []
+  policyLinks = [],
+  isSignedIn = false
 }: {
   locale: Locale;
   initialEmail?: string;
   savedAddresses?: CustomerShippingAddress[];
   policyLinks?: CheckoutPolicyLink[];
+  isSignedIn?: boolean;
 }) {
   const t = copy[locale];
   const { quote, cart, pending, completeOrder } = useCart();
@@ -173,7 +213,7 @@ export function CheckoutPage({
   const lifecycleRef = useRef(lifecycle);
   const destinationAuthorityRef = useRef(false);
   const prefillRequestRef = useRef<string | null>(null);
-  const idempotencyRef = useRef<{ quoteHash: string; key: string } | null>(null);
+  const idempotencyRef = useRef<StoredIdempotency | null>(null);
   const acceptedQuote = lifecycle.acceptedQuote;
   const [email, setEmail] = useState(initialEmail);
   const [contactReady, setContactReady] = useState(false);
@@ -425,35 +465,56 @@ export function CheckoutPage({
   }
 
   function idempotencyKeyForQuote(quoteHash: string) {
-    if (idempotencyRef.current?.quoteHash === quoteHash) {
-      return idempotencyRef.current.key;
-    }
-    const key = `checkout-${quoteHash.slice(0, 24)}-${globalThis.crypto.randomUUID()}`;
-    idempotencyRef.current = { quoteHash, key };
-    return key;
+    const resolved = resolveIdempotencyKey({
+      storage: checkoutSessionStorage(),
+      quoteHash,
+      inMemory: idempotencyRef.current,
+      mintKey: () => `checkout-${quoteHash.slice(0, 24)}-${globalThis.crypto.randomUUID()}`
+    });
+    idempotencyRef.current = resolved;
+    return resolved.key;
   }
 
-  function focusFirstIncompleteField() {
+  function focusDestinationSection() {
+    setDestinationExpanded(true);
+    window.requestAnimationFrame(() => {
+      const targetId = !shippingAddress.countryCode
+        ? 'shipping-country-trigger'
+        : !shippingAddress.recipientName
+          ? 'shipping-recipient-name'
+          : !shippingAddress.phoneNumber
+            ? 'shipping-phone-number'
+            : !shippingAddress.addressLine1
+              ? 'shipping-address-line-1'
+              : shippingAddress.countryCode === 'US' && !shippingAddress.region
+                ? 'shipping-region-trigger'
+                : 'shipping-country-trigger';
+      document.getElementById(targetId)?.focus();
+    });
+  }
+
+  function focusFirstIncompleteField(target?: 'contact' | 'destination' | 'cart') {
+    if (target === 'contact') {
+      document.getElementById('checkout-email')?.focus();
+      return;
+    }
+    if (target === 'destination') {
+      focusDestinationSection();
+      return;
+    }
+    if (target === 'cart') {
+      return;
+    }
     if (!contactReady) {
       document.getElementById('checkout-email')?.focus();
       return;
     }
     if (physicalCount > 0 && !shippingAddressReady) {
-      setDestinationExpanded(true);
-      window.requestAnimationFrame(() => {
-        const targetId = !shippingAddress.countryCode
-          ? 'shipping-country-trigger'
-          : !shippingAddress.recipientName
-            ? 'shipping-recipient-name'
-            : !shippingAddress.phoneNumber
-              ? 'shipping-phone-number'
-              : !shippingAddress.addressLine1
-                ? 'shipping-address-line-1'
-                : shippingAddress.countryCode === 'US' && !shippingAddress.region
-                  ? 'shipping-region-trigger'
-                  : 'shipping-country-trigger';
-        document.getElementById(targetId)?.focus();
-      });
+      focusDestinationSection();
+      return;
+    }
+    if (physicalCount > 0 && acceptedQuote?.shipping.status === 'unsupported_destination') {
+      focusDestinationSection();
     }
   }
 
@@ -536,8 +597,17 @@ export function CheckoutPage({
         if (snapshotLines.length > 0) {
           writeOrderSnapshot({ orderNumber: result.orderNumber, lines: snapshotLines });
         }
+        // The key has done its job. Leaving it behind would make a future
+        // cart that happens to hash identically dedupe back onto this order.
+        clearStoredIdempotency(checkoutSessionStorage());
+        idempotencyRef.current = null;
         completeOrder(completedLines);
         window.location.assign(result.orderPath);
+      } else {
+        const focusTarget = presentSubmitError(result).focusTarget;
+        if (focusTarget) {
+          focusFirstIncompleteField(focusTarget);
+        }
       }
     } catch {
       setSubmitResult({ status: 'error', code: 'checkout_submit_failed' });
@@ -589,6 +659,7 @@ export function CheckoutPage({
           {t.backToCart}
         </Link>
         <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.01em]">{t.title}</h1>
+        <CheckoutStepper current="details" locale={locale} />
         <p className="text-pretty text-sm leading-6 text-[var(--muted-foreground)]">{t.intro}</p>
       </header>
 
@@ -728,15 +799,23 @@ export function CheckoutPage({
               {new Date(submitResult.reservationExpiresAt).toLocaleString(locale)}.
             </Alert>
           ) : null}
-          {submitResult && submitResult.status !== 'success' ? (
-            <Alert variant={submitResult.status === 'stale' ? 'warning' : 'destructive'}>
-              {submitResult.status === 'invalid'
-                ? t.invalid
-                : submitResult.status === 'stale'
-                  ? t.stale
-                  : t.conflict}
-            </Alert>
-          ) : null}
+          {submitResult && submitResult.status !== 'success'
+            ? (() => {
+                const presentation = presentSubmitError(submitResult, {
+                  dedupeGuaranteed: !isSignedIn
+                });
+                return (
+                  <Alert variant={presentation.variant}>
+                    <p>{t.errors[presentation.messageKey]}</p>
+                    {submitResult.errorId ? (
+                      <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                        {t.errors.incidentCode}: {submitResult.errorId}
+                      </p>
+                    ) : null}
+                  </Alert>
+                );
+              })()
+            : null}
         </section>
 
         <aside className="lg:sticky lg:top-24">
@@ -754,6 +833,7 @@ export function CheckoutPage({
             policyLinks={policyLinks}
             discountPending={lifecycle.activeRequestId !== null}
             onApplyDiscount={applyDiscountCode}
+            pending={lifecycle.activeRequestId !== null}
           />
         </aside>
       </div>
@@ -764,6 +844,8 @@ export function CheckoutPage({
         label={actionLabel}
         disabled={actionDisabled}
         onSubmit={() => void submit()}
+        blockingIssue={submitAttempted ? (submitIssues[0] ?? null) : null}
+        paymentIntent={paymentIntent}
       />
 
       {lifecycle.proposal ? (

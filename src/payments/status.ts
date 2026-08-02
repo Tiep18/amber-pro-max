@@ -30,7 +30,18 @@ export type CustomerPaymentStatusInput = {
 export type CustomerPaymentStatusModel = {
   status: CustomerPaymentLifecycleStatus;
   provider: PaymentProvider | null;
+  /**
+   * "Money was received at some point." Drives the fulfillment gate and the
+   * long-lived guest cookie, and stays true after a refund — a refunded
+   * customer still needs to reach their order.
+   */
   isPaid: boolean;
+  /**
+   * "Money has since been given back." Anything that promises the customer a
+   * delivery still to come must check this, because `isPaid` alone is also
+   * true for fully and partially refunded orders.
+   */
+  isRefunded: boolean;
   isTerminal: boolean;
   fulfillmentLocked: boolean;
   sameOrderRetryAllowed: boolean;
@@ -109,13 +120,15 @@ export function mapCustomerPaymentStatus(input: CustomerPaymentStatusInput): Cus
     status = 'review_required';
   }
 
-  const isPaid = status === 'paid' || status === 'partially_refunded' || status === 'refunded';
+  const isRefunded = status === 'partially_refunded' || status === 'refunded';
+  const isPaid = status === 'paid' || isRefunded;
   const fulfillmentLocked = !isPaid || input.fulfillmentGateStatus !== 'eligible';
 
   return {
     status,
     provider: input.provider ?? null,
     isPaid,
+    isRefunded,
     isTerminal: isPaid || TERMINAL_NO_RETRY.has(status) || status === 'review_required',
     fulfillmentLocked,
     sameOrderRetryAllowed: false,

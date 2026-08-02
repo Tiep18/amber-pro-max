@@ -1,5 +1,35 @@
 # Plan 013: Widen the PayPal reservation window and show a live countdown
 
+> **Execution note (2026-08-01)**: Shop owner approved 25 minutes for
+> `paypal_intent` before Step 1 started. Executed in full at the code level.
+> The drift check found non-conflicting additive changes to
+> `order-payment-page.tsx` and `payment-state-panel.tsx` from plans 008-011
+> (cart recovery, guest session sync, VietQR declaration) — the specific
+> "Current state" excerpts this plan depends on (`deadlineValue` rendered as
+> static text, `mapCustomerPaymentStatus` deriving `expired` from
+> `reservationExpiresAt`) were unchanged, so this was not treated as a STOP
+> condition. The countdown's rendering/urgency/aria-live logic was extracted
+> into a pure `src/payments/reservation-countdown-model.ts` module (beyond
+> what the plan text described) because this repo's Vitest config runs under
+> Node with no jsdom/`@testing-library/react` — there is no way to mount and
+> tick a React component in this test suite, so the timing state machine had
+> to be framework-free to be unit-testable per Step 5. The countdown mounts
+> via a small client wrapper, `reservation-countdown-refresher.tsx`, that
+> also holds the `router.refresh()` debounce/background-tab guard from Step
+> 3 (fires at most once; if the tab is backgrounded at expiry, it waits for
+> `visibilitychange` before refreshing). Step 4's shared constant lives in
+> `src/payments/reservation.ts`. **`npm run db:reset`, `db:lint`, `db:test`,
+> `db:types`, `build`, and the manual test plan (opening a real PayPal order
+> and watching the countdown live) were not run this pass** — same local
+> Supabase/Docker port-exclusion blocker recorded in plan 012's execution
+> note (Windows excludes TCP 55430-55529; `supabase/config.toml` uses
+> 55431-55439). What *was* run and is clean: `npm run typecheck`,
+> `npm run lint`, `npx vitest run` (828/829, same one pre-existing unrelated
+> `loading-boundaries.test.ts` failure noted throughout this session),
+> `npm run check:vi-diacritics`. The DB test in
+> `supabase/tests/database/03_checkout_model.test.sql` was updated to assert
+> 25 minutes but has not been run against a live Postgres instance.
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and

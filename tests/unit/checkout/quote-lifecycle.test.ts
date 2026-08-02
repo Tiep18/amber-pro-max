@@ -352,3 +352,101 @@ describe('checkout quote lifecycle', () => {
     expect(canSubmitAcceptedQuote(acceptQuoteProposal(proposed), vietnamAddress)).toBe(true);
   });
 });
+
+// Plan 014 Step 4: applying or removing a discount code must go through the
+// same gate as every other requote, but must NOT trip it on its own. These
+// tests were required by that plan and were missing until 2026-08-02.
+describe('discount changes through the quote diff gate (plan 014)', () => {
+  function withDiscount(quote: CartQuote, amountMinor: number, code = 'CHECKOUT'): CartQuote {
+    return {
+      ...quote,
+      discount: { status: 'applied', code, amountMinor },
+      lines: quote.lines.map((line) => ({ ...line, discountAllocationMinor: amountMinor })),
+      totalMinor: quote.totalMinor - amountMinor,
+      hash: `${quote.hash}-discounted`
+    } as CartQuote;
+  }
+
+  function settleWith(accepted: CartQuote, incoming: CartQuote) {
+    const initial = createCheckoutQuoteLifecycleState(accepted, {
+      countryCode: 'US',
+      regionCode: 'CA'
+    });
+    const request = beginQuoteRequest(initial, initial.destination);
+    return settleQuoteRequest(request.state, request.request.requestId, {
+      status: 'ready',
+      quote: incoming
+    });
+  }
+
+  it('applying a discount with no other change accepts directly and leaves proposal null', () => {
+    const accepted = physicalQuote();
+    const settled = settleWith(accepted, withDiscount(accepted, 300));
+
+    expect(settled.proposal).toBeNull();
+    expect(settled.acceptedQuote?.discount).toEqual({
+      status: 'applied',
+      code: 'CHECKOUT',
+      amountMinor: 300
+    });
+    expect(settled.acceptedQuote?.totalMinor).toBe(accepted.totalMinor - 300);
+  });
+
+  it('removing a discount with no other change accepts directly and leaves proposal null', () => {
+    const accepted = withDiscount(physicalQuote(), 300);
+    const settled = settleWith(accepted, physicalQuote());
+
+    expect(settled.proposal).toBeNull();
+    expect(settled.acceptedQuote?.discount.status).toBe('not_applied');
+  });
+
+  it('applying a discount while a line price changed produces a proposal', () => {
+    const accepted = physicalQuote();
+    const repriced = {
+      ...accepted,
+      lines: accepted.lines.map((line) => ({
+        ...line,
+        unitPriceMinor: 3300,
+        lineSubtotalMinor: 3300
+      })),
+      subtotalMinor: 3300,
+      totalMinor: 3800
+    } as CartQuote;
+    const settled = settleWith(accepted, withDiscount(repriced, 300));
+
+    expect(settled.proposal).not.toBeNull();
+    expect(settled.acceptedQuote).toBe(accepted);
+  });
+
+  it('still gates a price rise that a new discount exactly cancels out', () => {
+    // Raw totals are identical (3500 both sides), so the pre-fix comparison
+    // could not see this. The discount-adjusted comparison must.
+    const accepted = physicalQuote();
+    const repriced = {
+      ...accepted,
+      lines: accepted.lines.map((line) => ({
+        ...line,
+        unitPriceMinor: 3300,
+        lineSubtotalMinor: 3300
+      })),
+      subtotalMinor: 3300,
+      totalMinor: 3800
+    } as CartQuote;
+    const incoming = withDiscount(repriced, 300);
+
+    expect(incoming.totalMinor).toBe(accepted.totalMinor);
+    expect(settleWith(accepted, incoming).proposal).not.toBeNull();
+  });
+
+  it('still gates a shipping change that arrives alongside a discount', () => {
+    const accepted = physicalQuote();
+    const reshipped = {
+      ...accepted,
+      shipping: { ...accepted.shipping, amountMinor: 900 },
+      totalMinor: 3900
+    } as CartQuote;
+    const settled = settleWith(accepted, withDiscount(reshipped, 300));
+
+    expect(settled.proposal).not.toBeNull();
+  });
+});

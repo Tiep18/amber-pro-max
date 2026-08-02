@@ -5,6 +5,15 @@ import {buildQuickLinkUrl, maskAccountNo} from '@/payments/vietqr/instructions';
 const DEFAULT_BATCH_SIZE = 10;
 const MAX_BATCH_SIZE = 25;
 const RETRY_BACKOFF_MS = 15 * 60 * 1000;
+// `attempt_count` is incremented by the claim RPC, so this bounds how many
+// times a transiently-failing row is re-sent before it is parked as failed.
+const MAX_TRANSIENT_ATTEMPTS = 5;
+
+export type ClaimedTransactionalEmailRow = TransactionalEmailRow & {
+  claimToken: string;
+};
+
+export type TransactionalEmailClaim = Pick<ClaimedTransactionalEmailRow, 'id' | 'claimToken'>;
 
 export type TransactionalEmailVietQrBankConfig = {
   bankId: string;
@@ -21,13 +30,13 @@ export type TransactionalEmailConfig = {
 };
 
 export type TransactionalEmailRepository = {
-  claimDueRows: (limit: number, now: Date) => Promise<TransactionalEmailRow[]>;
+  claimDueRows: (limit: number, now: Date) => Promise<ClaimedTransactionalEmailRow[]>;
   issueDownloadToken: (row: TransactionalEmailRow, now: Date) => Promise<{rawToken: string; expiresAt: string} | null>;
   issueGuestToken: (row: TransactionalEmailRow, purpose: 'reopen_order' | 'claim_order', now: Date) => Promise<{rawToken: string; expiresAt: string} | null>;
   issueNewsletterToken?: (row: TransactionalEmailRow, now: Date) => Promise<{rawToken: string; expiresAt: string} | null>;
-  markSent: (id: string, providerMessageId: string, now: Date) => Promise<void>;
-  markRetry: (id: string, code: string, availableAt: Date) => Promise<void>;
-  markFailed: (id: string, code: string, now: Date) => Promise<void>;
+  markSent: (claim: TransactionalEmailClaim, providerMessageId: string, now: Date) => Promise<void>;
+  markRetry: (claim: TransactionalEmailClaim, code: string, availableAt: Date) => Promise<void>;
+  markFailed: (claim: TransactionalEmailClaim, code: string, now: Date) => Promise<void>;
 };
 
 export type TransactionalEmailSendInput = {
@@ -114,6 +123,14 @@ async function renderContextForRow(row: TransactionalEmailRow, repository: Trans
         : null;
     return {siteUrl, guestToken: token?.rawToken ?? null, expiresAt: token?.expiresAt ?? null, vietqr};
   }
+  if (row.eventType === 'payment_received') {
+    // Without a reopen token this email's CTA is a bare order URL, which only
+    // works on the one device that still holds the guest cookie. Opening the
+    // "we got your payment" email on a phone would hit access-denied.
+    const isGuest = row.payload.isGuest === true;
+    const token = isGuest ? await repository.issueGuestToken(row, 'reopen_order', now) : null;
+    return {siteUrl, guestToken: token?.rawToken ?? null, expiresAt: token?.expiresAt ?? null};
+  }
   return {siteUrl};
 }
 
@@ -155,6 +172,7 @@ export async function processTransactionalEmailBatch(input: ProcessInput) {
   let failed = 0;
 
   for (const row of rows) {
+    const claim = {id: row.id, claimToken: row.claimToken};
     try {
       const context = await renderContextForRow(row, input.repository, input.config, now);
       const rendered = renderTransactionalEmail(row, context);
@@ -168,18 +186,28 @@ export async function processTransactionalEmailBatch(input: ProcessInput) {
       });
       if (result.status === 'sent') {
         sent += 1;
-        await input.repository.markSent(row.id, result.providerMessageId, now);
+        await input.repository.markSent(claim, result.providerMessageId, now);
       } else if (result.status === 'retry') {
-        retry += 1;
-        await input.repository.markRetry(row.id, safeCode(result.code), new Date(now.getTime() + RETRY_BACKOFF_MS));
-        await recordEmailFailure(input.operationalFailureRecorder, row, {
-          severity: 'warning',
-          errorCode: safeCode(result.code),
-          summary: 'Transactional email send scheduled for retry'
-        });
+        if ((row.attemptCount ?? 0) < MAX_TRANSIENT_ATTEMPTS) {
+          retry += 1;
+          await input.repository.markRetry(claim, safeCode(result.code), new Date(now.getTime() + RETRY_BACKOFF_MS));
+          await recordEmailFailure(input.operationalFailureRecorder, row, {
+            severity: 'warning',
+            errorCode: safeCode(result.code),
+            summary: 'Transactional email send scheduled for retry'
+          });
+        } else {
+          failed += 1;
+          await input.repository.markFailed(claim, safeCode(result.code), now);
+          await recordEmailFailure(input.operationalFailureRecorder, row, {
+            severity: 'error',
+            errorCode: safeCode(result.code),
+            summary: 'Transactional email send failed after exhausting retries'
+          });
+        }
       } else {
         failed += 1;
-        await input.repository.markFailed(row.id, safeCode(result.code), now);
+        await input.repository.markFailed(claim, safeCode(result.code), now);
         await recordEmailFailure(input.operationalFailureRecorder, row, {
           severity: 'error',
           errorCode: safeCode(result.code),
@@ -187,13 +215,28 @@ export async function processTransactionalEmailBatch(input: ProcessInput) {
         });
       }
     } catch {
-      failed += 1;
-      await input.repository.markFailed(row.id, 'email_worker_error', now);
-      await recordEmailFailure(input.operationalFailureRecorder, row, {
-        severity: 'error',
-        errorCode: 'email_worker_error',
-        summary: 'Transactional email worker failed'
-      });
+      // An exception here is a dropped connection, a provider timeout or a
+      // token-minting hiccup — all transient by nature. Burning the row to
+      // `failed` on the first one means the customer never receives an email
+      // that would have sent fine seconds later, so retry with backoff and
+      // only give up once the attempt budget is spent.
+      if ((row.attemptCount ?? 0) < MAX_TRANSIENT_ATTEMPTS) {
+        retry += 1;
+        await input.repository.markRetry(claim, 'email_worker_error', new Date(now.getTime() + RETRY_BACKOFF_MS));
+        await recordEmailFailure(input.operationalFailureRecorder, row, {
+          severity: 'warning',
+          errorCode: 'email_worker_error',
+          summary: 'Transactional email worker failed, scheduled for retry'
+        });
+      } else {
+        failed += 1;
+        await input.repository.markFailed(claim, 'email_worker_error', now);
+        await recordEmailFailure(input.operationalFailureRecorder, row, {
+          severity: 'error',
+          errorCode: 'email_worker_error',
+          summary: 'Transactional email worker failed after exhausting retries'
+        });
+      }
     }
   }
 

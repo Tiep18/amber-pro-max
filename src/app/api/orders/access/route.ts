@@ -33,24 +33,33 @@ export async function GET(request: NextRequest) {
     return deniedRedirect(request, locale);
   }
 
-  const client = createSupabaseAdminClient() as unknown as {from: (table: string) => unknown};
-  const result = await redeemGuestOrderReopenToken(
-    {orderNumber: parsed.data.orderNumber, rawToken: parsed.data.token},
-    client
-  );
-  if (result.status !== 'granted') {
+  // Any unhandled throw here would leave the browser sitting on this URL —
+  // which carries the raw token in its query string, and therefore in history
+  // and in any error reporting. Always leave via a redirect instead.
+  try {
+    const client = createSupabaseAdminClient() as unknown as {
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
+    };
+    const result = await redeemGuestOrderReopenToken(
+      {orderNumber: parsed.data.orderNumber, rawToken: parsed.data.token},
+      client
+    );
+    if (result.status !== 'granted') {
+      return deniedRedirect(request, locale);
+    }
+
+    await setGuestOrderAccessCookieFromServer({
+      orderNumber: result.orderNumber,
+      rawToken: result.rawSecret,
+      reservationExpiresAt: result.reservationExpiresAt,
+      paid: result.paid
+    });
+
+    const target = new URL(getOrderPath(locale, result.orderNumber), request.url);
+    const response = NextResponse.redirect(target, {status: 303});
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    return response;
+  } catch {
     return deniedRedirect(request, locale);
   }
-
-  await setGuestOrderAccessCookieFromServer({
-    orderNumber: result.orderNumber,
-    rawToken: result.rawSecret,
-    reservationExpiresAt: result.reservationExpiresAt,
-    paid: result.paid
-  });
-
-  const target = new URL(getOrderPath(locale, result.orderNumber), request.url);
-  const response = NextResponse.redirect(target, {status: 303});
-  response.headers.set('Referrer-Policy', 'no-referrer');
-  return response;
 }

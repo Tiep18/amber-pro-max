@@ -15,6 +15,7 @@ import {
   setGuestOrderAccessCookieFromServer
 } from '@/payments/guest-access';
 import {getAuthorizedOrderPayment} from '@/payments/queries';
+import {isKnownSubmitErrorCode} from './submit-error-copy';
 import type {CheckoutPaymentIntent} from './schemas';
 import {checkoutPaymentIntentForQuote} from './payment-method';
 import {quoteCartIntent} from './quote';
@@ -124,6 +125,14 @@ export async function submitCheckoutAction(input: unknown): Promise<SubmitChecko
       paymentIntent: canonicalInput.paymentIntent
     },
     errorResult: {status: 'error', code: 'checkout_submit_failed'} as const,
+    // The checkout UI's error copy maps every known code to an actionable
+    // message; a code outside that map would otherwise render silently as
+    // the generic fallback, so record it as an operational fact instead.
+    // runMonitoredAction already puts the result's own `code` into the
+    // recorded facts (see errorCodeFromResult), so no factsFromResult is
+    // needed here to surface which unmapped code was hit.
+    shouldRecordResult: (result) =>
+      result.status === 'error' || (result.status !== 'success' && !isKnownSubmitErrorCode(result.code)),
     operation: async () => {
       const client = await createSupabaseServerClient();
       const {
@@ -189,7 +198,15 @@ export async function refreshGuestOrderAccessCookieAction(orderNumber: string): 
 
   const guestSecretHash = await getGuestOrderAccessHashFromServer(normalizedOrderNumber);
   const authorized = await getAuthorizedOrderPayment({orderNumber: normalizedOrderNumber, guestSecretHash, client: client as never});
-  if (authorized.status !== 'found' || authorized.order.customerPaymentStatus !== 'paid') {
+  // A refund does not revoke the customer's right to look at their own order —
+  // if anything they need it more. Match `isPaid` in `mapCustomerPaymentStatus`
+  // rather than the narrower literal 'paid', or a refunded guest silently
+  // drops back to the short-lived cookie and loses access.
+  const settledStatuses = ['paid', 'partially_refunded', 'refunded'];
+  if (
+    authorized.status !== 'found' ||
+    !settledStatuses.includes(authorized.order.customerPaymentStatus)
+  ) {
     return {status: 'skipped'};
   }
 

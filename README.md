@@ -52,12 +52,37 @@ Supabase:
 - Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 - Configure Auth Site URL and redirect allowlist for `/auth/callback`, localized auth routes, localhost, and Vercel previews.
 - Configure production SMTP before accepting production registration/password reset.
-- Apply migrations and confirm RLS tests pass against the intended environment.
+- Complete the scheduled-work setup below before applying migrations, then confirm RLS
+  tests pass against the intended environment.
 
 Vercel:
 
 - Configure `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- Configure `RESEND_API_KEY` and `RESEND_FROM_EMAIL` for transactional email.
 - Run the CI gate before promoting a preview.
+
+Scheduled work setup (in this order):
+
+1. Enable Supabase Cron (`pg_cron`), `pg_net`, and Vault from the Supabase
+   Dashboard integrations and database extensions screens.
+2. In Vault, create `transactional_email_site_url` with the deployed HTTPS site URL
+   (the same value as `NEXT_PUBLIC_SITE_URL`) and
+   `transactional_email_worker_secret` with a long random worker secret. The database
+   reads only these two specifically named secrets; it never stores a URL or credential
+   in source control.
+3. Configure `TRANSACTIONAL_EMAIL_WORKER_SECRET` on Vercel with exactly the same
+   worker-secret value from step 2.
+4. Apply migrations. If the extensions were enabled or repaired after migrations were
+   applied, run `select private.repair_scheduled_jobs();` from the Supabase SQL editor.
+   The repair is idempotent: it leaves one `trusted-payment-expiry` job running every
+   minute and one `transactional-email-outbox` job running every five minutes. Supabase
+   Cron calls the protected outbox endpoint; no Vercel Cron or Vercel Pro plan is needed.
+5. Visit `/admin/launch` as an admin and confirm the payment expiry job gate is ready,
+   then confirm both named jobs appear in the Supabase Cron dashboard.
+
+Free Plan Supabase projects can auto-pause after a week of low activity. Scheduled work
+and the storefront are unavailable while a project is paused, so monitor Supabase pause
+warnings and resume the project before relying on launch-readiness results.
 
 ## Verification
 

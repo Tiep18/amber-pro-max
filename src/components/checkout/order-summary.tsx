@@ -15,6 +15,7 @@ import {Alert} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Separator} from '@/components/ui/separator';
+import {PAYPAL_RESERVATION_WINDOW_MINUTES} from '@/payments/reservation';
 import {DiscountCodeForm, type DiscountApplyOutcome} from './discount-code-form';
 
 const copy = {
@@ -40,7 +41,12 @@ const copy = {
     digitalDelivery: 'Digital delivery by email after confirmed payment',
     complete: 'Complete before continuing',
     policies: 'Policies',
-    trust: 'The order starts as pending payment. Digital files unlock only after full payment is confirmed.'
+    trust: 'The order starts as pending payment. Digital files unlock only after full payment is confirmed.',
+    expectationPaypal: (minutes: number) =>
+      `We will create your order and hold these items for ${minutes} minutes. You pay on the next step.`,
+    expectationVietqr: 'We will create your order and hold these items for 24 hours, then show you the VietQR transfer details.',
+    expectationPaypalShort: (minutes: number) => `Items held ${minutes} min · pay next`,
+    expectationVietqrShort: 'Items held 24h · VietQR next'
   },
   vi: {
     title: 'Đơn hàng của bạn',
@@ -64,7 +70,12 @@ const copy = {
     digitalDelivery: 'Nhận sản phẩm số qua email sau khi xác nhận thanh toán',
     complete: 'Cần hoàn tất trước khi tiếp tục',
     policies: 'Chính sách',
-    trust: 'Đơn hàng bắt đầu ở trạng thái chờ thanh toán. File số chỉ mở sau khi toàn bộ thanh toán được xác nhận.'
+    trust: 'Đơn hàng bắt đầu ở trạng thái chờ thanh toán. File số chỉ mở sau khi toàn bộ thanh toán được xác nhận.',
+    expectationPaypal: (minutes: number) =>
+      `Chúng tôi sẽ tạo đơn hàng và giữ các sản phẩm này trong ${minutes} phút. Bạn thanh toán ở bước tiếp theo.`,
+    expectationVietqr: 'Chúng tôi sẽ tạo đơn hàng và giữ các sản phẩm này trong 24 giờ, sau đó hiển thị thông tin chuyển khoản VietQR.',
+    expectationPaypalShort: (minutes: number) => `Giữ hàng ${minutes} phút · thanh toán tiếp theo`,
+    expectationVietqrShort: 'Giữ hàng 24 giờ · tiếp theo là VietQR'
   }
 } as const;
 
@@ -100,6 +111,20 @@ function paymentText(intent: CheckoutPaymentIntent | null, locale: Locale) {
   return t.paymentPending;
 }
 
+function expectationText(intent: CheckoutPaymentIntent | null, locale: Locale) {
+  const t = copy[locale];
+  if (intent === 'paypal_intent') return t.expectationPaypal(PAYPAL_RESERVATION_WINDOW_MINUTES);
+  if (intent === 'vietqr_intent') return t.expectationVietqr;
+  return null;
+}
+
+function expectationTextShort(intent: CheckoutPaymentIntent | null, locale: Locale) {
+  const t = copy[locale];
+  if (intent === 'paypal_intent') return t.expectationPaypalShort(PAYPAL_RESERVATION_WINDOW_MINUTES);
+  if (intent === 'vietqr_intent') return t.expectationVietqrShort;
+  return null;
+}
+
 export function OrderSummary({
   quote,
   locale,
@@ -113,7 +138,8 @@ export function OrderSummary({
   onSubmit,
   policyLinks,
   discountPending,
-  onApplyDiscount
+  onApplyDiscount,
+  pending
 }: {
   quote: CartQuote | null;
   locale: Locale;
@@ -128,6 +154,7 @@ export function OrderSummary({
   policyLinks: CheckoutPolicyLink[];
   discountPending: boolean;
   onApplyDiscount: (code: string | null) => Promise<DiscountApplyOutcome>;
+  pending: boolean;
 }) {
   const t = copy[locale];
   const currencyCode = quote?.currencyCode;
@@ -219,14 +246,22 @@ export function OrderSummary({
           ) : null}
           <div className="flex justify-between gap-3">
             <dt className="text-[var(--muted-foreground)]">{t.shipping}</dt>
-            <dd className="max-w-[220px] text-right font-medium">{quote ? shippingText(quote, locale) : t.notCalculated}</dd>
+            {pending ? (
+              <dd aria-hidden="true" className="h-4 w-20 animate-pulse rounded bg-[var(--surface-muted)]" />
+            ) : (
+              <dd className="max-w-[220px] text-right font-medium">{quote ? shippingText(quote, locale) : t.notCalculated}</dd>
+            )}
           </div>
         </dl>
 
         <Separator className="border-[var(--border)]/70" />
         <div className="flex items-end justify-between gap-3 text-xl font-semibold tabular-nums">
           <span>{t.total}</span>
-          <span className="text-[var(--brand)]">{total}</span>
+          {pending ? (
+            <span aria-hidden="true" className="h-6 w-24 animate-pulse rounded bg-[var(--surface-muted)]" />
+          ) : (
+            <span className="text-[var(--brand)]">{total}</span>
+          )}
         </div>
 
         <div className="grid gap-2 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 p-3 text-sm">
@@ -269,6 +304,12 @@ export function OrderSummary({
           {actionLabel}
         </Button>
 
+        {expectationText(paymentIntent, locale) ? (
+          <p className="hidden text-xs leading-5 text-[var(--muted-foreground)] lg:block">
+            {expectationText(paymentIntent, locale)}
+          </p>
+        ) : null}
+
         <div className="flex items-start gap-2 text-xs leading-5 text-[var(--muted-foreground)]">
           <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[var(--success)]" />
           <p>{t.trust}</p>
@@ -294,21 +335,27 @@ export function MobileCheckoutDock({
   locale,
   label,
   disabled,
-  onSubmit
+  onSubmit,
+  blockingIssue,
+  paymentIntent
 }: {
   quote: CartQuote | null;
   locale: Locale;
   label: string;
   disabled: boolean;
   onSubmit: () => void;
+  blockingIssue?: string | null;
+  paymentIntent?: CheckoutPaymentIntent | null;
 }) {
   const total =
     quote?.currencyCode
       ? formatMoney({amountMinor: quote.totalMinor, currencyCode: quote.currencyCode})
       : '-';
+  const topLine = disabled && blockingIssue ? blockingIssue : !disabled ? expectationTextShort(paymentIntent ?? null, locale) : null;
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--surface-paper)]/96 px-3 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-8px_28px_rgb(73_52_32/10%)] backdrop-blur lg:hidden">
+      {topLine ? <p className="mx-auto max-w-2xl truncate pb-1.5 text-xs text-[var(--muted-foreground)]">{topLine}</p> : null}
       <div className="mx-auto grid max-w-2xl grid-cols-[minmax(0,1fr)_minmax(164px,auto)] items-center gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-[var(--muted-foreground)]">{copy[locale].total}</p>

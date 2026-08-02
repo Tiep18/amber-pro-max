@@ -18,6 +18,26 @@ type QueryClient = RpcClient & {
 
 type RequireAdmin = () => Promise<unknown>;
 
+export type OrderLineSummary = {
+  lineId: string;
+  title: string;
+  variantLabel: string | null;
+  sku: string | null;
+  fulfillmentType: 'digital' | 'physical';
+  quantity: number;
+  unitPriceMinor: number;
+  lineSubtotalMinor: number;
+  discountAllocationMinor: number;
+};
+
+export type OrderMoneyBreakdown = {
+  subtotalMinor: number;
+  discountMinor: number;
+  shippingMinor: number;
+  totalMinor: number;
+  discountCode: string | null;
+};
+
 export type CustomerOrderPaymentProjection = {
   orderNumber: string;
   market?: 'vn' | 'intl' | string;
@@ -39,6 +59,9 @@ export type CustomerOrderPaymentProjection = {
   reservationExpiresAt: string | null;
   customerTransferDeclaredAt?: string | null;
   shippingAddress: ShippingAddress | null;
+  contactEmailMasked: string | null;
+  lines: OrderLineSummary[];
+  money: OrderMoneyBreakdown;
 };
 
 export type AuthorizedOrderPaymentResult =
@@ -213,6 +236,37 @@ function asShippingAddress(value: unknown): ShippingAddress | null {
   return parsed.success ? parsed.data : null;
 }
 
+function asFulfillmentType(value: unknown): 'digital' | 'physical' {
+  return value === 'digital' ? 'digital' : 'physical';
+}
+
+function asOrderLine(value: unknown): OrderLineSummary | null {
+  if (!isRecord(value) || typeof value.lineId !== 'string' || typeof value.title !== 'string') {
+    return null;
+  }
+  return {
+    lineId: value.lineId,
+    title: value.title,
+    variantLabel: typeof value.variantLabel === 'string' ? value.variantLabel : null,
+    sku: typeof value.sku === 'string' ? value.sku : null,
+    fulfillmentType: asFulfillmentType(value.fulfillmentType),
+    quantity: typeof value.quantity === 'number' ? value.quantity : 0,
+    unitPriceMinor: typeof value.unitPriceMinor === 'number' ? value.unitPriceMinor : 0,
+    lineSubtotalMinor: typeof value.lineSubtotalMinor === 'number' ? value.lineSubtotalMinor : 0,
+    discountAllocationMinor: typeof value.discountAllocationMinor === 'number' ? value.discountAllocationMinor : 0
+  };
+}
+
+function asOrderLines(value: unknown): OrderLineSummary[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    const line = asOrderLine(item);
+    return line ? [line] : [];
+  });
+}
+
 async function defaultRequireAdmin() {
   const {requireAdmin} = await import('@/auth/guards');
   return requireAdmin();
@@ -302,7 +356,16 @@ export async function getAuthorizedOrderPayment({
     currencyCode: asCurrencyCode(data.currencyCode),
     reservationExpiresAt: typeof data.reservationExpiresAt === 'string' ? data.reservationExpiresAt : null,
     customerTransferDeclaredAt: typeof data.customerTransferDeclaredAt === 'string' ? data.customerTransferDeclaredAt : null,
-    shippingAddress: asShippingAddress(data.shippingAddress)
+    shippingAddress: asShippingAddress(data.shippingAddress),
+    contactEmailMasked: typeof data.contactEmail === 'string' ? maskEmailForAdmin(data.contactEmail) : null,
+    lines: asOrderLines(data.lines),
+    money: {
+      subtotalMinor: typeof data.subtotalMinor === 'number' ? data.subtotalMinor : 0,
+      discountMinor: typeof data.discountMinor === 'number' ? data.discountMinor : 0,
+      shippingMinor: typeof data.shippingMinor === 'number' ? data.shippingMinor : 0,
+      totalMinor: data.amountMinor,
+      discountCode: typeof data.discountCode === 'string' ? data.discountCode : null
+    }
   };
   if (typeof data.digitalFulfillmentStatus === 'string') {
     order.digitalFulfillmentStatus = data.digitalFulfillmentStatus;

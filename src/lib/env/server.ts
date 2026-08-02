@@ -23,7 +23,8 @@ const serverEnvSchema = z.object({
   VIETQR_TEMPLATE: z.string().trim().min(1).default('compact2'),
   RESEND_API_KEY: optionalSecretSchema,
   RESEND_FROM_EMAIL: z.email().optional(),
-  TRANSACTIONAL_EMAIL_WORKER_SECRET: optionalSecretSchema
+  TRANSACTIONAL_EMAIL_WORKER_SECRET: optionalSecretSchema,
+  CRON_SECRET: optionalSecretSchema
 });
 
 function splitCountries(value: string | undefined) {
@@ -53,7 +54,8 @@ export function getServerEnv(source: NodeJS.ProcessEnv = process.env) {
     VIETQR_TEMPLATE: source.VIETQR_TEMPLATE,
     RESEND_API_KEY: source.RESEND_API_KEY,
     RESEND_FROM_EMAIL: source.RESEND_FROM_EMAIL,
-    TRANSACTIONAL_EMAIL_WORKER_SECRET: source.TRANSACTIONAL_EMAIL_WORKER_SECRET
+    TRANSACTIONAL_EMAIL_WORKER_SECRET: source.TRANSACTIONAL_EMAIL_WORKER_SECRET,
+    CRON_SECRET: source.CRON_SECRET
   });
   const paypalConfigured = configured(serverEnv, [
     'PAYPAL_CLIENT_ID',
@@ -108,6 +110,7 @@ export function getServerEnv(source: NodeJS.ProcessEnv = process.env) {
           status: 'unconfigured' as const,
           code: 'missing_transactional_email_config' as const
         },
-    transactionalEmailWorkerSecret: serverEnv.TRANSACTIONAL_EMAIL_WORKER_SECRET ?? null
+    transactionalEmailWorkerSecret: serverEnv.TRANSACTIONAL_EMAIL_WORKER_SECRET ?? null,
+    cronSecret: serverEnv.CRON_SECRET ?? null
   };
 }

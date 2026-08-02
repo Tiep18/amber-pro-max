@@ -9,6 +9,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { CheckoutStepper } from '@/components/checkout/checkout-stepper';
 import { useCart } from './cart-provider';
 import { CartLine } from './cart-line';
 import { CartChangeSummary } from './cart-change-summary';
@@ -113,6 +114,7 @@ export function CartPageContent({ locale }: { locale: Locale }) {
         <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] sm:text-[28px]">
           {t.title}
         </h1>
+        <CheckoutStepper current="cart" locale={locale} />
         <p className="text-pretty text-sm leading-6 text-[var(--muted-foreground)]">
           {t.paidNote}
         </p>

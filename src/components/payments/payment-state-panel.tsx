@@ -3,6 +3,7 @@ import {Ban, CircleCheck, CircleX, Clock3, LoaderCircle, RotateCcw, TimerOff, Un
 import {Alert, AlertTitle} from '@/components/ui/alert';
 import type {PaymentStatusPresentation} from '@/payments/status';
 import {PaymentStatusRecheck} from './payment-status-recheck';
+import {ReservationCountdownRefresher} from './reservation-countdown-refresher';
 
 type PaymentStatePanelProps = {
   orderNumber: string;
@@ -11,12 +12,17 @@ type PaymentStatePanelProps = {
   presentation: PaymentStatusPresentation;
   deadlineLabel: string;
   deadlineValue: string | null;
+  reservationExpiresAt?: string | null;
   orderLabel: string;
   actionLabel: string | null;
   recheckLabels?: {
     checkStatus: string;
     checking: string;
     lastChecked: string;
+  };
+  countdownLabels?: {
+    remaining: string;
+    expired: string;
   };
 };
 
@@ -40,11 +46,14 @@ export function PaymentStatePanel({
   presentation,
   deadlineLabel,
   deadlineValue,
+  reservationExpiresAt,
   orderLabel,
   actionLabel,
-  recheckLabels
+  recheckLabels,
+  countdownLabels
 }: PaymentStatePanelProps) {
   const StatusIcon = statusIcons[presentation.status];
+  const countdownActive = presentation.status === 'awaiting_payment' || presentation.status === 'verifying_payment';
 
   return (
     <Alert variant={presentation.surface} className="space-y-4">
@@ -62,6 +71,9 @@ export function PaymentStatePanel({
             <p className="text-sm font-semibold tabular-nums">
               {deadlineLabel}: {deadlineValue}
             </p>
+          ) : null}
+          {countdownActive && reservationExpiresAt && countdownLabels ? (
+            <ReservationCountdownRefresher expiresAt={reservationExpiresAt} labels={countdownLabels} />
           ) : null}
         </div>
       </div>

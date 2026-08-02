@@ -122,7 +122,10 @@ describe('admin system loader operational recording', () => {
         }))
       };
     });
-    createSupabaseServerClientMock.mockResolvedValue({from});
+    createSupabaseServerClientMock.mockResolvedValue({
+      from,
+      rpc: vi.fn(async () => ({data: {scheduled: false, fallbackRecentSuccess: false}, error: null}))
+    });
 
     await expect(getAdminLaunchReadiness({requireAdmin: requireAdminMock})).resolves.toMatchObject({
       status: 'error',
@@ -165,7 +168,10 @@ describe('admin system loader operational recording', () => {
         }))
       };
     });
-    createSupabaseServerClientMock.mockResolvedValue({from});
+    createSupabaseServerClientMock.mockResolvedValue({
+      from,
+      rpc: vi.fn(async () => ({data: {scheduled: false, fallbackRecentSuccess: false}, error: null}))
+    });
 
     await expect(getAdminLaunchReadiness({requireAdmin: requireAdminMock})).resolves.toEqual({
       status: 'error',

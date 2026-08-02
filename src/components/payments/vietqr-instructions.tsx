@@ -1,6 +1,6 @@
 'use client';
 
-import {useState} from 'react';
+import {useRef, useState} from 'react';
 import {Clock3, Copy, Landmark, LockKeyhole, MessageCircleMore, QrCode} from 'lucide-react';
 import {Alert, AlertTitle} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
@@ -30,6 +30,12 @@ type VietQrInstructionLabels = {
   declareButton: string;
   declaring: string;
   declaredStatus: string;
+  copyFailed: string;
+  copyAccountNumber: string;
+  qrUnavailable: string;
+  declareNotEligible: string;
+  declareForbidden: string;
+  declareFailed: string;
 };
 
 type VietQrInstructionsProps = {
@@ -37,24 +43,24 @@ type VietQrInstructionsProps = {
   amountMinor: number;
   bankName: string;
   accountName: string;
-  accountNumberMasked: string;
+  accountNumber: string;
   transferReference: string;
   deadlineLabel: string;
   qrImageUrl: string;
   qrAlt: string;
   declared: boolean;
-  onDeclare: () => Promise<unknown>;
+  onDeclare: () => Promise<{status: string} | unknown>;
   labels: VietQrInstructionLabels;
 };
 
-type CopyState = 'amount' | 'reference' | null;
+type CopyState = 'amount' | 'reference' | 'accountNumber' | null;
 
 export function VietQrInstructions({
   amountLabel,
   amountMinor,
   bankName,
   accountName,
-  accountNumberMasked,
+  accountNumber,
   transferReference,
   deadlineLabel,
   qrImageUrl,
@@ -64,27 +70,68 @@ export function VietQrInstructions({
   labels
 }: VietQrInstructionsProps) {
   const [copied, setCopied] = useState<CopyState>(null);
+  const [copyFailed, setCopyFailed] = useState<CopyState>(null);
   const [qrLoaded, setQrLoaded] = useState(false);
   const [qrFailed, setQrFailed] = useState(false);
   const [declaring, setDeclaring] = useState(false);
   const [declaredOptimistic, setDeclaredOptimistic] = useState(false);
+  const [declareError, setDeclareError] = useState<'not_eligible' | 'forbidden' | 'error' | null>(null);
   const isDeclared = declared || declaredOptimistic;
+  const amountRef = useRef<HTMLElement>(null);
+  const referenceRef = useRef<HTMLElement>(null);
+  const accountNumberRef = useRef<HTMLElement>(null);
+
+  function copyTargetNode(target: Exclude<CopyState, null>) {
+    if (target === 'amount') return amountRef.current;
+    if (target === 'reference') return referenceRef.current;
+    return accountNumberRef.current;
+  }
+
+  function selectTextManually(node: HTMLElement | null) {
+    if (!node) return;
+    const selection = window.getSelection?.();
+    if (!selection) return;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
 
   async function copyValue(value: string, target: Exclude<CopyState, null>) {
     try {
       await navigator.clipboard.writeText(value);
       setCopied(target);
+      setCopyFailed(null);
       window.setTimeout(() => setCopied(null), 3000);
     } catch {
       setCopied(null);
+      setCopyFailed(target);
+      selectTextManually(copyTargetNode(target));
     }
   }
 
   async function handleDeclare() {
     setDeclaring(true);
+    setDeclareError(null);
     try {
-      await onDeclare();
-      setDeclaredOptimistic(true);
+      // The action reports failure by *returning* a status, not by throwing
+      // (`runMonitoredAction` swallows exceptions into an error result). Telling
+      // the customer their transfer was recorded when the server refused it is
+      // the worst possible outcome here: they stop chasing a payment that the
+      // shop has no record of.
+      const outcome = await onDeclare();
+      const status =
+        outcome && typeof outcome === 'object' && 'status' in outcome
+          ? String((outcome as {status: unknown}).status)
+          : 'error';
+
+      if (status === 'recorded' || status === 'unchanged') {
+        setDeclaredOptimistic(true);
+        return;
+      }
+      setDeclareError(status === 'not_eligible' || status === 'forbidden' ? status : 'error');
+    } catch {
+      setDeclareError('error');
     } finally {
       setDeclaring(false);
     }
@@ -107,7 +154,9 @@ export function VietQrInstructions({
         <div className="grid gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-muted)] p-4">
           <span className="text-sm font-semibold">{labels.amount}</span>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <strong className="text-xl font-semibold tabular-nums">{amountLabel}</strong>
+            <strong ref={amountRef} className="text-xl font-semibold tabular-nums">
+              {amountLabel}
+            </strong>
             <Button
               variant="secondary"
               className="min-h-11 gap-2"
@@ -127,8 +176,31 @@ export function VietQrInstructions({
               </div>
             ) : null}
             {qrFailed ? (
-              <div className="absolute inset-0 grid place-items-center bg-[var(--surface-muted)] p-4 text-center text-sm text-[var(--muted-foreground)]">
-                {labels.reference}: {transferReference}
+              // The QR service is third-party and does go down. Everything
+              // needed to complete the transfer by hand must be readable here,
+              // not just a pointer at details that used to be masked.
+              <div
+                role="status"
+                className="absolute inset-0 grid content-center gap-1 bg-[var(--surface-muted)] p-4 text-left text-xs leading-5 text-[var(--foreground)]"
+              >
+                <p className="font-semibold text-[var(--muted-foreground)]">{labels.qrUnavailable}</p>
+                <p>
+                  <span className="text-[var(--muted-foreground)]">{labels.bank}:</span> {bankName}
+                </p>
+                <p className="break-words">
+                  <span className="text-[var(--muted-foreground)]">{labels.accountName}:</span> {accountName}
+                </p>
+                <p className="break-all font-semibold tabular-nums">
+                  <span className="font-normal text-[var(--muted-foreground)]">{labels.accountNumber}:</span>{' '}
+                  {accountNumber}
+                </p>
+                <p className="font-semibold tabular-nums">
+                  <span className="font-normal text-[var(--muted-foreground)]">{labels.amount}:</span> {amountLabel}
+                </p>
+                <p className="break-all font-semibold tabular-nums">
+                  <span className="font-normal text-[var(--muted-foreground)]">{labels.reference}:</span>{' '}
+                  {transferReference}
+                </p>
               </div>
             ) : (
               <img
@@ -157,13 +229,25 @@ export function VietQrInstructions({
             <dt className="text-sm font-semibold">{labels.accountName}</dt>
             <dd className="break-words">{accountName}</dd>
           </div>
-          <div className="grid gap-1 rounded-[var(--radius-control)] border border-[var(--border)] p-3">
+          <div className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3">
             <dt className="text-sm font-semibold">{labels.accountNumber}</dt>
-            <dd className="break-all tabular-nums">{accountNumberMasked}</dd>
+            <dd ref={accountNumberRef} className="break-all font-semibold tabular-nums">
+              {accountNumber}
+            </dd>
+            <Button
+              variant="secondary"
+              className="min-h-11 gap-2 sm:w-fit"
+              onClick={() => copyValue(accountNumber, 'accountNumber')}
+            >
+              <Copy aria-hidden="true" className="size-4" />
+              {copied === 'accountNumber' ? labels.copied : labels.copyAccountNumber}
+            </Button>
           </div>
           <div className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3">
             <dt className="text-sm font-semibold">{labels.reference}</dt>
-            <dd className="break-all font-semibold tabular-nums">{transferReference}</dd>
+            <dd ref={referenceRef} className="break-all font-semibold tabular-nums">
+              {transferReference}
+            </dd>
             <Button variant="secondary" className="min-h-11 gap-2 sm:w-fit" onClick={() => copyValue(transferReference, 'reference')}>
               <Copy aria-hidden="true" className="size-4" />
               {copied === 'reference' ? labels.copied : labels.copyReference}
@@ -197,6 +281,15 @@ export function VietQrInstructions({
               >
                 {declaring ? labels.declaring : labels.declareButton}
               </Button>
+              {declareError ? (
+                <p role="alert" className="text-sm font-semibold text-[var(--destructive)]">
+                  {declareError === 'not_eligible'
+                    ? labels.declareNotEligible
+                    : declareError === 'forbidden'
+                      ? labels.declareForbidden
+                      : labels.declareFailed}
+                </p>
+              ) : null}
             </>
           )}
         </div>
@@ -216,8 +309,11 @@ export function VietQrInstructions({
           </div>
         </Alert>
 
-        <div aria-live="polite" className="min-h-5 text-sm font-semibold text-[var(--success)]">
-          {copied ? labels.copied : ''}
+        <div
+          aria-live="polite"
+          className={`min-h-5 text-sm font-semibold ${copyFailed ? 'text-[var(--destructive)]' : 'text-[var(--success)]'}`}
+        >
+          {copied ? labels.copied : copyFailed ? labels.copyFailed : ''}
         </div>
       </CardContent>
     </Card>

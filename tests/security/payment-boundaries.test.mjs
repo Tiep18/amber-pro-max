@@ -39,6 +39,8 @@ const paymentSurfaceFiles = [
   'src/components/payments/paypal-buttons.tsx',
   'src/components/payments/vietqr-instructions.tsx',
   'src/components/payments/payment-status-badge.tsx',
+  'src/components/payments/order-payment-page.tsx',
+  'src/components/payments/order-line-summary.tsx',
   'src/app/admin/orders/page.tsx',
   'src/app/admin/orders/[orderId]/page.tsx',
   'src/components/admin/orders/payment-timeline.tsx',
@@ -80,6 +82,15 @@ test('client payment surfaces never expose server-only payment or Supabase secre
   assert.doesNotMatch(clientSource, /rawGuestToken|guestAccessToken.*localStorage|providerPayload|webhook.*body/i);
 });
 
+test('VietQR audit facts never persist the QR URL containing the full receiving account number', () => {
+  const source = readFileSync('src/payments/vietqr/instructions.ts', 'utf8');
+  const sanitizedFacts = source.match(/sanitizedFacts:\s*\{([\s\S]*?)\n\s*\}/)?.[1];
+
+  assert.ok(sanitizedFacts, 'VietQR transition must retain a sanitized facts block');
+  assert.doesNotMatch(sanitizedFacts, /qrImageUrl/);
+  assert.match(sanitizedFacts, /qrImageAvailable:\s*true/);
+});
+
 test('checkout handoff exchanges guest access server-side without returning raw tokens', () => {
   const actionSource = readFileSync('src/checkout/actions.ts', 'utf8');
   const submitSource = readFileSync('src/checkout/submit-checkout.ts', 'utf8');
@@ -110,6 +121,26 @@ test('payment boundary contracts require webhook verification, idempotency, audi
   assert.match(source, /audit rows are append-only/i);
   assert.match(source, /non-enumerating/i);
   assert.match(source, /fulfillment locked/i);
+});
+
+test('order line and money breakdown reach the customer only through the per-order authorized RPC, never a direct table read', () => {
+  const source = readExisting(paymentSurfaceFiles);
+
+  // checkout_order_lines has no anon grant at all (revoke all ... from
+  // anon; grant select ... to authenticated only) — a direct client-side
+  // select would either fail for guest orders or require weakening that
+  // grant. Line data must only reach the client embedded in
+  // get_order_payment_status()'s already-authorized jsonb result.
+  assert.doesNotMatch(source, /\.from\(['"]checkout_order_lines['"]\)/);
+  assert.doesNotMatch(source, /\.from\(['"]discount_redemptions['"]\)/);
+  assert.match(source, /get_order_payment_status/);
+});
+
+test('the customer order surface never renders a raw, unmasked contact email', () => {
+  const source = readExisting(paymentSurfaceFiles);
+
+  assert.doesNotMatch(source, /order\.contactEmail\b(?!Masked)/);
+  assert.match(source, /contactEmailMasked/);
 });
 
 test('npm security script includes the Phase 4 payment boundary harness', () => {
