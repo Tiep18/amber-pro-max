@@ -1,6 +1,6 @@
 begin;
 
-select plan(7);
+select plan(8);
 
 -- A fresh order with one digital and one physical line, mirroring the
 -- product ids seeded by supabase/seed.sql.
@@ -100,6 +100,14 @@ select results_eq(
     where order_id = '00000000-0000-4000-8000-000000000901' and event_type = 'payment_received'$$,
   $$values ('true'::text, 'true'::text)$$,
   'payment_received payload flags both digital and physical lines'
+);
+
+select is(
+  (select (payload ->> 'isGuest')::boolean
+    from public.transactional_email_outbox
+    where order_id = '00000000-0000-4000-8000-000000000901' and event_type = 'payment_received'),
+  true,
+  'guest payment_received payload carries the guest flag for reopen links'
 );
 
 -- Re-delivering the same verified event must not create a second receipt:
