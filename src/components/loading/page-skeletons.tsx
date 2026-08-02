@@ -73,28 +73,23 @@ function ProductGridSkeleton({ count = 6 }: { count?: number }) {
 export function StorefrontPageSkeleton() {
   return (
     <LoadingRegion className="overflow-hidden bg-[var(--background)]">
-      <section className="relative isolate overflow-hidden">
-        <div className="container relative grid min-h-[620px] items-center gap-10 pb-14 pt-20 sm:pt-24 lg:min-h-[540px] lg:grid-cols-[0.86fr_1.14fr] lg:gap-10 lg:pb-12 lg:pt-14">
-          <div className="grid max-w-2xl gap-5">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-12 w-4/5 sm:h-16 lg:h-20" />
-            <Skeleton className="h-9 w-full max-w-xl sm:h-11" />
+      <section className="relative isolate min-h-[520px] overflow-hidden sm:min-h-[560px] lg:min-h-[620px]">
+        <Skeleton className="absolute inset-0 size-full rounded-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#f6f0e6]/95 via-[#f6f0e6]/70 to-transparent lg:via-[#f6f0e6]/45" />
+        <div className="container relative z-10 flex min-h-[inherit] items-center py-16 sm:py-20">
+          <div className="grid max-w-lg gap-6 lg:max-w-xl">
+            <div className="grid gap-5">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-12 w-4/5 sm:h-16 lg:h-20" />
+              <Skeleton className="h-9 w-full max-w-lg sm:h-11" />
+            </div>
             <div className="grid gap-2">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-5/6" />
             </div>
-            <div className="flex flex-col items-stretch gap-3 pt-2 min-[420px]:flex-row min-[420px]:items-center">
+            <div className="flex flex-col items-stretch gap-3 min-[420px]:flex-row min-[420px]:items-center">
               <Skeleton className="h-12 min-[420px]:w-44" />
               <Skeleton className="h-12 min-[420px]:w-40" />
-            </div>
-          </div>
-          <div className="relative min-h-[430px] lg:min-h-[500px]">
-            <div className="relative ml-auto grid max-w-[760px] gap-4 rounded-[28px] p-2 sm:p-3 lg:grid-cols-[1.14fr_0.86fr] lg:grid-rows-2 lg:items-stretch">
-              <Skeleton className="aspect-[5/4] w-full rounded-[24px] lg:row-span-2 lg:h-full lg:min-h-[430px] lg:aspect-auto" />
-              <div className="grid gap-4 sm:grid-cols-[0.92fr_1.08fr] lg:contents">
-                <Skeleton className="aspect-[4/3] w-full rounded-[18px] lg:aspect-auto lg:h-full" />
-                <Skeleton className="aspect-[4/3] w-full rounded-[18px] sm:-mt-10 lg:mt-0 lg:aspect-auto lg:h-full" />
-              </div>
             </div>
           </div>
         </div>

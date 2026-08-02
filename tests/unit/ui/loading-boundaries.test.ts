@@ -29,11 +29,13 @@ const layoutContracts: readonly LayoutContract[] = [
     skeleton: 'StorefrontPageSkeleton',
     contentPath: 'src/app/[locale]/page.tsx',
     classes: [
-      'min-h-[620px]',
-      'lg:min-h-[540px]',
-      'lg:grid-cols-[0.86fr_1.14fr]',
-      'min-[420px]:flex-row',
-      'lg:grid-cols-[1.14fr_0.86fr]'
+      'min-h-[520px]',
+      'sm:min-h-[560px]',
+      'lg:min-h-[620px]',
+      'min-h-[inherit]',
+      'max-w-lg',
+      'lg:max-w-xl',
+      'min-[420px]:flex-row'
     ]
   },
   {
