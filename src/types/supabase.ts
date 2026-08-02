@@ -3552,6 +3552,14 @@ export type Database = {
         Returns: Json
       }
       expire_due_payments: { Args: { p_limit?: number }; Returns: Json }
+      extend_paypal_reservation: {
+        Args: {
+          p_max_hold_minutes?: number
+          p_minimum_minutes?: number
+          p_order_number: string
+        }
+        Returns: Json
+      }
       get_admin_order_timeline: {
         Args: { p_order_id: string }
         Returns: {
@@ -3790,6 +3798,7 @@ export type Database = {
           title: string
         }[]
       }
+      late_settlement_window: { Args: never; Returns: string }
       list_catalog_facets: {
         Args: { p_locale: string; p_market: string }
         Returns: {

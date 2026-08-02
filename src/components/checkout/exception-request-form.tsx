@@ -30,19 +30,19 @@ const copy = {
     optional: 'Optional'
   },
   vi: {
-    title: 'Yeu cau ngoai le',
+    title: 'Yêu cầu ngoại lệ',
     email: 'Email',
-    productId: 'Ma san pham',
-    variantId: 'Ma tuy chon',
-    country: 'Quoc gia giao hang',
-    note: 'Ghi chu',
-    submit: 'Gui yeu cau',
-    pending: 'Dang gui',
-    created: 'Da nhan yeu cau. Chua co hang nao duoc giu.',
-    invalid: 'Kiem tra thong tin yeu cau.',
-    contactGroup: 'Lien he',
-    productGroup: 'San pham va diem den',
-    optional: 'Khong bat buoc'
+    productId: 'Mã sản phẩm',
+    variantId: 'Mã tùy chọn',
+    country: 'Quốc gia giao hàng',
+    note: 'Ghi chú',
+    submit: 'Gửi yêu cầu',
+    pending: 'Đang gửi',
+    created: 'Đã nhận yêu cầu. Chưa có hàng nào được giữ.',
+    invalid: 'Kiểm tra lại thông tin yêu cầu.',
+    contactGroup: 'Liên hệ',
+    productGroup: 'Sản phẩm và điểm đến',
+    optional: 'Không bắt buộc'
   }
 } as const;
 

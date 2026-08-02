@@ -17,7 +17,7 @@ import { checkoutPaymentIntentForQuote } from '@/checkout/payment-method';
 import {
   clearStoredIdempotency,
   resolveIdempotencyKey,
-  type StoredIdempotency
+  type ResolvedIdempotency
 } from '@/checkout/idempotency';
 import { presentSubmitError } from '@/checkout/submit-error-copy';
 import { CheckoutStepper } from './checkout-stepper';
@@ -79,6 +79,14 @@ const copy = {
     unsupportedShipping: 'Choose a supported shipping destination.',
     success: 'Order is awaiting payment.',
     deadline: 'Reservation deadline',
+    blockedItems: 'Resolve unavailable items before continuing.',
+    retryQuote: 'Try again',
+    quoteIssue: {
+      unsupported:
+        'We cannot ship these items to the selected destination. Change the address to continue.',
+      network: 'We could not refresh your total. Check your connection and try again.',
+      server: 'We could not recalculate your total. Try again.'
+    },
     errors: {
       cookiesBlocked: 'Your browser is blocking cookies, so the order could not be held. Enable cookies or exit private/incognito mode and try again.',
       staleQuote: 'The price or stock just changed. Review the updated total and try again.',
@@ -118,6 +126,14 @@ const copy = {
     unsupportedShipping: 'Chọn địa chỉ giao hàng được hỗ trợ.',
     success: 'Đơn hàng đang chờ thanh toán.',
     deadline: 'Hạn giữ hàng',
+    blockedItems: 'Hãy xử lý các sản phẩm chưa khả dụng trước khi tiếp tục.',
+    retryQuote: 'Thử lại',
+    quoteIssue: {
+      unsupported:
+        'Hiện chưa thể giao các sản phẩm này tới địa chỉ đã chọn. Hãy đổi địa chỉ để tiếp tục.',
+      network: 'Không cập nhật được tổng tiền. Kiểm tra kết nối rồi thử lại.',
+      server: 'Không tính lại được tổng tiền. Hãy thử lại.'
+    },
     errors: {
       cookiesBlocked: 'Trình duyệt đang chặn cookie nên không giữ được đơn. Bật cookie hoặc thoát chế độ ẩn danh rồi thử lại.',
       staleQuote: 'Giá hoặc tình trạng hàng vừa thay đổi. Xem lại tổng tiền rồi thử lại.',
@@ -213,7 +229,8 @@ export function CheckoutPage({
   const lifecycleRef = useRef(lifecycle);
   const destinationAuthorityRef = useRef(false);
   const prefillRequestRef = useRef<string | null>(null);
-  const idempotencyRef = useRef<StoredIdempotency | null>(null);
+  const idempotencyRef = useRef<ResolvedIdempotency | null>(null);
+  const feedbackRef = useRef<HTMLDivElement | null>(null);
   const acceptedQuote = lifecycle.acceptedQuote;
   const [email, setEmail] = useState(initialEmail);
   const [contactReady, setContactReady] = useState(false);
@@ -226,6 +243,7 @@ export function CheckoutPage({
   const [submitting, setSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [feedbackRevision, setFeedbackRevision] = useState(0);
+  const [dedupeGuaranteed, setDedupeGuaranteed] = useState(true);
   const paymentIntent = checkoutPaymentIntentForQuote(acceptedQuote);
 
   const setLifecycle = useCallback((next: CheckoutQuoteLifecycleState) => {
@@ -362,6 +380,21 @@ export function CheckoutPage({
     void requestQuote(destination, nextAddress, quote, 'prefill');
   }, [quote, requestQuote, savedShippingAddress, setLifecycle, setShippingAddressState]);
 
+  // The submit button sits in a sticky bottom dock on mobile, so feedback that
+  // renders in the left column can land entirely off-screen: the customer taps
+  // and nothing appears to happen. Bring it into view — unless the error points
+  // at a specific field, in which case focusing that field scrolls to it and
+  // stealing focus here would undo the more useful move.
+  useEffect(() => {
+    const failed = submitResult && submitResult.status !== 'success';
+    if (!failed && !lifecycle.issue) return;
+    if (failed && presentSubmitError(submitResult).focusTarget) return;
+    const node = feedbackRef.current;
+    if (!node) return;
+    node.scrollIntoView({behavior: 'smooth', block: 'center'});
+    node.focus({preventScroll: true});
+  }, [lifecycle.issue, submitResult]);
+
   const physicalCount =
     acceptedQuote?.lines.filter((line) => line.fulfillmentType === 'physical' && line.quantity > 0)
       .length ?? 0;
@@ -394,6 +427,19 @@ export function CheckoutPage({
       ].filter(Boolean) as string[]
     )
   );
+  // `lifecycle.issue` used to be rendered only inside DestinationForm, which is
+  // not mounted for a digital-only cart or while a saved address is collapsed.
+  // A failed requote then disabled the submit button with nothing on screen to
+  // explain it, and only a reload recovered.
+  const quoteIssueText = lifecycle.issue
+    ? lifecycle.issue.kind === 'unsupported'
+      ? t.quoteIssue.unsupported
+      : lifecycle.issue.kind === 'network'
+        ? t.quoteIssue.network
+        : t.quoteIssue.server
+    : null;
+  const blockingNotice =
+    acceptedQuote?.status === 'blocked' ? t.blockedItems : (quoteIssueText ?? null);
   const actionDisabled =
     submitting ||
     !acceptedQuote ||
@@ -439,6 +485,15 @@ export function CheckoutPage({
     };
   }
 
+  function retryQuote() {
+    void requestQuote(
+      lifecycleRef.current.destination,
+      undefined,
+      lifecycleRef.current.acceptedQuote ?? undefined,
+      'destination'
+    );
+  }
+
   function acceptProposedQuote() {
     beginCheckoutInteraction();
     setLifecycle(acceptQuoteProposal(lifecycleRef.current));
@@ -472,6 +527,11 @@ export function CheckoutPage({
       mintKey: () => `checkout-${quoteHash.slice(0, 24)}-${globalThis.crypto.randomUUID()}`
     });
     idempotencyRef.current = resolved;
+    // Guest checkout always dedupes (the server derives the key from the
+    // httpOnly recovery cookie). Signed-in checkout only dedupes when this key
+    // survived to storage, which decides whether a lost response can honestly
+    // be reported as "your order was not created".
+    setDedupeGuaranteed(!isSignedIn || resolved.persisted);
     return resolved.key;
   }
 
@@ -793,29 +853,45 @@ export function CheckoutPage({
             </CardContent>
           </Card>
 
-          {submitResult?.status === 'success' ? (
-            <Alert variant="success">
-              {t.success} {t.deadline}:{' '}
-              {new Date(submitResult.reservationExpiresAt).toLocaleString(locale)}.
-            </Alert>
-          ) : null}
-          {submitResult && submitResult.status !== 'success'
-            ? (() => {
-                const presentation = presentSubmitError(submitResult, {
-                  dedupeGuaranteed: !isSignedIn
-                });
-                return (
-                  <Alert variant={presentation.variant}>
-                    <p>{t.errors[presentation.messageKey]}</p>
-                    {submitResult.errorId ? (
-                      <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                        {t.errors.incidentCode}: {submitResult.errorId}
-                      </p>
-                    ) : null}
-                  </Alert>
-                );
-              })()
-            : null}
+          <div ref={feedbackRef} tabIndex={-1} className="grid gap-4 outline-none empty:hidden">
+            {quoteIssueText ? (
+              <Alert variant="warning" className="grid gap-3">
+                <p>{quoteIssueText}</p>
+                {lifecycle.issue?.kind === 'unsupported' ? null : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 w-fit"
+                    disabled={lifecycle.activeRequestId !== null}
+                    onClick={retryQuote}
+                  >
+                    {t.retryQuote}
+                  </Button>
+                )}
+              </Alert>
+            ) : null}
+            {submitResult?.status === 'success' ? (
+              <Alert variant="success">
+                {t.success} {t.deadline}:{' '}
+                {new Date(submitResult.reservationExpiresAt).toLocaleString(locale)}.
+              </Alert>
+            ) : null}
+            {submitResult && submitResult.status !== 'success'
+              ? (() => {
+                  const presentation = presentSubmitError(submitResult, {dedupeGuaranteed});
+                  return (
+                    <Alert variant={presentation.variant}>
+                      <p>{t.errors[presentation.messageKey]}</p>
+                      {submitResult.errorId ? (
+                        <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                          {t.errors.incidentCode}: {submitResult.errorId}
+                        </p>
+                      ) : null}
+                    </Alert>
+                  );
+                })()
+              : null}
+          </div>
         </section>
 
         <aside className="lg:sticky lg:top-24">
@@ -844,7 +920,7 @@ export function CheckoutPage({
         label={actionLabel}
         disabled={actionDisabled}
         onSubmit={() => void submit()}
-        blockingIssue={submitAttempted ? (submitIssues[0] ?? null) : null}
+        blockingIssue={blockingNotice ?? (submitAttempted ? (submitIssues[0] ?? null) : null)}
         paymentIntent={paymentIntent}
       />
 

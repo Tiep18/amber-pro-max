@@ -13,12 +13,12 @@ const copy = {
     checks: ['Checkout still recalculates totals', 'Inventory is checked before reservation', 'Use this link before it expires']
   },
   vi: {
-    title: 'Ngoai le da duyet',
-    eyebrow: 'Lien ket duyet rieng',
-    valid: 'Lien ket ngoai le nay dang hieu luc. Checkout van tinh lai gia, van chuyen, giam gia, tuy chon va ton kho truoc khi giu hang.',
-    invalid: 'Lien ket ngoai le khong hop le hoac da het han.',
-    expires: 'Het han',
-    checks: ['Checkout van tinh lai tong tien', 'Ton kho duoc kiem tra truoc khi giu hang', 'Dung lien ket nay truoc khi het han']
+    title: 'Ngoại lệ đã duyệt',
+    eyebrow: 'Liên kết duyệt riêng',
+    valid: 'Liên kết ngoại lệ này đang hiệu lực. Trang thanh toán vẫn tính lại giá, phí giao hàng, giảm giá, tùy chọn và tồn kho trước khi giữ hàng.',
+    invalid: 'Liên kết ngoại lệ không hợp lệ hoặc đã hết hạn.',
+    expires: 'Hết hạn',
+    checks: ['Trang thanh toán vẫn tính lại tổng tiền', 'Tồn kho được kiểm tra trước khi giữ hàng', 'Dùng liên kết này trước khi hết hạn']
   }
 } as const;
 

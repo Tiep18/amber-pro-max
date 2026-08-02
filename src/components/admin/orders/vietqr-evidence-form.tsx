@@ -33,9 +33,21 @@ async function rejectAction(_: FormState, formData: FormData): Promise<FormState
   return result;
 }
 
+const REVIEW_MESSAGES: Record<string, string> = {
+  late_payment_out_of_stock:
+    'The transfer was recorded, but this order can no longer be filled — the stock it held has been sold. Refund the customer.',
+  late_payment_window_elapsed:
+    'This payment arrived too long after the hold expired to be settled automatically. Refund the customer.',
+  late_payment_detected: 'The order was parked for review instead of being settled.'
+};
+
 function notifyVietQrResult(result: VietQrAdminActionResult, action: 'confirm' | 'reject') {
   if (result.status === 'confirmed') {
-    toast.success('Payment confirmed successfully.');
+    toast.success(
+      result.lateSettlement
+        ? 'Late payment settled. Stock was re-checked and the order is now paid.'
+        : 'Payment confirmed successfully.'
+    );
     return;
   }
   if (result.status === 'rejected') {
@@ -44,6 +56,11 @@ function notifyVietQrResult(result: VietQrAdminActionResult, action: 'confirm' |
   }
   if (result.status === 'duplicate') {
     toast.info('This payment decision was already recorded.');
+    return;
+  }
+  // Not an error: the evidence was accepted, the order just moved to review.
+  if (result.status === 'review_required') {
+    toast.warning(REVIEW_MESSAGES[result.code] ?? REVIEW_MESSAGES.late_payment_detected);
     return;
   }
   if (result.status === 'stale') {
@@ -68,7 +85,9 @@ function ResultMessage({ state }: { state: FormState }) {
   const tone =
     state.status === 'confirmed' || state.status === 'rejected'
       ? 'text-[var(--success)]'
-      : 'text-[var(--destructive)]';
+      : state.status === 'review_required' || state.status === 'duplicate'
+        ? 'text-[var(--warning)]'
+        : 'text-[var(--destructive)]';
   return (
     <p
       role="alert"
@@ -117,6 +136,29 @@ export function VietQrEvidenceForm({ order }: { order: AdminOrderDetail }) {
           <dd>{formatAdminDate(evidence.paymentDeadlineAt)}</dd>
         </div>
       </dl>
+
+      {evidence.lateSettlement ? (
+        <p
+          role="status"
+          className="mt-3 rounded-[var(--radius-card)] bg-[var(--warning-surface)] p-3 text-sm font-semibold text-[var(--warning)]"
+        >
+          The hold on this order has already expired. Confirming settles a late payment: stock is
+          re-checked first, and if it is gone the order is parked for a refund instead of being
+          marked paid.
+        </p>
+      ) : null}
+      {!evidence.actionAvailable ? (
+        <p
+          role="status"
+          className="mt-3 rounded-[var(--radius-card)] bg-[var(--surface-muted)] p-3 text-sm text-[var(--muted-foreground)]"
+        >
+          {evidence.closedReason === 'window_elapsed'
+            ? 'Too long has passed since the hold expired to settle this payment here. Refund the customer instead.'
+            : evidence.closedReason === 'settled'
+              ? 'This payment already has a final decision.'
+              : 'No VietQR decision is available for this order.'}
+        </p>
+      ) : null}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <form
@@ -227,11 +269,20 @@ export function VietQrEvidenceForm({ order }: { order: AdminOrderDetail }) {
           <p className="text-sm text-[var(--muted-foreground)]">
             Rejecting releases reserved inventory and this same order cannot be retried.
           </p>
+          {/* Rejecting a lapsed order is not a transition the state machine
+              accepts — it returns `stale`. The order is already expired, its
+              stock already released, and the customer already told so. */}
+          {!evidence.rejectAvailable && evidence.actionAvailable ? (
+            <p className="text-sm font-semibold text-[var(--muted-foreground)]">
+              The hold on this order has expired, so there is nothing left to reject. Confirm the
+              transfer if it is genuine, otherwise refund the customer.
+            </p>
+          ) : null}
           <Button
             type="submit"
             variant="destructive"
-            disabled={!evidence.actionAvailable || decisionPending}
-            aria-disabled={!evidence.actionAvailable || decisionPending}
+            disabled={!evidence.rejectAvailable || decisionPending}
+            aria-disabled={!evidence.rejectAvailable || decisionPending}
           >
             {rejectPending ? 'Rejecting payment' : 'Reject payment'}
           </Button>

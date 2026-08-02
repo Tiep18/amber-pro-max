@@ -35,6 +35,9 @@ export const paymentTransitionSourceSchema = z.enum([
   'vietqr_instruction',
   'vietqr_admin',
   'reservation_expiry_job',
+  // Re-runs the stock check for an order parked at `late_payment_out_of_stock`.
+  // Carries no payment evidence of its own — see the migration's guard.
+  'admin_review_resolution',
   'system'
 ]);
 
@@ -110,5 +113,7 @@ export const paymentTransitionResultSchema = z.object({
   code: z.string().optional(),
   transitionId: z.string().optional(),
   paymentStatus: paymentInternalStatusSchema.optional(),
-  inventoryEffect: z.enum(['finalized', 'released', 'expired', 'none']).optional()
+  inventoryEffect: z.enum(['finalized', 'released', 'expired', 'none']).optional(),
+  /** True when this settled money that arrived after the reservation lapsed. */
+  lateSettlement: z.boolean().optional()
 });

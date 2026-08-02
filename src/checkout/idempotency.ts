@@ -26,6 +26,16 @@ export type StoredIdempotency = {
   key: string;
 };
 
+export type ResolvedIdempotency = StoredIdempotency & {
+  /**
+   * The key outlived the render it was minted in, so a retry after a reload
+   * reuses it and the unique index recognises the duplicate. When storage is
+   * blocked this is false, and a lost response genuinely cannot be told apart
+   * from a request that never arrived — the checkout error copy says so.
+   */
+  persisted: boolean;
+};
+
 function isStored(value: unknown): value is StoredIdempotency {
   return (
     Boolean(value) &&
@@ -52,12 +62,17 @@ export function readStoredIdempotency(storage: IdempotencyStorage | null): Store
   }
 }
 
-export function rememberIdempotency(storage: IdempotencyStorage | null, value: StoredIdempotency) {
-  if (!storage) return;
+export function rememberIdempotency(
+  storage: IdempotencyStorage | null,
+  value: StoredIdempotency
+): boolean {
+  if (!storage) return false;
   try {
-    storage.setItem(CHECKOUT_IDEMPOTENCY_STORAGE_KEY, JSON.stringify(value));
+    storage.setItem(CHECKOUT_IDEMPOTENCY_STORAGE_KEY, JSON.stringify({quoteHash: value.quoteHash, key: value.key}));
+    return true;
   } catch {
     // Non-fatal: the in-memory key still covers same-session retries.
+    return false;
   }
 }
 
@@ -83,19 +98,19 @@ export function resolveIdempotencyKey({
 }: {
   storage: IdempotencyStorage | null;
   quoteHash: string;
-  inMemory: StoredIdempotency | null;
+  inMemory: ResolvedIdempotency | null;
   mintKey: () => string;
-}): StoredIdempotency {
+}): ResolvedIdempotency {
   if (inMemory?.quoteHash === quoteHash) {
     return inMemory;
   }
 
   const stored = readStoredIdempotency(storage);
   if (stored?.quoteHash === quoteHash) {
-    return stored;
+    // Reading it back out of storage establishes that it is durable.
+    return {...stored, persisted: true};
   }
 
   const minted: StoredIdempotency = {quoteHash, key: mintKey()};
-  rememberIdempotency(storage, minted);
-  return minted;
+  return {...minted, persisted: rememberIdempotency(storage, minted)};
 }

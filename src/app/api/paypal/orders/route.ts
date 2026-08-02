@@ -9,6 +9,7 @@ import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
 import {createPayPalOrder, getPayPalOrder, type PayPalOrderSource} from '@/payments/paypal/client';
 import {logPayPalStage} from '@/payments/paypal/logging';
 import {getAuthorizedOrderPayment} from '@/payments/queries';
+import {PAYPAL_HANDOFF_MIN_WINDOW_MINUTES, PAYPAL_MAX_HOLD_MINUTES} from '@/payments/reservation';
 
 const createRouteSchema = z.object({
   orderNumber: z.string().trim().min(1).max(80)
@@ -67,6 +68,27 @@ async function recordPayPalCreateFailure(input: {
     },
     operation: async () => ({status: 'error', code})
   });
+}
+
+async function extendReservationForHandoff(client: RouteClient, orderNumber: string) {
+  // Best effort: the RPC refuses anything that is not an open PayPal payment,
+  // and a failure here must never stop a buyer from paying.
+  const {data, error} = await client.rpc('extend_paypal_reservation', {
+    p_order_number: orderNumber,
+    p_minimum_minutes: PAYPAL_HANDOFF_MIN_WINDOW_MINUTES,
+    p_max_hold_minutes: PAYPAL_MAX_HOLD_MINUTES
+  });
+  const status = isRecord(data) && typeof data.status === 'string' ? data.status : null;
+  if (error || status === 'error') {
+    logPayPalStage('create.reservation_extend_failed', {orderNumber, status}, 'warn');
+    return;
+  }
+  if (status === 'extended') {
+    logPayPalStage('create.reservation_extended', {
+      orderNumber,
+      reservationExpiresAt: isRecord(data) && typeof data.reservationExpiresAt === 'string' ? data.reservationExpiresAt : undefined
+    });
+  }
 }
 
 async function loadPayPalOrderSourceByOrderNumber(client: RouteClient, orderNumber: string): Promise<PayPalOrderSource | null> {
@@ -133,6 +155,12 @@ export async function POST(request: Request) {
     logPayPalStage('create.authorization_failed', {orderNumber: input.data.orderNumber, status: authorized.status}, 'warn');
     return json(404, {status: 'not_found'});
   }
+
+  // The buyer is starting to pay right now, so the hold should be measured
+  // from this moment rather than from order creation — otherwise someone who
+  // read the payment page for twenty minutes gets cut off inside PayPal.
+  // Extend before loading, so the loaded row carries the new deadline.
+  await extendReservationForHandoff(client, input.data.orderNumber);
 
   const order = await loadPayPalOrderSourceByOrderNumber(client, input.data.orderNumber);
   if (!order) {

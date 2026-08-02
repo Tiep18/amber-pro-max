@@ -169,7 +169,7 @@ test('destination changes require a blocking material-change confirmation', asyn
   );
 
   await page.goto('/vi/thanh-toan');
-  await expect(page.getByRole('heading', { name: 'Thanh toan' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Thanh toán' })).toBeVisible();
   await page.getByRole('combobox', { name: 'Quốc gia giao hàng' }).click();
   await page.getByRole('option', { name: /\(US\)/ }).click();
   await expect(

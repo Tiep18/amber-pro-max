@@ -76,7 +76,7 @@ export function PatternLibraryCard({
 
 function formatCustomerDate(value: string | null, locale: Locale) {
   if (!value) {
-    return locale === 'vi' ? 'Chua cap nhat' : 'Not updated yet';
+    return locale === 'vi' ? 'Chưa cập nhật' : 'Not updated yet';
   }
   return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en', {
     month: 'short',

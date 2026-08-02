@@ -228,6 +228,7 @@ export type ImmediateEmailOutboxTriggerReason =
   | 'paypal_capture_paid'
   | 'paypal_webhook_paid'
   | 'vietqr_admin_paid'
+  | 'late_review_settled'
   | 'newsletter_subscribed'
   | 'checkout_submitted';
 

@@ -26,12 +26,12 @@ const copy = {
     latest: 'Latest activity'
   },
   vi: {
-    emptyTitle: 'Ban chua co don hang nao',
-    emptyBody: 'Khi ban mua do handmade hoac pattern PDF, trang thai don va xu ly se hien o day.',
-    shop: 'Ghe cua hang',
-    summary: 'Dong thoi gian don',
-    updated: 'Cap nhat',
-    latest: 'Hoat dong gan nhat'
+    emptyTitle: 'Bạn chưa có đơn hàng nào',
+    emptyBody: 'Khi bạn mua đồ handmade hoặc mẫu PDF, trạng thái đơn và xử lý sẽ hiện ở đây.',
+    shop: 'Ghé cửa hàng',
+    summary: 'Dòng thời gian đơn',
+    updated: 'Cập nhật',
+    latest: 'Hoạt động gần nhất'
   }
 } as const;
 
@@ -82,7 +82,7 @@ function statusDot(status: string) {
 
 function formatCustomerDate(value: string | null, locale: Locale) {
   if (!value) {
-    return locale === 'vi' ? 'Chua cap nhat' : 'Not updated yet';
+    return locale === 'vi' ? 'Chưa cập nhật' : 'Not updated yet';
   }
   return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en', {
     month: 'short',

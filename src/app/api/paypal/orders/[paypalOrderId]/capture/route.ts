@@ -7,7 +7,12 @@ import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {runMonitoredAction} from '@/operations/monitoring';
 import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
-import {capturePayPalOrder, getPayPalOrder, type PayPalOrderSource} from '@/payments/paypal/client';
+import {
+  capturePayPalOrder,
+  getPayPalOrder,
+  type PayPalClientResult,
+  type PayPalOrderSource
+} from '@/payments/paypal/client';
 import {logPayPalStage, sanitizePayPalProviderOrderForLog} from '@/payments/paypal/logging';
 import {reconcilePayPalCapture} from '@/payments/paypal/mapping';
 import {getAuthorizedOrderPayment} from '@/payments/queries';
@@ -142,7 +147,52 @@ async function reconcileAndTransition({
       code: reconciled.code,
       summary: 'PayPal capture reconciliation rejected'
     });
-    return json(202, {status: 'review_required', code: reconciled.code});
+    if (
+      reconciled.code === 'paypal_capture_missing' ||
+      reconciled.code === 'paypal_capture_not_completed'
+    ) {
+      // A provider lookup can race the capture. Keep the order open and let
+      // webhook/status rechecks finish the reconciliation instead of parking a
+      // payment whose provider facts are merely incomplete.
+      return json(202, {status: 'verifying', code: reconciled.code});
+    }
+
+    const reviewTransition = await applyPaymentTransition(
+      {
+        transitionKey: `paypal-reconciliation:${order.paypalCaptureRequestId}:${reconciled.code}`,
+        source: 'paypal_recheck',
+        targetStatus: 'review_required',
+        orderNumber: order.orderNumber,
+        eventType: 'PAYMENT.CAPTURE.RECONCILIATION_REJECTED',
+        verificationStatus: 'rejected',
+        releaseReason: 'paypal_reconciliation_mismatch',
+        reviewReason: 'paypal_reconciliation_mismatch',
+        sanitizedFacts: {
+          providerOrderId: order.providerOrderId,
+          reconciliationCode: reconciled.code
+        }
+      },
+      client
+    );
+    logPayPalStage(
+      'capture.reconciliation_review_transition',
+      {
+        orderNumber: order.orderNumber,
+        orderId: order.orderId,
+        paypalOrderId: order.providerOrderId,
+        code: reconciled.code,
+        transitionStatus: reviewTransition.status,
+        paymentStatus: reviewTransition.paymentStatus
+      },
+      reviewTransition.status === 'applied' || reviewTransition.status === 'duplicate'
+        ? 'warn'
+        : 'error'
+    );
+    // This is not the same as a verified late payment. The provider response
+    // failed exact order/merchant/amount reconciliation and the local order is
+    // parked so the buyer cannot start a second PayPal attempt while operations
+    // review the mismatch.
+    return json(202, {status: 'reconciliation_required', code: reconciled.code});
   }
   logPayPalStage('capture.reconciliation_verified', {
     orderNumber: order.orderNumber,
@@ -230,7 +280,28 @@ export async function POST(_request: Request, context: {params: Promise<{paypalO
   }
   const expectedMerchantId = env.paypal.expectedMerchantId;
 
-  const captured = await capturePayPalOrder({config: env.paypal, order});
+  let captured: PayPalClientResult;
+  try {
+    captured = await capturePayPalOrder({config: env.paypal, order});
+  } catch {
+    // Defensive boundary: the client normally converts transport failures to
+    // `verifying`, but no thrown exception after approval may become a generic
+    // 500 that the browser could mistake for a definitive failed payment.
+    captured = {
+      status: 'verifying',
+      code: 'paypal_capture_uncertain',
+      paypalOrderId: params.data.paypalOrderId
+    };
+    logPayPalStage(
+      'capture.provider_capture_threw',
+      {
+        orderNumber: order.orderNumber,
+        orderId: order.orderId,
+        paypalOrderId: params.data.paypalOrderId
+      },
+      'error'
+    );
+  }
   if (captured.status !== 'captured') {
     logPayPalStage('capture.provider_capture_result', {
       orderNumber: order.orderNumber,
@@ -244,7 +315,28 @@ export async function POST(_request: Request, context: {params: Promise<{paypalO
     return reconcileAndTransition({providerOrder: captured.providerOrder, order, expectedMerchantId, client});
   }
   if (captured.status === 'verifying') {
-    const retrieved = await getPayPalOrder({config: env.paypal, paypalOrderId: params.data.paypalOrderId});
+    let retrieved: PayPalClientResult;
+    try {
+      retrieved = await getPayPalOrder({
+        config: env.paypal,
+        paypalOrderId: params.data.paypalOrderId
+      });
+    } catch {
+      retrieved = {
+        status: 'verifying',
+        code: 'paypal_provider_uncertain',
+        paypalOrderId: params.data.paypalOrderId
+      };
+      logPayPalStage(
+        'capture.provider_retrieve_threw',
+        {
+          orderNumber: order.orderNumber,
+          orderId: order.orderId,
+          paypalOrderId: params.data.paypalOrderId
+        },
+        'error'
+      );
+    }
     logPayPalStage('capture.provider_retrieve_after_uncertain', {
       orderNumber: order.orderNumber,
       orderId: order.orderId,

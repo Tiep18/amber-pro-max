@@ -1,4 +1,5 @@
 ﻿import type {CustomerPaymentStatus, FulfillmentGateStatus, PaymentInternalStatus, PaymentProvider} from '@/payments/types';
+import {resolveVietQrActionWindow} from '@/payments/vietqr/evidence';
 import {shippingAddressSchema, type ShippingAddress} from '@/checkout/shipping-address';
 import {maskEmailForAdmin, sanitizeEmailFailureCode} from '@/fulfillment/admin-email-actions';
 import {runMonitoredAction} from '@/operations/monitoring';
@@ -160,6 +161,11 @@ export type AdminOrderDetail = AdminOrderQueueItem & {
     expectedAmountMinor: number;
     paymentDeadlineAt: string | null;
     actionAvailable: boolean;
+    /** Rejection is only offered inside the original hold. */
+    rejectAvailable: boolean;
+    /** The hold has lapsed; confirming now settles a payment that arrived late. */
+    lateSettlement: boolean;
+    closedReason: 'not_vietqr' | 'no_deadline' | 'settled' | 'window_elapsed' | null;
     latestEvidence: Json | null;
   } | null;
   timeline: AdminOrderTimelineItem[];
@@ -618,14 +624,17 @@ function mapTimelineItem(row: Record<string, unknown>): AdminOrderTimelineItem |
   };
 }
 
-function isPendingVietQrAction(row: AdminOrderQueueItem) {
-  const deadlineMs = row.reservationExpiresAt ? Date.parse(row.reservationExpiresAt) : Number.NaN;
-  return (
-    row.provider === 'vietqr' &&
-    (row.paymentStatus === 'pending' || row.paymentStatus === 'verifying') &&
-    Number.isFinite(deadlineMs) &&
-    deadlineMs > Date.now()
-  );
+function vietQrActionWindowFor(row: AdminOrderQueueItem) {
+  return resolveVietQrActionWindow({
+    orderId: row.orderId,
+    orderNumber: row.orderNumber,
+    provider: row.provider,
+    paymentStatus: row.paymentStatus,
+    amountMinor: row.amountMinor,
+    currencyCode: row.currencyCode,
+    transferReference: row.orderNumber,
+    paymentDeadlineAt: row.reservationExpiresAt
+  });
 }
 
 type Orderable<T> = {order: (column: string, options?: Record<string, unknown>) => Promise<{data: T; error: unknown}>};
@@ -726,13 +735,22 @@ export async function getAdminOrderDetail({
       reviewReason: typeof data.review_reason === 'string' ? data.review_reason : null,
       vietQrEvidence:
         base.provider === 'vietqr'
-          ? {
-              transferReference: base.orderNumber,
-              expectedAmountMinor: base.amountMinor,
-              paymentDeadlineAt: base.reservationExpiresAt,
-              actionAvailable: isPendingVietQrAction(base),
-              latestEvidence: null
-            }
+          ? (() => {
+              const window = vietQrActionWindowFor(base);
+              const late = window.status === 'open' && window.late;
+              return {
+                transferReference: base.orderNumber,
+                expectedAmountMinor: base.amountMinor,
+                paymentDeadlineAt: base.reservationExpiresAt,
+                actionAvailable: window.status === 'open',
+                // Rejecting a lapsed order is not a transition the state
+                // machine will accept — see isVietQrPaymentActionAvailable.
+                rejectAvailable: window.status === 'open' && !late,
+                lateSettlement: late,
+                closedReason: window.status === 'closed' ? window.code : null,
+                latestEvidence: null
+              };
+            })()
           : null,
       timeline: timelineData.filter(isRecord).map(mapTimelineItem).filter((row): row is AdminOrderTimelineItem => Boolean(row)),
       failedEmails: await getFailedEmailsForOrder(client, base.orderId, base.orderNumber),

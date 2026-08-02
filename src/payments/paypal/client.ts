@@ -203,20 +203,49 @@ export async function capturePayPalOrder(input: CapturePayPalOrderInput): Promis
   }
 
   const transport = input.transport ?? defaultTransport;
-  const token = await getAccessToken(input.config, transport);
+  let token: string | null;
+  try {
+    token = await getAccessToken(input.config, transport);
+  } catch {
+    // The capture request was never issued, so this is a provider-access
+    // failure rather than an indeterminate payment.
+    return {status: 'error', code: 'paypal_provider_error'};
+  }
   if (!token) {
     return {status: 'error', code: 'paypal_provider_error'};
   }
 
-  const response = await transport(apiUrl(input.config, `/v2/checkout/orders/${encodeURIComponent(input.order.providerOrderId)}/capture`), {
-    method: 'POST',
-    headers: headers(token, input.order.paypalCaptureRequestId, true)
-  });
+  let response: Response;
+  try {
+    response = await transport(
+      apiUrl(
+        input.config,
+        `/v2/checkout/orders/${encodeURIComponent(input.order.providerOrderId)}/capture`
+      ),
+      {
+        method: 'POST',
+        headers: headers(token, input.order.paypalCaptureRequestId, true)
+      }
+    );
+  } catch {
+    // Once the POST has been issued, a rejected transport promise cannot tell
+    // us whether PayPal committed the capture before the connection failed.
+    return {
+      status: 'verifying',
+      code: 'paypal_capture_uncertain',
+      paypalOrderId: input.order.providerOrderId
+    };
+  }
 
   if (!response.ok) {
-    return uncertainProviderStatus(response.status)
-      ? {status: 'verifying', code: 'paypal_capture_uncertain', paypalOrderId: input.order.providerOrderId}
-      : {status: 'error', code: 'paypal_provider_error'};
+    // A non-success response after an idempotent capture request is also
+    // reconciled by GET. This covers ambiguous provider replies such as an
+    // already-processed request without inviting a second payment attempt.
+    return {
+      status: 'verifying',
+      code: 'paypal_capture_uncertain',
+      paypalOrderId: input.order.providerOrderId
+    };
   }
 
   const providerOrder = await readJson(response);
@@ -229,15 +258,36 @@ export async function getPayPalOrder(input: GetPayPalOrderInput): Promise<PayPal
   }
 
   const transport = input.transport ?? defaultTransport;
-  const token = await getAccessToken(input.config, transport);
+  let token: string | null;
+  try {
+    token = await getAccessToken(input.config, transport);
+  } catch {
+    return {
+      status: 'verifying',
+      code: 'paypal_provider_uncertain',
+      paypalOrderId: input.paypalOrderId
+    };
+  }
   if (!token) {
     return {status: 'error', code: 'paypal_provider_error'};
   }
 
-  const response = await transport(apiUrl(input.config, `/v2/checkout/orders/${encodeURIComponent(input.paypalOrderId)}`), {
-    method: 'GET',
-    headers: headers(token, undefined, true)
-  });
+  let response: Response;
+  try {
+    response = await transport(
+      apiUrl(input.config, `/v2/checkout/orders/${encodeURIComponent(input.paypalOrderId)}`),
+      {
+        method: 'GET',
+        headers: headers(token, undefined, true)
+      }
+    );
+  } catch {
+    return {
+      status: 'verifying',
+      code: 'paypal_provider_uncertain',
+      paypalOrderId: input.paypalOrderId
+    };
+  }
 
   if (!response.ok) {
     return uncertainProviderStatus(response.status)

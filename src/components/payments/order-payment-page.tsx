@@ -244,7 +244,15 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
                       pay: paypalT('pay'),
                       connecting: paypalT('connecting'),
                       reload: paypalT('reload'),
-                      unavailable: paypalT('unavailable')
+                      unavailable: paypalT('unavailable'),
+                      verifying: paypalT('verifying'),
+                      captureFailed: paypalT('captureFailed'),
+                      captureUnreachable: paypalT('captureUnreachable'),
+                      captureUncertain: paypalT('captureUncertain'),
+                      captureReconciliation: paypalT('captureReconciliation'),
+                      captureReview: paypalT('captureReview'),
+                      cancelled: paypalT('cancelled'),
+                      checkStatus: paypalT('checkStatus')
                     }}
                   />
                 ) : (

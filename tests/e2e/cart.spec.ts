@@ -38,24 +38,24 @@ test('Vietnamese shopper adds a PDF pattern and edits it in the cart', async ({ 
 
   await page.goto('/vi/san-pham/mau-gau-vn');
   await page.getByRole('button', { name: 'Mua và tải về' }).click();
-  await expect(page.getByRole('button', { name: /Gio hang, 1 san pham/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Giỏ hàng, 1 sản phẩm/ })).toBeVisible();
 
   await expect(
-    page.getByRole('dialog', { name: 'Gio hang' }).getByRole('link', { name: 'Xem gio hang' })
+    page.getByRole('dialog', { name: 'Giỏ hàng' }).getByRole('link', { name: 'Xem giỏ hàng' })
   ).toHaveAttribute('href', '/vi/gio-hang');
   await page.goto('/vi/gio-hang');
   await expect(page).toHaveURL(/\/vi\/gio-hang$/);
   const pdfLine = page.getByRole('article').filter({ hasText: 'Mau gau Viet Nam' });
   await expect(pdfLine.getByTestId('cart-line-thumbnail')).toBeVisible();
   await expect(pdfLine.getByRole('heading', { name: 'Mau gau Viet Nam' })).toBeVisible();
-  await expect(pdfLine.getByText('Mau PDF')).toBeVisible();
+  await expect(pdfLine.getByText('Mẫu PDF')).toBeVisible();
 
-  await page.getByRole('button', { name: /Tang so luong/ }).click();
+  await page.getByRole('button', { name: /Tăng số lượng/ }).click();
   await expect(pdfLine.getByText('250.000')).toBeVisible();
 
-  await page.getByRole('button', { name: /Xoa Mau gau Viet Nam/ }).click();
-  await expect(page.getByText('Da xoa khoi gio hang')).toBeVisible();
-  await page.getByRole('button', { name: 'Hoan tac' }).click();
+  await page.getByRole('button', { name: /Xóa Mau gau Viet Nam/ }).click();
+  await expect(page.getByText('Đã xóa khỏi giỏ hàng')).toBeVisible();
+  await page.getByRole('button', { name: 'Hoàn tác' }).click();
   await expect(page.getByRole('heading', { name: 'Mau gau Viet Nam' })).toBeVisible();
   await expect(page.getByText(/PayPal|VietQR/i)).toHaveCount(0);
 

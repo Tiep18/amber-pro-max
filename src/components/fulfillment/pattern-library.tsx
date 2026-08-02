@@ -22,17 +22,17 @@ const copy = {
     latest: 'Latest purchase'
   },
   vi: {
-    emptyTitle: 'Ban chua mua pattern nao',
-    emptyBody: 'Pattern PDF da thanh toan se hien tai day sau khi don duoc xac nhan.',
-    cta: 'Xem pattern PDF',
-    eyebrow: 'Quyen truy cap PDF rieng',
-    latest: 'Lan mua moi nhat'
+    emptyTitle: 'Bạn chưa mua mẫu PDF nào',
+    emptyBody: 'Mẫu PDF đã thanh toán sẽ hiện tại đây sau khi đơn được xác nhận.',
+    cta: 'Xem mẫu PDF',
+    eyebrow: 'Quyền truy cập PDF riêng',
+    latest: 'Lần mua mới nhất'
   }
 } as const;
 
 function formatCustomerDate(value: string | null, locale: Locale) {
   if (!value) {
-    return locale === 'vi' ? 'Chua cap nhat' : 'Not updated yet';
+    return locale === 'vi' ? 'Chưa cập nhật' : 'Not updated yet';
   }
   return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en', {
     month: 'short',

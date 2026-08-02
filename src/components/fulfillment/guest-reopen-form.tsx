@@ -45,15 +45,15 @@ const copy = {
     pending: 'Sending request'
   },
   vi: {
-    eyebrow: 'Truy cap don khach',
-    reopenLabel: 'Mo lai don',
-    reopenBody: 'Nhan lien ket rieng moi cho don hang da mua khi chua dang nhap.',
-    claimLabel: 'Gan vao tai khoan',
-    claimBody: 'Gan don khach vao tai khoan dung cung email khi thanh toan.',
-    trust: ['Phan hoi chung giup bao ve rieng tu don hang', 'Lien ket moi co thoi han ngan', 'Dung email da thanh toan don hang'],
-    cardTitle: 'Ho tro don hang rieng tu',
-    cardBody: 'Chung toi kiem tra don hang va email mot cach kin dao, roi gui lien ket an toan neu thong tin khop.',
-    pending: 'Dang gui yeu cau'
+    eyebrow: 'Truy cập đơn khách',
+    reopenLabel: 'Mở lại đơn',
+    reopenBody: 'Nhận liên kết riêng mới cho đơn hàng đã mua khi chưa đăng nhập.',
+    claimLabel: 'Gắn vào tài khoản',
+    claimBody: 'Gắn đơn khách vào tài khoản dùng cùng email khi thanh toán.',
+    trust: ['Phản hồi chung giúp bảo vệ riêng tư đơn hàng', 'Liên kết mới có thời hạn ngắn', 'Dùng email đã thanh toán đơn hàng'],
+    cardTitle: 'Hỗ trợ đơn hàng riêng tư',
+    cardBody: 'Chúng tôi kiểm tra đơn hàng và email một cách kín đáo, rồi gửi liên kết an toàn nếu thông tin khớp.',
+    pending: 'Đang gửi yêu cầu'
   }
 } as const;
 

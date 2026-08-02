@@ -382,7 +382,15 @@
       "connecting": "Connecting to PayPal",
       "reload": "Reload PayPal",
       "unavailable": "PayPal is not available for this order right now.",
-      "amountContext": "You will pay {amount} through PayPal."
+      "amountContext": "You will pay {amount} through PayPal.",
+      "verifying": "Payment received. We are confirming it with PayPal — this page updates on its own.",
+      "captureFailed": "PayPal did not give us enough information to complete the payment. Check the order status before trying again.",
+      "captureUnreachable": "We lost the connection to the shop while completing your payment. Do not pay again — check the order status first.",
+      "captureReview": "Your payment arrived after the hold expired, so we are checking it by hand before releasing the order.",
+      "cancelled": "Payment cancelled. Your order is still held — you can pay again below.",
+      "checkStatus": "Check order status",
+      "captureUncertain": "We could not confirm whether your payment completed. Do not pay again — check the order status below, and contact us with your order number if it still says awaiting payment.",
+      "captureReconciliation": "PayPal returned payment details that did not match this order. Do not pay again. Contact us with your order number so we can check the payment safely."
     },
     "vietqr": {
       "title": "Transfer the exact amount and reference",

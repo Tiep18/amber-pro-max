@@ -41,7 +41,7 @@ describe('checkout idempotency key persistence', () => {
       mintKey: () => 'minted-1'
     });
 
-    expect(resolved).toEqual({quoteHash: 'quote-a', key: 'minted-1'});
+    expect(resolved).toEqual({quoteHash: 'quote-a', key: 'minted-1', persisted: true});
     expect(readStoredIdempotency(storage)).toEqual({quoteHash: 'quote-a', key: 'minted-1'});
   });
 
@@ -84,7 +84,7 @@ describe('checkout idempotency key persistence', () => {
     const resolved = resolveIdempotencyKey({
       storage,
       quoteHash: 'quote-a',
-      inMemory: {quoteHash: 'quote-a', key: 'live'},
+      inMemory: {quoteHash: 'quote-a', key: 'live', persisted: true},
       mintKey: () => 'minted'
     });
 
@@ -128,7 +128,7 @@ describe('checkout idempotency key persistence', () => {
       mintKey: () => 'minted-1'
     });
 
-    expect(resolved).toEqual({quoteHash: 'quote-a', key: 'minted-1'});
+    expect(resolved).toEqual({quoteHash: 'quote-a', key: 'minted-1', persisted: false});
     expect(() => clearStoredIdempotency(storage)).not.toThrow();
   });
 
@@ -141,6 +141,53 @@ describe('checkout idempotency key persistence', () => {
     });
 
     expect(resolved.key).toBe('minted-1');
+    expect(resolved.persisted).toBe(false);
     expect(readStoredIdempotency(null)).toBeNull();
+  });
+});
+
+describe('checkout idempotency durability reporting', () => {
+  // Drives the "your order was not created" vs "we could not confirm" split in
+  // the checkout error copy: only a key that outlives a reload can promise a
+  // retry will be deduped.
+  it('reports a key read back out of storage as persisted', () => {
+    const storage = memoryStorage({
+      [CHECKOUT_IDEMPOTENCY_STORAGE_KEY]: JSON.stringify({quoteHash: 'quote-a', key: 'stored'})
+    });
+
+    const resolved = resolveIdempotencyKey({
+      storage,
+      quoteHash: 'quote-a',
+      inMemory: null,
+      mintKey: () => 'minted'
+    });
+
+    expect(resolved).toEqual({quoteHash: 'quote-a', key: 'stored', persisted: true});
+  });
+
+  it('carries an in-memory key’s durability forward instead of re-asserting it', () => {
+    const resolved = resolveIdempotencyKey({
+      storage: throwingStorage(),
+      quoteHash: 'quote-a',
+      inMemory: {quoteHash: 'quote-a', key: 'live', persisted: false},
+      mintKey: () => 'minted'
+    });
+
+    expect(resolved.persisted).toBe(false);
+  });
+
+  it('never writes the durability flag into storage', () => {
+    const storage = memoryStorage();
+    resolveIdempotencyKey({
+      storage,
+      quoteHash: 'quote-a',
+      inMemory: null,
+      mintKey: () => 'minted-1'
+    });
+
+    expect(JSON.parse(storage.dump()[CHECKOUT_IDEMPOTENCY_STORAGE_KEY])).toEqual({
+      quoteHash: 'quote-a',
+      key: 'minted-1'
+    });
   });
 });

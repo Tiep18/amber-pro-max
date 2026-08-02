@@ -9,6 +9,7 @@ import { FailedEmailQueue } from '@/components/admin/fulfillment/failed-email-qu
 import { PhysicalFulfillmentForm } from '@/components/admin/fulfillment/physical-fulfillment-form';
 import type { AdminOrderDetail } from '@/payments/queries';
 import { formatAdminDate, formatAdminMoney, statusLabel } from './format';
+import { LateReviewResolution } from './late-review-resolution';
 import { PaymentTimeline } from './payment-timeline';
 import { ProviderEvidencePanel } from './provider-evidence-panel';
 import { VietQrEvidenceForm } from './vietqr-evidence-form';
@@ -129,6 +130,7 @@ export function OrderDetail({ order }: { order: AdminOrderDetail }) {
       />
       <EntitlementAuditList items={order.entitlementAudit} />
       <FailedEmailQueue emails={order.failedEmails} />
+      <LateReviewResolution order={order} />
       <VietQrEvidenceForm order={order} />
       <PaymentTimeline items={order.timeline} />
     </div>

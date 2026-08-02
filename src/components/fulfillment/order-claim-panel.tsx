@@ -25,12 +25,12 @@ const copy = {
     checks: ['You are signed in', 'The account email matches checkout', 'This link has not expired']
   },
   vi: {
-    eyebrow: 'Nhan don khach',
-    cardTitle: 'Truoc khi gan don',
+    eyebrow: 'Nhận đơn khách',
+    cardTitle: 'Trước khi gắn đơn',
     checks: [
-      'Ban da dang nhap',
-      'Email tai khoan khop email thanh toan',
-      'Lien ket nay chua het han'
+      'Bạn đã đăng nhập',
+      'Email tài khoản khớp email thanh toán',
+      'Liên kết này chưa hết hạn'
     ]
   }
 } as const;

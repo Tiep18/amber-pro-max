@@ -382,7 +382,15 @@
       "connecting": "Đang kết nối với PayPal",
       "reload": "Tải lại PayPal",
       "unavailable": "PayPal hiện không khả dụng cho đơn hàng này.",
-      "amountContext": "Bạn sẽ thanh toán {amount} qua PayPal."
+      "amountContext": "Bạn sẽ thanh toán {amount} qua PayPal.",
+      "verifying": "Đã nhận thanh toán. Chúng tôi đang xác nhận với PayPal — trang sẽ tự cập nhật.",
+      "captureFailed": "PayPal chưa cung cấp đủ thông tin để chúng tôi hoàn tất thanh toán. Hãy kiểm tra trạng thái đơn trước khi thử lại.",
+      "captureUnreachable": "Mất kết nối tới cửa hàng khi đang hoàn tất thanh toán. Đừng thanh toán lại — hãy kiểm tra trạng thái đơn trước.",
+      "captureReview": "Thanh toán của bạn về sau khi hết hạn giữ hàng nên chúng tôi cần kiểm tra thủ công trước khi mở đơn.",
+      "cancelled": "Đã hủy thanh toán. Đơn hàng vẫn đang được giữ — bạn có thể thanh toán lại bên dưới.",
+      "checkStatus": "Kiểm tra trạng thái đơn",
+      "captureUncertain": "Chúng tôi chưa xác nhận được thanh toán của bạn đã hoàn tất hay chưa. Đừng thanh toán lại — hãy kiểm tra trạng thái đơn bên dưới, và liên hệ chúng tôi kèm mã đơn nếu vẫn báo chờ thanh toán.",
+      "captureReconciliation": "PayPal trả về thông tin thanh toán không khớp với đơn hàng này. Đừng thanh toán lại. Hãy liên hệ với chúng tôi kèm mã đơn để được kiểm tra an toàn."
     },
     "vietqr": {
       "title": "Chuyển khoản đúng số tiền và nội dung",

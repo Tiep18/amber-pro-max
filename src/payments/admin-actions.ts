@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 
 import { requireAdmin } from '@/auth/guards';
 import { triggerTransactionalEmailOutboxNow } from '@/fulfillment/email-outbox.server';
@@ -18,16 +19,36 @@ import {
   isVietQrPaymentActionAvailable,
   vietQrEvidenceSchema,
   vietQrRejectionSchema,
+  type VietQrAdminAction,
   type VietQrExpectedPayment
 } from '@/payments/vietqr/evidence';
 
+export type VietQrReviewCode =
+  | 'late_payment_out_of_stock'
+  | 'late_payment_window_elapsed'
+  | 'late_payment_detected';
+
 export type VietQrAdminActionResult =
-  | { status: 'confirmed'; paymentStatus: string }
+  | { status: 'confirmed'; paymentStatus: string; lateSettlement: boolean }
   | { status: 'rejected'; paymentStatus: string }
   | { status: 'duplicate'; paymentStatus?: string }
+  // The transfer was accepted as evidence but the order could not be settled —
+  // most often because the stock it reserved has since been sold. The order is
+  // parked for review; the shop refunds rather than promising goods it lacks.
+  | { status: 'review_required'; code: VietQrReviewCode }
   | { status: 'stale'; code: string }
   | { status: 'invalid'; code: string }
   | { status: 'error'; code: 'vietqr_action_failed' };
+
+const REVIEW_CODES: VietQrReviewCode[] = [
+  'late_payment_out_of_stock',
+  'late_payment_window_elapsed',
+  'late_payment_detected'
+];
+
+function asReviewCode(code: string | undefined): VietQrReviewCode {
+  return REVIEW_CODES.find((known) => known === code) ?? 'late_payment_detected';
+}
 
 function getFormString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -52,14 +73,29 @@ function expectedFromOrder(order: AdminOrderDetail): VietQrExpectedPayment | nul
   };
 }
 
-function mapConfirmResult(status: string, paymentStatus?: string): VietQrAdminActionResult {
-  if (status === 'applied') {
-    return { status: 'confirmed', paymentStatus: paymentStatus ?? 'paid' };
+function mapConfirmResult(transition: {
+  status: string;
+  code?: string;
+  paymentStatus?: string;
+  lateSettlement?: boolean;
+}): VietQrAdminActionResult {
+  if (transition.status === 'applied') {
+    return {
+      status: 'confirmed',
+      paymentStatus: transition.paymentStatus ?? 'paid',
+      lateSettlement: transition.lateSettlement === true
+    };
   }
-  if (status === 'duplicate') {
-    return { status: 'duplicate', paymentStatus };
+  if (transition.status === 'duplicate') {
+    return { status: 'duplicate', paymentStatus: transition.paymentStatus };
   }
-  if (status === 'stale') {
+  // Not a failure: the evidence was accepted, the order just cannot be settled
+  // right now. Reporting this as an error made the admin think nothing had
+  // happened when the order had in fact moved to the review queue.
+  if (transition.status === 'review_required') {
+    return { status: 'review_required', code: asReviewCode(transition.code) };
+  }
+  if (transition.status === 'stale') {
     return { status: 'stale', code: 'vietqr_transition_stale' };
   }
   return { status: 'error', code: 'vietqr_action_failed' };
@@ -107,7 +143,11 @@ async function recordVietQrAdminFailure(input: {
   });
 }
 
-async function loadExpectedPayment(orderId: string, admin: unknown) {
+async function loadExpectedPayment(
+  orderId: string,
+  admin: unknown,
+  action: VietQrAdminAction = 'confirm'
+) {
   const client = await createAdminOrderQueryClient();
   const detail = await getAdminOrderDetail({
     orderId,
@@ -119,11 +159,11 @@ async function loadExpectedPayment(orderId: string, admin: unknown) {
   }
 
   const expected = expectedFromOrder(detail.order);
-  if (
-    !expected ||
-    !detail.order.vietQrEvidence?.actionAvailable ||
-    !isVietQrPaymentActionAvailable(expected)
-  ) {
+  const available =
+    action === 'reject'
+      ? detail.order.vietQrEvidence?.rejectAvailable
+      : detail.order.vietQrEvidence?.actionAvailable;
+  if (!expected || !available || !isVietQrPaymentActionAvailable(expected, action)) {
     return { status: 'stale', client, expected };
   }
 
@@ -194,7 +234,17 @@ export async function confirmVietQrPaymentAction(
   ) {
     await triggerTransactionalEmailOutboxNow({ reason: 'vietqr_admin_paid' });
   }
-  if (
+  if (transition.status === 'review_required') {
+    // Expected outcome, not a bug: record it as a warning so it is visible in
+    // operations without being counted as a failed action.
+    await recordVietQrAdminFailure({
+      action: 'confirm',
+      severity: 'warning',
+      code: asReviewCode(transition.code),
+      summary: 'VietQR admin confirmation parked for review',
+      expected: loaded.expected
+    });
+  } else if (
     transition.status !== 'applied' &&
     transition.status !== 'duplicate' &&
     transition.status !== 'stale'
@@ -209,7 +259,83 @@ export async function confirmVietQrPaymentAction(
   }
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${encodeURIComponent(loaded.expected.orderNumber)}`);
-  return mapConfirmResult(transition.status, transition.paymentStatus);
+  return mapConfirmResult(transition);
+}
+
+export type ResolveLatePaymentReviewResult =
+  | { status: 'settled'; paymentStatus: string }
+  | { status: 'still_blocked'; code: VietQrReviewCode }
+  | { status: 'not_applicable'; code: string }
+  | { status: 'error'; code: 'review_resolution_failed' };
+
+/**
+ * Re-runs the stock check for an order parked at `late_payment_out_of_stock`.
+ *
+ * Provider-agnostic on purpose. VietQR could always be rescued by confirming
+ * again with a fresh idempotency key, but PayPal could not: it reuses one
+ * capture id for both the transition key and the provider event id, so every
+ * replay short-circuits as a duplicate before the stock is looked at, the
+ * capture route refuses an order past its deadline, and there was no admin
+ * path at all. That left a paid PayPal order stuck in review permanently.
+ */
+export async function resolveLatePaymentReviewAction(
+  formData: FormData
+): Promise<ResolveLatePaymentReviewResult> {
+  const admin = await requireAdmin();
+  const parsed = z
+    .object({
+      orderId: z.string().trim().min(1).max(80),
+      idempotencyKey: z.string().trim().min(8).max(160)
+    })
+    .safeParse({
+      orderId: getFormString(formData, 'orderId'),
+      idempotencyKey: getFormString(formData, 'idempotencyKey')
+    });
+  if (!parsed.success) {
+    return { status: 'not_applicable', code: 'invalid_review_resolution' };
+  }
+
+  const client = await createAdminOrderQueryClient();
+  const detail = await getAdminOrderDetail({
+    orderId: parsed.data.orderId,
+    client,
+    requireAdmin: async () => admin
+  });
+  if (detail.status !== 'success') {
+    return { status: 'not_applicable', code: 'order_not_found' };
+  }
+  if (detail.order.reviewReason !== 'late_payment_out_of_stock') {
+    // The RPC enforces this too; refusing here keeps the audit trail clean of
+    // attempts that were never going to be valid.
+    return { status: 'not_applicable', code: 'review_not_stock_blocked' };
+  }
+
+  const transition = await applyPaymentTransition(
+    {
+      transitionKey: `review-resolution:${parsed.data.idempotencyKey}`,
+      source: 'admin_review_resolution',
+      targetStatus: 'paid',
+      orderNumber: detail.order.orderNumber,
+      eventType: 'REVIEW.STOCK.RECHECKED',
+      verificationStatus: 'admin_verified'
+    },
+    client
+  );
+
+  revalidatePath('/admin/orders');
+  revalidatePath(`/admin/orders/${encodeURIComponent(detail.order.orderNumber)}`);
+
+  if (transition.status === 'applied' && transition.paymentStatus === 'paid') {
+    await triggerTransactionalEmailOutboxNow({ reason: 'late_review_settled' });
+    return { status: 'settled', paymentStatus: 'paid' };
+  }
+  if (transition.status === 'review_required') {
+    return { status: 'still_blocked', code: asReviewCode(transition.code) };
+  }
+  if (transition.status === 'invalid' || transition.status === 'stale') {
+    return { status: 'not_applicable', code: transition.code ?? 'review_not_resolvable' };
+  }
+  return { status: 'error', code: 'review_resolution_failed' };
 }
 
 export async function rejectVietQrPaymentAction(
@@ -235,7 +361,7 @@ export async function rejectVietQrPaymentAction(
     return { status: 'invalid', code: 'invalid_vietqr_rejection' };
   }
 
-  const loaded = await loadExpectedPayment(parsed.data.orderId, admin);
+  const loaded = await loadExpectedPayment(parsed.data.orderId, admin, 'reject');
   if (loaded.status !== 'success' || !loaded.expected) {
     await recordVietQrAdminFailure({
       action: 'reject',

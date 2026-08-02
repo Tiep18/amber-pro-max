@@ -14,6 +14,8 @@ import {
   buildVietQrConfirmTransition,
   buildVietQrRejectTransition,
   compareVietQrEvidence,
+  isVietQrPaymentActionAvailable,
+  resolveVietQrActionWindow,
   type VietQrExpectedPayment
 } from '@/payments/vietqr/evidence';
 import {
@@ -78,6 +80,10 @@ function createActionClient({
       expectedAmountMinor: order.amountMinor,
       paymentDeadlineAt: order.reservationExpiresAt,
       actionAvailable: true,
+      // The fixture order is still inside its hold, so both decisions are open.
+      rejectAvailable: true,
+      lateSettlement: false,
+      closedReason: null,
       latestEvidence: null
     },
     timeline: []
@@ -147,6 +153,9 @@ async function importAdminActions({
     rejectVietQrPaymentAction: actions.rejectVietQrPaymentAction as (
       formData: FormData
     ) => Promise<unknown>,
+    resolveLatePaymentReviewAction: actions.resolveLatePaymentReviewAction as (
+      formData: FormData
+    ) => Promise<unknown>,
     applyPaymentTransition: vi.mocked(transitions.applyPaymentTransition),
     triggerTransactionalEmailOutboxNow: vi.mocked(emailOutbox.triggerTransactionalEmailOutboxNow),
     recordOperationalFailure,
@@ -179,6 +188,31 @@ function rejectForm(overrides: Record<string, string> = {}) {
   }
   return formData;
 }
+
+function reviewResolutionForm(overrides: Record<string, string> = {}) {
+  const formData = new FormData();
+  formData.set('orderId', order.orderId);
+  formData.set('idempotencyKey', 'admin-review-atb-20260615-0002');
+  for (const [key, value] of Object.entries(overrides)) {
+    formData.set(key, value);
+  }
+  return formData;
+}
+
+// A PayPal order parked at `late_payment_out_of_stock`: the money was verified,
+// only the stock was missing. Replaying the capture cannot rescue it.
+const reviewBlockedDetail = {
+  orderId: order.orderId,
+  orderNumber: order.orderNumber,
+  paymentId: order.paymentId,
+  provider: 'paypal',
+  paymentStatus: 'review_required',
+  amountMinor: order.amountMinor,
+  currencyCode: 'USD',
+  reservationExpiresAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+  vietQrEvidence: null,
+  timeline: []
+};
 
 describe('VietQR instruction and evidence contract', () => {
   beforeEach(() => {
@@ -434,6 +468,204 @@ describe('VietQR instruction and evidence contract', () => {
     });
   });
 
+  test('a transfer reconciled after the hold lapsed can still be settled, within the window', () => {
+    // The 24h hold expiring does not make a bank transfer unreal. A shop that
+    // reconciles its statement once a day could previously never accept one:
+    // both the confirm and reject buttons were gated on a future deadline.
+    const deadline = '2026-06-16T09:00:00.000Z';
+    const expired: VietQrExpectedPayment = {
+      ...expectedPayment,
+      paymentStatus: 'expired',
+      paymentDeadlineAt: deadline
+    };
+
+    expect(
+      resolveVietQrActionWindow(
+        {...expectedPayment, paymentDeadlineAt: deadline},
+        new Date('2026-06-16T08:00:00.000Z')
+      )
+    ).toEqual({status: 'open', late: false});
+
+    expect(resolveVietQrActionWindow(expired, new Date('2026-06-17T09:00:00.000Z'))).toEqual({
+      status: 'open',
+      late: true,
+      deadlinePassedAt: deadline
+    });
+
+    expect(
+      resolveVietQrActionWindow(
+        {...expired, paymentStatus: 'review_required'},
+        new Date('2026-06-22T09:00:00.000Z')
+      )
+    ).toEqual({status: 'open', late: true, deadlinePassedAt: deadline});
+  });
+
+  test('closes the VietQR decision once the late window elapses or the payment is settled', () => {
+    const deadline = '2026-06-16T09:00:00.000Z';
+    const expired: VietQrExpectedPayment = {
+      ...expectedPayment,
+      paymentStatus: 'expired',
+      paymentDeadlineAt: deadline
+    };
+
+    // Exactly 7 days later is already outside the window.
+    expect(resolveVietQrActionWindow(expired, new Date('2026-06-23T09:00:00.000Z'))).toEqual({
+      status: 'closed',
+      code: 'window_elapsed'
+    });
+    expect(
+      resolveVietQrActionWindow({...expired, paymentStatus: 'paid'}, new Date('2026-06-17T09:00:00.000Z'))
+    ).toEqual({status: 'closed', code: 'settled'});
+    // A rejection is a deliberate decision, not a late arrival.
+    expect(
+      resolveVietQrActionWindow({...expired, paymentStatus: 'rejected'}, new Date('2026-06-17T09:00:00.000Z'))
+    ).toEqual({status: 'closed', code: 'settled'});
+    expect(
+      resolveVietQrActionWindow({...expired, paymentDeadlineAt: null}, new Date('2026-06-17T09:00:00.000Z'))
+    ).toEqual({status: 'closed', code: 'no_deadline'});
+  });
+
+  test('rejection is never offered once the hold has lapsed', () => {
+    // `apply_payment_transition` only treats `paid` as a late-settleable
+    // target; a late `rejected` comes back `stale`. Offering the button would
+    // have the admin press it and be told the payment state had changed.
+    const deadline = '2026-06-16T09:00:00.000Z';
+    const onTime = {...expectedPayment, paymentDeadlineAt: deadline};
+    const late: VietQrExpectedPayment = {
+      ...expectedPayment,
+      paymentStatus: 'expired',
+      paymentDeadlineAt: deadline
+    };
+    const during = new Date('2026-06-16T08:00:00.000Z');
+    const after = new Date('2026-06-17T09:00:00.000Z');
+
+    expect(isVietQrPaymentActionAvailable(onTime, 'confirm', during)).toBe(true);
+    expect(isVietQrPaymentActionAvailable(onTime, 'reject', during)).toBe(true);
+    expect(isVietQrPaymentActionAvailable(late, 'confirm', after)).toBe(true);
+    expect(isVietQrPaymentActionAvailable(late, 'reject', after)).toBe(false);
+  });
+
+  test('the stock recheck settles an order that was only ever blocked on stock', async () => {
+    const {resolveLatePaymentReviewAction, applyPaymentTransition, requireAdmin} =
+      await importAdminActions({
+        client: createActionClient({
+          detail: {...reviewBlockedDetail, reviewReason: 'late_payment_out_of_stock'},
+          transition: {status: 'applied', paymentStatus: 'paid', lateSettlement: true}
+        })
+      });
+
+    await expect(
+      resolveLatePaymentReviewAction(reviewResolutionForm())
+    ).resolves.toEqual({status: 'settled', paymentStatus: 'paid'});
+    expect(requireAdmin).toHaveBeenCalledOnce();
+    expect(applyPaymentTransition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'admin_review_resolution',
+        targetStatus: 'paid',
+        orderNumber: order.orderNumber
+      }),
+      expect.anything()
+    );
+    // It must never be able to claim a payment arrived.
+    expect(applyPaymentTransition).not.toHaveBeenCalledWith(
+      expect.objectContaining({providerEventId: expect.anything()}),
+      expect.anything()
+    );
+  });
+
+  test('the stock recheck refuses an order that is not parked on stock', async () => {
+    const {resolveLatePaymentReviewAction, applyPaymentTransition} = await importAdminActions({
+      client: createActionClient({
+        detail: {...reviewBlockedDetail, reviewReason: 'late_payment_detected'}
+      })
+    });
+
+    await expect(resolveLatePaymentReviewAction(reviewResolutionForm())).resolves.toEqual({
+      status: 'not_applicable',
+      code: 'review_not_stock_blocked'
+    });
+    expect(applyPaymentTransition).not.toHaveBeenCalled();
+  });
+
+  test('the stock recheck reports still-missing stock instead of claiming success', async () => {
+    const {resolveLatePaymentReviewAction, triggerTransactionalEmailOutboxNow} =
+      await importAdminActions({
+        client: createActionClient({
+          detail: {...reviewBlockedDetail, reviewReason: 'late_payment_out_of_stock'},
+          transition: {
+            status: 'review_required',
+            code: 'late_payment_out_of_stock',
+            paymentStatus: 'review_required'
+          }
+        })
+      });
+
+    await expect(resolveLatePaymentReviewAction(reviewResolutionForm())).resolves.toEqual({
+      status: 'still_blocked',
+      code: 'late_payment_out_of_stock'
+    });
+    expect(triggerTransactionalEmailOutboxNow).not.toHaveBeenCalled();
+  });
+
+  test('a lapsed order refuses rejection before it ever reaches the state machine', async () => {
+    // The DB answers `stale` for a late `rejected`, so the action must stop
+    // first — otherwise the admin presses a live button and is told the
+    // payment state changed underneath them.
+    const {rejectVietQrPaymentAction, applyPaymentTransition} = await importAdminActions({
+      client: createActionClient({
+        detail: {
+          orderId: order.orderId,
+          orderNumber: order.orderNumber,
+          paymentId: order.paymentId,
+          provider: 'vietqr',
+          paymentStatus: 'expired',
+          amountMinor: order.amountMinor,
+          currencyCode: 'VND',
+          reservationExpiresAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+          vietQrEvidence: {
+            transferReference: order.orderNumber,
+            expectedAmountMinor: order.amountMinor,
+            paymentDeadlineAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+            actionAvailable: true,
+            rejectAvailable: false,
+            lateSettlement: true,
+            closedReason: null,
+            latestEvidence: null
+          },
+          timeline: []
+        }
+      })
+    });
+
+    await expect(rejectVietQrPaymentAction(rejectForm())).resolves.toEqual({
+      status: 'stale',
+      code: 'vietqr_action_not_available'
+    });
+    expect(applyPaymentTransition).not.toHaveBeenCalled();
+  });
+
+  test('a late confirmation blocked on stock is reported as review, not as a failed action', async () => {
+    const {confirmVietQrPaymentAction, triggerTransactionalEmailOutboxNow} =
+      await importAdminActions({
+        client: createActionClient({
+          transition: {
+            status: 'review_required',
+            code: 'late_payment_out_of_stock',
+            paymentStatus: 'review_required',
+            inventoryEffect: 'expired'
+          }
+        })
+      });
+
+    // Reporting this as `error` told the admin nothing had happened when the
+    // order had in fact moved to the review queue awaiting a refund.
+    await expect(confirmVietQrPaymentAction(confirmForm())).resolves.toEqual({
+      status: 'review_required',
+      code: 'late_payment_out_of_stock'
+    });
+    expect(triggerTransactionalEmailOutboxNow).not.toHaveBeenCalled();
+  });
+
   test('admin actions authorize before parsing and delegate exact confirmation to the shared transition command', async () => {
     const {
       confirmVietQrPaymentAction,
@@ -445,7 +677,7 @@ describe('VietQR instruction and evidence contract', () => {
 
     const result = await confirmVietQrPaymentAction(confirmForm());
 
-    expect(result).toEqual({ status: 'confirmed', paymentStatus: 'paid' });
+    expect(result).toEqual({ status: 'confirmed', paymentStatus: 'paid', lateSettlement: false });
     expect(requireAdmin).toHaveBeenCalledOnce();
     expect(applyPaymentTransition).toHaveBeenCalledWith(
       expect.objectContaining({

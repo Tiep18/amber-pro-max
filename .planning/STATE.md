@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 09 (independent-locale-and-market-commerce-projection-with-seo-s) — EXECUTING
 Plan: 15 of 15
 Status: Ready to execute
-Last activity: 2026-08-01 -- Completed quick task 260801-g59: enlarged product carousel chevrons
+Last activity: 2026-08-03 -- Completed quick task 260803-0k2: hardened PayPal capture uncertainty and reconciliation feedback
 
 Progress: Phase 09 Plan 14 is complete; Plan 15 is next.
 
@@ -222,6 +222,7 @@ None yet.
 
 | #                                                     | Description                                                                                                                      | Date       | Commit      | Status                                                                                                                                                    | Directory                                                                  |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 260803-0k2                                            | Harden PayPal post-approval uncertainty, persist reconciliation mismatches, and prevent unsafe duplicate payment attempts         | 2026-08-03 | this commit | Complete                                                                                                                                                  | [260803-0k2](./quick/260803-0k2-harden-paypal-capture-uncertainty-and-re/) |
 | 260801-g59                                            | Increase product carousel chevrons from 16px to 18px while preserving the 32px surface and 44px touch target                     | 2026-08-01 | 5d9619c4    | Complete                                                                                                                                                  | [260801-g59](./quick/260801-g59-tang-kich-thuoc-icon-nut-dieu-huong-caro/) |
 | 260801-fso                                            | Refine carousel navigation controls with smaller translucent surfaces and subtle hover/focus emphasis                            | 2026-08-01 | 70562626    | Complete                                                                                                                                                  | [260801-fso](./quick/260801-fso-tinh-chinh-nut-truoc-sau-carousel-anh-nh/) |
 | 260801-e9i                                            | Add an animated, swipeable product image carousel with accessible controls and localized labels                                  | 2026-08-01 | cb377799    | Complete                                                                                                                                                  | [260801-e9i](./quick/260801-e9i-them-carousel-anh-co-animation-nut-dieu-/) |

@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import {
+  resolveCaptureOutcome,
+  type PayPalCaptureOutcome
+} from '@/payments/paypal-capture-outcome';
 import { logPayPalStage } from '@/payments/paypal/logging';
 
 const PAYPAL_SDK_LOADING_DELAY_MS = 300;
@@ -13,7 +18,21 @@ type PayPalButtonLabels = {
   connecting: string;
   reload: string;
   unavailable: string;
+  verifying: string;
+  captureFailed: string;
+  captureUnreachable: string;
+  captureUncertain: string;
+  captureReconciliation: string;
+  captureReview: string;
+  cancelled: string;
+  checkStatus: string;
 };
+
+// What the buyer is told after they come back from PayPal. Before this existed
+// a failed capture only wrote to the console: the buyer had just approved a
+// payment, the page silently re-rendered as "awaiting payment", and nothing
+// explained whether their money had moved.
+type ApprovalOutcome = PayPalCaptureOutcome | 'cancelled' | 'sdk_error';
 
 type PayPalButtonsProps = {
   orderNumber: string;
@@ -62,12 +81,17 @@ export function PayPalButtons({ orderNumber, clientId, amountLabel, labels }: Pa
   const [scriptState, setScriptState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [showLoading, setShowLoading] = useState(false);
   const [pending, setPending] = useState(false);
+  const [outcome, setOutcome] = useState<ApprovalOutcome | null>(null);
   const [refreshPending, startRefresh] = useTransition();
 
-  const moveToVerifying = useCallback(() => {
-    setPending(false);
-    startRefresh(() => router.refresh());
-  }, [router, startRefresh]);
+  const moveToVerifying = useCallback(
+    (nextOutcome: ApprovalOutcome | null) => {
+      setPending(false);
+      setOutcome(nextOutcome);
+      startRefresh(() => router.refresh());
+    },
+    [router, startRefresh]
+  );
 
   useEffect(() => {
     const loadingTimer = window.setTimeout(() => setShowLoading(true), PAYPAL_SDK_LOADING_DELAY_MS);
@@ -137,38 +161,48 @@ export function PayPalButtons({ orderNumber, clientId, amountLabel, labels }: Pa
       },
       onApprove: async (data) => {
         const paypalOrderId = data.orderID ?? data.orderId;
-        if (paypalOrderId) {
-          const response = await fetch(
-            `/api/paypal/orders/${encodeURIComponent(paypalOrderId)}/capture`,
-            { method: 'POST' }
-          );
-          const body = await readJson(response);
-          const status = typeof body.status === 'string' ? body.status : undefined;
-          if (!response.ok || status !== 'paid') {
-            logPayPalStage(
-              'client.capture_not_paid_after_approval',
-              {
-                orderNumber,
-                paypalOrderId,
-                httpStatus: response.status,
-                status,
-                paymentStatus:
-                  typeof body.paymentStatus === 'string' ? body.paymentStatus : undefined,
-                code: typeof body.code === 'string' ? body.code : undefined
-              },
-              'warn'
-            );
-          }
+        if (!paypalOrderId) {
+          moveToVerifying('capture_failed');
+          return;
         }
-        moveToVerifying();
+
+        let response: Response;
+        try {
+          response = await fetch(`/api/paypal/orders/${encodeURIComponent(paypalOrderId)}/capture`, {
+            method: 'POST'
+          });
+        } catch {
+          logPayPalStage('client.capture_unreachable', { orderNumber, paypalOrderId }, 'error');
+          moveToVerifying(resolveCaptureOutcome({ reachable: false }));
+          return;
+        }
+
+        const body = await readJson(response);
+        const status = typeof body.status === 'string' ? body.status : undefined;
+        const outcome = resolveCaptureOutcome({ reachable: true, ok: response.ok, status });
+        if (outcome !== 'verifying') {
+          logPayPalStage(
+            'client.capture_not_paid_after_approval',
+            {
+              orderNumber,
+              paypalOrderId,
+              httpStatus: response.status,
+              status,
+              paymentStatus: typeof body.paymentStatus === 'string' ? body.paymentStatus : undefined,
+              code: typeof body.code === 'string' ? body.code : undefined
+            },
+            'warn'
+          );
+        }
+        moveToVerifying(outcome);
       },
       onCancel: () => {
         logPayPalStage('client.cancelled_by_buyer', { orderNumber }, 'warn');
-        moveToVerifying();
+        moveToVerifying('cancelled');
       },
       onError: () => {
         logPayPalStage('client.sdk_error', { orderNumber }, 'error');
-        moveToVerifying();
+        moveToVerifying('sdk_error');
       }
     });
 
@@ -195,16 +229,71 @@ export function PayPalButtons({ orderNumber, clientId, amountLabel, labels }: Pa
     );
   }
 
+  const outcomeMessage = outcome
+    ? {
+        verifying: labels.verifying,
+        capture_failed: labels.captureFailed,
+        capture_unreachable: labels.captureUnreachable,
+        capture_uncertain: labels.captureUncertain,
+        capture_reconciliation: labels.captureReconciliation,
+        capture_review: labels.captureReview,
+        cancelled: labels.cancelled,
+        sdk_error: labels.unavailable
+      }[outcome]
+    : null;
+  // "Check the order status" is the only safe next step whenever we cannot say
+  // where the money is, so both uncertain outcomes offer it.
+  const outcomeNeedsStatusCheck =
+    outcome === 'capture_failed' ||
+    outcome === 'capture_unreachable' ||
+    outcome === 'capture_uncertain' ||
+    outcome === 'capture_reconciliation';
+  // A buyer must not be able to start another PayPal attempt while the first
+  // capture may already have moved money or is awaiting manual review.
+  const paymentMayHaveMoved =
+    outcome === 'verifying' ||
+    outcome === 'capture_unreachable' ||
+    outcome === 'capture_uncertain' ||
+    outcome === 'capture_reconciliation' ||
+    outcome === 'capture_review';
+  const outcomeVariant =
+    outcome === 'capture_failed' || outcome === 'capture_unreachable' || outcome === 'sdk_error'
+      ? 'destructive'
+      : outcome === 'verifying'
+        ? 'success'
+        : 'warning';
+
   return (
     <div className="grid gap-3" aria-busy={pending || refreshPending}>
       <div>
         <p className="text-sm font-semibold">{labels.pay}</p>
         <p className="text-sm text-[var(--muted-foreground)]">{amountLabel}</p>
       </div>
-      {showLoading && scriptState === 'loading' ? (
+      {outcomeMessage ? (
+        <Alert variant={outcomeVariant} className="grid gap-3 p-3 text-sm">
+          <p>{outcomeMessage}</p>
+          {outcomeNeedsStatusCheck ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11 w-fit"
+              disabled={refreshPending}
+              onClick={() => startRefresh(() => router.refresh())}
+            >
+              {labels.checkStatus}
+            </Button>
+          ) : null}
+        </Alert>
+      ) : null}
+      {showLoading && scriptState === 'loading' && !paymentMayHaveMoved ? (
         <div className="min-h-12 rounded-[var(--radius-control)] bg-[var(--surface-muted)]" />
       ) : null}
-      <div ref={containerRef} className="min-h-12" />
+      <div
+        ref={containerRef}
+        className="min-h-12"
+        hidden={paymentMayHaveMoved}
+        aria-hidden={paymentMayHaveMoved}
+      />
       {pending || refreshPending ? (
         <p className="text-sm text-[var(--muted-foreground)]">{labels.connecting}</p>
       ) : null}
