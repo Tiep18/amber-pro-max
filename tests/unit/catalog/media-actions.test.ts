@@ -92,7 +92,7 @@ describe('catalog media operational recording', () => {
       })
     );
     expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(
-      /alt rieng tu|Private alt|private media|database|email|token/i
+      /alt riêng tư|Private alt|private media|database|email|token/i
     );
   });
 

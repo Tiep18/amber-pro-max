@@ -236,8 +236,8 @@ test('admin persists an incomplete draft and publish saves the current editor sn
 
   await selectLocale(page, 'seo', 'Vietnamese');
   await page.getByLabel('Vietnamese slug').fill(`mau-tho-mua-xuan-${slugSuffix}`);
-  await page.getByLabel('Vietnamese SEO title').fill('Mau tho mua xuan');
-  await page.getByLabel('Vietnamese SEO description').fill('Tai mau moc tho mua xuan.');
+  await page.getByLabel('Vietnamese SEO title').fill('Mẫu thỏ mùa xuân');
+  await page.getByLabel('Vietnamese SEO description').fill('Tải mẫu móc thỏ mùa xuân.');
   await selectLocale(page, 'seo', 'English');
   await page.getByLabel('English slug').fill(`publish-snapshot-bunny-${slugSuffix}`);
   await page.getByLabel('English SEO title').fill('Publish snapshot bunny');

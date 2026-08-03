@@ -46,11 +46,11 @@ async function createPublishedPhysicalProduct() {
       {
         product_id: id,
         locale: 'vi',
-        title: 'Gau hoi tu thi truong',
-        description: 'Gau kiem thu hoi tu thi truong.',
+        title: 'Gấu hội tụ thị trường',
+        description: 'Gấu kiểm thử hội tụ thị trường.',
         specifications: { material: 'cotton' },
         slug: `gau-hoi-tu-${suffix}`,
-        seo_title: 'Gau hoi tu thi truong',
+        seo_title: 'Gấu hội tụ thị trường',
         seo_description: 'Gau handmade.'
       },
       {
@@ -249,7 +249,7 @@ test('committed market survives reload and client navigation without locale drif
   await expect(trigger).toHaveAccessibleName(/Ngôn ngữ: Tiếng Việt.*Khu vực mua sắm: Quốc tế/i);
   const catalogLink = session.page
     .getByRole('banner')
-    .getByRole('link', { name: 'Cua hang', exact: true });
+    .getByRole('link', { name: 'Cửa hàng', exact: true });
   await Promise.all([session.page.waitForURL(/\/vi\/cua-hang$/), catalogLink.click()]);
 
   await expect(session.page).toHaveURL(/\/vi\/cua-hang$/);

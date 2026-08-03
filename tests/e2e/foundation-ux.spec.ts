@@ -23,7 +23,7 @@ for (const viewport of viewports) {
       await expect(page.getByRole('banner')).toBeVisible();
       await expect(page.getByRole('contentinfo')).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-      await expect(page.getByRole('button', {name: /cart|gio hang/i})).toBeVisible();
+      await expect(page.getByRole('button', {name: /cart|giỏ hàng/i})).toBeVisible();
     }
   });
 }
@@ -33,7 +33,7 @@ test('auth form basics stay accessible on mobile', async ({page}) => {
   await page.goto('/vi/dang-nhap');
 
   await expect(page.getByLabel('Email')).toBeVisible();
-  await expect(page.getByLabel('Mat khau')).toBeVisible();
+  await expect(page.getByLabel('Mật khẩu')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

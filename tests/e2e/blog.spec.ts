@@ -19,7 +19,7 @@ async function createBlogCategory(name: string) {
     method: 'POST',
     body: JSON.stringify([
       {category_id: id, locale: 'en', slug: `${name}-en`, name: 'Guides EN', description: ''},
-      {category_id: id, locale: 'vi', slug: `${name}-vi`, name: 'Huong dan VI', description: ''}
+      {category_id: id, locale: 'vi', slug: `${name}-vi`, name: 'Hướng dẫn VI', description: ''}
     ])
   });
   return id;
@@ -37,7 +37,7 @@ async function createBlogTag(name: string) {
     method: 'POST',
     body: JSON.stringify([
       {tag_id: id, locale: 'en', slug: `${name}-tag-en`, name: 'Care EN'},
-      {tag_id: id, locale: 'vi', slug: `${name}-tag-vi`, name: 'Cham soc VI'}
+      {tag_id: id, locale: 'vi', slug: `${name}-tag-vi`, name: 'Chăm sóc VI'}
     ])
   });
   return id;
@@ -80,9 +80,9 @@ async function createBlogPost({
         post_id: id,
         locale: 'vi',
         slug: `cham-soc-do-moc-${suffix}`,
-        title: `Cham soc do moc ${suffix}`,
-        description: 'Ghi chu cham soc do moc thu cong.',
-        body: 'Giu thu bong moc sach va kho.\n\nBao quan tranh nang truc tiep.',
+        title: `Chăm sóc đồ móc ${suffix}`,
+        description: 'Ghi chú chăm sóc đồ móc thủ công.',
+        body: 'Giữ thú bông móc sạch và khô.\n\nBảo quản tránh nắng trực tiếp.',
         social_image_bucket: 'blog-media',
         social_image_path: 'care-vi.jpg'
       }
@@ -152,10 +152,10 @@ test('BLOG-01 BLOG-02 D-02 D-03 public blog renders published localized posts on
 
 test('BLOG-01 D-04 Vietnamese blog alias renders localized detail', async ({page}) => {
   await page.goto('/vi/bai-viet');
-  const href = await page.getByRole('link', {name: /Cham soc do moc/}).first().getAttribute('href');
+  const href = await page.getByRole('link', {name: /Chăm sóc đồ móc/}).first().getAttribute('href');
   expect(href).toMatch(/^\/vi\/bai-viet\/cham-soc-do-moc-/);
   await page.goto(href!);
-  await expect(page.getByRole('heading', {name: /Cham soc do moc/})).toBeVisible();
-  await expect(page.getByText('Cham soc VI')).toBeVisible();
-  await expect(page.getByText('Giu thu bong moc sach va kho.')).toBeVisible();
+  await expect(page.getByRole('heading', {name: /Chăm sóc đồ móc/})).toBeVisible();
+  await expect(page.getByText('Chăm sóc VI')).toBeVisible();
+  await expect(page.getByText('Giữ thú bông móc sạch và khô.')).toBeVisible();
 });

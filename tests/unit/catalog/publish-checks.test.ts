@@ -33,12 +33,12 @@ function validDraft(): ProductDraftInput {
     productType: 'pdf_pattern' as const,
     translations: {
       vi: {
-        title: 'Mau gau nho',
-        description: 'Huong dan moc gau.',
+        title: 'Mẫu gấu nhỏ',
+        description: 'Hướng dẫn móc gấu.',
         specifications: '{"difficulty":"easy"}',
         slug: 'mau-gau-nho',
-        seoTitle: 'Mau gau nho',
-        seoDescription: 'Tai mau moc gau nho.'
+        seoTitle: 'Mẫu gấu nhỏ',
+        seoDescription: 'Tải mẫu móc gấu nhỏ.'
       },
       en: {
         title: 'Little bear pattern',

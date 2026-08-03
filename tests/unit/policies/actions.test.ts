@@ -82,7 +82,7 @@ describe('policy admin action operational recording', () => {
         })
       })
     );
-    expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/policy_secret|relation|Sensitive policy|Noi dung|SEO|privacy-en|email|token/i);
+    expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/policy_secret|relation|Sensitive policy|Nội dung|SEO|privacy-en|email|token/i);
   });
 
   it('records publish issue lookup failures without exposing raw issue details', async () => {

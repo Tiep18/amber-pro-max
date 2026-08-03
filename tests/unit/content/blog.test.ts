@@ -44,11 +44,11 @@ function validDraft(): BlogPostDraftInput {
     translations: {
       vi: {
         slug: 'huong-dan-moc-gau',
-        title: 'Huong dan moc gau',
-        description: 'Bai viet huong dan moc gau nho.',
-        body: 'Noi dung bai viet tieng Viet.',
-        seoTitle: 'Huong dan moc gau',
-        seoDescription: 'Hoc cach moc gau nho.',
+        title: 'Hướng dẫn móc gấu',
+        description: 'Bài viết hướng dẫn móc gấu nhỏ.',
+        body: 'Nội dung bài viết tiếng Việt.',
+        seoTitle: 'Hướng dẫn móc gấu',
+        seoDescription: 'Học cách móc gấu nhỏ.',
         socialImageBucket: 'blog-media',
         socialImagePath: 'blog/bear-vi.jpg'
       },
@@ -203,7 +203,7 @@ describe('blog admin actions - BLOG-02 D-01 D-03', () => {
         })
       })
     );
-    expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/Crochet bear|Huong dan|private tag|blog\/bear|seo|slug|body/i);
+    expect(JSON.stringify(recordOperationalFailureMock.mock.calls)).not.toMatch(/Crochet bear|Hướng dẫn|private tag|blog\/bear|seo|slug|body/i);
   });
 
   it('records schedule blocker lookup failures without exposing raw content', async () => {

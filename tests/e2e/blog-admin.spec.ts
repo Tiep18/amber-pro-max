@@ -150,12 +150,12 @@ test('admin creates a bilingual blog draft and sees publish blockers', async ({ 
 
   await page.getByLabel('Category').click();
   await page.getByRole('option', { name: category.label }).click();
-  await page.getByLabel('Vietnamese title').fill('Ghi chu cham soc len');
+  await page.getByLabel('Vietnamese title').fill('Ghi chú chăm sóc len');
   await page.getByLabel('Vietnamese slug').fill(`ghi-chu-cham-soc-len-${slugSuffix}`);
-  await page.getByLabel('Vietnamese description').fill('Cach giu thu bong moc sach va ben.');
-  await page.getByLabel('Vietnamese body').fill('Noi dung huong dan cham soc thu bong moc.');
-  await page.getByLabel('Vietnamese SEO title').fill('Cham soc do moc');
-  await page.getByLabel('Vietnamese SEO description').fill('Huong dan cham soc thu bong moc.');
+  await page.getByLabel('Vietnamese description').fill('Cách giữ thú bông móc sạch và bền.');
+  await page.getByLabel('Vietnamese body').fill('Nội dung hướng dẫn chăm sóc thú bông móc.');
+  await page.getByLabel('Vietnamese SEO title').fill('Chăm sóc đồ móc');
+  await page.getByLabel('Vietnamese SEO description').fill('Hướng dẫn chăm sóc thú bông móc.');
 
   await page.getByRole('tab', { name: /English/ }).click();
   await page.getByLabel('English title').fill(englishTitle);

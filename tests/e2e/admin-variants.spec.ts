@@ -67,12 +67,12 @@ async function createPhysicalProduct() {
       {
         product_id: id,
         locale: 'vi',
-        title: 'Gau bong thanh pham',
-        description: 'Gau bong moc san.',
+        title: 'Gấu bông thành phẩm',
+        description: 'Gấu bông móc sẵn.',
         specifications: { material: 'cotton' },
         slug: `gau-bong-thanh-pham-${suffix}`,
-        seo_title: 'Gau bong thanh pham',
-        seo_description: 'Mua gau bong moc thu cong.'
+        seo_title: 'Gấu bông thành phẩm',
+        seo_description: 'Mua gấu bông móc thủ công.'
       },
       {
         product_id: id,

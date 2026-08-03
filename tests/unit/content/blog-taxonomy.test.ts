@@ -9,9 +9,9 @@ function draftWithTaxonomy() {
     translations: {
       vi: {
         slug: 'bai-viet-amigurumi',
-        title: 'Bai viet amigurumi',
-        description: 'Mo ta ngan.',
-        body: 'Noi dung.',
+        title: 'Bài viết amigurumi',
+        description: 'Mô tả ngắn.',
+        body: 'Nội dung.',
         socialImageBucket: 'blog-media',
         socialImagePath: 'blog/vi.jpg'
       },

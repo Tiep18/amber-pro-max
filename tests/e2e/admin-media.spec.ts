@@ -68,12 +68,12 @@ async function createPdfProduct() {
       {
         product_id: id,
         locale: 'vi',
-        title: 'Mau tho co kinh',
-        description: 'Huong dan moc tho co kinh.',
+        title: 'Mẫu thỏ cổ kính',
+        description: 'Hướng dẫn móc thỏ cổ kính.',
         specifications: { difficulty: 'easy' },
         slug: `mau-tho-co-kinh-${suffix}`,
-        seo_title: 'Mau tho co kinh',
-        seo_description: 'Tai mau moc tho co kinh.'
+        seo_title: 'Mẫu thỏ cổ kính',
+        seo_description: 'Tải mẫu móc thỏ cổ kính.'
       },
       {
         product_id: id,

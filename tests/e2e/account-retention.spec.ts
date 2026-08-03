@@ -120,7 +120,7 @@ test.describe('account wishlist retention (ACC-04, D-05, D-06, D-07)', () => {
 
   test('Vietnamese customer can open the localized wishlist route', async ({page}) => {
     await page.goto('/vi/tai-khoan/yeu-thich');
-    await expect(page.getByRole('heading', {name: /yeu thich/i})).toBeVisible();
+    await expect(page.getByRole('heading', {name: /yêu thích/i})).toBeVisible();
   });
 
   test('unavailable market wishlist products stay visible without checkout action', async ({page}) => {
@@ -232,7 +232,7 @@ test.describe('product surface wishlist hearts (ACC-04, D-07, D-08)', () => {
 
   test('guest card heart redirects to localized sign-in with product return and no guest merge UI', async ({page}) => {
     await page.goto('/vi/cua-hang');
-    await page.getByRole('button', {name: /luu .* yeu thich/i}).first().click();
+    await page.getByRole('button', {name: /lưu .* yêu thích/i}).first().click();
     await expect(page).toHaveURL(/\/vi\/dang-nhap\?next=/);
     await expect(page.getByText(/merge wishlist|guest wishlist/i)).toHaveCount(0);
   });

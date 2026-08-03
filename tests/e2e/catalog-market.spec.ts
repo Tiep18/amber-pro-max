@@ -104,7 +104,7 @@ test('mobile exposes independent 44px language and shopping-region choices', asy
 
   await session.page
     .getByRole('banner')
-    .getByRole('button', { name: /Mo menu/i })
+    .getByRole('button', { name: /Mở menu/i })
     .click();
   const language = session.page.getByRole('group', { name: /Ngôn ngữ/i });
   const market = session.page.getByRole('group', { name: /Khu vực mua sắm/i });

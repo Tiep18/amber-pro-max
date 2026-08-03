@@ -34,8 +34,8 @@ test('client navigation preserves header context without refetching it', async (
   });
 
   await page
-    .getByRole('navigation', {name: 'Dieu huong chinh'})
-    .getByRole('link', {name: 'Cua hang', exact: true})
+    .getByRole('navigation', {name: 'Điều hướng chính'})
+    .getByRole('link', {name: 'Cửa hàng', exact: true})
     .click();
   await expect(page).toHaveURL(/\/vi\/cua-hang$/);
 
