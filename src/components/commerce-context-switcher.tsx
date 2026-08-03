@@ -145,7 +145,10 @@ export function CommerceContextSwitcher({
           setOpen(false);
         }}
         className={cn(
-          'flex min-h-[34px] flex-1 items-center justify-center gap-1.5 rounded-[7px] px-2 py-1 text-center text-[13px] font-medium outline-none transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]',
+          'flex flex-1 items-center justify-center gap-1.5 rounded-[7px] px-2 py-1 text-center text-[13px] font-medium outline-none transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]',
+          // Desktop nests this inside a min-h-11 menu item; on mobile the link
+          // itself is the touch target, so it carries the 44px minimum.
+          desktop ? 'min-h-[34px]' : 'min-h-11',
           active
             ? 'bg-[var(--surface-paper)] text-[var(--accent)] shadow-[0_1px_2px_rgb(0_0_0/6%)]'
             : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
@@ -172,7 +175,8 @@ export function CommerceContextSwitcher({
       </>
     );
     const className = cn(
-      'flex min-h-[36px] w-full items-center justify-between gap-2 rounded-[7px] px-2.5 py-1 text-left text-[13px] font-normal outline-none transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:cursor-wait disabled:opacity-60',
+      'flex w-full items-center justify-between gap-2 rounded-[7px] px-2.5 py-1 text-left text-[13px] font-normal outline-none transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:cursor-wait disabled:opacity-60',
+      desktop ? 'min-h-[36px]' : 'min-h-11',
       active
         ? 'text-[var(--accent)] font-medium'
         : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
@@ -246,7 +250,11 @@ export function CommerceContextSwitcher({
       <div className={cn('grid gap-3', className)}>
         <div className="grid gap-1.5">
           <span className="text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--muted-foreground)]/70">{labels.language}</span>
-          <div className="flex gap-0.5 rounded-[9px] bg-[var(--surface-muted)]/40 p-[3px]">{mobileLocaleChoices}</div>
+          {/* Named group, like the desktop menu and the shopping-region fieldset
+              below: without it the locale links read as loose items trailing the
+              navigation list above them. ARIA rather than fieldset/legend
+              because these are navigation links, not form controls. */}
+          <div role="group" aria-label={labels.language} className="flex gap-0.5 rounded-[9px] bg-[var(--surface-muted)]/40 p-[3px]">{mobileLocaleChoices}</div>
         </div>
         <fieldset className="grid gap-1" aria-busy={marketBusy || undefined}>
           <legend className="text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--muted-foreground)]/70">{labels.shoppingRegion}</legend>

@@ -37,12 +37,17 @@ test('Vietnamese shopper adds a PDF pattern and edits it in the cart', async ({ 
   const page = await context.newPage();
 
   await page.goto('/vi/san-pham/mau-gau-vn');
-  await page.getByRole('button', { name: 'Mua và tải về' }).click();
+  await page.getByRole('button', { name: 'Thêm vào giỏ' }).click();
   await expect(page.getByRole('button', { name: /Giỏ hàng, 1 sản phẩm/ })).toBeVisible();
 
-  await expect(
-    page.getByRole('dialog', { name: 'Giỏ hàng' }).getByRole('link', { name: 'Xem giỏ hàng' })
-  ).toHaveAttribute('href', '/vi/gio-hang');
+  // Adding opens the mini cart, which routes on to the localized checkout
+  // instead of exposing a separate "view cart" link.
+  const miniCart = page.getByRole('dialog', { name: 'Giỏ hàng' });
+  await expect(miniCart.getByText('Mau gau Viet Nam')).toBeVisible();
+  await expect(miniCart.getByRole('link', { name: 'Tiến hành thanh toán' })).toHaveAttribute(
+    'href',
+    '/vi/thanh-toan'
+  );
   await page.goto('/vi/gio-hang');
   await expect(page).toHaveURL(/\/vi\/gio-hang$/);
   const pdfLine = page.getByRole('article').filter({ hasText: 'Mau gau Viet Nam' });
