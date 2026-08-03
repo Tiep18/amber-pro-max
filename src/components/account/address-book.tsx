@@ -39,14 +39,14 @@ const emptyCopy = {
     eyebrow: 'Saved delivery details'
   },
   vi: {
-    title: 'Chua co dia chi da luu',
-    body: 'Luu dia chi giao hang de thanh toan nhanh hon lan sau.',
-    eyebrow: 'Thong tin giao hang da luu'
+    title: 'Chưa có địa chỉ đã lưu',
+    body: 'Lưu địa chỉ giao hàng để thanh toán nhanh hơn lần sau.',
+    eyebrow: 'Thông tin giao hàng đã lưu'
   }
 } as const;
 
 function addressCountLabel(addresses: CustomerShippingAddress[], locale: Locale) {
-  if (locale === 'vi') return `${addresses.length} dia chi`;
+  if (locale === 'vi') return `${addresses.length} địa chỉ`;
   return `${addresses.length} ${addresses.length === 1 ? 'address' : 'addresses'}`;
 }
 

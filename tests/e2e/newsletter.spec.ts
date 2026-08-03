@@ -26,7 +26,7 @@ test.describe('localized newsletter subscribe (NEWS-01, NEWS-02, D-13, D-16)', (
     await page.goto('/vi');
     await page.locator('#newsletter input[name="email"]').fill(`newsletter-vi-${Date.now()}@example.test`);
     await page.getByRole('button', {name: 'Đăng ký', exact: true}).click();
-    await expect(page.getByRole('status').filter({hasText: 'Ban da dang ky'})).toBeVisible();
+    await expect(page.getByRole('status').filter({hasText: 'Bạn đã đăng ký'})).toBeVisible();
   });
 });
 
@@ -39,7 +39,7 @@ test.describe('one-click newsletter unsubscribe (NEWS-02, D-14, D-16)', () => {
 
   test('Vietnamese unsubscribe result is localized and does not render token material', async ({page}) => {
     await page.goto(`/vi/ban-tin/huy-dang-ky?token=${seed.unsubscribeTokens.expired}`);
-    await expect(page.getByRole('heading', {name: /huy dang ky|lien ket/i})).toBeVisible();
+    await expect(page.getByRole('heading', {name: /hủy đăng ký|liên kết/i})).toBeVisible();
     await expect(page.getByText(seed.unsubscribeTokens.expired)).toHaveCount(0);
   });
 

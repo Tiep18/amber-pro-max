@@ -24,10 +24,10 @@ const copy = {
     note: 'Written for clear checkout expectations and customer trust.'
   },
   vi: {
-    eyebrow: 'Chinh sach studio',
-    summary: 'Tom tat',
-    kind: 'Loai chinh sach',
-    note: 'Viet de lam ro ky vong mua hang va tao niem tin cho khach.'
+    eyebrow: 'Chính sách studio',
+    summary: 'Tóm tắt',
+    kind: 'Loại chính sách',
+    note: 'Viết để làm rõ kỳ vọng mua hàng và tạo niềm tin cho khách.'
   }
 } as const;
 
@@ -67,7 +67,7 @@ export default async function PolicyPage({ params }: { params: Params }) {
     <>
       <JsonLd
         data={breadcrumbJsonLd([
-          { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
+          { name: locale === 'vi' ? 'Trang chủ' : 'Home', path: `/${locale}` },
           { name: policy.title, path: currentPath }
         ])}
       />

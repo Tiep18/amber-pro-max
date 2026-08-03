@@ -31,7 +31,7 @@ test.describe('saved address retention (ACC-03, D-01, D-02, D-04)', () => {
 
   test('Vietnamese customer can open the localized address route', async ({page}) => {
     await page.goto('/vi/tai-khoan/dia-chi');
-    await expect(page.getByRole('heading', {name: /dia chi da luu/i})).toBeVisible();
+    await expect(page.getByRole('heading', {name: /địa chỉ đã lưu/i})).toBeVisible();
   });
 
   test('customer can create and edit an address', async ({page}) => {

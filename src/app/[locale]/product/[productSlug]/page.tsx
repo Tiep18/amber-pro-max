@@ -129,7 +129,7 @@ function ReviewInlineSummary({
       </span>
       <span>{average.toFixed(1)}</span>
       <span className="text-[var(--muted-foreground)]">
-        ({count} {locale === 'vi' ? 'danh gia' : 'reviews'})
+        ({count} {locale === 'vi' ? 'đánh giá' : 'reviews'})
       </span>
     </a>
   );
@@ -148,13 +148,13 @@ function PurchaseInfo({
       ? [
           {
             icon: Download,
-            title: 'Tai ve sau thanh toan',
-            body: 'Lien ket tai PDF duoc kich hoat khi don hang da thanh toan.'
+            title: 'Tải về sau thanh toán',
+            body: 'Liên kết tải PDF được kích hoạt khi đơn hàng đã thanh toán.'
           },
           {
             icon: ShieldCheck,
-            title: 'Link rieng co thoi han',
-            body: 'File pattern duoc giao qua lien ket bao ve, khong phai URL cong khai.'
+            title: 'Liên kết riêng có thời hạn',
+            body: 'File pattern được giao qua liên kết bảo vệ, không phải URL công khai.'
           }
         ]
       : [
@@ -173,13 +173,13 @@ function PurchaseInfo({
       ? [
           {
             icon: PackageCheck,
-            title: 'Dong goi 1-2 ngay lam viec',
-            body: 'Shop chuan bi va xac nhan phi ship truoc khi giao.'
+            title: 'Đóng gói 1-2 ngày làm việc',
+            body: 'Shop chuẩn bị và xác nhận phí ship trước khi giao.'
           },
           {
             icon: Truck,
-            title: 'Giao hang thu cong',
-            body: 'Theo doi trang thai va ma van don trong don hang sau khi gui.'
+            title: 'Giao hàng thủ công',
+            body: 'Theo dõi trạng thái và mã vận đơn trong đơn hàng sau khi gửi.'
           }
         ]
       : [
@@ -228,10 +228,10 @@ function TrustBadges({
   const badges = isPdf
     ? locale === 'vi'
       ? [
-          { icon: CreditCard, label: 'Thanh toan an toan' },
-          { icon: Download, label: 'PDF chat luong cao' },
-          { icon: BadgeCheck, label: 'Tai lai khi can' },
-          { icon: MessageCircle, label: 'Ho tro sau mua' }
+          { icon: CreditCard, label: 'Thanh toán an toàn' },
+          { icon: Download, label: 'PDF chất lượng cao' },
+          { icon: BadgeCheck, label: 'Tải lại khi cần' },
+          { icon: MessageCircle, label: 'Hỗ trợ sau mua' }
         ]
       : [
           { icon: CreditCard, label: 'Secure payment' },
@@ -241,10 +241,10 @@ function TrustBadges({
         ]
     : locale === 'vi'
       ? [
-          { icon: CreditCard, label: 'Thanh toan an toan' },
-          { icon: RefreshCcw, label: 'Ho tro doi tra' },
-          { icon: BadgeCheck, label: 'Lam thu cong' },
-          { icon: MessageCircle, label: 'Ho tro qua chat' }
+          { icon: CreditCard, label: 'Thanh toán an toàn' },
+          { icon: RefreshCcw, label: 'Hỗ trợ đổi trả' },
+          { icon: BadgeCheck, label: 'Làm thủ công' },
+          { icon: MessageCircle, label: 'Hỗ trợ qua chat' }
         ]
       : [
           { icon: CreditCard, label: 'Secure payment' },
@@ -359,7 +359,7 @@ export default async function ProductPage({ params }: { params: Params }) {
                 : null
           }),
           breadcrumbJsonLd([
-            { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
+            { name: locale === 'vi' ? 'Trang chủ' : 'Home', path: `/${locale}` },
             { name: product.title, path: productPath }
           ])
         ]}
@@ -391,13 +391,13 @@ export default async function ProductPage({ params }: { params: Params }) {
             <ol className="flex flex-wrap items-center gap-2">
               <li>
                 <Link className="hover:text-[var(--foreground)]" href={`/${locale}`}>
-                  {locale === 'vi' ? 'Trang chu' : 'Home'}
+                  {locale === 'vi' ? 'Trang chủ' : 'Home'}
                 </Link>
               </li>
               <li aria-hidden="true">/</li>
               <li>
                 <Link className="hover:text-[var(--foreground)]" href={getCatalogPath(locale)}>
-                  {locale === 'vi' ? 'Cua hang' : 'Shop'}
+                  {locale === 'vi' ? 'Cửa hàng' : 'Shop'}
                 </Link>
               </li>
               <li aria-hidden="true">/</li>

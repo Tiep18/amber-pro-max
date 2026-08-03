@@ -19,10 +19,10 @@ import {LocaleSwitcher} from './locale-switcher';
 
 const policyFallbackLabels = {
   vi: {
-    privacy: 'Chinh sach rieng tu',
-    terms_of_sale: 'Dieu khoan ban hang',
-    returns: 'Chinh sach doi tra',
-    digital_downloads: 'Tai ve ky thuat so'
+    privacy: 'Chính sách riêng tư',
+    terms_of_sale: 'Điều khoản bán hàng',
+    returns: 'Chính sách đổi trả',
+    digital_downloads: 'Tải về kỹ thuật số'
   },
   en: {
     privacy: 'Privacy policy',

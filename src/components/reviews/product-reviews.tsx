@@ -40,10 +40,10 @@ export function ProductReviews({
   const average = reviewAverage(reviews);
   const counts = ratingCounts(reviews);
   const maxCount = Math.max(...counts.map((item) => item.count), 1);
-  const reviewCountLabel = locale === 'vi' ? 'danh gia' : 'reviews';
+  const reviewCountLabel = locale === 'vi' ? 'đánh giá' : 'reviews';
   const emptyDetail =
     locale === 'vi'
-      ? 'Khach da mua co the gui cam nhan sau don hang. Cac danh gia duoc duyet se hien tai day.'
+      ? 'Khách đã mua có thể gửi cảm nhận sau đơn hàng. Các đánh giá được duyệt sẽ hiển thị tại đây.'
       : 'Verified buyers can share notes after purchase. Approved reviews will appear here.';
 
   return (

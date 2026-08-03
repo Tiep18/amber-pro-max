@@ -12,10 +12,10 @@ const authShellCopy = {
     points: ['Private access stays protected', 'Email updates stay in one place', 'You can continue as a guest anytime']
   },
   vi: {
-    eyebrow: 'Tai khoan Ambertinybear',
-    note: 'Giu quyen truy cap da luu gan voi mot email.',
-    pass: 'The vao studio rieng',
-    points: ['Quyen truy cap rieng tu duoc bao ve', 'Cap nhat qua email nam o mot noi', 'Ban van co the tiep tuc voi vai tro khach']
+    eyebrow: 'Tài khoản Ambertinybear',
+    note: 'Giữ quyền truy cập đã lưu gắn với một email.',
+    pass: 'Thẻ vào studio riêng',
+    points: ['Quyền truy cập riêng tư được bảo vệ', 'Cập nhật qua email nằm ở một nơi', 'Bạn vẫn có thể tiếp tục với vai trò khách']
   }
 } as const;
 

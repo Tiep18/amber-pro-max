@@ -160,9 +160,9 @@ const emptyCopy = {
     cta: 'Explore the shop'
   },
   vi: {
-    title: 'Chua co san pham nao duoc luu',
-    body: 'Nhan trai tim tren san pham bat ky de luu lai cho lan sau.',
-    cta: 'Kham pha cua hang'
+    title: 'Chưa có sản phẩm nào được lưu',
+    body: 'Nhấn trái tim trên sản phẩm bất kỳ để lưu lại cho lần sau.',
+    cta: 'Khám phá cửa hàng'
   }
 } as const;
 
@@ -367,7 +367,7 @@ export function WishlistPage({
           </div>
           <span className="text-sm font-semibold text-[var(--muted-foreground)]">
             {projection.items.length}{' '}
-            {locale === 'vi' ? 'san pham' : projection.items.length === 1 ? 'item' : 'items'}
+            {locale === 'vi' ? 'sản phẩm' : projection.items.length === 1 ? 'item' : 'items'}
           </span>
         </div>
       </header>

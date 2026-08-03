@@ -20,11 +20,11 @@ const overviewCopy = {
     addresses: 'Keep shipping details ready for future checkout.'
   },
   vi: {
-    eyebrow: 'Tong quan tai khoan',
-    orders: 'Theo doi don da thanh toan, trang thai va xu ly giao hang.',
-    patterns: 'Mo cac link tai pattern PDF rieng sau khi thanh toan.',
-    wishlist: 'Xem san pham da luu voi gia va ton kho hien tai.',
-    addresses: 'Luu dia chi giao hang cho lan thanh toan sau.'
+    eyebrow: 'Tổng quan tài khoản',
+    orders: 'Theo dõi đơn đã thanh toán, trạng thái và xử lý giao hàng.',
+    patterns: 'Mở các link tải pattern PDF riêng sau khi thanh toán.',
+    wishlist: 'Xem sản phẩm đã lưu với giá và tồn kho hiện tại.',
+    addresses: 'Lưu địa chỉ giao hàng cho lần thanh toán sau.'
   }
 } as const;
 
@@ -38,25 +38,25 @@ export async function renderAccountOverview({ params }: { params: Promise<{ loca
   const cards = [
     {
       href: getAccountOrdersPath(locale),
-      title: locale === 'vi' ? 'Don hang' : 'Orders',
+      title: locale === 'vi' ? 'Đơn hàng' : 'Orders',
       body: copy.orders,
       icon: Package
     },
     {
       href: getAccountPatternsPath(locale),
-      title: locale === 'vi' ? 'Thu vien PDF' : 'Pattern library',
+      title: locale === 'vi' ? 'Thư viện PDF' : 'Pattern library',
       body: copy.patterns,
       icon: ScrollText
     },
     {
       href: getAccountWishlistPath(locale),
-      title: locale === 'vi' ? 'Yeu thich' : 'Wishlist',
+      title: locale === 'vi' ? 'Yêu thích' : 'Wishlist',
       body: copy.wishlist,
       icon: Heart
     },
     {
       href: getAccountAddressesPath(locale),
-      title: locale === 'vi' ? 'Dia chi' : 'Addresses',
+      title: locale === 'vi' ? 'Địa chỉ' : 'Addresses',
       body: copy.addresses,
       icon: MapPin
     }

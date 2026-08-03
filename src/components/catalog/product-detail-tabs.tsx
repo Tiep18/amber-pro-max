@@ -33,23 +33,23 @@ const labels = {
     ]
   },
   vi: {
-    description: 'Mo ta',
-    details: 'Chi tiet',
-    care: 'Cham soc',
-    delivery: 'Tai ve',
-    storyTitle: 'Ban se nhan duoc',
-    detailsTitle: 'Thong tin san pham',
-    careTitle: 'Huong dan cham soc',
-    emptyDetails: 'Thong tin ky thuat chi tiet se duoc bo sung som.',
+    description: 'Mô tả',
+    details: 'Chi tiết',
+    care: 'Chăm sóc',
+    delivery: 'Tải về',
+    storyTitle: 'Bạn sẽ nhận được',
+    detailsTitle: 'Thông tin sản phẩm',
+    careTitle: 'Hướng dẫn chăm sóc',
+    emptyDetails: 'Thông tin kỹ thuật chi tiết sẽ được bổ sung sớm.',
     handmadeCare: [
-      'Giat tay nhe voi nuoc mat.',
-      'Khong vat manh; chinh lai form va phoi ngang.',
-      'Tranh giat may, say nong, va nhiet truc tiep.'
+      'Giặt tay nhẹ với nước mát.',
+      'Không vắt mạnh; chỉnh lại form và phơi ngang.',
+      'Tránh giặt máy, sấy nóng, và nhiệt trực tiếp.'
     ],
     pdfCare: [
-      'File PDF duoc mo quyen tai sau khi xac nhan thanh toan.',
-      'Hay luu them mot ban sao sau khi tai mau.',
-      'Lien he shop neu ban can ho tro mo file mau.'
+      'File PDF được mở quyền tải sau khi xác nhận thanh toán.',
+      'Hãy lưu thêm một bản sao sau khi tải mẫu.',
+      'Liên hệ shop nếu bạn cần hỗ trợ mở file mẫu.'
     ]
   }
 } as const;

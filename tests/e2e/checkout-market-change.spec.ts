@@ -44,12 +44,12 @@ async function createPublishedPhysicalProduct() {
       {
         product_id: id,
         locale: 'vi',
-        title: 'Gau giao hang',
-        description: 'Gau moc co phi van chuyen.',
+        title: 'Gấu giao hàng',
+        description: 'Gấu móc có phí vận chuyển.',
         specifications: { material: 'cotton' },
         slug: `gau-giao-hang-${suffix}`,
-        seo_title: 'Gau giao hang',
-        seo_description: 'Gau handmade.'
+        seo_title: 'Gấu giao hàng',
+        seo_description: 'Gấu handmade.'
       },
       {
         product_id: id,

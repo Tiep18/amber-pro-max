@@ -112,7 +112,7 @@ export function AccountOrderHistory({
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--muted-foreground)] sm:justify-end">
           <span className="inline-flex min-h-9 items-center rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-3 font-semibold text-[var(--foreground)]">
-            {orders.length} {locale === 'vi' ? 'don' : orders.length === 1 ? 'order' : 'orders'}
+            {orders.length} {locale === 'vi' ? 'đơn' : orders.length === 1 ? 'order' : 'orders'}
           </span>
           {latestOrder ? (
             <span className="inline-flex min-h-9 items-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] px-3">

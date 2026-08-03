@@ -33,12 +33,12 @@ const copy = {
       `Browse handmade products and crochet patterns tagged ${label}.`
   },
   vi: {
-    eyebrow: 'The',
-    count: 'san pham',
-    back: 'Quay lai cua hang',
-    market: 'San pham co the nay trong cua hang mac dinh.',
+    eyebrow: 'Thẻ',
+    count: 'sản phẩm',
+    back: 'Quay lại cửa hàng',
+    market: 'Sản phẩm có thẻ này trong cửa hàng mặc định.',
     description: (label: string) =>
-      `Kham pha san pham thu cong va mau crochet gan the ${label}.`
+      `Khám phá sản phẩm thủ công và mẫu crochet gắn thẻ ${label}.`
   }
 } as const;
 
@@ -99,7 +99,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!facet) return {};
 
   return localizedMetadata({
-    title: locale === 'vi' ? `${facet.label} | The san pham` : `${facet.label} | Product tag`,
+    title: locale === 'vi' ? `${facet.label} | Thẻ sản phẩm` : `${facet.label} | Product tag`,
     description: copy[locale].description(facet.label),
     canonicalPath: getTagPath(locale, tagSlug),
     alternatePaths: {
@@ -131,7 +131,7 @@ export default async function TagPage({ params }: { params: Params }) {
       <JsonLd
         data={[
           breadcrumbJsonLd([
-            { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
+            { name: locale === 'vi' ? 'Trang chủ' : 'Home', path: `/${locale}` },
             { name: facet.label, path: getTagPath(locale, tagSlug) }
           ]),
           itemListJsonLd(

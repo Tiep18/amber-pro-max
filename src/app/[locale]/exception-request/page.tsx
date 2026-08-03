@@ -15,11 +15,11 @@ export default async function ExceptionRequestRoute({params}: {params: Params}) 
       formTitle: 'Request details'
     },
     vi: {
-      eyebrow: 'Ngoai le thi truong',
-      title: 'Gui studio xem xet truong hop thanh toan dac biet',
-      body: 'Dung khi san pham chua mo cho thi truong, dia chi giao hang hoac tuy chon ban can. Chua co hang nao duoc giu den khi cua hang duyet va checkout tinh lai don.',
-      checks: ['Yeu cau nay chua giu ton kho', 'Gia, van chuyen va ton kho se duoc tinh lai sau', 'Studio phan hoi qua email ban cung cap'],
-      formTitle: 'Thong tin yeu cau'
+      eyebrow: 'Ngoại lệ thị trường',
+      title: 'Gửi studio xem xét trường hợp thanh toán đặc biệt',
+      body: 'Dùng khi sản phẩm chưa mở cho thị trường, địa chỉ giao hàng hoặc tùy chọn bạn cần. Chưa có hàng nào được giữ đến khi cửa hàng duyệt và checkout tính lại đơn.',
+      checks: ['Yêu cầu này chưa giữ tồn kho', 'Giá, vận chuyển và tồn kho sẽ được tính lại sau', 'Studio phản hồi qua email bạn cung cấp'],
+      formTitle: 'Thông tin yêu cầu'
     }
   }[locale];
 
@@ -54,7 +54,7 @@ export default async function ExceptionRequestRoute({params}: {params: Params}) 
         <div className="grid gap-5 p-5 sm:p-7 lg:p-8">
           <div className="grid gap-2">
             <p className="text-sm font-semibold">{copy.formTitle}</p>
-            <p className="text-sm leading-6 text-[var(--muted-foreground)]">{locale === 'vi' ? 'Nhap dung ma san pham va email de studio co the kiem tra yeu cau.' : 'Enter the product details and a reachable email so the studio can review the request.'}</p>
+            <p className="text-sm leading-6 text-[var(--muted-foreground)]">{locale === 'vi' ? 'Nhập đúng mã sản phẩm và email để studio có thể kiểm tra yêu cầu.' : 'Enter the product details and a reachable email so the studio can review the request.'}</p>
           </div>
           <ExceptionRequestForm locale={locale} />
         </div>

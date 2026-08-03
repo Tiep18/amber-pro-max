@@ -283,12 +283,12 @@ const validationCopy = {
     postalCode: 'Enter a valid US postal code.'
   },
   vi: {
-    countryCode: 'Chon quoc gia giao hang.',
-    recipientName: 'Nhap ten nguoi nhan.',
-    phoneNumber: 'Nhap so dien thoai toi thieu 5 ky tu.',
-    addressLine1: 'Nhap dia chi duong.',
-    region: 'Chon bang hoac lanh tho Hoa Ky hop le.',
-    postalCode: 'Nhap ma buu chinh Hoa Ky hop le.'
+    countryCode: 'Chọn quốc gia giao hàng.',
+    recipientName: 'Nhập tên người nhận.',
+    phoneNumber: 'Nhập số điện thoại tối thiểu 5 ký tự.',
+    addressLine1: 'Nhập địa chỉ đường.',
+    region: 'Chọn bang hoặc lãnh thổ Hoa Kỳ hợp lệ.',
+    postalCode: 'Nhập mã bưu chính Hoa Kỳ hợp lệ.'
   }
 } as const;
 

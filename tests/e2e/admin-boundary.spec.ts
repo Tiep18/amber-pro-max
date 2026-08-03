@@ -69,7 +69,7 @@ async function createConfirmedUser(role?: 'admin') {
 test('anonymous account and admin requests redirect before protected shell render', async ({page}) => {
   await page.goto('/vi/tai-khoan');
   await expect(page).toHaveURL(/\/vi\/dang-nhap\?next=%2Fvi%2Ftai-khoan$/);
-  await expect(page.getByRole('heading', {name: 'Dang nhap'})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Đăng nhập'})).toBeVisible();
 
   await page.goto('/admin');
   await expect(page).toHaveURL(/\/en\/sign-in\?next=%2Fadmin$/);
@@ -82,17 +82,17 @@ test('signed-in customer can enter account and sign out', async ({page}) => {
 
   await page.goto('/vi/dang-nhap?next=/vi/tai-khoan');
   await page.getByLabel('Email').fill(customer.email);
-  await page.getByLabel('Mat khau').fill(customer.password);
-  await page.getByRole('button', {name: 'Dang nhap'}).click();
+  await page.getByLabel('Mật khẩu').fill(customer.password);
+  await page.getByRole('button', {name: 'Đăng nhập'}).click();
 
   await expect(page).toHaveURL(/\/vi\/tai-khoan$/);
-  await expect(page.getByRole('heading', {name: 'Tai khoan'})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Tài khoản'})).toBeVisible();
   await expect(
     page.getByRole('definition').filter({hasText: customer.email})
   ).toBeVisible();
   await expect(page.getByText(/user_roles|access_token|refresh_token|service_role/i)).toHaveCount(0);
 
-  await page.getByRole('button', {name: 'Dang xuat'}).click();
+  await page.getByRole('button', {name: 'Đăng xuất'}).click();
   await expect(page).toHaveURL(/\/vi$/);
 });
 

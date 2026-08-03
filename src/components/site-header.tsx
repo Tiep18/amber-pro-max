@@ -52,7 +52,7 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
     { href: getBlogPath(locale), label: t('blog') },
     { href: getGuestOrderPath(locale), label: t('guestOrder') }
   ];
-  const closeMenuLabel = locale === 'vi' ? 'Dong menu' : 'Close menu';
+  const closeMenuLabel = locale === 'vi' ? 'Đóng menu' : 'Close menu';
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)]/70 bg-[var(--surface)]/78 backdrop-blur-xl supports-[backdrop-filter]:bg-[var(--surface)]/68">

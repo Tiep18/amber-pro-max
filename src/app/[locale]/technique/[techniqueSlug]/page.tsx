@@ -38,12 +38,12 @@ const copy = {
       `Discover handmade products and crochet patterns made with ${label}.`
   },
   vi: {
-    eyebrow: 'Ky thuat',
-    count: 'san pham',
-    back: 'Quay lai cua hang',
-    market: 'San pham dung ky thuat nay trong cua hang mac dinh.',
+    eyebrow: 'Kỹ thuật',
+    count: 'sản phẩm',
+    back: 'Quay lại cửa hàng',
+    market: 'Sản phẩm dùng kỹ thuật này trong cửa hàng mặc định.',
     description: (label: string) =>
-      `Kham pha san pham thu cong va mau crochet su dung ky thuat ${label}.`
+      `Khám phá sản phẩm thủ công và mẫu crochet sử dụng kỹ thuật ${label}.`
   }
 } as const;
 
@@ -118,7 +118,7 @@ export async function generateMetadata({
   return localizedMetadata({
     title:
       locale === 'vi'
-        ? `${facet.label} | Ky thuat amigurumi`
+        ? `${facet.label} | Kỹ thuật amigurumi`
         : `${facet.label} | Amigurumi technique`,
     description: copy[locale].description(facet.label),
     canonicalPath: getTechniquePath(locale, techniqueSlug),
@@ -151,7 +151,7 @@ export default async function TechniquePage({ params }: { params: Params }) {
       <JsonLd
         data={[
           breadcrumbJsonLd([
-            { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
+            { name: locale === 'vi' ? 'Trang chủ' : 'Home', path: `/${locale}` },
             { name: facet.label, path: getTechniquePath(locale, techniqueSlug) }
           ]),
           itemListJsonLd(

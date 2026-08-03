@@ -7,7 +7,7 @@ import {
 import type { Locale } from '@/i18n/routing';
 
 const placeholderLabels = {
-  vi: { brand: 'Ambertinybear', status: 'Dang cap nhat anh' },
+  vi: { brand: 'Ambertinybear', status: 'Đang cập nhật ảnh' },
   en: { brand: 'Ambertinybear', status: 'Image coming soon' }
 } as const;
 

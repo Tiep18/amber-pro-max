@@ -68,7 +68,7 @@ describe('catalog media operational recording', () => {
     const formData = new FormData();
     formData.set('productId', productId);
     formData.set('mediaId', mediaId);
-    formData.set('altTextVi', 'Noi dung alt rieng tu khong duoc log');
+    formData.set('altTextVi', 'Nội dung alt riêng tư không được log');
     formData.set('altTextEn', 'Private alt text must not be logged');
     formData.set('displayOrder', '2');
 

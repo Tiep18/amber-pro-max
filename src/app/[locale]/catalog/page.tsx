@@ -23,10 +23,10 @@ export async function generateMetadata({
   const { locale } = await params;
   return localizedMetadata({
     title:
-      locale === 'vi' ? 'Cua hang amigurumi | Ambertinybear' : 'Amigurumi shop | Ambertinybear',
+      locale === 'vi' ? 'Cửa hàng amigurumi | Ambertinybear' : 'Amigurumi shop | Ambertinybear',
     description:
       locale === 'vi'
-        ? 'Kham pha mau PDF crochet va san pham amigurumi thu cong trong cua hang Ambertinybear.'
+        ? 'Khám phá mẫu PDF crochet và sản phẩm amigurumi thủ công trong cửa hàng Ambertinybear.'
         : 'Browse crochet PDF patterns and handmade amigurumi products from Ambertinybear.',
     canonicalPath: getCatalogPath(locale),
     alternatePaths: {
@@ -43,27 +43,27 @@ function catalogCommerceLabels(
   const copy =
     locale === 'vi'
       ? {
-          technique: 'Ky thuat',
-          allTechniques: 'Tat ca ky thuat',
-          tag: 'The',
-          allTags: 'Tat ca the',
-          resultCount: '{count} san pham',
-          filterTechnique: 'Ky thuat: {value}',
-          filterTag: 'The: {value}',
-          resolving: 'Dang tai cua hang...',
-          loaded: 'Da tai cua hang {market}. {count} san pham.',
-          errorTitle: 'Khong the cap nhat cua hang.',
-          errorBody: 'Gia va tinh trang hang co the da cu. Hay thu lai truoc khi mua.',
-          retry: 'Thu lai',
-          emptyTitle: 'Khong co san pham phu hop voi khu vuc va bo loc nay.',
-          emptyBody: 'Hay doi bo loc hoac chon khu vuc mua sam khac de xem them san pham.',
-          noFilters: 'khong co bo loc',
-          marketNames: { vn: 'Viet Nam', intl: 'quoc te' },
-          saveWishlist: 'Luu san pham vao yeu thich',
-          removeWishlist: 'Xoa san pham khoi yeu thich',
-          placeholderStatus: 'Dang cap nhat anh',
-          searchCategories: 'Tim danh muc…',
-          noMatchingCategories: 'Khong tim thay danh muc phu hop.'
+          technique: 'Kỹ thuật',
+          allTechniques: 'Tất cả kỹ thuật',
+          tag: 'Thẻ',
+          allTags: 'Tất cả thẻ',
+          resultCount: '{count} sản phẩm',
+          filterTechnique: 'Kỹ thuật: {value}',
+          filterTag: 'Thẻ: {value}',
+          resolving: 'Đang tải cửa hàng...',
+          loaded: 'Đã tải cửa hàng {market}. {count} sản phẩm.',
+          errorTitle: 'Không thể cập nhật cửa hàng.',
+          errorBody: 'Giá và tình trạng hàng có thể đã cũ. Hãy thử lại trước khi mua.',
+          retry: 'Thử lại',
+          emptyTitle: 'Không có sản phẩm phù hợp với khu vực và bộ lọc này.',
+          emptyBody: 'Hãy đổi bộ lọc hoặc chọn khu vực mua sắm khác để xem thêm sản phẩm.',
+          noFilters: 'không có bộ lọc',
+          marketNames: { vn: 'Việt Nam', intl: 'quốc tế' },
+          saveWishlist: 'Lưu sản phẩm vào yêu thích',
+          removeWishlist: 'Xóa sản phẩm khỏi yêu thích',
+          placeholderStatus: 'Đang cập nhật ảnh',
+          searchCategories: 'Tìm danh mục…',
+          noMatchingCategories: 'Không tìm thấy danh mục phù hợp.'
         }
       : {
           technique: 'Technique',
@@ -206,7 +206,7 @@ export default async function CatalogPage({ params }: { params: Promise<{ locale
       <JsonLd
         data={[
           breadcrumbJsonLd([
-            { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
+            { name: locale === 'vi' ? 'Trang chủ' : 'Home', path: `/${locale}` },
             { name: t('breadcrumbShop'), path: basePath }
           ]),
           itemListJsonLd(

@@ -46,15 +46,15 @@ const labels = {
     signingOut: 'Signing out...'
   },
   vi: {
-    signIn: 'Dang nhap',
-    account: 'Tai khoan',
-    orders: 'Don hang',
-    patterns: 'Mau PDF da mua',
-    wishlist: 'Yeu thich',
+    signIn: 'Đăng nhập',
+    account: 'Tài khoản',
+    orders: 'Đơn hàng',
+    patterns: 'Mẫu PDF đã mua',
+    wishlist: 'Yêu thích',
     admin: 'Trang admin',
     adminBadge: 'Admin',
-    signOut: 'Dang xuat',
-    signingOut: 'Dang dang xuat...'
+    signOut: 'Đăng xuất',
+    signingOut: 'Đang đăng xuất...'
   }
 } as const;
 

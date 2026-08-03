@@ -42,11 +42,11 @@ const copy = {
     market: 'Curated with current market availability'
   },
   vi: {
-    eyebrow: 'Bo suu tap',
-    count: 'san pham',
-    empty: 'Chua co san pham cong khai trong bo suu tap nay cho thi truong cua ban.',
-    back: 'Quay lai cua hang',
-    market: 'Tuyen chon theo kha dung cua thi truong hien tai'
+    eyebrow: 'Bộ sưu tập',
+    count: 'sản phẩm',
+    empty: 'Chưa có sản phẩm công khai trong bộ sưu tập này cho thị trường của bạn.',
+    back: 'Quay lại cửa hàng',
+    market: 'Tuyển chọn theo khả dụng của thị trường hiện tại'
   }
 } as const;
 
@@ -119,7 +119,7 @@ export default async function CollectionPage({ params }: { params: Params }) {
       <JsonLd
         data={[
           breadcrumbJsonLd([
-            { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
+            { name: locale === 'vi' ? 'Trang chủ' : 'Home', path: `/${locale}` },
             { name: collection.name, path: getCollectionPath(locale, collection.slug) }
           ]),
           itemListJsonLd(

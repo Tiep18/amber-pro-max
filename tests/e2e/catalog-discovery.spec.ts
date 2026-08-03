@@ -149,7 +149,7 @@ test('localized category and collection pages preserve eligible assortment', asy
 test('catalog empty results remain accessible and localized', async ({ page }) => {
   await page.goto('/vi/cua-hang?search=khong-ton-tai');
   await expect(
-    page.getByRole('heading', { name: /Khong co san pham phu hop voi khu vuc va bo loc nay/i })
+    page.getByRole('heading', { name: /Không có sản phẩm phù hợp với khu vực và bộ lọc này/i })
   ).toBeVisible();
 });
 

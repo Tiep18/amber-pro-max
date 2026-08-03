@@ -127,11 +127,11 @@ export async function generateMetadata({
   const { locale } = await params;
   const title =
     locale === 'vi'
-      ? 'Ambertinybear | Mau moc amigurumi va san pham thu cong'
+      ? 'Ambertinybear | Mẫu móc amigurumi và sản phẩm thủ công'
       : 'Ambertinybear | Amigurumi patterns and handmade crochet gifts';
   const description =
     locale === 'vi'
-      ? 'Mua mau PDF crochet va san pham amigurumi thu cong tu Ambertinybear, ho tro tieng Viet va giao hang thi truong Viet Nam.'
+      ? 'Mua mẫu PDF crochet và sản phẩm amigurumi thủ công từ Ambertinybear, hỗ trợ tiếng Việt và giao hàng thị trường Việt Nam.'
       : 'Shop downloadable crochet PDF patterns and handmade amigurumi gifts from Ambertinybear for international customers.';
 
   return localizedMetadata({

@@ -25,18 +25,18 @@ const postCopy = {
     published: 'Published'
   },
   vi: {
-    blog: 'Bai viet',
-    back: 'Quay lai bai viet',
-    related: 'San pham lien quan',
-    shopCtaTitle: 'Tim pattern hoac mon handmade trong cau chuyen',
-    shopCtaBody: 'Xem do moc, pattern PDF va san pham handmade so luong nho hien co.',
-    shopCta: 'Ghe cua hang',
-    published: 'Dang ngay'
+    blog: 'Bài viết',
+    back: 'Quay lại bài viết',
+    related: 'Sản phẩm liên quan',
+    shopCtaTitle: 'Tìm pattern hoặc món handmade trong câu chuyện',
+    shopCtaBody: 'Xem đồ móc, pattern PDF và sản phẩm handmade số lượng nhỏ hiện có.',
+    shopCta: 'Ghé cửa hàng',
+    published: 'Đăng ngày'
   }
 } as const;
 
 function formatDate(value: string | null, locale: Locale) {
-  if (!value) return locale === 'vi' ? 'Chua cap nhat' : 'Not dated';
+  if (!value) return locale === 'vi' ? 'Chưa cập nhật' : 'Not dated';
   return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en', {
     month: 'long',
     day: 'numeric',
@@ -99,7 +99,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
             datePublished: post.publishedAt
           }),
           breadcrumbJsonLd([
-            { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
+            { name: locale === 'vi' ? 'Trang chủ' : 'Home', path: `/${locale}` },
             {
               name: t.blog,
               path: getBlogPath(locale)
@@ -148,7 +148,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
           {post.tags.length ? (
             <div
               className="mx-auto flex w-full max-w-[760px] flex-wrap gap-2"
-              aria-label={locale === 'vi' ? 'The bai viet' : 'Blog tags'}
+              aria-label={locale === 'vi' ? 'Thẻ bài viết' : 'Blog tags'}
             >
               {post.tags.map((tag) => (
                 <span

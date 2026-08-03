@@ -55,7 +55,7 @@ test.beforeAll(async () => {
     method: 'POST',
     headers: { Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify([
-      { technique_id: techniqueId, locale: 'vi', name: 'Ky thuat sitemap' },
+      { technique_id: techniqueId, locale: 'vi', name: 'Kỹ thuật sitemap' },
       { technique_id: techniqueId, locale: 'en', name: 'Sitemap technique' }
     ])
   });

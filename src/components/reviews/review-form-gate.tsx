@@ -60,7 +60,7 @@ export function ReviewFormGate({
     return (
       <div role="status" aria-live="polite" aria-busy="true" className="grid gap-3">
         <span className="sr-only">
-          {locale === 'vi' ? 'Dang kiem tra quyen danh gia.' : 'Checking review eligibility.'}
+          {locale === 'vi' ? 'Đang kiểm tra quyền đánh giá.' : 'Checking review eligibility.'}
         </span>
         <Skeleton className="h-6 w-44" />
         <Skeleton className="h-24 w-full rounded-[var(--radius-control)]" />
@@ -83,7 +83,7 @@ export function ReviewFormGate({
             setRetryVersion((version) => version + 1);
           }}
         >
-          {locale === 'vi' ? 'Thu lai' : 'Retry'}
+          {locale === 'vi' ? 'Thử lại' : 'Retry'}
         </Button>
       </div>
     );

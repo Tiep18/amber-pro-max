@@ -59,18 +59,18 @@ const labels: Record<Locale, AccountShellLabels> = {
     signingOut: 'Signing out...'
   },
   vi: {
-    area: 'Tai khoan',
-    menu: 'Menu tai khoan',
-    verified: 'Da dang nhap',
+    area: 'Tài khoản',
+    menu: 'Menu tài khoản',
+    verified: 'Đã đăng nhập',
     nav: {
-      overview: 'Tong quan',
-      orders: 'Don hang',
-      patterns: 'Thu vien PDF',
-      wishlist: 'Yeu thich',
-      addresses: 'Dia chi'
+      overview: 'Tổng quan',
+      orders: 'Đơn hàng',
+      patterns: 'Thư viện PDF',
+      wishlist: 'Yêu thích',
+      addresses: 'Địa chỉ'
     },
-    signOut: 'Dang xuat',
-    signingOut: 'Dang dang xuat...'
+    signOut: 'Đăng xuất',
+    signingOut: 'Đang đăng xuất...'
   }
 };
 

@@ -17,7 +17,7 @@ insert into public.product_translations (
   ),
   (
     '09190000-0000-0000-0000-000000000001', 'vi', 'gau-ke-thua-gia',
-    'Gau ke thua gia', '', 'Gau ke thua gia', 'San pham kiem thu ke thua gia.',
+    'Gấu kế thừa giá', '', 'Gấu kế thừa giá', 'Sản phẩm kiểm thử kế thừa giá.',
     'product-media', 'products/fallback-bear-social-vi.jpg'
   );
 

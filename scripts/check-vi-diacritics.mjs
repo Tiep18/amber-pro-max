@@ -3,23 +3,19 @@ import {join} from 'node:path';
 
 const messagesPath = 'src/messages/vi.json';
 
-// Scoped to the checkout/payment/order-recovery namespaces this guard was
-// introduced for (2026-08 checkout flow review). Other namespaces
-// (catalog, product, auth, account, footer, wishlist, ...) still contain
-// unaccented Vietnamese strings from earlier work and need a separate,
-// dedicated content pass before they can be added here without breaking CI.
-const SCOPED_NAMESPACES = ['orders', 'payments', 'guestAccess', 'checkout', 'cart'];
+// This guard was originally scoped to the checkout/payment/order-recovery
+// namespaces (2026-08 checkout flow review) because the rest of the app
+// still had unaccented Vietnamese strings from earlier work. A dedicated
+// content pass (2026-08) added full diacritics across every namespace in
+// vi.json and every source file, so the guard now covers everything.
+const SCOPED_NAMESPACES = null; // null means "all namespaces"
 
-// The same scope, in component form. Checkout-flow components deliberately
-// carry their own per-locale `copy` dictionaries rather than next-intl (see
-// plans 017 and 019), so scanning vi.json alone missed them entirely — the
-// whole cart page shipped in unaccented Vietnamese while the guard passed.
-const SCOPED_SOURCE_DIRS = [
-  'src/components/cart',
-  'src/components/checkout',
-  'src/components/payments',
-  'src/components/fulfillment'
-];
+// The same scope, in component form. Checkout-flow (and other) components
+// deliberately carry their own per-locale `copy` dictionaries rather than
+// next-intl (see plans 017 and 019), so scanning vi.json alone misses them
+// entirely — the whole cart page once shipped in unaccented Vietnamese while
+// the guard passed. Scan the whole source tree instead of a component list.
+const SCOPED_SOURCE_DIRS = ['src'];
 
 // Common Vietnamese words that are frequently typed without diacritics.
 // A hit means a string almost certainly needs accents but does not have any
@@ -116,11 +112,13 @@ function scanSource(file) {
 }
 
 walkMessages(
-  Object.fromEntries(
-    Object.entries(JSON.parse(readFileSync(messagesPath, 'utf8'))).filter(([namespace]) =>
-      SCOPED_NAMESPACES.includes(namespace)
-    )
-  ),
+  SCOPED_NAMESPACES === null
+    ? JSON.parse(readFileSync(messagesPath, 'utf8'))
+    : Object.fromEntries(
+        Object.entries(JSON.parse(readFileSync(messagesPath, 'utf8'))).filter(([namespace]) =>
+          SCOPED_NAMESPACES.includes(namespace)
+        )
+      ),
   ''
 );
 
@@ -140,5 +138,5 @@ if (hits.length > 0) {
 }
 
 console.log(
-  `No obviously unaccented Vietnamese strings in ${messagesPath} (${SCOPED_NAMESPACES.join(', ')}) or ${SCOPED_SOURCE_DIRS.join(', ')}.`
+  `No obviously unaccented Vietnamese strings in ${messagesPath} (all namespaces) or ${SCOPED_SOURCE_DIRS.join(', ')}.`
 );

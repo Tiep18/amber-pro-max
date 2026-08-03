@@ -49,17 +49,17 @@ test.describe('policy publishing (LEGAL-01, D-13, D-16)', () => {
     await expect(page.getByRole('heading', { name: 'Policy publishing' })).toBeVisible();
 
     const privacy = page.getByRole('region', { name: 'Privacy policy' });
-    await privacy.getByLabel('Vietnamese title').fill('Chinh sach rieng tu');
+    await privacy.getByLabel('Vietnamese title').fill('Chính sách riêng tư');
     await privacy.getByLabel('Vietnamese slug').fill(viSlug);
-    await privacy.getByLabel('Vietnamese summary').fill('Tom tat chinh sach rieng tu.');
-    await privacy.getByLabel('Vietnamese seoTitle').fill('Chinh sach rieng tu');
-    await privacy.getByLabel('Vietnamese seoDescription').fill('Thong tin ve quyen rieng tu.');
+    await privacy.getByLabel('Vietnamese summary').fill('Tóm tắt chính sách riêng tư.');
+    await privacy.getByLabel('Vietnamese seoTitle').fill('Chính sách riêng tư');
+    await privacy.getByLabel('Vietnamese seoDescription').fill('Thông tin về quyền riêng tư.');
     await privacy.getByText('Advanced social image storage').click();
     await privacy.getByLabel('Vietnamese socialImageBucket').fill('policy-media');
     await privacy.getByLabel('Vietnamese socialImagePath').fill('policy/privacy-vi.jpg');
     await privacy
       .getByLabel('Vietnamese body')
-      .fill('Noi dung chinh sach rieng tu cho khach hang.');
+      .fill('Nội dung chính sách riêng tư cho khách hàng.');
 
     await privacy.getByRole('tab', { name: /English/ }).click();
     await privacy.getByLabel('English title').fill('Privacy policy');
@@ -92,8 +92,8 @@ test.describe('policy publishing (LEGAL-01, D-13, D-16)', () => {
     await expect(page.getByText('Privacy policy body for customers.')).toBeVisible();
 
     await page.goto(`/vi/chinh-sach/${viSlug}`);
-    await expect(page.getByRole('heading', { name: 'Chinh sach rieng tu' })).toBeVisible();
-    await expect(page.getByText('Noi dung chinh sach rieng tu cho khach hang.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Chính sách riêng tư' })).toBeVisible();
+    await expect(page.getByText('Nội dung chính sách riêng tư cho khách hàng.')).toBeVisible();
   });
 
   test('customer cannot access policy publishing admin', async ({ page }) => {

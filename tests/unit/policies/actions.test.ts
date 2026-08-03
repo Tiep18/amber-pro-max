@@ -29,11 +29,11 @@ function validDraft(): PolicyDraftInput {
     translations: {
       vi: {
         slug: 'chinh-sach-bao-mat',
-        title: 'Chinh sach bao mat',
-        summary: 'Tom tat chinh sach bao mat.',
-        body: 'Noi dung bao mat khong duoc log.',
-        seoTitle: 'Chinh sach bao mat',
-        seoDescription: 'Mo ta SEO khong duoc log.',
+        title: 'Chính sách bảo mật',
+        summary: 'Tóm tắt chính sách bảo mật.',
+        body: 'Nội dung bảo mật không được log.',
+        seoTitle: 'Chính sách bảo mật',
+        seoDescription: 'Mô tả SEO không được log.',
         socialImageBucket: 'policy-media',
         socialImagePath: 'policy/privacy-vi.jpg'
       },

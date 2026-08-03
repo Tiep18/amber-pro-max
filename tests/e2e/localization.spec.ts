@@ -108,7 +108,7 @@ test('localized auth entry renders while /auth/callback remains an isolated serv
   page
 }) => {
   await page.goto('/vi/dang-nhap');
-  await expect(page.getByRole('heading', { name: 'Dang nhap' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
 
   await page.goto('/en/sign-in');
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();

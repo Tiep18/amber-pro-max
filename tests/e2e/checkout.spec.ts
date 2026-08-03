@@ -59,12 +59,12 @@ async function createPublishedDigitalProduct() {
       {
         product_id: id,
         locale: 'vi',
-        title: 'Mau giam gia',
-        description: 'Mau co ma giam gia.',
+        title: 'Mẫu giảm giá',
+        description: 'Mẫu có mã giảm giá.',
         specifications: { pages: '12' },
         slug: `mau-giam-gia-${suffix}`,
-        seo_title: 'Mau giam gia',
-        seo_description: 'Mau giam gia.'
+        seo_title: 'Mẫu giảm giá',
+        seo_description: 'Mẫu giảm giá.'
       }
     ])
   });

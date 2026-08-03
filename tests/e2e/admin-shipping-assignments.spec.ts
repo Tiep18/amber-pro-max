@@ -61,12 +61,12 @@ async function createPhysicalProduct() {
       {
         product_id: product.id,
         locale: 'vi',
-        title: 'Gau moc shipping',
-        description: 'San pham test shipping.',
+        title: 'Gấu móc shipping',
+        description: 'Sản phẩm test shipping.',
         specifications: { material: 'cotton' },
         slug: `gau-moc-shipping-${suffix}`,
-        seo_title: 'Gau moc shipping',
-        seo_description: 'San pham test shipping.'
+        seo_title: 'Gấu móc shipping',
+        seo_description: 'Sản phẩm test shipping.'
       },
       {
         product_id: product.id,

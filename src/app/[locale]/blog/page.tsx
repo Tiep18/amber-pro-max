@@ -27,21 +27,21 @@ const blogCopy = {
     metadataDescription: 'Guides, stories, and care notes for handmade crochet work.'
   },
   vi: {
-    eyebrow: 'Nhat ky studio',
-    title: 'Ghi chu moc len tu goc nhin nguoi lam',
-    intro: 'Huong dan, cau chuyen va ghi chu cham soc cho san pham moc.',
-    empty: 'Chua co bai viet cong khai.',
-    featured: 'Bai viet noi bat',
-    latest: 'Ghi chu moi',
-    read: 'Doc bai viet',
-    shop: 'Ghe cua hang',
-    metadataTitle: 'Bai viet amigurumi',
-    metadataDescription: 'Huong dan, cau chuyen va ghi chu cham soc cho san pham moc.'
+    eyebrow: 'Nhật ký studio',
+    title: 'Ghi chú móc len từ góc nhìn người làm',
+    intro: 'Hướng dẫn, câu chuyện và ghi chú chăm sóc cho sản phẩm móc.',
+    empty: 'Chưa có bài viết công khai.',
+    featured: 'Bài viết nổi bật',
+    latest: 'Ghi chú mới',
+    read: 'Đọc bài viết',
+    shop: 'Ghé cửa hàng',
+    metadataTitle: 'Bài viết amigurumi',
+    metadataDescription: 'Hướng dẫn, câu chuyện và ghi chú chăm sóc cho sản phẩm móc.'
   }
 } as const;
 
 function formatDate(value: string | null, locale: Locale) {
-  if (!value) return locale === 'vi' ? 'Chua cap nhat' : 'Not dated';
+  if (!value) return locale === 'vi' ? 'Chưa cập nhật' : 'Not dated';
   return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en', {
     month: 'short',
     day: 'numeric',
@@ -79,7 +79,7 @@ export default async function BlogIndexPage({ params }: { params: Params }) {
       <JsonLd
         data={[
           breadcrumbJsonLd([
-            { name: locale === 'vi' ? 'Trang chu' : 'Home', path: `/${locale}` },
+            { name: locale === 'vi' ? 'Trang chủ' : 'Home', path: `/${locale}` },
             { name: t.metadataTitle, path: getBlogPath(locale) }
           ]),
           itemListJsonLd(posts.map((post) => ({ name: post.title, path: getBlogPostPath(locale, post.slug) })))

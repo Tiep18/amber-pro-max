@@ -33,12 +33,12 @@ test.describe('Phase 4 customer order status contract', () => {
     test.info().annotations.push({type: 'skip-reason', description: seededPaymentFixturesPending});
     await page.goto('/vi/don-hang/ATB-20260615-0002');
     await expect(page).toHaveURL(/\/vi\/don-hang\/ATB-20260615-0002/);
-    await expect(page.getByText(/VietQR|Chuyen khoan dung so tien|Transfer the exact amount/i)).toBeVisible();
-    await expect(page.getByText(/VND|₫|So tien chinh xac/i)).toBeVisible();
-    await expect(page.getByText(/Noi dung chuyen khoan|ATB-20260615-0002/i)).toBeVisible();
-    await expect(page.getByText(/Han thanh toan|Han giu hang/i)).toBeVisible();
-    await expect(page.getByRole('button', {name: /Toi da thanh toan|I have paid/i})).toHaveCount(0);
-    await expect(page.getByText(/Quyen nhan hang dang khoa|Fulfillment is locked/i)).toBeVisible();
+    await expect(page.getByText(/VietQR|Chuyển khoản đúng số tiền|Transfer the exact amount/i)).toBeVisible();
+    await expect(page.getByText(/VND|₫|Số tiền chính xác/i)).toBeVisible();
+    await expect(page.getByText(/Nội dung chuyển khoản|ATB-20260615-0002/i)).toBeVisible();
+    await expect(page.getByText(/Hạn thanh toán|Hạn giữ hàng/i)).toBeVisible();
+    await expect(page.getByRole('button', {name: /Tôi đã chuyển khoản|I have paid/i})).toHaveCount(0);
+    await expect(page.getByText(/Quyền nhận hàng đang khóa|Fulfillment is locked/i)).toBeVisible();
   });
 
   test.skip('English VietQR awaiting order keeps amount, reference, deadline, and copy controls localized', async ({page}) => {
@@ -65,7 +65,7 @@ test.describe('Phase 4 customer order status contract', () => {
     await page.setViewportSize({width: 375, height: 812});
     await page.goto('/vi/don-hang/ATB-20260615-0002');
     await expect(page.locator('body')).toBeVisible();
-    await expect(page.getByText(/So tien chinh xac|Noi dung chuyen khoan|Han thanh toan/i)).toBeVisible();
+    await expect(page.getByText(/Số tiền chính xác|Nội dung chuyển khoản|Hạn thanh toán/i)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 

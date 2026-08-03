@@ -6,11 +6,11 @@ test.describe.configure({mode: 'serial'});
 
 test('localized auth pages render complete accessible forms', async ({page}) => {
   await page.goto('/vi/dang-nhap?next=/vi/tai-khoan');
-  await expect(page.getByRole('heading', {name: 'Dang nhap'})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Đăng nhập'})).toBeVisible();
   await expect(page.getByLabel('Email')).toBeVisible();
-  await expect(page.getByLabel('Mat khau')).toBeVisible();
-  await expect(page.getByRole('link', {name: 'Tao tai khoan'})).toHaveAttribute('href', '/vi/dang-ky');
-  await expect(page.getByRole('link', {name: 'Quen mat khau?'})).toHaveAttribute('href', '/vi/quen-mat-khau');
+  await expect(page.getByLabel('Mật khẩu')).toBeVisible();
+  await expect(page.getByRole('link', {name: 'Tạo tài khoản'})).toHaveAttribute('href', '/vi/dang-ky');
+  await expect(page.getByRole('link', {name: 'Quên mật khẩu?'})).toHaveAttribute('href', '/vi/quen-mat-khau');
   await expect(page.getByText(commerceTerms)).toHaveCount(0);
 
   await page.goto('/en/register?next=/en/account');
@@ -46,18 +46,18 @@ test('registration submission shows localized verification-pending copy', async 
 test('invalid sign in shows a localized generic error', async ({page}) => {
   await page.goto('/vi/dang-nhap');
   await page.getByLabel('Email').fill(`missing-${Date.now()}@example.com`);
-  await page.getByLabel('Mat khau').fill('secure-password-123');
-  await page.getByRole('button', {name: 'Dang nhap'}).click();
+  await page.getByLabel('Mật khẩu').fill('secure-password-123');
+  await page.getByRole('button', {name: 'Đăng nhập'}).click();
 
-  await expect(page.locator('#auth-form-error')).toContainText('Yeu cau chua hoan tat');
+  await expect(page.locator('#auth-form-error')).toContainText('Yêu cầu chưa hoàn tất');
   await expect(page.getByText(/invalid login|supabase|not found/i)).toHaveCount(0);
 });
 
 test('invalid recovery links show localized generic reset guidance', async ({page}) => {
   await page.goto('/vi/dat-lai-mat-khau');
-  await expect(page.getByRole('heading', {name: 'Chon mat khau moi'})).toBeVisible();
-  await expect(page.getByText('Lien ket khoi phuc nay khong con hop le')).toBeVisible();
-  await expect(page.getByLabel('Mat khau')).toHaveCount(0);
+  await expect(page.getByRole('heading', {name: 'Chọn mật khẩu mới'})).toBeVisible();
+  await expect(page.getByText('Liên kết khôi phục này không còn hợp lệ')).toBeVisible();
+  await expect(page.getByLabel('Mật khẩu')).toHaveCount(0);
 });
 
 test('recovery marker renders reset password form with safe localized next value', async ({page}) => {

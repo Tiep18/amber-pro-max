@@ -12,22 +12,22 @@ export async function getTaxonomyCommerceLabels(
   const copy =
     locale === 'vi'
       ? {
-          technique: 'Ky thuat',
-          allTechniques: 'Tat ca ky thuat',
-          tag: 'The',
-          allTags: 'Tat ca the',
-          resolving: 'Dang tai san pham...',
-          loaded: 'Da tai san pham cho thi truong {market}. {count} san pham.',
-          errorTitle: 'Khong the cap nhat san pham.',
-          errorBody: 'Gia va tinh trang hang co the da cu. Hay thu lai truoc khi mua.',
-          retry: 'Thu lai',
-          emptyTitle: 'Khong co san pham phu hop voi thi truong nay.',
-          emptyBody: 'Thu chon khu vuc mua sam khac de xem them san pham.',
-          noFilters: 'trang kham pha nay',
-          marketNames: { vn: 'Viet Nam', intl: 'quoc te' },
-          saveWishlist: 'Luu san pham vao yeu thich',
-          removeWishlist: 'Xoa san pham khoi yeu thich',
-          placeholderStatus: 'Dang cap nhat anh'
+          technique: 'Kỹ thuật',
+          allTechniques: 'Tất cả kỹ thuật',
+          tag: 'Thẻ',
+          allTags: 'Tất cả thẻ',
+          resolving: 'Đang tải sản phẩm...',
+          loaded: 'Đã tải sản phẩm cho thị trường {market}. {count} sản phẩm.',
+          errorTitle: 'Không thể cập nhật sản phẩm.',
+          errorBody: 'Giá và tình trạng hàng có thể đã cũ. Hãy thử lại trước khi mua.',
+          retry: 'Thử lại',
+          emptyTitle: 'Không có sản phẩm phù hợp với thị trường này.',
+          emptyBody: 'Thử chọn khu vực mua sắm khác để xem thêm sản phẩm.',
+          noFilters: 'trang khám phá này',
+          marketNames: { vn: 'Việt Nam', intl: 'quốc tế' },
+          saveWishlist: 'Lưu sản phẩm vào yêu thích',
+          removeWishlist: 'Xóa sản phẩm khỏi yêu thích',
+          placeholderStatus: 'Đang cập nhật ảnh'
         }
       : {
           technique: 'Technique',

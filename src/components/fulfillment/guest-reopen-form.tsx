@@ -142,7 +142,7 @@ export function GuestReopenForm({locale, labels}: {locale: Locale; labels: Guest
               if (value === 'reopen' || value === 'claim') setIntent(value);
             }}
             className="grid grid-cols-2 rounded-[var(--radius-control)] bg-[var(--surface-muted)] p-1"
-            aria-label={locale === 'vi' ? 'Chon cach truy cap don' : 'Choose order access mode'}
+            aria-label={locale === 'vi' ? 'Chọn cách truy cập đơn' : 'Choose order access mode'}
           >
             <ToggleGroupItem value="reopen" className="min-h-11 gap-2">
               <Link2 className="h-4 w-4" aria-hidden="true" />

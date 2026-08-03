@@ -14,13 +14,13 @@ test.describe('account purchases', () => {
 
   test.skip('Vietnamese account purchase routes render localized library copy', async ({page}) => {
     await page.goto('/vi/tai-khoan/mau-pdf');
-    await expect(page.getByText(/thu vien mau pdf/i)).toBeVisible();
+    await expect(page.getByText(/thư viện mẫu pdf/i)).toBeVisible();
   });
   test.skip('guest can request a generic reopen email in English and Vietnamese', async ({page}) => {
     await page.goto('/en/guest-order');
     await expect(page.getByRole('heading', {name: /reopen guest order/i})).toBeVisible();
     await page.goto('/vi/don-hang-khach');
-    await expect(page.getByRole('heading', {name: /mo lai don hang/i})).toBeVisible();
+    await expect(page.getByRole('heading', {name: /mở lại đơn hàng/i})).toBeVisible();
   });
 
   test.skip('same-email signed-in customer can claim an order with token proof', async ({page}) => {
