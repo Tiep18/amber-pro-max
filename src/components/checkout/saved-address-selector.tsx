@@ -16,7 +16,7 @@ export function SavedAddressSelector({locale, addresses, pending, onApply}: {loc
   const [selectedId, setSelectedId] = useState(addresses.find((address) => address.isDefault)?.id ?? addresses[0]?.id ?? '');
   if (!addresses.length) return null;
   return <section className="grid gap-2 border-b border-[var(--border)]/60 pb-4">
-    <label className="grid gap-1.5" id="saved-address-label"><span className="text-sm font-semibold">{t.title}</span>
+    <label className="grid gap-1.5"><span className="text-sm font-semibold" id="saved-address-label">{t.title}</span>
       <Select
         value={selectedId || undefined}
         disabled={pending}

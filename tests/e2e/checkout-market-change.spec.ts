@@ -170,27 +170,41 @@ test('destination changes require a blocking material-change confirmation', asyn
 
   await page.goto('/vi/thanh-toan');
   await expect(page.getByRole('heading', { name: 'Thanh toán' })).toBeVisible();
-  await page.getByRole('combobox', { name: 'Quốc gia giao hàng' }).click();
-  await page.getByRole('option', { name: /\(US\)/ }).click();
-  await expect(
-    page.getByRole('dialog', { name: 'Phí giao hàng và tổng tiền đã thay đổi' })
-  ).toBeVisible();
-  await expect(
-    page.getByRole('dialog', { name: 'Phí giao hàng và tổng tiền đã thay đổi' })
-  ).toContainText(/\$25\.50/);
-  await page.getByRole('button', { name: 'Xem lại địa chỉ' }).click();
-  await expect(
-    page.getByRole('dialog', { name: 'Phí giao hàng và tổng tiền đã thay đổi' })
-  ).toHaveCount(0);
+  const shippingCountry = page.getByRole('combobox', { name: 'Quốc gia giao hàng' });
+  const review = page.getByRole('dialog', { name: 'Phí giao hàng và tổng tiền đã thay đổi' });
 
+  await shippingCountry.click();
+  await page.getByRole('option', { name: /\(US\)/ }).click();
+  await expect(review).toBeVisible();
+  await expect(review).toContainText(/\$25\.50/);
+
+  // Reviewing the destination restores the last accepted destination, so the
+  // country has to be chosen again before the new quote can be accepted.
+  await review.getByRole('button', { name: 'Xem lại địa chỉ' }).click();
+  await expect(review).toHaveCount(0);
+  await expect(shippingCountry).toContainText('Chọn quốc gia');
+
+  await shippingCountry.click();
+  await page.getByRole('option', { name: /\(US\)/ }).click();
+  await expect(review).toBeVisible();
+  await review.getByRole('button', { name: 'Dùng báo giá mới' }).click();
+
+  // Narrowing the destination to a region re-quotes against a new shipping
+  // basis, so the confirmation gate is raised again before it is accepted.
   await page.getByRole('combobox', { name: 'Bang hoặc vùng lãnh thổ' }).click();
   await page.getByRole('option', { name: 'CA', exact: true }).click();
-  await page.getByRole('button', { name: 'Dùng báo giá mới' }).click();
-  await page.getByLabel('Tên người nhận').fill('Taylor Customer');
-  await page.getByLabel('Số điện thoại').fill('+15551234567');
-  await page.getByLabel('Địa chỉ').fill('123 Market Street');
-  await page.getByLabel('Mã ZIP hoặc mã bưu chính').fill('94105');
-  await expect(page.getByText('$25.50')).toBeVisible();
+  await expect(review).toBeVisible();
+  await review.getByRole('button', { name: 'Dùng báo giá mới' }).click();
+  await expect(review).toHaveCount(0);
+
+  // Scoped to the destination section: "Địa chỉ" also matches the section
+  // landmark itself and the footer newsletter field.
+  const destination = page.getByRole('region', { name: 'Địa chỉ giao hàng' });
+  await destination.getByLabel('Tên người nhận').fill('Taylor Customer');
+  await destination.getByLabel('Số điện thoại').fill('+15551234567');
+  await destination.getByLabel('Địa chỉ').fill('123 Market Street');
+  await destination.getByLabel('Mã ZIP hoặc mã bưu chính').fill('94105');
+  await expect(page.getByTestId('checkout-total')).toHaveText('$25.50');
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('combobox', { name: 'Quốc gia giao hàng' })).toBeVisible();
@@ -238,7 +252,7 @@ test('Vietnam destination overrides international browsing and requires the VND 
   );
 
   await page.goto('/en/checkout');
-  await expect(page.getByText('$18.00').last()).toBeVisible();
+  await expect(page.getByTestId('checkout-total')).toHaveText('$18.00');
   const shippingCountry = page.getByRole('combobox', { name: 'Shipping country' });
   await shippingCountry.click();
   await page.getByRole('option', { name: /\(VN\)/ }).click();
@@ -253,7 +267,7 @@ test('Vietnam destination overrides international browsing and requires the VND 
   await page.getByRole('option', { name: /\(VN\)/ }).click();
   await expect(review).toBeVisible();
   await review.getByRole('button', { name: 'Use updated quote' }).click();
-  await expect(page.getByText(/280[.,]000/).last()).toBeVisible();
+  await expect(page.getByTestId('checkout-total')).toContainText(/280[.,]000/);
 
   const paymentMethod = page.getByTestId('checkout-payment-method');
   await expect(paymentMethod).toContainText('VietQR');
@@ -262,12 +276,12 @@ test('Vietnam destination overrides international browsing and requires the VND 
   const marketTrigger = page.getByTestId('commerce-context-trigger');
   await marketTrigger.click();
   await page.getByRole('menuitemradio', {name: /Vietnam.*VND/i}).click();
-  await expect(page.getByText(/280[.,]000/).last()).toBeVisible();
+  await expect(page.getByTestId('checkout-total')).toContainText(/280[.,]000/);
   await expect(paymentMethod).toContainText('VietQR');
 
   await marketTrigger.click();
   await page.getByRole('menuitemradio', {name: /International.*USD/i}).click();
-  await expect(page.getByText(/280[.,]000/).last()).toBeVisible();
+  await expect(page.getByTestId('checkout-total')).toContainText(/280[.,]000/);
   await expect(paymentMethod).toContainText('VietQR');
   await expect(paymentMethod).not.toContainText('PayPal');
 });

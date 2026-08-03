@@ -26,12 +26,65 @@ test.describe('saved address retention (ACC-03, D-01, D-02, D-04)', () => {
   test('English customer can open the saved-address account route', async ({page}) => {
     await page.goto('/en/account/addresses');
     await expect(page.getByRole('heading', {name: /saved addresses/i})).toBeVisible();
-    await expect(page.getByText('Vietnam studio')).toBeVisible();
+    // Counted rather than matched: the seed creates exactly one such address, so
+    // this still fails on a real duplicate while riding out the transient double
+    // render the dev server produces on a route's first compile.
+    await expect(page.getByRole('heading', {name: 'Vietnam studio', exact: true})).toHaveCount(1);
   });
 
   test('Vietnamese customer can open the localized address route', async ({page}) => {
     await page.goto('/vi/tai-khoan/dia-chi');
     await expect(page.getByRole('heading', {name: /địa chỉ đã lưu/i})).toBeVisible();
+  });
+
+  // Runs before the tests that add addresses and move the default: checkout
+  // prefills from whichever address is default, and an incomplete one leaves the
+  // shipping section unmounted.
+  test('checkout can reuse a saved address and revalidates the quote', async ({page}) => {
+    const now = new Date().toISOString();
+    await page.goto('/en');
+    await page.evaluate(
+      ({productId, timestamp}) => {
+        window.localStorage.setItem(
+          'amigurumi.guestCart.v1',
+          JSON.stringify({
+            version: 1,
+            updatedAt: timestamp,
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            lines: [{productId, variantId: null, quantity: 1, marketAtAdd: 'intl', addedAt: timestamp, updatedAt: timestamp}]
+          })
+        );
+      },
+      {productId: seed.products.physical.id, timestamp: now}
+    );
+    await page.goto('/en/checkout');
+    // A customer who already has a default address lands on the collapsed
+    // summary, so the destination has to be reopened before a different saved
+    // address can be picked. Applying one collapses the section again.
+    const destination = page.getByRole('region', {name: 'Delivery address'});
+    await destination.getByRole('button', {name: 'Change'}).click();
+    await destination.getByLabel('Saved address').click();
+    await page.getByRole('option', {name: /^US home/}).click();
+
+    // Moving from the VN default to the US address changes market, currency and
+    // total, so the blocking confirmation gate has to be accepted first.
+    const review = page.getByRole('dialog', {name: 'Shipping and total changed'});
+    await review.getByRole('button', {name: 'Use updated quote'}).click();
+    await expect(review).toHaveCount(0);
+
+    // Wait for the applied address to land in the collapsed summary before
+    // reopening it, otherwise the reopen races the collapse.
+    await expect(destination).toContainText('123 Market Street');
+    await destination.getByRole('button', {name: 'Change'}).click();
+    await expect(page.getByRole('combobox', {name: /^Shipping country/})).toContainText(
+      'United States (US)'
+    );
+    await expect(page.getByRole('textbox', {name: /^Street address/})).toHaveValue(
+      '123 Market Street'
+    );
+    await expect(
+      page.getByRole('status').filter({hasText: /shipping is calculated for this destination/i})
+    ).toBeVisible();
   });
 
   test('customer can create and edit an address', async ({page}) => {
@@ -73,38 +126,6 @@ test.describe('saved address retention (ACC-03, D-01, D-02, D-04)', () => {
     await page.getByRole('button', {name: 'Delete'}).first().click();
   });
 
-  test('checkout can reuse a saved address and revalidates the quote', async ({page}) => {
-    const now = new Date().toISOString();
-    await page.goto('/en');
-    await page.evaluate(
-      ({productId, timestamp}) => {
-        window.localStorage.setItem(
-          'amigurumi.guestCart.v1',
-          JSON.stringify({
-            version: 1,
-            updatedAt: timestamp,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            lines: [{productId, variantId: null, quantity: 1, marketAtAdd: 'intl', addedAt: timestamp, updatedAt: timestamp}]
-          })
-        );
-      },
-      {productId: seed.products.physical.id, timestamp: now}
-    );
-    await page.goto('/en/checkout');
-    const savedAddress = page.getByLabel('Saved address');
-    await savedAddress.click();
-    await page.getByRole('option', {name: /^US home/}).click();
-    await page.getByRole('button', {name: 'Use this address'}).click();
-    await expect(page.getByRole('combobox', {name: /^Shipping country/})).toContainText(
-      'United States (US)'
-    );
-    await expect(page.getByRole('textbox', {name: /^Street address/})).toHaveValue(
-      '123 Market Street'
-    );
-    await expect(
-      page.getByRole('status').filter({hasText: /cannot ship these items to this destination/i})
-    ).toBeVisible();
-  });
 });
 
 test.describe('account wishlist retention (ACC-04, D-05, D-06, D-07)', () => {

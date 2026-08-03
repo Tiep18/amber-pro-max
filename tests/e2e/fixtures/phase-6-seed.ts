@@ -31,6 +31,7 @@ const createdUsers: E2EUser[] = [];
 const createdProductIds: string[] = [];
 const createdOrderIds: string[] = [];
 const createdEmails: string[] = [];
+const createdProfileIds: string[] = [];
 const execFileAsync = promisify(execFile);
 const dockerExecutable = process.platform === 'win32' ? 'docker.exe' : 'docker';
 const localSupabaseDbContainer = 'supabase_db_Test_GSD';
@@ -104,6 +105,46 @@ async function createProduct({
   }
 
   return {id, enSlug, viSlug, title};
+}
+
+// Checkout only renders the shipping-address section while an accepted quote
+// still has physical lines, and a destination with no shipping rule never
+// produces one. Without a rule covering the customer's default saved address
+// (VN) the section would never mount, so a saved address could not be reused.
+async function seedShippingProfile(productId: string) {
+  const profileResponse = await rest('shipping_profiles', {
+    method: 'POST',
+    headers: {Prefer: 'return=representation'},
+    body: JSON.stringify({name: `Phase 6 shipping ${suffix()}`})
+  });
+  const [{id: profileId}] = (await profileResponse.json()) as Array<{id: string}>;
+  createdProfileIds.push(profileId);
+
+  // Both seeded addresses are shippable so the section stays mounted whichever
+  // one is the current default — earlier tests in the suite change it.
+  await rest('shipping_rules', {
+    method: 'POST',
+    body: JSON.stringify([
+      {
+        profile_id: profileId,
+        country_code: 'VN',
+        currency_code: 'VND',
+        first_item_fee_minor: 30000,
+        additional_item_fee_minor: 10000
+      },
+      {
+        profile_id: profileId,
+        country_code: 'US',
+        currency_code: 'USD',
+        first_item_fee_minor: 750,
+        additional_item_fee_minor: 225
+      }
+    ])
+  });
+  await rest('product_shipping_profiles', {
+    method: 'POST',
+    body: JSON.stringify({product_id: productId, profile_id: profileId})
+  });
 }
 
 async function seedAddress(userId: string) {
@@ -361,10 +402,17 @@ export async function seedPhase6Data(): Promise<Phase6Seed> {
       title: `Phase 6 checkout fox ${id}`,
       enSlug: `phase-6-checkout-fox-${id}`,
       viSlug: `cao-thanh-toan-phase-6-${id}`,
-      offers: [{market_code: 'intl', currency_code: 'USD', enabled: true, price_minor: 3200}]
+      // Sold in both markets: checkout prefills the destination from the
+      // customer's default saved address (VN), and an intl-only product would
+      // drop out of the quote there and unmount the whole shipping section.
+      offers: [
+        {market_code: 'intl', currency_code: 'USD', enabled: true, price_minor: 3200},
+        {market_code: 'vn', currency_code: 'VND', enabled: true, price_minor: 780000}
+      ]
     })
   };
 
+  await seedShippingProfile(products.physical.id);
   await seedAddress(customer.id);
   await seedWishlist(customer.id, products);
   await seedPaidReviewEligibility(customer, products.review);
@@ -460,6 +508,7 @@ export async function cleanupPhase6Data() {
   const productIds = [...createdProductIds];
   const emails = [...createdEmails];
   const users = [...createdUsers];
+  const profileIds = [...createdProfileIds];
 
   await deleteProtectedLocalRows(orderIds, emails);
 
@@ -469,6 +518,9 @@ export async function cleanupPhase6Data() {
   for (const productId of productIds) {
     await rest(`products?id=eq.${productId}`, {method: 'DELETE'});
   }
+  for (const profileId of profileIds) {
+    await rest(`shipping_profiles?id=eq.${profileId}`, {method: 'DELETE'});
+  }
   for (const user of users) {
     await deleteUser(user.id);
   }
@@ -477,4 +529,5 @@ export async function cleanupPhase6Data() {
   createdProductIds.splice(0);
   createdEmails.splice(0);
   createdUsers.splice(0);
+  createdProfileIds.splice(0);
 }

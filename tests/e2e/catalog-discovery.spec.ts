@@ -267,12 +267,15 @@ test('desktop facet navigation scrolls the product results to their sticky-safe 
     timeout: 20_000
   });
 
+  // Polled as a band, not as two steps: the results start far above the
+  // viewport, so a lone `<= 184` check is already satisfied mid-scroll and the
+  // follow-up lower-bound read races the smooth scroll.
   await expect
-    .poll(() => resultCount.evaluate((element) => element.getBoundingClientRect().top))
-    .toBeLessThanOrEqual(184);
-  expect(
-    await resultCount.evaluate((element) => element.getBoundingClientRect().top)
-  ).toBeGreaterThanOrEqual(168);
+    .poll(async () => {
+      const top = await resultCount.evaluate((element) => element.getBoundingClientRect().top);
+      return top >= 168 && top <= 184;
+    })
+    .toBe(true);
 });
 
 test('mobile filter sheet handles long category lists and local search', async ({ page }) => {

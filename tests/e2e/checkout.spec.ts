@@ -157,16 +157,17 @@ test('discount code applies and removes through server quote without localStorag
   await page.getByLabel('Discount code').fill(code.toLowerCase());
   await page.getByRole('button', { name: 'Apply discount' }).click();
 
-  await expect(page.getByText('Discount CHECKOUT')).toBeVisible();
+  const discountRow = page.getByText(`Discount · ${code}`);
+  await expect(discountRow).toBeVisible();
   await expect(page.getByText('-$2.50')).toBeVisible();
-  await expect(page.getByText('$22.50')).toBeVisible();
+  await expect(page.getByTestId('checkout-total')).toHaveText('$22.50');
   await expect(
     page.evaluate(() => window.localStorage.getItem('amigurumi.guestCart.v1'))
   ).resolves.not.toContain(code);
 
   await page.getByRole('button', { name: 'Remove discount' }).click();
-  await expect(page.getByText('Discount CHECKOUT')).toHaveCount(0);
-  await expect(page.getByText('$25.00').last()).toBeVisible();
+  await expect(discountRow).toHaveCount(0);
+  await expect(page.getByTestId('checkout-total')).toHaveText('$25.00');
 });
 
 test('international digital checkout renders only the canonical PayPal method', async ({
@@ -200,7 +201,7 @@ test('international digital checkout renders only the canonical PayPal method', 
   );
 
   await page.goto('/en/checkout');
-  await expect(page.getByText('$25.00').last()).toBeVisible();
+  await expect(page.getByTestId('checkout-total')).toHaveText('$25.00');
   const paymentMethod = page.getByTestId('checkout-payment-method');
   await expect(paymentMethod).toContainText('PayPal');
   await expect(paymentMethod).not.toContainText('VietQR');

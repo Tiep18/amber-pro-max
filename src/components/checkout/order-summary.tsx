@@ -260,7 +260,7 @@ export function OrderSummary({
           {pending ? (
             <span aria-hidden="true" className="h-6 w-24 animate-pulse rounded bg-[var(--surface-muted)]" />
           ) : (
-            <span className="text-[var(--brand)]">{total}</span>
+            <span data-testid="checkout-total" className="text-[var(--brand)]">{total}</span>
           )}
         </div>
 
@@ -359,7 +359,7 @@ export function MobileCheckoutDock({
       <div className="mx-auto grid max-w-2xl grid-cols-[minmax(0,1fr)_minmax(164px,auto)] items-center gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-[var(--muted-foreground)]">{copy[locale].total}</p>
-          <p className="truncate text-lg font-semibold tabular-nums text-[var(--brand)]">{total}</p>
+          <p data-testid="checkout-total-mobile" className="truncate text-lg font-semibold tabular-nums text-[var(--brand)]">{total}</p>
         </div>
         <Button data-testid="checkout-submit-mobile" className="min-h-12 px-4" disabled={disabled} onClick={onSubmit}>
           <span className="truncate">{label}</span>
