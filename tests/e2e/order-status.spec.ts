@@ -1,97 +1,75 @@
 import {expect, test} from '@playwright/test';
 
-const seededPaymentFixturesPending =
-  'Skipped until Plan 04-10 provides seeded payment orders plus guest/customer authorization helpers for executable browser runs.';
+import {signIn} from './fixtures/authenticated-users';
+import {
+  cleanupPhase10Commerce,
+  seedPhase10Commerce,
+  type Phase10CommerceSeed
+} from './fixtures/phase-10-commerce-seed';
 
-test.describe('Phase 4 customer order status contract', () => {
-  test.skip('authorized guest opens order status with order number, immutable lines, totals, deadline, and locked fulfillment', async ({
-    page
-  }) => {
-    test.info().annotations.push({type: 'skip-reason', description: seededPaymentFixturesPending});
-    await page.goto('/en/orders/ATB-20260615-0001');
-    await expect(page.getByRole('heading', {name: /Awaiting payment|Verifying payment|Payment confirmed/})).toBeVisible();
-    await expect(page.getByText(/Fulfillment is locked|eligible for the next fulfillment step/i)).toBeVisible();
+let seed: Phase10CommerceSeed;
+
+const copy = {
+  paid: 'Payment confirmed',
+  verifying: 'Verifying payment',
+  awaiting: 'Awaiting payment',
+  downloads: 'Pattern downloads',
+  tracking: 'Shipment tracking'
+} as const;
+
+test.beforeAll(async () => {
+  seed = await seedPhase10Commerce();
+});
+
+test.afterAll(async () => {
+  await cleanupPhase10Commerce();
+});
+
+test.describe('customer order status contract', () => {
+  test('signed-in owner sees immutable lines and sanitized provider presentation', async ({page}) => {
+    const fixture = seed.orders['paid-mixed'];
+    await signIn(page, seed.customer, `/en/orders/${fixture.orderNumber}`);
+    await expect(page.getByRole('heading', {name: copy.paid})).toBeVisible();
+    await expect(page.getByText(seed.products.digital.title)).toBeVisible();
+    await expect(page.getByText(seed.products.physical.title)).toBeVisible();
+    await expect(page.getByText(/service_role|access_token|provider payload|webhook|client_secret/i)).toHaveCount(0);
   });
 
-  test.skip('signed-in owner can view only their own order payment status and summary', async ({page}) => {
-    test.info().annotations.push({type: 'skip-reason', description: seededPaymentFixturesPending});
-    await page.goto('/en/orders/ATB-20260615-0001');
-    await expect(page.getByText(/Order ATB-20260615-0001/)).toBeVisible();
-    await expect(page.getByText(/service_role|access_token|provider payload|webhook/i)).toHaveCount(0);
+  test('PayPal return query cannot turn a verifying order into paid', async ({page}) => {
+    const fixture = seed.orders.verifying;
+    await signIn(page, seed.customer, `/en/orders/${fixture.orderNumber}`);
+    await page.goto(`/en/orders/${fixture.orderNumber}?paypal_return=1`);
+    await expect(page.getByRole('heading', {name: copy.verifying})).toBeVisible();
+    await expect(page.getByRole('heading', {name: copy.paid})).toHaveCount(0);
   });
 
-  test.skip('PayPal return before verified webhook shows verifying state and never paid', async ({page}) => {
-    test.info().annotations.push({type: 'skip-reason', description: seededPaymentFixturesPending});
-    await page.goto('/en/orders/ATB-20260615-0001?paypal_return=1');
-    await expect(page.getByRole('heading', {name: 'Verifying payment'})).toBeVisible();
-    await expect(page.getByText('Payment confirmed')).toHaveCount(0);
+  test('paid digital, physical, and mixed orders expose only relevant private next steps', async ({page}) => {
+    await signIn(page, seed.customer, `/en/orders/${seed.orders['paid-digital'].orderNumber}`);
+    await expect(page.getByRole('heading', {name: copy.downloads})).toBeVisible();
+    await expect(page.getByRole('heading', {name: copy.tracking})).toHaveCount(0);
+
+    await page.goto(`/en/orders/${seed.orders['paid-physical'].orderNumber}`);
+    await expect(page.getByRole('heading', {name: copy.tracking})).toBeVisible();
+    await expect(page.getByRole('heading', {name: copy.downloads})).toHaveCount(0);
+
+    await page.goto(`/en/orders/${seed.orders['paid-mixed'].orderNumber}`);
+    await expect(page.getByRole('heading', {name: copy.downloads})).toBeVisible();
+    await expect(page.getByRole('heading', {name: copy.tracking})).toBeVisible();
   });
 
-  test.skip('Vietnamese VietQR awaiting order shows exact VND amount, immutable reference, QR image, deadline, and no customer self-confirm button', async ({
-    page
-  }) => {
-    test.info().annotations.push({type: 'skip-reason', description: seededPaymentFixturesPending});
-    await page.goto('/vi/don-hang/ATB-20260615-0002');
-    await expect(page).toHaveURL(/\/vi\/don-hang\/ATB-20260615-0002/);
-    await expect(page.getByText(/VietQR|Chuyển khoản đúng số tiền|Transfer the exact amount/i)).toBeVisible();
-    await expect(page.getByText(/VND|₫|Số tiền chính xác/i)).toBeVisible();
-    await expect(page.getByText(/Nội dung chuyển khoản|ATB-20260615-0002/i)).toBeVisible();
-    await expect(page.getByText(/Hạn thanh toán|Hạn giữ hàng/i)).toBeVisible();
-    await expect(page.getByRole('button', {name: /Tôi đã chuyển khoản|I have paid/i})).toHaveCount(0);
-    await expect(page.getByText(/Quyền nhận hàng đang khóa|Fulfillment is locked/i)).toBeVisible();
-  });
-
-  test.skip('English VietQR awaiting order keeps amount, reference, deadline, and copy controls localized', async ({page}) => {
-    test.info().annotations.push({type: 'skip-reason', description: seededPaymentFixturesPending});
-    await page.goto('/en/orders/ATB-20260615-0002');
-    await expect(page).toHaveURL(/\/en\/orders\/ATB-20260615-0002/);
-    await expect(page.getByText('Transfer the exact amount and reference')).toBeVisible();
-    await expect(page.getByRole('button', {name: 'Copy amount'})).toBeVisible();
-    await expect(page.getByRole('button', {name: 'Copy reference'})).toBeVisible();
-    await expect(page.getByText(/Payment deadline|Reservation deadline/i)).toBeVisible();
-  });
-
-  test.skip('unauthorized guest or mismatched customer receives a generic non-enumerating denial', async ({page}) => {
-    test.info().annotations.push({type: 'skip-reason', description: seededPaymentFixturesPending});
-    await page.goto('/en/orders/ATB-DOES-NOT-LEAK');
-    await expect(page.getByRole('heading', {name: 'This order cannot be opened'})).toBeVisible();
-    await expect(page.getByText(/ATB-DOES-NOT-LEAK|PayPal|VietQR|\$|VND/i)).toHaveCount(0);
-  });
-
-  test.skip('mobile 375px VietQR order detail keeps status, amount, reference, deadline, and lock visible without horizontal scroll', async ({
-    page
-  }) => {
-    test.info().annotations.push({type: 'skip-reason', description: seededPaymentFixturesPending});
-    await page.setViewportSize({width: 375, height: 812});
-    await page.goto('/vi/don-hang/ATB-20260615-0002');
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.getByText(/Số tiền chính xác|Nội dung chuyển khoản|Hạn thanh toán/i)).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  });
-
-  test.skip('desktop 1280px VietQR order detail keeps a scannable two-column payment and summary layout', async ({page}) => {
-    test.info().annotations.push({type: 'skip-reason', description: seededPaymentFixturesPending});
-    await page.setViewportSize({width: 1280, height: 900});
-    await page.goto('/en/orders/ATB-20260615-0002');
-    await expect(page.getByText('Transfer the exact amount and reference')).toBeVisible();
-    await expect(page.getByText('Order summary')).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  });
-
-  test.skip('VietQR verifying, rejected, expired, and paid states keep text-and-icon status with the paid gate closed until server-paid', async ({
-    page
-  }) => {
-    test.info().annotations.push({type: 'skip-reason', description: seededPaymentFixturesPending});
-    for (const path of [
-      '/en/orders/ATB-20260615-VIETQR-VERIFYING',
-      '/en/orders/ATB-20260615-VIETQR-REJECTED',
-      '/en/orders/ATB-20260615-VIETQR-EXPIRED',
-      '/en/orders/ATB-20260615-VIETQR-PAID'
+  test('mobile and desktop order layouts do not overflow or expose hidden duplicate controls', async ({page}) => {
+    const fixture = seed.orders['pending-vietqr'];
+    await signIn(page, seed.customer, `/en/orders/${fixture.orderNumber}`);
+    for (const viewport of [
+      {width: 375, height: 812},
+      {width: 1440, height: 900}
     ]) {
-      await page.goto(path);
-      await expect(page.getByRole('heading', {name: /Verifying payment|Bank transfer rejected|Payment window expired|Payment confirmed/})).toBeVisible();
-      await expect(page.locator('svg[aria-hidden="true"]').first()).toBeVisible();
+      await page.setViewportSize(viewport);
+      await page.reload();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await expect(page.getByRole('heading', {name: copy.awaiting})).toBeVisible();
+      const tabbablePrimary = page.locator('a:visible, button:visible').filter({hasText: /Pay|Download|Restore|Browse/});
+      expect(await tabbablePrimary.count()).toBeLessThanOrEqual(2);
     }
-    await expect(page.getByText(/PDF access and shipping work begin only after|eligible for the next fulfillment step/i)).toBeVisible();
   });
 });
