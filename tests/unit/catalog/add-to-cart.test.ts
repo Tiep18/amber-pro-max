@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {canAddToCart} from '@/catalog/add-to-cart-eligibility';
 import {
   createAddToCartIntent,
+  resolveAddToCartBlockedReason,
   shouldResetVariantSelection,
   type AddToCartAgreement,
   type AddToCartProjection
@@ -47,6 +48,47 @@ const readyAgreement: AddToCartAgreement = {
 };
 
 describe('catalog add-to-cart availability', () => {
+  it('uses one complete canonical reason for every blocked presentation', () => {
+    const messages = {
+      adding: 'Addingâ€¦',
+      quoteFailed: 'We could not refresh your cart. Try again before checkout.',
+      unavailable: 'Unavailable in this shopping region.',
+      select: 'Choose an in-stock option to add to cart.',
+      stale: 'We could not confirm this offer. Try again.'
+    };
+    const ready = {
+      submitting: false,
+      quoteFailed: false,
+      available: true,
+      inStock: true,
+      needsVariant: false,
+      hasSelectedVariant: false,
+      hasIntent: true,
+      messages
+    };
+
+    expect(resolveAddToCartBlockedReason({...ready, submitting: true})).toBe(
+      messages.adding
+    );
+    expect(resolveAddToCartBlockedReason({...ready, quoteFailed: true})).toBe(
+      messages.quoteFailed
+    );
+    expect(resolveAddToCartBlockedReason({...ready, inStock: false})).toBe(
+      messages.unavailable
+    );
+    expect(
+      resolveAddToCartBlockedReason({
+        ...ready,
+        needsVariant: true,
+        hasSelectedVariant: false
+      })
+    ).toBe(messages.select);
+    expect(resolveAddToCartBlockedReason({...ready, hasIntent: false})).toBe(
+      messages.stale
+    );
+    expect(resolveAddToCartBlockedReason(ready)).toBeNull();
+  });
+
   it('blocks physical products without variants when product inventory is unavailable', () => {
     expect(
       canAddToCart({

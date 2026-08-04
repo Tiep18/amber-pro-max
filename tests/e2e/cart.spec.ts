@@ -32,7 +32,7 @@ function storedCart(lines: unknown[]) {
   });
 }
 
-test('Vietnamese shopper adds a PDF pattern and edits it in the cart', async ({ browser }) => {
+test('Vietnamese cart accessibility quantity controls and Undo stay item specific', async ({ browser }) => {
   const context = await browser.newContext({ extraHTTPHeaders: { 'x-vercel-ip-country': 'VN' } });
   const page = await context.newPage();
 
@@ -55,10 +55,18 @@ test('Vietnamese shopper adds a PDF pattern and edits it in the cart', async ({ 
   await expect(pdfLine.getByRole('heading', { name: 'Mau gau Viet Nam' })).toBeVisible();
   await expect(pdfLine.getByText('Mẫu PDF')).toBeVisible();
 
-  await page.getByRole('button', { name: /Tăng số lượng/ }).click();
+  const increaseQuantity = page.getByRole('button', { name: /Tăng số lượng Mau gau Viet Nam/ });
+  const removeLine = page.getByRole('button', { name: /Xóa Mau gau Viet Nam/ });
+  for (const control of [increaseQuantity, removeLine]) {
+    const box = await control.boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(44);
+    expect(box?.height).toBeGreaterThanOrEqual(44);
+  }
+
+  await increaseQuantity.click();
   await expect(pdfLine.getByText('250.000')).toBeVisible();
 
-  await page.getByRole('button', { name: /Xóa Mau gau Viet Nam/ }).click();
+  await removeLine.click();
   await expect(page.getByText('Đã xóa khỏi giỏ hàng')).toBeVisible();
   await page.getByRole('button', { name: 'Hoàn tác' }).click();
   await expect(page.getByRole('heading', { name: 'Mau gau Viet Nam' })).toBeVisible();
@@ -67,7 +75,7 @@ test('Vietnamese shopper adds a PDF pattern and edits it in the cart', async ({ 
   await context.close();
 });
 
-test('English shopper adds an in-stock physical variant through the mini cart', async ({
+test('PDP sticky accessibility keeps inactive actions unfocusable and blocked reasons linked', async ({
   page
 }) => {
   test.slow();
@@ -75,7 +83,19 @@ test('English shopper adds an in-stock physical variant through the mini cart', 
   await expect(page.getByRole('heading', { name: 'Both-market bear' })).toBeVisible({
     timeout: 30_000
   });
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const stickyAction = page.getByRole('button', { name: 'Add to cart' }).last();
+  await expect(stickyAction).toBeVisible();
+  await expect(stickyAction).toBeDisabled();
+  await expect(stickyAction).toHaveAttribute('aria-describedby', /add-to-cart/);
+  await expect(page.getByText('Choose an in-stock option to add to cart.').last()).toBeVisible();
+  const stickyBox = await stickyAction.boundingBox();
+  expect(stickyBox?.width).toBeGreaterThanOrEqual(44);
+  expect(stickyBox?.height).toBeGreaterThanOrEqual(44);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.getByRole('radio', { name: /small/i }).check({ timeout: 15_000 });
+  await expect(page.locator('[aria-hidden="true"] button:not([disabled])')).toHaveCount(0);
   await page.getByRole('button', { name: 'Add to cart' }).click();
 
   const cartDialog = page.getByRole('dialog', { name: 'Cart' });
