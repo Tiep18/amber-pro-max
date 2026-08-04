@@ -132,7 +132,14 @@ describe('shipping address UI helpers', () => {
   });
 
   test('keeps non-US final addresses and digital-only checkout unchanged', () => {
-    const vietnamAddress = {...completeAddress, countryCode: 'VN', region: 'Ho Chi Minh', postalCode: null};
+    const vietnamAddress = {
+      ...completeAddress,
+      phoneNumber: '+84912345678',
+      countryCode: 'VN',
+      region: '01',
+      locality: '00004',
+      postalCode: null
+    };
     expect(validateShippingDestination(vietnamAddress, {mode: 'final', hasPhysicalLines: true}).success).toBe(true);
     expect(validateShippingDestination(null, {mode: 'final', hasPhysicalLines: false})).toEqual({success: true, data: null});
   });

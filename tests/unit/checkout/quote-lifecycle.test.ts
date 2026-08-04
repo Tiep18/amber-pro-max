@@ -344,7 +344,14 @@ describe('checkout quote lifecycle', () => {
       status: 'ready',
       quote: vietnamQuote
     });
-    const vietnamAddress = { ...usAddress, countryCode: 'VN', region: null, postalCode: null };
+    const vietnamAddress = {
+      ...usAddress,
+      phoneNumber: '+84912345678',
+      countryCode: 'VN',
+      region: '01',
+      locality: '00004',
+      postalCode: null
+    };
 
     expect(proposed.acceptedQuote).toBe(accepted);
     expect(proposed.proposal?.quote).toBe(vietnamQuote);
