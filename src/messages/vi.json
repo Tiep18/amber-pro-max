@@ -479,7 +479,7 @@
     "fulfillment": {
       "lockedHeading": "Quyền nhận hàng đang khóa",
       "lockedBody": "File PDF và xử lý giao hàng chỉ bắt đầu sau khi toàn bộ đơn hàng được xác nhận đã thanh toán.",
-      "eligibleHeading": "Cổng xử lý đã mở",
+      "eligibleHeading": "Đã xác nhận thanh toán",
       "eligibleBody": "Thanh toán đã được xác nhận. Đơn hàng đã đủ điều kiện cho bước xử lý tiếp theo."
     },
     "nextSteps": {

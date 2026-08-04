@@ -479,7 +479,7 @@
     "fulfillment": {
       "lockedHeading": "Fulfillment is locked",
       "lockedBody": "PDF access and shipping work begin only after the full order is confirmed paid.",
-      "eligibleHeading": "Payment gate is open",
+      "eligibleHeading": "Payment confirmed",
       "eligibleBody": "Payment is confirmed. This order is now eligible for the next fulfillment step."
     },
     "nextSteps": {
