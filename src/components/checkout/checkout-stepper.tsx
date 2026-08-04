@@ -38,7 +38,7 @@ export function CheckoutStepper({current, locale}: {current: CheckoutStep; local
             {step === 'cart' && !isActive ? (
               <Link
                 href={getCartPath(locale)}
-                className="flex items-center gap-1.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+                className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
               >
                 <span className={`grid size-5 shrink-0 place-items-center rounded-full text-xs font-semibold ${numberClassName}`}>
                   {index + 1}
