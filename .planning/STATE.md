@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 10-02-PLAN.md
-last_updated: "2026-08-04T07:18:42.254Z"
+stopped_at: Completed 10-03-PLAN.md
+last_updated: "2026-08-04T08:22:22.731Z"
 last_activity: 2026-08-04 -- Phase 10 execution started
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 93
-  completed_plans: 88
+  completed_plans: 89
   percent: 80
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 10 (checkout-and-payment-ux-stabilization-for-vietnamese-and-int) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-08-04 -- Phase 10 execution started
 
@@ -110,6 +110,7 @@ Progress: All 15 Phase 09 plans are executed; deployment geo/SEO UAT remains pen
 | Phase 09 P15 | 9 days elapsed across checkpoints | 3 tasks | 52 files |
 | Phase 10 P01 | 22min | 3 tasks | 8 files |
 | Phase 10 P02 | 16min | 3 tasks | 14 files |
+| Phase 10 P03 | 52min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -220,6 +221,10 @@ Recent decisions affecting current work:
 - [Phase 10]: Editable checkout drafts are authority-free, versioned, capped at 16KiB, and expire after exactly 12 hours. — Keeps session persistence bounded, disposable, and separate from commerce authority.
 - [Phase 10]: Optional checkout address saves derive identity server-side and reuse the existing RPC/RLS path. — Caller identity fields are rejected and save failure cannot alter checkout or order success.
 - [Phase 10]: Plan 10-02 owns only four exhaustive Vietnam issue mappings in shipping-address-ui. — Plan 10-03 retains interaction, explicit consent, and final copy ownership.
+- [Phase 10]: Localized destination controls render readable labels but submit only normalized stable values. — Preserves server validation and commerce authority while improving bilingual search.
+- [Phase 10]: Mobile disclosure, desktop rail, and mobile dock consume one accepted-quote summary model. — Prevents responsive duplicates from becoming alternate total, destination, discount, or blocker authority.
+- [Phase 10]: Discount feedback owns its request identity and live region instead of sharing checkout feedback revisions. — Keeps discount results durable and independent from destination, submit, and incident feedback.
+- [Phase 10]: Plan 10-03 provisions the remaining bounded Phase 10 message catalog for Plans 10-04 through 10-06. — Maintains exact English/Vietnamese ownership and prevents later catalog overlap.
 
 ### Pending Todos
 
@@ -396,6 +401,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-04T07:18:42.242Z
-Stopped at: Completed 10-02-PLAN.md
+Last session: 2026-08-04T08:22:22.721Z
+Stopped at: Completed 10-03-PLAN.md
 Resume file: None
