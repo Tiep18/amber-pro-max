@@ -6,7 +6,7 @@ import { formatMoney } from '@/catalog/money';
 import { formatShippingAddressLines } from '@/checkout/shipping-address';
 import { getRequestUser } from '@/auth/request-user';
 import { CheckoutStepper } from '@/components/checkout/checkout-stepper';
-import {SupportLinks} from '@/components/support/support-links';
+import { SupportLinks } from '@/components/support/support-links';
 import { DownloadPanel } from '@/components/fulfillment/download-panel';
 import { FulfillmentTrackSummary } from '@/components/fulfillment/fulfillment-track-summary';
 import { PhysicalTrackingPanel } from '@/components/fulfillment/physical-tracking-panel';
@@ -15,12 +15,11 @@ import {
   getAccountOrdersPath,
   getCartPath,
   getCatalogPath,
-  getCheckoutPath,
   getContactPath,
   getGuestOrderPath
 } from '@/i18n/routing';
 import { getServerEnv } from '@/lib/env/server';
-import {getPublicSupportConfig} from '@/support/config';
+import { getPublicSupportConfig } from '@/support/config';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { formatPaymentDateTime } from '@/payments/format';
 import { getGuestOrderAccessHashFromServer } from '@/payments/guest-access';
@@ -33,10 +32,10 @@ import {
 } from '@/payments/vietqr/instructions';
 import { OrderLineSummary } from './order-line-summary';
 import { PaymentStatePanel } from './payment-state-panel';
+import { PaymentRecheckScope } from './payment-status-recheck';
 import { GuestOrderSessionSync } from './guest-order-session-sync';
 import { OrderRecoveryBanner } from './order-recovery-banner';
 import { PayPalButtons } from './paypal-buttons';
-import { ReservationCountdown } from './reservation-countdown';
 import { VietQrInstructions } from './vietqr-instructions';
 
 type OrderPaymentPageProps = {
@@ -99,8 +98,12 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
     provider: result.order.provider,
     reservationExpiresAt: result.order.reservationExpiresAt
   });
-  const presentation = getPaymentStatusPresentation(status.status, locale, getCheckoutPath(locale));
-  const deadlineValue = formatPaymentDateTime(result.order.reservationExpiresAt, locale);
+  const presentation = getPaymentStatusPresentation(status.status);
+  const deadlineValue = formatPaymentDateTime(
+    result.order.reservationExpiresAt,
+    locale,
+    publicSupportConfig.storeTimeZone
+  );
   const hasDigitalLines = result.order.lines.some((line) => line.fulfillmentType === 'digital');
   const hasPhysicalLines = result.order.lines.some((line) => line.fulfillmentType === 'physical');
   const total = formatMoney({
@@ -147,13 +150,18 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
       })
     : null;
   const vietQrInstruction = vietQrResult?.status === 'ready' ? vietQrResult.instruction : null;
+  const showPendingDeadline = presentation.showPendingDeadline && !vietQrInstruction;
+  const showFulfillmentDetails = status.isPaid;
+  const showTerminalRecovery = presentation.nextAction === 'recovery';
+  const showReviewSupport =
+    presentation.nextAction === 'support' && publicSupportConfig.hasChannels;
 
   return (
     <main className="container grid gap-5 py-10">
       {/* The page previously had no h1 at all — its highest heading was the h2
           inside PaymentStatePanel, so the document outline started at level 2. */}
       <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.01em]">
-        {t('pageHeading', {orderNumber: result.order.orderNumber})}
+        {t('pageHeading', { orderNumber: result.order.orderNumber })}
       </h1>
       <CheckoutStepper current={status.isPaid ? 'done' : 'payment'} locale={locale} />
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -167,14 +175,17 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
             )}
             presentation={presentation}
             deadlineLabel={t('labels.deadline')}
-            deadlineValue={deadlineValue}
-            reservationExpiresAt={result.order.reservationExpiresAt}
+            deadlineValue={showPendingDeadline ? deadlineValue : null}
+            reservationExpiresAt={showPendingDeadline ? result.order.reservationExpiresAt : null}
             orderLabel={t('labels.order')}
-            actionLabel={presentation.primaryAction ? t('actions.newCheckout') : null}
+            locale={locale}
+            storeTimeZone={publicSupportConfig.storeTimeZone}
+            recheckProvider={isVietQrOrder ? 'vietqr' : 'paypal'}
             recheckLabels={{
               checkStatus: t('actions.checkStatus'),
               checking: t('actions.checkingStatus'),
-              lastChecked: t('labels.lastChecked')
+              lastChecked: t('labels.lastChecked'),
+              pollingStopped: paypalT('pollingStopped')
             }}
             countdownLabels={{
               remaining: t('labels.countdownRemaining'),
@@ -184,66 +195,85 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
 
           <OrderRecoveryBanner
             orderNumber={result.order.orderNumber}
-            recoverable={['expired', 'cancelled', 'failed', 'rejected'].includes(status.status)}
             paid={status.isPaid}
+            status={status.status}
             cartHref={getCartPath(locale)}
+            catalogHref={getCatalogPath(locale)}
             labels={{
-              heading: t('recovery.heading'),
-              body: t('recovery.body'),
               restore: t('recovery.restore'),
               restoring: t('recovery.restoring'),
-              unavailable: t('recovery.unavailable')
+              unavailable: t('recovery.unavailable'),
+              browse: t('recovery.browse')
             }}
           />
 
+          {showReviewSupport ? (
+            <Link
+              href={getContactPath(locale)}
+              className="inline-flex min-h-11 w-fit items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-base font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+            >
+              {t('accessDenied.contactSupport')}
+            </Link>
+          ) : null}
+
           {vietQrInstruction ? (
-            <VietQrInstructions
-              amountLabel={total}
-              amountMinor={result.order.amountMinor}
-              bankName={vietQrInstruction.bankId}
-              accountName={vietQrInstruction.accountName}
-              accountNumber={vietQrInstruction.accountNo}
-              transferReference={vietQrInstruction.transferReference}
-              deadlineLabel={
-                formatPaymentDateTime(vietQrInstruction.paymentDeadlineAt, locale) ??
-                deadlineValue ??
-                vietQrInstruction.paymentDeadlineAt
-              }
-              qrImageUrl={vietQrInstruction.qrImageUrl}
-              qrAlt={vietqrT('qrAlt', { orderNumber: result.order.orderNumber })}
-              declared={Boolean(result.order.customerTransferDeclaredAt)}
-              onDeclare={declareVietQrTransferAction.bind(null, result.order.orderNumber)}
-              labels={{
-                title: vietqrT('title'),
-                body: vietqrT('body'),
-                amount: vietqrT('amount'),
-                qrAlt: vietqrT('qrAlt', { orderNumber: result.order.orderNumber }),
-                bank: vietqrT('bank'),
-                accountName: vietqrT('accountName'),
-                accountNumber: vietqrT('accountNumber'),
-                reference: vietqrT('reference'),
-                deadline: vietqrT('deadline'),
-                copyAmount: vietqrT('copyAmount'),
-                copyReference: vietqrT('copyReference'),
-                copied: vietqrT('copied'),
-                loadingQr: vietqrT('loadingQr'),
-                lockHeading: t('fulfillment.lockedHeading'),
-                lockBody: t('fulfillment.lockedBody'),
-                checkStatus: vietqrT('checkStatus'),
-                checking: vietqrT('checkingStatus'),
-                lastChecked: vietqrT('lastChecked'),
-                declareWarning: vietqrT('declareWarning'),
-                declareButton: vietqrT('declareButton'),
-                declaring: vietqrT('declaring'),
-                declaredStatus: vietqrT('declaredStatus'),
-                copyFailed: vietqrT('copyFailed'),
-                copyAccountNumber: vietqrT('copyAccountNumber'),
-                qrUnavailable: vietqrT('qrUnavailable'),
-                declareNotEligible: vietqrT('declareNotEligible'),
-                declareForbidden: vietqrT('declareForbidden'),
-                declareFailed: vietqrT('declareFailed')
-              }}
-            />
+            <PaymentRecheckScope
+              locale={locale}
+              storeTimeZone={publicSupportConfig.storeTimeZone}
+              pollingStopped={paypalT('pollingStopped')}
+            >
+              <VietQrInstructions
+                amountLabel={total}
+                amountMinor={result.order.amountMinor}
+                bankName={vietQrInstruction.bankId}
+                accountName={vietQrInstruction.accountName}
+                accountNumber={vietQrInstruction.accountNo}
+                transferReference={vietQrInstruction.transferReference}
+                deadlineLabel={
+                  formatPaymentDateTime(
+                    vietQrInstruction.paymentDeadlineAt,
+                    locale,
+                    publicSupportConfig.storeTimeZone
+                  ) ??
+                  deadlineValue ??
+                  vietQrInstruction.paymentDeadlineAt
+                }
+                qrImageUrl={vietQrInstruction.qrImageUrl}
+                qrAlt={vietqrT('qrAlt', { orderNumber: result.order.orderNumber })}
+                declared={Boolean(result.order.customerTransferDeclaredAt)}
+                onDeclare={declareVietQrTransferAction.bind(null, result.order.orderNumber)}
+                labels={{
+                  title: vietqrT('title'),
+                  body: vietqrT('body'),
+                  amount: vietqrT('amount'),
+                  qrAlt: vietqrT('qrAlt', { orderNumber: result.order.orderNumber }),
+                  bank: vietqrT('bank'),
+                  accountName: vietqrT('accountName'),
+                  accountNumber: vietqrT('accountNumber'),
+                  reference: vietqrT('reference'),
+                  deadline: vietqrT('deadline'),
+                  copyAmount: vietqrT('copyAmount'),
+                  copyReference: vietqrT('copyReference'),
+                  copied: vietqrT('copied'),
+                  loadingQr: vietqrT('loadingQr'),
+                  lockHeading: t('fulfillment.lockedHeading'),
+                  lockBody: t('fulfillment.lockedBody'),
+                  checkStatus: vietqrT('checkStatus'),
+                  checking: vietqrT('checkingStatus'),
+                  lastChecked: vietqrT('lastChecked'),
+                  declareWarning: vietqrT('declareWarning'),
+                  declareButton: vietqrT('declareButton'),
+                  declaring: vietqrT('declaring'),
+                  declaredStatus: vietqrT('declaredStatus'),
+                  copyFailed: vietqrT('copyFailed'),
+                  copyAccountNumber: vietqrT('copyAccountNumber'),
+                  qrUnavailable: vietqrT('qrUnavailable'),
+                  declareNotEligible: vietqrT('declareNotEligible'),
+                  declareForbidden: vietqrT('declareForbidden'),
+                  declareFailed: vietqrT('declareFailed')
+                }}
+              />
+            </PaymentRecheckScope>
           ) : null}
 
           {showVietQr && vietQrResult?.status === 'unconfigured' ? (
@@ -283,93 +313,86 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
             </Card>
           ) : null}
 
-          {!vietQrInstruction ? (
-            <Alert variant={status.fulfillmentLocked ? 'warning' : 'success'}>
-              <AlertTitle>
-                {status.fulfillmentLocked
-                  ? t('fulfillment.lockedHeading')
-                  : t('fulfillment.eligibleHeading')}
-              </AlertTitle>
-              <p>
-                {status.fulfillmentLocked
-                  ? t('fulfillment.lockedBody')
-                  : t('fulfillment.eligibleBody')}
-              </p>
-            </Alert>
-          ) : null}
-
           {status.isPaid && !status.isRefunded && (hasDigitalLines || hasPhysicalLines) ? (
             <div className="grid gap-1.5 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-muted)]/50 p-4 text-sm">
               <p className="font-semibold text-[var(--foreground)]">{t('nextSteps.title')}</p>
               {hasDigitalLines ? (
-                <p>{t('nextSteps.digital', {email: result.order.contactEmailMasked ?? ''})}</p>
+                <p>{t('nextSteps.digital', { email: result.order.contactEmailMasked ?? '' })}</p>
               ) : null}
               {hasPhysicalLines ? <p>{t('nextSteps.physical')}</p> : null}
             </div>
           ) : null}
 
-          <FulfillmentTrackSummary
-            digitalStatus={
-              result.order.digitalFulfillmentStatus ??
-              (status.fulfillmentLocked ? 'blocked' : 'eligible')
-            }
-            physicalStatus={result.order.physicalFulfillmentStatus ?? 'awaiting_fulfillment'}
-            labels={{
-              title: t('tracks.title'),
-              digital: t('tracks.digital'),
-              physical: t('tracks.physical'),
-              digitalReady: t('tracks.digitalReady'),
-              digitalLocked: t('tracks.digitalLocked'),
-              physicalAwaiting: t('tracks.physicalAwaiting'),
-              physicalPacking: t('tracks.physicalPacking'),
-              physicalShipped: t('tracks.physicalShipped'),
-              physicalDelivered: t('tracks.physicalDelivered')
-            }}
-          />
+          {showFulfillmentDetails ? (
+            <>
+              <FulfillmentTrackSummary
+                digitalStatus={
+                  result.order.digitalFulfillmentStatus ??
+                  (status.fulfillmentLocked ? 'blocked' : 'eligible')
+                }
+                physicalStatus={result.order.physicalFulfillmentStatus ?? 'awaiting_fulfillment'}
+                labels={{
+                  title: t('tracks.title'),
+                  digital: t('tracks.digital'),
+                  physical: t('tracks.physical'),
+                  digitalReady: t('tracks.digitalReady'),
+                  digitalLocked: t('tracks.digitalLocked'),
+                  physicalAwaiting: t('tracks.physicalAwaiting'),
+                  physicalPacking: t('tracks.physicalPacking'),
+                  physicalShipped: t('tracks.physicalShipped'),
+                  physicalDelivered: t('tracks.physicalDelivered')
+                }}
+              />
 
-          <DownloadPanel
-            orderNumber={result.order.orderNumber}
-            eligible={!status.fulfillmentLocked}
-            labels={{
-              title: t('downloads.title'),
-              readyBody: t('downloads.readyBody'),
-              lockedBody: t('downloads.lockedBody'),
-              expiredBody: t('downloads.expiredBody'),
-              action: t('downloads.action')
-            }}
-          />
+              {!status.isRefunded ? (
+                <DownloadPanel
+                  orderNumber={result.order.orderNumber}
+                  eligible={!status.fulfillmentLocked}
+                  labels={{
+                    title: t('downloads.title'),
+                    readyBody: t('downloads.readyBody'),
+                    lockedBody: t('downloads.lockedBody'),
+                    expiredBody: t('downloads.expiredBody'),
+                    action: t('downloads.action')
+                  }}
+                />
+              ) : null}
 
-          <PhysicalTrackingPanel
-            tracking={result.order.physicalTracking ?? null}
-            labels={{
-              title: t('tracking.title'),
-              awaiting: t('tracking.awaiting'),
-              packing: t('tracking.packing'),
-              shippedNoTracking: t('tracking.shippedNoTracking'),
-              shippedTracking: t('tracking.shippedTracking'),
-              delivered: t('tracking.delivered'),
-              carrier: t('tracking.carrier'),
-              trackingNumber: t('tracking.trackingNumber'),
-              openTracking: t('tracking.openTracking')
-            }}
-          />
+              <PhysicalTrackingPanel
+                tracking={result.order.physicalTracking ?? null}
+                labels={{
+                  title: t('tracking.title'),
+                  awaiting: t('tracking.awaiting'),
+                  packing: t('tracking.packing'),
+                  shippedNoTracking: t('tracking.shippedNoTracking'),
+                  shippedTracking: t('tracking.shippedTracking'),
+                  delivered: t('tracking.delivered'),
+                  carrier: t('tracking.carrier'),
+                  trackingNumber: t('tracking.trackingNumber'),
+                  openTracking: t('tracking.openTracking')
+                }}
+              />
+            </>
+          ) : null}
 
-          <div className="flex flex-wrap items-center gap-4 pt-2">
-            <Link
-              href={getCatalogPath(locale)}
-              className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] px-4 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-muted)]"
-            >
-              {t('actions.continueShopping')}
-            </Link>
-            {isSignedIn ? (
+          {!showTerminalRecovery && presentation.nextAction !== 'support' ? (
+            <div className="flex flex-wrap items-center gap-4 pt-2">
               <Link
-                href={getAccountOrdersPath(locale)}
+                href={getCatalogPath(locale)}
                 className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] px-4 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-muted)]"
               >
-                {t('actions.myOrders')}
+                {t('actions.continueShopping')}
               </Link>
-            ) : null}
-          </div>
+              {isSignedIn ? (
+                <Link
+                  href={getAccountOrdersPath(locale)}
+                  className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] px-4 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-muted)]"
+                >
+                  {t('actions.myOrders')}
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
 
           {!isSignedIn && result.order.contactEmailMasked ? (
             <p className="text-sm text-[var(--muted-foreground)]">
@@ -390,27 +413,6 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
                   {result.order.orderNumber}
                 </span>
               </div>
-              {deadlineValue ? (
-                <div className="flex justify-between gap-3">
-                  <span>{t('labels.deadline')}</span>
-                  <span className="text-right font-semibold tabular-nums">{deadlineValue}</span>
-                </div>
-              ) : null}
-              {/* The live countdown lives once, in PaymentStatePanel. A second
-                  mount here would fire its own router.refresh() at expiry —
-                  each instance guards itself, but not each other. */}
-              {(status.status === 'awaiting_payment' || status.status === 'verifying_payment') &&
-              result.order.reservationExpiresAt ? (
-                <div className="flex justify-end">
-                  <ReservationCountdown
-                    expiresAt={result.order.reservationExpiresAt}
-                    labels={{
-                      remaining: t('labels.countdownRemaining'),
-                      expired: t('labels.countdownExpired')
-                    }}
-                  />
-                </div>
-              ) : null}
               <OrderLineSummary
                 lines={result.order.lines}
                 money={result.order.money}

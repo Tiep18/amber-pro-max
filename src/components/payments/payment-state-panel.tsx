@@ -1,8 +1,12 @@
-import Link from 'next/link';
 import {Ban, CircleCheck, CircleX, Clock3, LoaderCircle, RotateCcw, TimerOff, Undo2} from 'lucide-react';
 import {Alert, AlertTitle} from '@/components/ui/alert';
+import type {Locale} from '@/i18n/routing';
 import type {PaymentStatusPresentation} from '@/payments/status';
-import {PaymentStatusRecheck} from './payment-status-recheck';
+import {
+  PAYPAL_RECHECK_TIMING,
+  PaymentStatusRecheck,
+  VIETQR_RECHECK_TIMING
+} from './payment-status-recheck';
 import {ReservationCountdownRefresher} from './reservation-countdown-refresher';
 
 type PaymentStatePanelProps = {
@@ -14,11 +18,14 @@ type PaymentStatePanelProps = {
   deadlineValue: string | null;
   reservationExpiresAt?: string | null;
   orderLabel: string;
-  actionLabel: string | null;
+  locale: Locale;
+  storeTimeZone: string;
+  recheckProvider: 'paypal' | 'vietqr';
   recheckLabels?: {
     checkStatus: string;
     checking: string;
     lastChecked: string;
+    pollingStopped: string;
   };
   countdownLabels?: {
     remaining: string;
@@ -48,12 +55,14 @@ export function PaymentStatePanel({
   deadlineValue,
   reservationExpiresAt,
   orderLabel,
-  actionLabel,
+  locale,
+  storeTimeZone,
+  recheckProvider,
   recheckLabels,
   countdownLabels
 }: PaymentStatePanelProps) {
   const StatusIcon = statusIcons[presentation.status];
-  const countdownActive = presentation.status === 'awaiting_payment' || presentation.status === 'verifying_payment';
+  const countdownActive = presentation.showPendingDeadline;
 
   return (
     <Alert variant={presentation.surface} className="space-y-4">
@@ -77,15 +86,14 @@ export function PaymentStatePanel({
           ) : null}
         </div>
       </div>
-      {presentation.primaryAction && actionLabel ? (
-        <Link
-          href={presentation.primaryAction.href}
-          className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-base font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] sm:w-auto"
-        >
-          {actionLabel}
-        </Link>
+      {presentation.nextAction === 'recheck' && recheckLabels ? (
+        <PaymentStatusRecheck
+          labels={recheckLabels}
+          timing={recheckProvider === 'vietqr' ? VIETQR_RECHECK_TIMING : PAYPAL_RECHECK_TIMING}
+          locale={locale}
+          storeTimeZone={storeTimeZone}
+        />
       ) : null}
-      {presentation.status === 'verifying_payment' && recheckLabels ? <PaymentStatusRecheck labels={recheckLabels} /> : null}
     </Alert>
   );
 }

@@ -5,7 +5,7 @@ import {useEffect, useMemo, useState} from 'react';
 import {useRouter} from 'next/navigation';
 import {useCart} from '@/components/cart/cart-provider';
 import {clearOrderSnapshot, readOrderSnapshot} from '@/cart/order-snapshot';
-import {Alert, AlertTitle} from '@/components/ui/alert';
+import {Alert} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
 import {
   getOrderRecoveryAction,
@@ -14,8 +14,6 @@ import {
 import type {CustomerPaymentLifecycleStatus} from '@/payments/status';
 
 type OrderRecoveryBannerLabels = {
-  heading: string;
-  body: string;
   restore: string;
   restoring: string;
   unavailable: string;
@@ -24,7 +22,6 @@ type OrderRecoveryBannerLabels = {
 
 export function OrderRecoveryBanner({
   orderNumber,
-  recoverable,
   paid,
   status,
   cartHref,
@@ -32,9 +29,8 @@ export function OrderRecoveryBanner({
   labels
 }: {
   orderNumber: string;
-  recoverable: boolean;
   paid: boolean;
-  status?: CustomerPaymentLifecycleStatus;
+  status: CustomerPaymentLifecycleStatus;
   cartHref: string;
   catalogHref?: string;
   labels: OrderRecoveryBannerLabels;
@@ -43,10 +39,9 @@ export function OrderRecoveryBanner({
   const router = useRouter();
   const [snapshotEligibility, setSnapshotEligibility] = useState<OrderSnapshotEligibility>('unknown');
   const [restoring, setRestoring] = useState(false);
-  const recoveryStatus = status ?? (paid ? 'paid' : recoverable ? 'failed' : 'awaiting_payment');
   const action = useMemo(
-    () => getOrderRecoveryAction({status: recoveryStatus, snapshotEligibility}),
-    [recoveryStatus, snapshotEligibility]
+    () => getOrderRecoveryAction({status, snapshotEligibility}),
+    [status, snapshotEligibility]
   );
   const resolvedCatalogHref =
     catalogHref ?? (cartHref.startsWith('/vi/') ? '/vi/cua-hang' : '/en/catalog');
@@ -57,12 +52,12 @@ export function OrderRecoveryBanner({
       setSnapshotEligibility('ineligible');
       return;
     }
-    if (recoverable) {
+    if (getOrderRecoveryAction({status, snapshotEligibility: 'eligible'})) {
       setSnapshotEligibility(readOrderSnapshot(orderNumber) ? 'eligible' : 'ineligible');
     }
-  }, [orderNumber, paid, recoverable]);
+  }, [orderNumber, paid, status]);
 
-  if (paid || !recoverable) {
+  if (paid || !getOrderRecoveryAction({status, snapshotEligibility: 'eligible'})) {
     return null;
   }
 
@@ -97,10 +92,6 @@ export function OrderRecoveryBanner({
 
   return (
     <Alert variant="warning" className="grid gap-3">
-      <div>
-        <AlertTitle>{labels.heading}</AlertTitle>
-        <p>{labels.body}</p>
-      </div>
       <Button
         type="button"
         variant="primary"

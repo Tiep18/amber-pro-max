@@ -141,9 +141,13 @@ export function mapCustomerPaymentStatus(input: CustomerPaymentStatusInput): Cus
 
 export function getPaymentStatusPresentation(
   status: CustomerPaymentLifecycleStatus,
-  _locale: Locale,
-  _freshCheckoutPath: `/${Locale}${string}`
+  _locale?: Locale,
+  _freshCheckoutPath?: `/${Locale}${string}`
 ): PaymentStatusPresentation {
+  // Retain the legacy arguments while callers migrate away from checkout-link
+  // presentation. They never influence payment or recovery authority.
+  void _locale;
+  void _freshCheckoutPath;
   const surface =
     status === 'paid'
       ? 'success'

@@ -1,11 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode
+} from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import type {Locale} from '@/i18n/routing';
-import {DEFAULT_PAYMENT_TIME_ZONE, formatPaymentDateTime} from '@/payments/format';
-import {createRecheckDeadline, getRecheckModel} from '@/payments/recheck-model';
+import type { Locale } from '@/i18n/routing';
+import { DEFAULT_PAYMENT_TIME_ZONE, formatPaymentDateTime } from '@/payments/format';
+import { createRecheckDeadline, getRecheckModel } from '@/payments/recheck-model';
 
 export type RecheckTiming = {
   cooldownMs: number;
@@ -34,11 +43,32 @@ type PaymentRecheckLabels = {
   pollingStopped?: string;
 };
 
+type PaymentRecheckPresentation = {
+  locale: Locale;
+  storeTimeZone: string;
+  pollingStopped: string;
+};
+
+const PaymentRecheckPresentationContext = createContext<PaymentRecheckPresentation | null>(null);
+
+export function PaymentRecheckScope({
+  locale,
+  storeTimeZone,
+  pollingStopped,
+  children
+}: PaymentRecheckPresentation & { children: ReactNode }) {
+  return (
+    <PaymentRecheckPresentationContext.Provider value={{ locale, storeTimeZone, pollingStopped }}>
+      {children}
+    </PaymentRecheckPresentationContext.Provider>
+  );
+}
+
 export function PaymentStatusRecheck({
   labels,
   timing = PAYPAL_RECHECK_TIMING,
-  locale = 'en',
-  storeTimeZone = DEFAULT_PAYMENT_TIME_ZONE,
+  locale,
+  storeTimeZone,
   eligible = true
 }: {
   labels: PaymentRecheckLabels;
@@ -48,6 +78,13 @@ export function PaymentStatusRecheck({
   eligible?: boolean;
 }) {
   const router = useRouter();
+  const params = useParams<{ locale?: string }>();
+  const presentationContext = useContext(PaymentRecheckPresentationContext);
+  const activeLocale: Locale =
+    locale ?? presentationContext?.locale ?? (params.locale === 'vi' ? 'vi' : 'en');
+  const activeStoreTimeZone =
+    storeTimeZone ?? presentationContext?.storeTimeZone ?? DEFAULT_PAYMENT_TIME_ZONE;
+  const pollingStoppedLabel = labels.pollingStopped ?? presentationContext?.pollingStopped;
   const [pending, startRefresh] = useTransition();
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
   const [cooldownUntil, setCooldownUntil] = useState(0);
@@ -64,22 +101,25 @@ export function PaymentStatusRecheck({
   pendingRef.current = pending;
   cooldownUntilRef.current = cooldownUntil;
 
-  const synchronizeClock = useCallback((currentTime: number) => {
-    setNowMs(currentTime);
-    const model = getRecheckModel({
-      nowMs: currentTime,
-      cooldownUntilMs: cooldownUntilRef.current,
-      pollEndsAtMs: pollEndsAtRef.current ?? currentTime,
-      visible: document.visibilityState === 'visible',
-      eligible,
-      pollStoppedAnnounced: pollStoppedAnnouncedRef.current
-    });
-    if (model.shouldAnnouncePollStopped) {
-      pollStoppedAnnouncedRef.current = true;
-      setPollStopped(true);
-    }
-    return model;
-  }, [eligible]);
+  const synchronizeClock = useCallback(
+    (currentTime: number) => {
+      setNowMs(currentTime);
+      const model = getRecheckModel({
+        nowMs: currentTime,
+        cooldownUntilMs: cooldownUntilRef.current,
+        pollEndsAtMs: pollEndsAtRef.current ?? currentTime,
+        visible: document.visibilityState === 'visible',
+        eligible,
+        pollStoppedAnnounced: pollStoppedAnnouncedRef.current
+      });
+      if (model.shouldAnnouncePollStopped) {
+        pollStoppedAnnouncedRef.current = true;
+        setPollStopped(true);
+      }
+      return model;
+    },
+    [eligible]
+  );
 
   const refreshStatus = useCallback(
     (announce: boolean) => {
@@ -172,7 +212,11 @@ export function PaymentStatusRecheck({
     pollStoppedAnnounced: pollStoppedAnnouncedRef.current
   });
   const lastCheckedValue = lastCheckedAt
-    ? formatPaymentDateTime(new Date(lastCheckedAt).toISOString(), locale, storeTimeZone)
+    ? formatPaymentDateTime(
+        new Date(lastCheckedAt).toISOString(),
+        activeLocale,
+        activeStoreTimeZone
+      )
     : null;
 
   return (
@@ -189,9 +233,9 @@ export function PaymentStatusRecheck({
           {labels.lastChecked}: {lastCheckedValue}
         </p>
       ) : null}
-      {pollStopped && labels.pollingStopped ? (
+      {pollStopped && pollingStoppedLabel ? (
         <p className="text-sm text-[var(--muted-foreground)]" aria-live="polite">
-          {labels.pollingStopped}
+          {pollingStoppedLabel}
         </p>
       ) : null}
     </div>
