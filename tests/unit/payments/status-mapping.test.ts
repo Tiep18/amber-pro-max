@@ -67,7 +67,8 @@ describe('Phase 4 customer payment status contract', () => {
 
     expect(status.status).toBe('expired');
     expect(status.isTerminal).toBe(true);
-    expect(presentation.primaryAction?.href).toBe('/en/checkout');
+    expect(presentation.primaryAction).toBeNull();
+    expect(presentation.nextAction).toBe('recovery');
   });
 
   test('maps verified completed payment to paid and opens only the paid gate', () => {
@@ -85,7 +86,29 @@ describe('Phase 4 customer payment status contract', () => {
     expect(status.physicalFulfillmentLabel).toBe('not_started');
   });
 
-  test('maps failed, cancelled, rejected, and expired terminal states without same-order retry', () => {
+  test('maps every customer state to one truthful next-action family and pending-deadline contract', () => {
+    const cases = [
+      ['awaiting_payment', 'provider', true],
+      ['verifying_payment', 'recheck', true],
+      ['paid', null, false],
+      ['failed', 'recovery', false],
+      ['cancelled', 'recovery', false],
+      ['rejected', 'recovery', false],
+      ['expired', 'recovery', false],
+      ['partially_refunded', null, false],
+      ['refunded', null, false],
+      ['review_required', 'support', false]
+    ] as const;
+
+    for (const [customerStatus, nextAction, showPendingDeadline] of cases) {
+      const presentation = getPaymentStatusPresentation(customerStatus, 'en', getCheckoutPath('en'));
+
+      expect(presentation.nextAction, customerStatus).toBe(nextAction);
+      expect(presentation.showPendingDeadline, customerStatus).toBe(showPendingDeadline);
+    }
+  });
+
+  test('maps failed, cancelled, rejected, and expired terminal states without checkout or provider retry', () => {
     const states: Array<[CustomerPaymentStatusInput['paymentStatus'], string]> = [
       ['failed', 'failed'],
       ['cancelled', 'cancelled'],
@@ -104,7 +127,9 @@ describe('Phase 4 customer payment status contract', () => {
 
       expect(status.status).toBe(expected);
       expect(status.sameOrderRetryAllowed).toBe(false);
-      expect(presentation.primaryAction?.href).toBe('/en/checkout');
+      expect(presentation.primaryAction).toBeNull();
+      expect(presentation.nextAction).toBe('recovery');
+      expect(presentation.showPendingDeadline).toBe(false);
     }
   });
 

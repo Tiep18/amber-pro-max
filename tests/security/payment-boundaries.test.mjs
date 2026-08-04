@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const contractFiles = [
   'tests/unit/payments/status-mapping.test.ts',
+  'tests/unit/payments/order-recovery.test.ts',
   'tests/unit/payments/paypal-client.test.ts',
   'tests/unit/payments/paypal-webhook.test.ts',
   'tests/unit/payments/vietqr.test.ts',
@@ -15,6 +16,13 @@ const contractFiles = [
   'supabase/tests/database/04_payment_transitions.test.sql',
   'supabase/tests/database/04_payment_rls_audit.test.sql',
   'tests/fixtures/payments/paypal-events.ts'
+];
+
+const customerRecoveryFiles = [
+  'src/payments/status.ts',
+  'src/payments/order-recovery.ts',
+  'src/components/payments/order-recovery-banner.tsx',
+  'src/components/payments/order-payment-page.tsx'
 ];
 
 const paymentSurfaceFiles = [
@@ -157,6 +165,20 @@ test('missing and unauthorized orders share generic guest recovery without enume
   assert.match(denial, /accessDenied\.recoverGuest/);
   assert.match(denial, /<SupportLinks[\s\S]*config=\{publicSupportConfig\}/);
   assert.doesNotMatch(denial, /result\.order|orderNumber|provider|amountMinor|currencyCode|contactEmail/);
+});
+
+test('terminal recovery restores intent through cart authority and never retries or mutates the order', () => {
+  const source = readExisting(customerRecoveryFiles);
+  const statusSource = readFileSync('src/payments/status.ts', 'utf8');
+  const bannerSource = readFileSync('src/components/payments/order-recovery-banner.tsx', 'utf8');
+
+  assert.match(statusSource, /sameOrderRetryAllowed:\s*false/);
+  assert.doesNotMatch(statusSource, /orders\.actions\.newCheckout/);
+  assert.match(bannerSource, /restoreOrderSnapshot/);
+  assert.match(bannerSource, /router\.push\(cartHref\)/);
+  assert.match(bannerSource, /catalogHref/);
+  assert.doesNotMatch(source, /applyPaymentTransition|createPayPalOrder|capturePayPalOrder|declareVietQrTransferAction/);
+  assert.doesNotMatch(source, /\.from\(['"](?:checkout_orders|payments|checkout_inventory_reservations|download_entitlements)['"]\)/);
 });
 
 test('npm security script includes the Phase 4 payment boundary harness', () => {
