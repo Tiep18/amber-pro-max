@@ -257,7 +257,7 @@ function SearchableField({field, id, label, locale, placeholder, searchLabel, em
 }) {
   const errorId = `${id}-error`;
   return (
-    <div className="grid gap-1.5">
+    <div className="grid gap-1.5" data-field={field}>
       <label className="text-sm font-semibold" htmlFor={id}>{label} <span className="text-[var(--destructive)]">*</span></label>
       <SearchableSelect
         id={id}

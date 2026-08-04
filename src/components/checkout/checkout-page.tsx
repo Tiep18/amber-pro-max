@@ -58,7 +58,12 @@ import { getCartPath, getCatalogPath, type Locale } from '@/i18n/routing';
 import { ContactForm } from './contact-form';
 import { DestinationForm } from './destination-form';
 import type { DiscountApplyOutcome } from './discount-code-form';
-import { MobileCheckoutDock, OrderSummary } from './order-summary';
+import {
+  createOrderSummaryViewModel,
+  MobileCheckoutDock,
+  MobileOrderSummary,
+  OrderSummary
+} from './order-summary';
 import { QuoteDiffDialog } from './quote-diff-dialog';
 import { SavedAddressSelector } from './saved-address-selector';
 
@@ -88,6 +93,8 @@ const copy = {
     success: 'Order is awaiting payment.',
     deadline: 'Reservation deadline',
     blockedItems: 'Resolve unavailable items before continuing.',
+    updatingTotal: 'Wait while the current total is updated.',
+    reviewUpdatedTotal: 'Review and accept the updated total before continuing.',
     retryQuote: 'Try again',
     saveAddress: 'Save this address to my account',
     addressSaveWarning: 'Your order was created, but this address could not be saved to your account.',
@@ -137,6 +144,8 @@ const copy = {
     success: 'Đơn hàng đang chờ thanh toán.',
     deadline: 'Hạn giữ hàng',
     blockedItems: 'Hãy xử lý các sản phẩm chưa khả dụng trước khi tiếp tục.',
+    updatingTotal: 'Chờ cập nhật xong tổng tiền hiện tại.',
+    reviewUpdatedTotal: 'Xem và chấp nhận tổng tiền đã cập nhật trước khi tiếp tục.',
     retryQuote: 'Thử lại',
     saveAddress: 'Lưu địa chỉ này vào tài khoản',
     addressSaveWarning: 'Đơn hàng đã được tạo, nhưng chưa thể lưu địa chỉ này vào tài khoản.',
@@ -258,6 +267,7 @@ export function CheckoutPage({
   const [submitResult, setSubmitResult] = useState<SubmitCheckoutActionState | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
   const [feedbackRevision, setFeedbackRevision] = useState(0);
   const [dedupeGuaranteed, setDedupeGuaranteed] = useState(true);
   const paymentIntent = checkoutPaymentIntentForQuote(acceptedQuote);
@@ -488,8 +498,9 @@ export function CheckoutPage({
     : null;
   const blockingNotice =
     acceptedQuote?.status === 'blocked' ? t.blockedItems : (quoteIssueText ?? null);
+  const controlsDisabled = submitting || lifecycle.activeRequestId !== null || pending;
   const actionDisabled =
-    submitting ||
+    controlsDisabled ||
     !acceptedQuote ||
     acceptedQuote.lines.length === 0 ||
     acceptedQuote.status !== 'ready' ||
@@ -505,6 +516,21 @@ export function CheckoutPage({
       : paymentIntent === 'vietqr_intent'
         ? t.vietqrHandoff
         : t.handoff;
+  const actionBlocker = lifecycle.activeRequestId !== null
+    ? t.updatingTotal
+    : lifecycle.proposal
+      ? t.reviewUpdatedTotal
+      : blockingNotice;
+  const orderSummaryModel = createOrderSummaryViewModel({
+    quote: acceptedQuote,
+    locale,
+    paymentIntent,
+    shippingAddress,
+    blockingIssues: [...submitIssues, ...(actionBlocker ? [actionBlocker] : [])],
+    showBlockingIssues: submitAttempted || actionDisabled,
+    policyLinks,
+    pending: lifecycle.activeRequestId !== null
+  });
   const isEmpty =
     acceptedQuote?.status === 'empty' ||
     (!pending && Boolean(cart) && (cart?.lines.length ?? 0) === 0);
@@ -760,7 +786,7 @@ export function CheckoutPage({
         <div className="grid max-w-[68ch] gap-1.5">
           <Link
             href={getCartPath(locale)}
-            className="inline-flex min-h-10 w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)]"
+            className="inline-flex min-h-11 w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)]"
           >
             <ArrowLeft aria-hidden="true" className="size-4" />
             {t.backToCart}
@@ -791,7 +817,7 @@ export function CheckoutPage({
       <header className="grid max-w-[72ch] gap-1.5">
         <Link
           href={getCartPath(locale)}
-          className="inline-flex min-h-10 w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)]"
+          className="inline-flex min-h-11 w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)]"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
           {t.backToCart}
@@ -800,6 +826,16 @@ export function CheckoutPage({
         <CheckoutStepper current="details" locale={locale} />
         <p className="text-pretty text-sm leading-6 text-[var(--muted-foreground)]">{t.intro}</p>
       </header>
+
+      <MobileOrderSummary
+        model={orderSummaryModel}
+        expanded={mobileSummaryExpanded}
+        onExpandedChange={setMobileSummaryExpanded}
+        feedbackRevision={feedbackRevision}
+        discountPending={lifecycle.activeRequestId !== null}
+        controlsDisabled={controlsDisabled}
+        onApplyDiscount={applyDiscountCode}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-7">
         <section className="grid content-start gap-4">
@@ -834,6 +870,7 @@ export function CheckoutPage({
                   }}
                   onValidityChange={setContactReady}
                   showValidation={submitAttempted}
+                  disabled={controlsDisabled}
                 />
               </section>
 
@@ -890,7 +927,8 @@ export function CheckoutPage({
                         <Button
                           type="button"
                           variant="ghost"
-                          className="min-h-10 shrink-0 px-2 text-sm"
+                          className="min-h-11 shrink-0 px-2 text-sm"
+                          disabled={controlsDisabled}
                           onClick={() => setDestinationExpanded(true)}
                         >
                           {t.changeAddress}
@@ -902,7 +940,7 @@ export function CheckoutPage({
                           <SavedAddressSelector
                             locale={locale}
                             addresses={savedAddresses}
-                            pending={lifecycle.activeRequestId !== null}
+                            pending={controlsDisabled}
                             onApply={(address) => {
                               beginEditableInteraction();
                               setDestinationExpanded(false);
@@ -918,6 +956,7 @@ export function CheckoutPage({
                           shippingAddress={shippingAddress}
                           lifecycle={lifecycle}
                           showValidation={submitAttempted}
+                          disabled={controlsDisabled}
                           onShippingAddressChange={(nextAddress) => {
                             beginEditableInteraction();
                             setShippingAddressState(nextAddress);
@@ -930,6 +969,7 @@ export function CheckoutPage({
                       <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-[var(--radius-control)] px-1 py-2 text-sm font-semibold">
                         <Checkbox
                           checked={saveAddress}
+                          disabled={controlsDisabled}
                           onCheckedChange={(checked) => setSaveAddress(checked === true)}
                           aria-label={t.saveAddress}
                           className="size-5"
@@ -985,34 +1025,25 @@ export function CheckoutPage({
           </div>
         </section>
 
-        <aside className="lg:sticky lg:top-24">
+        <aside className="hidden lg:sticky lg:top-24 lg:block">
           <OrderSummary
-            quote={acceptedQuote}
-            locale={locale}
-            paymentIntent={paymentIntent}
-            shippingAddress={shippingAddress}
-            submitIssues={submitIssues}
-            showSubmitIssues={submitAttempted}
+            model={orderSummaryModel}
             feedbackRevision={feedbackRevision}
             actionLabel={actionLabel}
             actionDisabled={actionDisabled}
             onSubmit={() => void submit()}
-            policyLinks={policyLinks}
             discountPending={lifecycle.activeRequestId !== null}
+            controlsDisabled={controlsDisabled}
             onApplyDiscount={applyDiscountCode}
-            pending={lifecycle.activeRequestId !== null}
           />
         </aside>
       </div>
 
       <MobileCheckoutDock
-        quote={acceptedQuote}
-        locale={locale}
+        model={orderSummaryModel}
         label={actionLabel}
         disabled={actionDisabled}
         onSubmit={() => void submit()}
-        blockingIssue={blockingNotice ?? (submitAttempted ? (submitIssues[0] ?? null) : null)}
-        paymentIntent={paymentIntent}
       />
 
       {lifecycle.proposal ? (

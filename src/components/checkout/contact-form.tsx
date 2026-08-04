@@ -30,13 +30,15 @@ export function ContactForm({
   email,
   onEmailChange,
   onValidityChange,
-  showValidation = false
+  showValidation = false,
+  disabled = false
 }: {
   locale: Locale;
   email: string;
   onEmailChange: (email: string) => void;
   onValidityChange?: (valid: boolean) => void;
   showValidation?: boolean;
+  disabled?: boolean;
 }) {
   const t = copy[locale];
   const schema = useMemo(
@@ -90,7 +92,7 @@ export function ContactForm({
             <FormItem>
               <FormLabel>{t.email}</FormLabel>
               <FormControl>
-                <Input id="checkout-email" {...field} inputMode="email" autoComplete="email" />
+                <Input id="checkout-email" {...field} disabled={disabled} inputMode="email" autoComplete="email" />
               </FormControl>
               <p className="text-xs leading-5 text-[var(--muted-foreground)]">{t.emailHint}</p>
               <FormMessage />
