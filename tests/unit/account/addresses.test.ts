@@ -58,6 +58,42 @@ describe('saved shipping address contracts (ACC-03, D-01, D-02, D-04)', () => {
     });
   });
 
+  test('reuses official Vietnam pair and mobile normalization for saved addresses', () => {
+    expect(parseCustomerShippingAddressInput({
+      label: 'Nhà',
+      recipientName: 'Nguyễn An',
+      phoneNumber: '0912-345-678',
+      countryCode: 'vn',
+      region: '01',
+      locality: '00004',
+      addressLine1: '12 Hàng Than',
+      addressLine2: null,
+      postalCode: null,
+      isDefault: false
+    })).toEqual({
+      success: true,
+      data: {
+        label: 'Nhà',
+        recipientName: 'Nguyễn An',
+        phoneNumber: '+84912345678',
+        countryCode: 'VN',
+        region: 'Thành phố Hà Nội',
+        locality: 'Phường Ba Đình',
+        addressLine1: '12 Hàng Than',
+        addressLine2: null,
+        postalCode: null,
+        isDefault: false
+      }
+    });
+    expect(parseCustomerShippingAddressInput({
+      ...validInput,
+      countryCode: 'VN',
+      phoneNumber: '0241234567',
+      region: '01',
+      locality: '00004'
+    })).toEqual({success: false, code: 'invalid_address'});
+  });
+
   test('maps database rows without exposing owner ids to account UI data', () => {
     const mapped = mapCustomerShippingAddressRow({
         id: addressId,
