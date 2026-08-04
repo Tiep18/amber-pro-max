@@ -224,3 +224,16 @@ test('checkout removes only final ordered quantities after successful order crea
   assert.match(branchSource, /quantity:\s*line\.quantity/);
   assert.doesNotMatch(branchSource, /quantity:\s*line\.requestedQuantity/);
 });
+
+test('checkout address persistence derives identity server-side and cannot affect order success', () => {
+  const source = readFileSync('src/account/address-actions.ts', 'utf8');
+  const actionStart = source.indexOf('export async function saveCheckoutShippingAddressAction');
+  const actionSource = source.slice(actionStart);
+
+  assert.ok(actionStart >= 0);
+  assert.match(actionSource, /requireUser|authenticatedClient/);
+  assert.match(actionSource, /saveCustomerShippingAddress/);
+  assert.match(actionSource, /address_save_failed/);
+  assert.doesNotMatch(actionSource, /userId|ownerId|customerId|orderStatus|paymentStatus/);
+  assert.doesNotMatch(actionSource, /\.from\(['"]customer_shipping_addresses['"]\)/);
+});

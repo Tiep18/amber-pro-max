@@ -14,9 +14,12 @@ import {
 } from '@/account/addresses';
 import {
   deleteCustomerShippingAddress,
+  saveCheckoutShippingAddressAction,
   saveCustomerShippingAddress,
   setDefaultCustomerShippingAddress
 } from '@/account/address-actions';
+import {requireUser} from '@/auth/guards';
+import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {recordOperationalFailure} from '@/operations/errors';
 
 const addressId = '11111111-1111-4111-8111-111111111111';
@@ -305,6 +308,56 @@ describe('saved shipping address contracts (ACC-03, D-01, D-02, D-04)', () => {
     await expect(setDefaultCustomerShippingAddress({addressId, client: {rpc: defaultRpc} as never})).resolves.toEqual({
       status: 'error',
       code: 'address_action_failed'
+    });
+  });
+
+  test('saves checkout address intent only after server authentication and strict revalidation', async () => {
+    const rpc = vi.fn(() => Promise.resolve({data: {status: 'saved', address_id: addressId}, error: null}));
+    vi.mocked(requireUser).mockReset();
+    vi.mocked(createSupabaseServerClient).mockReset();
+    vi.mocked(requireUser).mockResolvedValue({id: ownerId} as never);
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({rpc} as never);
+
+    await expect(saveCheckoutShippingAddressAction({locale: 'en', address: validInput})).resolves.toEqual({
+      status: 'saved',
+      addressId
+    });
+    expect(requireUser).toHaveBeenCalledWith({locale: 'en', next: '/en/checkout'});
+    expect(rpc).toHaveBeenCalledWith(
+      'save_customer_shipping_address',
+      expect.not.objectContaining({userId: expect.anything(), ownerId: expect.anything(), customerId: expect.anything()})
+    );
+  });
+
+  test('rejects caller identity fields and anonymous saves before any address RPC', async () => {
+    const rpc = vi.fn();
+    vi.mocked(requireUser).mockReset();
+    vi.mocked(createSupabaseServerClient).mockReset();
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({rpc} as never);
+
+    await expect(saveCheckoutShippingAddressAction({
+      locale: 'en',
+      address: validInput,
+      userId: ownerId
+    } as never)).resolves.toEqual({status: 'not_saved', code: 'invalid_address'});
+    expect(requireUser).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+
+    vi.mocked(requireUser).mockRejectedValue(new Error('NEXT_REDIRECT'));
+    await expect(saveCheckoutShippingAddressAction({locale: 'vi', address: validInput})).rejects.toThrow('NEXT_REDIRECT');
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  test('keeps optional address-save failure separate from checkout or order success', async () => {
+    const rpc = vi.fn(() => Promise.resolve({data: null, error: {message: 'save failed'} }));
+    vi.mocked(requireUser).mockReset();
+    vi.mocked(createSupabaseServerClient).mockReset();
+    vi.mocked(requireUser).mockResolvedValue({id: ownerId} as never);
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({rpc} as never);
+
+    await expect(saveCheckoutShippingAddressAction({locale: 'en', address: validInput})).resolves.toEqual({
+      status: 'not_saved',
+      code: 'address_save_failed'
     });
   });
 });
