@@ -106,14 +106,19 @@ test('guest retry recovery keeps raw credentials server-only and persists hashes
   // nothing in checkout needs it).
   assert.doesNotMatch(client, /guestRecovery|attemptId|\bproof\b|localStorage/);
 
-  // sessionStorage is permitted for exactly one thing: the submit idempotency
-  // key. That is not a credential — the client mints it and sends it in the
-  // request body anyway, and holding it only prevents duplicate orders rather
-  // than granting access to any. It is confined to a dedicated module so this
-  // exemption cannot silently widen; that module is held to the same ban.
+  // sessionStorage is confined to the reviewed idempotency and editable-draft
+  // modules. Neither module may carry credentials or commerce authority.
   const idempotency = readFileSync('src/checkout/idempotency.ts', 'utf8');
+  const editableDraft = readFileSync('src/checkout/editable-draft.ts', 'utf8');
   assert.doesNotMatch(idempotency, /guestRecovery|attemptId|\bproof\b|guestAccessToken|localStorage/);
   assert.match(idempotency, /sessionStorage/);
+  assert.match(editableDraft, /atb_checkout_editable_draft_v1/);
+  assert.match(editableDraft, /sessionStorage/);
+  assert.doesNotMatch(
+    editableDraft,
+    /quoteHash|quoteId|subtotal|shippingMinor|discount|provider|payment|idempotency|guestRecovery|attemptId|\bproof\b|guestAccessToken|incident|saveConsent|saveAddress|localStorage/i
+  );
+  assert.doesNotMatch(editableDraft, /console\.(log|warn|error|info|debug)/);
   for (const match of client.matchAll(/sessionStorage/g)) {
     const context = client.slice(Math.max(0, match.index - 200), match.index + 200);
     assert.match(
