@@ -1,6 +1,24 @@
 import type {Locale} from '@/i18n/routing';
 
-export function formatPaymentDateTime(value: string | null, locale: Locale) {
+export const DEFAULT_PAYMENT_TIME_ZONE = 'Asia/Ho_Chi_Minh';
+
+function safeTimeZone(storeTimeZone: string | undefined) {
+  if (!storeTimeZone) {
+    return DEFAULT_PAYMENT_TIME_ZONE;
+  }
+  try {
+    new Intl.DateTimeFormat('en-US', {timeZone: storeTimeZone}).format(0);
+    return storeTimeZone;
+  } catch {
+    return DEFAULT_PAYMENT_TIME_ZONE;
+  }
+}
+
+export function formatPaymentDateTime(
+  value: string | null,
+  locale: Locale,
+  storeTimeZone?: string
+) {
   if (!value) {
     return null;
   }
@@ -16,6 +34,7 @@ export function formatPaymentDateTime(value: string | null, locale: Locale) {
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: safeTimeZone(storeTimeZone),
     timeZoneName: 'short'
   }).format(date);
 }
