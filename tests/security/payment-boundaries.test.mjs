@@ -10,6 +10,7 @@ const contractFiles = [
   'tests/unit/payments/vietqr.test.ts',
   'tests/integration/payment-concurrency.mjs',
   'tests/e2e/order-status.spec.ts',
+  'tests/e2e/payment-ux.spec.ts',
   'tests/e2e/admin-orders.spec.ts',
   'tests/e2e/admin-vietqr.spec.ts',
   'supabase/tests/database/04_payment_model.test.sql',
@@ -283,6 +284,53 @@ test('paid downloads keep the existing entitlement-authorized private route unch
   assert.match(downloadRoute, /getGuestOrderAccessHashFromServer/);
   assert.match(downloadRoute, /result\.status !== 'authorized'/);
   assert.match(downloadRoute, /NextResponse\.redirect\(result\.url, \{status: 303\}\)/);
+});
+
+test('ASVS L1 payment authority matrix preserves verified transitions, inventory outcomes, and private access', () => {
+  const webhook = readFileSync('src/app/api/webhooks/paypal/route.ts', 'utf8');
+  const transitions = readFileSync('src/payments/transitions.ts', 'utf8');
+  const transitionMigration = readFileSync(
+    'supabase/migrations/20260802170000_late_payment_settlement.sql',
+    'utf8'
+  );
+  const entitlementMigration = readFileSync(
+    'supabase/migrations/20260619085118_fulfillment_purchase_access.sql',
+    'utf8'
+  );
+  const download = readFileSync('src/fulfillment/downloads.ts', 'utf8');
+  const downloadServer = readFileSync('src/fulfillment/downloads.server.ts', 'utf8');
+  const guestTokens = readFileSync('src/fulfillment/guest-order-tokens.ts', 'utf8');
+  const qrRoute = readFileSync(vietQrDownloadRoute, 'utf8');
+
+  const verify = webhook.indexOf('await verifyPayPalWebhook(');
+  const transition = webhook.indexOf('await applyPaymentTransition(', verify);
+  assert.ok(verify >= 0 && transition > verify);
+  assert.match(webhook.slice(verify, transition), /verification\.status !== 'verified'/);
+  assert.match(transitions, /client\.rpc\('apply_payment_transition'/);
+  assert.doesNotMatch(transitions, /\.from\(['"](?:payments|checkout_orders|checkout_inventory_reservations)['"]\)/);
+
+  assert.match(transitionMigration, /source_name not in \('paypal_webhook', 'paypal_recheck', 'vietqr_instruction', 'vietqr_admin'/);
+  assert.match(transitionMigration, /source_name = 'vietqr_instruction' and target_status <> 'pending'/);
+  assert.match(transitionMigration, /effective_status = 'paid'[\s\S]*inventory_effect := 'finalized'/);
+  assert.match(transitionMigration, /effective_status in \('failed', 'cancelled', 'rejected'\)[\s\S]*inventory_effect := 'released'/);
+  assert.match(transitionMigration, /set status = 'consumed',[\s\S]*finalized_at = now_ts/);
+  assert.match(transitionMigration, /set status = case when inventory_effect = 'expired' then 'expired' else 'released' end/);
+  assert.match(transitionMigration, /when effective_status = 'paid' then 'payment_verified_paid'/);
+  assert.match(transitionMigration, /revoke all on function public\.apply_payment_transition\(jsonb\) from public, anon, authenticated/);
+
+  assert.match(entitlementMigration, /p\.status = 'paid' and co\.paid_gate_status = 'open'/);
+  assert.match(entitlementMigration, /new\.result = 'applied' and new\.to_status = 'paid'/);
+  assert.match(entitlementMigration, /token_hash/);
+  assert.match(entitlementMigration, /revoke all on table public\.digital_entitlements from public, anon, authenticated/);
+  assert.match(download, /SIGNED_URL_TTL_SECONDS = 300/);
+  assert.match(download, /isOwner\([\s\S]*isTokenUsable/);
+  assert.match(downloadServer, /client\.storage\.from\(bucketId\)\.createSignedUrl\(objectPath, expiresInSeconds\)/);
+  assert.match(guestTokens, /hashGuestOrderAccessToken\(rawToken\)/);
+
+  assert.match(qrRoute, /getAuthorizedOrderPayment/);
+  assert.match(qrRoute, /redirect:\s*'error'/);
+  assert.match(qrRoute, /Cache-Control['"]?\s*:\s*'private, no-store'/);
+  assert.doesNotMatch(qrRoute, /applyPaymentTransition|declareVietQrTransferAction|createSignedUrl/);
 });
 
 test('npm security script includes the Phase 4 payment boundary harness', () => {

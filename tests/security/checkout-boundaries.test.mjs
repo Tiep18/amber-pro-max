@@ -312,3 +312,61 @@ test('incident references expose only an opaque copyable identifier with durable
     /orderNumber|contactEmail|shippingAddress|guestAccessToken|idempotency|provider|amountMinor|bank|URLSearchParams|encodeURIComponent/
   );
 });
+
+test('ASVS L1 checkout authority matrix keeps browser state as intent and server facts authoritative', () => {
+  const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  const draft = readFileSync('src/checkout/editable-draft.ts', 'utf8');
+  const shippingAddress = readFileSync('src/checkout/shipping-address.ts', 'utf8');
+  const vietnamAddress = readFileSync('src/checkout/vietnam-address.ts', 'utf8');
+  const addressActions = readFileSync('src/account/address-actions.ts', 'utf8');
+  const support = readFileSync('src/support/config.ts', 'utf8');
+  const submit = readFileSync('src/checkout/submit-checkout.ts', 'utf8');
+  const authoritativeSubmit = readFileSync(
+    'supabase/migrations/20260714150000_harden_checkout_submit_authority.sql',
+    'utf8'
+  );
+  const immutableOrder = readFileSync(
+    'supabase/migrations/20260618093000_checkout_shipping_address_snapshot.sql',
+    'utf8'
+  );
+
+  assert.match(draft, /CHECKOUT_EDITABLE_DRAFT_TTL_MS = 12 \* 60 \* 60 \* 1000/);
+  assert.match(draft, /CHECKOUT_EDITABLE_DRAFT_MAX_BYTES = 16 \* 1024/);
+  assert.match(draft, /topLevelKeys = \['version', 'savedAt', 'expiresAt', 'email', 'shippingAddress'\]/);
+  assert.doesNotMatch(
+    draft,
+    /guestAccessToken|attemptId|\bproof\b|quoteHash|paymentStatus|provider|saveAddress|saveConsent|localStorage/i
+  );
+
+  assert.match(shippingAddress, /normalizeVietnamPhone/);
+  assert.match(shippingAddress, /validateVietnamAddress/);
+  assert.match(vietnamAddress, /findVietnamAddressPair/);
+  assert.match(addressActions, /checkoutAddressSaveRequestSchema\.safeParse/);
+  assert.match(addressActions, /authenticatedClient\(request\.data\.locale/);
+  assert.doesNotMatch(
+    addressActions.slice(addressActions.indexOf('export async function saveCheckoutShippingAddressAction')),
+    /userId|ownerId|customerId/
+  );
+
+  assert.match(support, /z\.email\(\)/);
+  assert.match(support, /url\.protocol === 'https:'[\s\S]*url\.hostname === 'zalo\.me'/);
+  assert.match(submit, /quoteMarket === 'intl' && currencyCode === 'USD' && input\.paymentIntent === 'paypal_intent'/);
+  assert.match(submit, /quoteMarket === 'vn' && currencyCode === 'VND' && input\.paymentIntent === 'vietqr_intent'/);
+
+  const submitStart = client.indexOf('async function submit()');
+  const requote = client.indexOf('const refreshedLifecycle = await requestQuote(', submitStart);
+  const materialReview = client.indexOf('refreshedLifecycle.proposal', requote);
+  const persist = client.indexOf('await submitCheckoutAction(submitInput)', materialReview);
+  assert.ok(submitStart >= 0 && requote > submitStart && materialReview > requote && persist > materialReview);
+
+  assert.match(authoritativeSubmit, /private\.checkout_commercial_quote_is_current/);
+  assert.match(authoritativeSubmit, /for update/);
+  assert.match(authoritativeSubmit, /insert into public\.checkout_order_shipping_allocations/);
+  assert.match(immutableOrder, /accepted_quote_hash,[\s\S]*quote_snapshot,[\s\S]*cart_snapshot,[\s\S]*shipping_address/);
+  assert.match(immutableOrder, /insert into public\.checkout_inventory_reservations/);
+  assert.match(immutableOrder, /checkout_orders_immutable_shipping_address/);
+  assert.doesNotMatch(
+    client,
+    /\.from\(['"](?:checkout_orders|checkout_order_lines|checkout_inventory_reservations|payments)['"]\)/
+  );
+});
