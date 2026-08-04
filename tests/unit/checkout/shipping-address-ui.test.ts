@@ -8,6 +8,9 @@ import {
 import {
   US_SHIPPING_REGION_OPTIONS,
   getShippingCountryOptions,
+  getUsShippingRegionOptions,
+  getVietnamProvinceOptions,
+  getVietnamWardOptions,
   validateCheckoutShippingAddress,
   type CheckoutShippingAddressDraft
 } from '@/checkout/shipping-address-ui';
@@ -142,6 +145,49 @@ describe('shipping address UI helpers', () => {
     };
     expect(validateShippingDestination(vietnamAddress, {mode: 'final', hasPhysicalLines: true}).success).toBe(true);
     expect(validateShippingDestination(null, {mode: 'final', hasPhysicalLines: false})).toEqual({success: true, data: null});
+  });
+
+  test('normalizes localized country search text without changing submitted country codes', () => {
+    const countries = getShippingCountryOptions('vi');
+    const unitedStates = countries.find((country) => country.code === 'US');
+
+    expect(unitedStates).toMatchObject({
+      code: 'US',
+      searchText: 'hoa ky us'
+    });
+    expect(unitedStates?.label).not.toBe('US');
+  });
+
+  test('renders readable localized US region labels while preserving stable codes', () => {
+    const regions = getUsShippingRegionOptions('en');
+
+    expect(regions).toEqual(
+      expect.arrayContaining([
+        {code: 'CA', label: 'California (CA)', searchText: 'california ca'},
+        {code: 'DC', label: 'District of Columbia (DC)', searchText: 'district of columbia dc'},
+        {code: 'PR', label: 'Puerto Rico (PR)', searchText: 'puerto rico pr'}
+      ])
+    );
+    expect(regions.every((region) => /^[A-Z]{2}$/.test(region.code))).toBe(true);
+  });
+
+  test('builds official Vietnam province and parent-scoped ward options with stable codes', () => {
+    const provinces = getVietnamProvinceOptions();
+    const hanoi = provinces.find((province) => province.code === '01');
+    const hanoiWards = getVietnamWardOptions('01');
+
+    expect(hanoi).toEqual({
+      code: '01',
+      label: 'Thành phố Hà Nội',
+      searchText: 'thanh pho ha noi 01'
+    });
+    expect(hanoiWards).toEqual(
+      expect.arrayContaining([
+        {code: '00004', label: 'Phường Ba Đình', searchText: 'phuong ba dinh 00004'}
+      ])
+    );
+    expect(getVietnamWardOptions('04')).not.toContainEqual(expect.objectContaining({code: '00004'}));
+    expect(getVietnamWardOptions('unknown')).toEqual([]);
   });
 
   test('keeps international region text in the address but removes it from resolver intent', () => {
