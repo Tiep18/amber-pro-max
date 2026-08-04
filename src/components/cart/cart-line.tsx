@@ -66,7 +66,7 @@ export function CartLine({
 
   if (compact) {
     return (
-      <article className="grid grid-cols-[104px_minmax(0,1fr)_auto] grid-rows-[56px_40px] gap-x-4 gap-y-2 py-5 first:pt-1 last:pb-1">
+      <article className="grid grid-cols-[104px_minmax(0,1fr)_auto] grid-rows-[56px_44px] gap-x-4 gap-y-2 py-5 first:pt-1 last:pb-1">
         <div
           data-testid="mini-cart-thumbnail"
           className="relative row-span-2 aspect-square overflow-hidden rounded-[8px] bg-[var(--surface-muted)] ring-1 ring-[var(--border)]/45"
@@ -106,11 +106,11 @@ export function CartLine({
         )}
 
         <div className="col-span-2 col-start-2 flex items-center justify-between gap-3 self-end">
-          <div className="inline-grid grid-cols-[40px_32px_40px] items-center overflow-hidden rounded-[8px] border border-[var(--border)]/70 bg-[var(--surface)]/40">
+          <div className="inline-grid grid-cols-[44px_32px_44px] items-center overflow-hidden rounded-[8px] border border-[var(--border)]/70 bg-[var(--surface)]/40">
             <Button
               variant="ghost"
               aria-label={`${copy.decrease} ${line.title}`}
-              className="h-10 min-h-10 w-10 rounded-none border-r border-[var(--border)]/55 !px-0 text-base font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]"
+              className="h-11 min-h-11 w-11 rounded-none border-r border-[var(--border)]/55 !px-0 text-base font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]"
               disabled={quantityDisabled || line.quantity <= 1}
               onClick={() => onQuantity?.(line.quantity - 1)}
             >
@@ -122,7 +122,7 @@ export function CartLine({
             <Button
               variant="ghost"
               aria-label={`${copy.increase} ${line.title}`}
-              className="h-10 min-h-10 w-10 rounded-none border-l border-[var(--border)]/55 !px-0 text-base font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]"
+              className="h-11 min-h-11 w-11 rounded-none border-l border-[var(--border)]/55 !px-0 text-base font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]"
               disabled={quantityDisabled}
               onClick={() => onQuantity?.(line.quantity + 1)}
             >
@@ -132,7 +132,7 @@ export function CartLine({
           <Button
             variant="ghost"
             aria-label={`${copy.remove} ${line.title}`}
-            className="h-10 min-h-10 w-10 shrink-0 rounded-none !px-0 text-[var(--muted-foreground)] hover:bg-transparent hover:text-[var(--destructive)]"
+            className="h-11 min-h-11 w-11 shrink-0 rounded-none !px-0 text-[var(--muted-foreground)] hover:bg-transparent hover:text-[var(--destructive)]"
             disabled={disabled}
             onClick={onRemove}
           >
@@ -198,11 +198,11 @@ export function CartLine({
             className="h-5 w-24 animate-pulse rounded bg-[var(--surface-muted)]"
           />
         )}
-        <div className="inline-grid grid-cols-[40px_34px_40px] items-center overflow-hidden rounded-[8px] border border-[var(--border)]/70 bg-[var(--surface)]/55">
+        <div className="inline-grid grid-cols-[44px_34px_44px] items-center overflow-hidden rounded-[8px] border border-[var(--border)]/70 bg-[var(--surface)]/55">
           <Button
             variant="ghost"
             aria-label={`${copy.decrease} ${line.title}`}
-            className="h-10 min-h-10 w-10 rounded-none border-r border-[var(--border)]/55 !px-0 text-base font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]"
+            className="h-11 min-h-11 w-11 rounded-none border-r border-[var(--border)]/55 !px-0 text-base font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]"
             disabled={quantityDisabled || line.quantity <= 1}
             onClick={() => onQuantity?.(line.quantity - 1)}
           >
@@ -214,7 +214,7 @@ export function CartLine({
           <Button
             variant="ghost"
             aria-label={`${copy.increase} ${line.title}`}
-            className="h-10 min-h-10 w-10 rounded-none border-l border-[var(--border)]/55 !px-0 text-base font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]"
+            className="h-11 min-h-11 w-11 rounded-none border-l border-[var(--border)]/55 !px-0 text-base font-medium text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)]/55 hover:text-[var(--foreground)]"
             disabled={quantityDisabled}
             onClick={() => onQuantity?.(line.quantity + 1)}
           >
@@ -224,7 +224,7 @@ export function CartLine({
         <Button
           variant="ghost"
           aria-label={`${copy.remove} ${line.title}`}
-          className="col-span-2 min-h-10 justify-self-end gap-2 px-2 text-sm font-semibold text-[var(--muted-foreground)] hover:bg-transparent hover:text-[var(--destructive)] sm:col-span-1"
+          className="col-span-2 min-h-11 justify-self-end gap-2 px-2 text-sm font-semibold text-[var(--muted-foreground)] hover:bg-transparent hover:text-[var(--destructive)] sm:col-span-1"
           disabled={disabled}
           onClick={onRemove}
         >

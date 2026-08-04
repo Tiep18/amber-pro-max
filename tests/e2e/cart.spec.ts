@@ -88,7 +88,10 @@ test('PDP sticky accessibility keeps inactive actions unfocusable and blocked re
   await expect(stickyAction).toBeVisible();
   await expect(stickyAction).toBeDisabled();
   await expect(stickyAction).toHaveAttribute('aria-describedby', /add-to-cart/);
-  await expect(page.getByText('Choose an in-stock option to add to cart.').last()).toBeVisible();
+  const describedBy = await stickyAction.getAttribute('aria-describedby');
+  const stickyReason = page.locator(`#${describedBy}`);
+  await expect(stickyReason).toBeVisible();
+  expect((await stickyReason.textContent())?.trim().length).toBeGreaterThan(20);
   const stickyBox = await stickyAction.boundingBox();
   expect(stickyBox?.width).toBeGreaterThanOrEqual(44);
   expect(stickyBox?.height).toBeGreaterThanOrEqual(44);

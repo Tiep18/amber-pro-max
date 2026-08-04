@@ -36,6 +36,41 @@ type ProjectionSelectionIdentity = Pick<
   'productId' | 'market' | 'offerFingerprint'
 >;
 
+type AddToCartBlockedMessages = {
+  adding: string;
+  quoteFailed: string;
+  unavailable: string;
+  select: string;
+  stale: string;
+};
+
+export function resolveAddToCartBlockedReason({
+  submitting,
+  quoteFailed,
+  available,
+  inStock,
+  needsVariant,
+  hasSelectedVariant,
+  hasIntent,
+  messages
+}: {
+  submitting: boolean;
+  quoteFailed: boolean;
+  available: boolean;
+  inStock: boolean;
+  needsVariant: boolean;
+  hasSelectedVariant: boolean;
+  hasIntent: boolean;
+  messages: AddToCartBlockedMessages;
+}) {
+  if (submitting) return messages.adding;
+  if (quoteFailed) return messages.quoteFailed;
+  if (!available || !inStock) return messages.unavailable;
+  if (needsVariant && !hasSelectedVariant) return messages.select;
+  if (!hasIntent) return messages.stale;
+  return null;
+}
+
 const copy = {
   en: {
     add: 'Add to cart',
@@ -202,17 +237,16 @@ export function AddToCart({
     : null;
   const selectedLabel = variantLabel(selectedVariant);
   const actionLabel = t.add;
-  const blockedReason = submitting
-    ? t.adding
-    : quoteFailed
-      ? t.quoteFailed
-      : !projection.available || !projection.inStock
-        ? t.unavailable
-        : needsVariant && !selectedVariant
-          ? t.select
-          : !intent
-            ? t.stale
-            : null;
+  const blockedReason = resolveAddToCartBlockedReason({
+    submitting,
+    quoteFailed,
+    available: projection.available,
+    inStock: projection.inStock,
+    needsVariant,
+    hasSelectedVariant: selectedVariant !== null,
+    hasIntent: intent !== null,
+    messages: t
+  });
 
   useEffect(() => {
     const nextIdentity = {
@@ -365,32 +399,34 @@ export function AddToCart({
           </div>
         </Alert>
       ) : null}
-      <div
-        className={`fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-16px_42px_rgba(91,55,35,0.10)] transition-transform duration-300 md:hidden ${
-          showSticky ? 'translate-y-0' : 'translate-y-full'
-        }`}
-        aria-hidden={!showSticky}
-      >
-        <div className="mx-auto flex max-w-[520px] items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">{title}</p>
-            <p className="truncate text-xs text-[var(--muted-foreground)]">
-              {blockedReason ??
-                ([selectedLabel, selectedPriceLabel].filter(Boolean).join(' · ') ||
-                  actionLabel)}
-            </p>
+      {showSticky ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-16px_42px_rgba(91,55,35,0.10)] md:hidden">
+          <div className="mx-auto flex max-w-[520px] items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="break-words text-sm font-semibold">{title}</p>
+              <p
+                id={blockedReason ? 'add-to-cart-sticky-reason' : undefined}
+                className="break-words text-xs leading-5 text-[var(--muted-foreground)]"
+              >
+                {blockedReason ??
+                  ([selectedLabel, selectedPriceLabel].filter(Boolean).join(' · ') ||
+                    actionLabel)}
+              </p>
+            </div>
+            <Button
+              type="button"
+              disabled={!canAdd}
+              aria-describedby={
+                blockedReason ? 'add-to-cart-sticky-reason' : undefined
+              }
+              onClick={() => void addCurrentLine()}
+              className="min-h-11 shrink-0 px-3 text-sm"
+            >
+              {submitting ? t.adding : actionLabel}
+            </Button>
           </div>
-          <Button
-            type="button"
-            disabled={!canAdd}
-            aria-describedby={blockedReason ? 'add-to-cart-reason' : undefined}
-            onClick={() => void addCurrentLine()}
-            className="min-h-11 shrink-0 px-3 text-sm"
-          >
-            {submitting ? t.adding : actionLabel}
-          </Button>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
