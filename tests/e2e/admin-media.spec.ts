@@ -110,10 +110,7 @@ async function signIn(page: Page, user: { email: string; password: string }) {
   await page.getByLabel('Email').fill(user.email);
   await page.getByLabel('Password').fill(user.password);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('heading', { name: 'Signed in' })).toBeVisible({
-    timeout: 15_000
-  });
-  await page.goto('/admin/catalog');
+  await expect(page).toHaveURL(/\/admin(?:\/catalog|\/forbidden)$/, { timeout: 15_000 });
 }
 
 function statusMessage(page: Page, message: string) {
