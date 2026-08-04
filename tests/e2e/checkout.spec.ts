@@ -157,9 +157,10 @@ test('discount code applies and removes through server quote without localStorag
   await page.getByLabel('Discount code').fill(code.toLowerCase());
   await page.getByRole('button', { name: 'Apply discount' }).click();
 
-  const discountRow = page.getByText(`Discount · ${code}`);
+  const desktopSummary = page.getByRole('complementary');
+  const discountRow = desktopSummary.getByText(`Discount · ${code}`);
   await expect(discountRow).toBeVisible();
-  await expect(page.getByText('-$2.50')).toBeVisible();
+  await expect(desktopSummary.getByText('-$2.50')).toBeVisible();
   await expect(page.getByTestId('checkout-total')).toHaveText('$22.50');
   await expect(
     page.evaluate(() => window.localStorage.getItem('amigurumi.guestCart.v1'))
@@ -202,7 +203,7 @@ test('international digital checkout renders only the canonical PayPal method', 
 
   await page.goto('/en/checkout');
   await expect(page.getByTestId('checkout-total')).toHaveText('$25.00');
-  const paymentMethod = page.getByTestId('checkout-payment-method');
+  const paymentMethod = page.getByTestId('checkout-payment-method-desktop');
   await expect(paymentMethod).toContainText('PayPal');
   await expect(paymentMethod).not.toContainText('VietQR');
   await expect(paymentMethod.getByRole('button')).toHaveCount(0);

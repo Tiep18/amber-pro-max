@@ -376,7 +376,7 @@ test('destination quote remains authoritative after browsing-market invalidation
   await session.page.goto('/en/checkout');
   await expect(session.page.getByRole('heading', { name: 'Checkout' })).toBeVisible();
   await session.page.getByRole('combobox', { name: 'Shipping country' }).click();
-  await session.page.getByRole('option', { name: /\(US\)/ }).click();
+  await session.page.getByRole('option', { name: 'United States', exact: true }).click();
   const review = session.page.getByRole('dialog', { name: /shipping and total changed/i });
   await expect(review).toBeVisible();
   await storefrontMarket.signalInvalidation(session.page, 8);

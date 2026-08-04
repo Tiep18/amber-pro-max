@@ -77,7 +77,7 @@ test.describe('saved address retention (ACC-03, D-01, D-02, D-04)', () => {
     await expect(destination).toContainText('123 Market Street');
     await destination.getByRole('button', {name: 'Change'}).click();
     await expect(page.getByRole('combobox', {name: /^Shipping country/})).toContainText(
-      'United States (US)'
+      'United States'
     );
     await expect(page.getByRole('textbox', {name: /^Street address/})).toHaveValue(
       '123 Market Street'

@@ -51,10 +51,38 @@ test('catalog batches personalized wishlist state without making the page dynami
   });
 
   await page.goto('/vi/cua-hang');
-  await page.waitForResponse((response) => response.url().includes('/api/wishlist?'));
+  const catalogResultStage = page.getByTestId('catalog-result-stage');
+  await expect(catalogResultStage).toHaveAttribute('data-state', 'ready');
+  const settledCards = page.getByRole('article');
+  await expect(settledCards).toHaveCount(3);
+  const settledCardCount = await settledCards.count();
+  let settledProductIds: string[] = [];
+  await expect
+    .poll(() => {
+      settledProductIds = [
+        ...new Set(
+          wishlistRequests.flatMap(
+            (url) => new URL(url).searchParams.get('productIds')?.split(',') ?? []
+          )
+        )
+      ];
+      return settledProductIds.length;
+    })
+    .toBe(settledCardCount);
+  wishlistRequests.splice(0);
+
+  const settledWishlistResponse = page.waitForResponse((response) =>
+    response.url().includes('/api/wishlist?')
+  );
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('storefront-context-changed'));
+  });
+  await settledWishlistResponse;
+  await expect(catalogResultStage).toHaveAttribute('data-state', 'ready');
 
   expect(wishlistRequests).toHaveLength(1);
   const productIds = new URL(wishlistRequests[0]).searchParams.get('productIds')?.split(',') ?? [];
-  expect(productIds).toHaveLength(await page.getByRole('article').count());
+  expect(productIds).toHaveLength(settledCardCount);
+  expect([...productIds].sort()).toEqual([...settledProductIds].sort());
   expect(productIds.length).toBeGreaterThan(1);
 });

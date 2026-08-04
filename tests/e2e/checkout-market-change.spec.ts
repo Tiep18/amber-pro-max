@@ -174,7 +174,7 @@ test('destination changes require a blocking material-change confirmation', asyn
   const review = page.getByRole('dialog', { name: 'Phí giao hàng và tổng tiền đã thay đổi' });
 
   await shippingCountry.click();
-  await page.getByRole('option', { name: /\(US\)/ }).click();
+  await page.getByRole('option', { name: 'Hoa Kỳ', exact: true }).click();
   await expect(review).toBeVisible();
   await expect(review).toContainText(/\$25\.50/);
 
@@ -185,14 +185,14 @@ test('destination changes require a blocking material-change confirmation', asyn
   await expect(shippingCountry).toContainText('Chọn quốc gia');
 
   await shippingCountry.click();
-  await page.getByRole('option', { name: /\(US\)/ }).click();
+  await page.getByRole('option', { name: 'Hoa Kỳ', exact: true }).click();
   await expect(review).toBeVisible();
   await review.getByRole('button', { name: 'Dùng báo giá mới' }).click();
 
   // Narrowing the destination to a region re-quotes against a new shipping
   // basis, so the confirmation gate is raised again before it is accepted.
   await page.getByRole('combobox', { name: 'Bang hoặc vùng lãnh thổ' }).click();
-  await page.getByRole('option', { name: 'CA', exact: true }).click();
+  await page.getByRole('option', { name: 'California (CA)', exact: true }).click();
   await expect(review).toBeVisible();
   await review.getByRole('button', { name: 'Dùng báo giá mới' }).click();
   await expect(review).toHaveCount(0);
@@ -255,7 +255,7 @@ test('Vietnam destination overrides international browsing and requires the VND 
   await expect(page.getByTestId('checkout-total')).toHaveText('$18.00');
   const shippingCountry = page.getByRole('combobox', { name: 'Shipping country' });
   await shippingCountry.click();
-  await page.getByRole('option', { name: /\(VN\)/ }).click();
+  await page.getByRole('option', { name: 'Vietnam', exact: true }).click();
 
   const review = page.getByRole('dialog', { name: 'Shipping and total changed' });
   await expect(review).toBeVisible();
@@ -264,12 +264,12 @@ test('Vietnam destination overrides international browsing and requires the VND 
   await expect(shippingCountry).toContainText('Choose a country');
 
   await shippingCountry.click();
-  await page.getByRole('option', { name: /\(VN\)/ }).click();
+  await page.getByRole('option', { name: 'Vietnam', exact: true }).click();
   await expect(review).toBeVisible();
   await review.getByRole('button', { name: 'Use updated quote' }).click();
   await expect(page.getByTestId('checkout-total')).toContainText(/280[.,]000/);
 
-  const paymentMethod = page.getByTestId('checkout-payment-method');
+  const paymentMethod = page.getByTestId('checkout-payment-method-desktop');
   await expect(paymentMethod).toContainText('VietQR');
   await expect(paymentMethod).not.toContainText('PayPal');
 
