@@ -82,6 +82,8 @@ export function VietQrInstructions({
   const [copyFailed, setCopyFailed] = useState<CopyState>(null);
   const [qrLoaded, setQrLoaded] = useState(false);
   const [qrFailed, setQrFailed] = useState(false);
+  const [downloadPending, setDownloadPending] = useState(false);
+  const [downloadFailed, setDownloadFailed] = useState(false);
   const [declaring, setDeclaring] = useState(false);
   const [declaredOptimistic, setDeclaredOptimistic] = useState(false);
   const [declareError, setDeclareError] = useState<'not_eligible' | 'forbidden' | 'error' | null>(null);
@@ -143,6 +145,34 @@ export function VietQrInstructions({
       setDeclareError('error');
     } finally {
       setDeclaring(false);
+    }
+  }
+
+  async function handleDownload(event: React.MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    if (downloadPending) return;
+    setDownloadPending(true);
+    setDownloadFailed(false);
+    try {
+      const response = await fetch(qrDownloadHref, {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+      if (!response.ok || response.headers.get('content-type') !== 'image/png') {
+        throw new Error('qr_download_unavailable');
+      }
+      const objectUrl = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = qrDownloadFilename;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+    } catch {
+      setDownloadFailed(true);
+    } finally {
+      setDownloadPending(false);
     }
   }
 
@@ -214,11 +244,19 @@ export function VietQrInstructions({
             href={qrDownloadHref}
             download={qrDownloadFilename}
             aria-describedby="vietqr-manual-fallback"
+            aria-busy={downloadPending}
+            aria-disabled={downloadPending}
+            onClick={(event) => void handleDownload(event)}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] px-4 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-muted)]"
           >
             <Download aria-hidden="true" className="size-4" />
             {labels.downloadQr}
           </a>
+          {downloadFailed ? (
+            <p role="status" className="text-sm font-semibold text-[var(--destructive)]">
+              {labels.downloadFailed}
+            </p>
+          ) : null}
         </section>
 
         <section className="grid gap-4" aria-labelledby="vietqr-step-two">

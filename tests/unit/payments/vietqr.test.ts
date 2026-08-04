@@ -294,6 +294,9 @@ describe('VietQR instruction and evidence contract', () => {
     expect(stepThree).toBeGreaterThan(stepTwo);
     expect(source).toMatch(/href=\{qrDownloadHref\}/);
     expect(source).toMatch(/download=\{qrDownloadFilename\}/);
+    expect(source).toMatch(/fetch\(qrDownloadHref/);
+    expect(source).toMatch(/response\.headers\.get\('content-type'\) !== 'image\/png'/);
+    expect(source).toMatch(/downloadFailed[\s\S]*labels\.downloadFailed/);
     expect(source).toMatch(/min-h-11/);
     expect(source).toMatch(/labels\.manualFallback/);
     expect(source).toMatch(/labels\.declarationNote/);
