@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 10-03-PLAN.md
-last_updated: "2026-08-04T08:22:22.731Z"
+stopped_at: Completed 10-04-PLAN.md
+last_updated: "2026-08-04T08:43:25.435Z"
 last_activity: 2026-08-04 -- Phase 10 execution started
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 93
-  completed_plans: 89
+  completed_plans: 90
   percent: 80
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 10 (checkout-and-payment-ux-stabilization-for-vietnamese-and-int) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-08-04 -- Phase 10 execution started
 
@@ -111,6 +111,7 @@ Progress: All 15 Phase 09 plans are executed; deployment geo/SEO UAT remains pen
 | Phase 10 P01 | 22min | 3 tasks | 8 files |
 | Phase 10 P02 | 16min | 3 tasks | 14 files |
 | Phase 10 P03 | 52min | 3 tasks | 10 files |
+| Phase 10 P04 | 13min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -225,6 +226,9 @@ Recent decisions affecting current work:
 - [Phase 10]: Mobile disclosure, desktop rail, and mobile dock consume one accepted-quote summary model. — Prevents responsive duplicates from becoming alternate total, destination, discount, or blocker authority.
 - [Phase 10]: Discount feedback owns its request identity and live region instead of sharing checkout feedback revisions. — Keeps discount results durable and independent from destination, submit, and incident feedback.
 - [Phase 10]: Plan 10-03 provisions the remaining bounded Phase 10 message catalog for Plans 10-04 through 10-06. — Maintains exact English/Vietnamese ownership and prevents later catalog overlap.
+- [Phase 10]: Checkout submission uses explicit checking-total and creating-order stages plus an immediate ref guard; all existing requote, guest recovery, idempotency, snapshot, reservation, and completion authority remains unchanged.
+- [Phase 10]: Support values stay server-read, tolerate malformed optional configuration, and cross into clients only as PublicSupportConfig with validated mailto/HTTPS facts.
+- [Phase 10]: The contact and order-denial surfaces render no placeholder channel, sensitive order fact, provider fact, or raw operational error.
 
 ### Pending Todos
 
@@ -401,6 +405,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-04T08:22:22.721Z
-Stopped at: Completed 10-03-PLAN.md
+Last session: 2026-08-04T08:41:21.869Z
+Stopped at: Completed 10-04-PLAN.md
 Resume file: None
