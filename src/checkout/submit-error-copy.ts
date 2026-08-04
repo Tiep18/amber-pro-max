@@ -14,6 +14,8 @@ export type SubmitErrorPresentation = {
   messageKey: SubmitErrorMessageKey;
   variant: 'warning' | 'destructive';
   recoverable: boolean;
+  outcome: 'known' | 'unknown';
+  retryAllowed: boolean;
   focusTarget?: 'contact' | 'destination' | 'cart';
 };
 
@@ -26,58 +28,78 @@ const KNOWN_SUBMIT_ERROR_CODES: Record<string, SubmitErrorPresentation> = {
     messageKey: 'cookiesBlocked',
     variant: 'destructive',
     recoverable: true,
+    outcome: 'known',
+    retryAllowed: true,
     focusTarget: 'contact'
   },
   invalid_payment_method_for_market: {
     messageKey: 'paymentMethodDrift',
     variant: 'destructive',
-    recoverable: false
+    recoverable: false,
+    outcome: 'known',
+    retryAllowed: false
   },
   invalid_checkout_submit: {
     messageKey: 'unknown',
     variant: 'destructive',
-    recoverable: true
+    recoverable: true,
+    outcome: 'known',
+    retryAllowed: true
   },
   stale_commercial_quote: {
     messageKey: 'staleQuote',
     variant: 'warning',
-    recoverable: true
+    recoverable: true,
+    outcome: 'known',
+    retryAllowed: true
   },
   stale_shipping_quote: {
     messageKey: 'staleShipping',
     variant: 'warning',
     recoverable: true,
+    outcome: 'known',
+    retryAllowed: true,
     focusTarget: 'destination'
   },
   shipping_address_required: {
     messageKey: 'addressRequired',
     variant: 'destructive',
     recoverable: true,
+    outcome: 'known',
+    retryAllowed: true,
     focusTarget: 'destination'
   },
   us_shipping_address_incomplete: {
     messageKey: 'addressIncompleteUs',
     variant: 'destructive',
     recoverable: true,
+    outcome: 'known',
+    retryAllowed: true,
     focusTarget: 'destination'
   },
   retryable_checkout_conflict: {
     messageKey: 'conflict',
     variant: 'warning',
     recoverable: true,
+    outcome: 'known',
+    retryAllowed: true,
     focusTarget: 'cart'
   },
   checkout_submit_failed: {
     messageKey: 'network',
     variant: 'destructive',
-    recoverable: true
+    recoverable: true,
+    outcome: 'known',
+    retryAllowed: true
   }
 };
 
 const UNKNOWN_SUBMIT_ERROR: SubmitErrorPresentation = {
   messageKey: 'unknown',
   variant: 'destructive',
-  recoverable: true
+  recoverable: true,
+  outcome: 'known',
+  retryAllowed: true
 };
 
 export function isKnownSubmitErrorCode(code: string): boolean {
@@ -98,7 +120,12 @@ export function presentSubmitError(
   // indistinguishable from a request that never arrived — say so instead of
   // promising something we cannot know.
   if (presentation.messageKey === 'network' && context.dedupeGuaranteed === false) {
-    return {...presentation, messageKey: 'networkUnconfirmed'};
+    return {
+      ...presentation,
+      messageKey: 'networkUnconfirmed',
+      outcome: 'unknown',
+      retryAllowed: false
+    };
   }
 
   return presentation;

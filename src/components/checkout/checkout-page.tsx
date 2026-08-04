@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Check, MapPin, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
+import {useRouter} from 'next/navigation';
 import {createTranslator} from 'next-intl';
 import {
   customerAddressToShippingAddress,
@@ -55,7 +56,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {Checkbox} from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { getCartPath, getCatalogPath, type Locale } from '@/i18n/routing';
+import {
+  getAccountOrdersPath,
+  getCartPath,
+  getCatalogPath,
+  getGuestOrderPath,
+  type Locale
+} from '@/i18n/routing';
 import enMessages from '@/messages/en.json';
 import viMessages from '@/messages/vi.json';
 import { ContactForm } from './contact-form';
@@ -192,6 +199,8 @@ type CheckoutPolicyLink = {
   href: string;
 };
 
+type SubmitStage = 'idle' | 'checking-total' | 'creating-order';
+
 function preferredAddress(addresses: CustomerShippingAddress[]) {
   return addresses.find((address) => address.isDefault) ?? addresses[0] ?? null;
 }
@@ -242,6 +251,7 @@ export function CheckoutPage({
   policyLinks?: CheckoutPolicyLink[];
   isSignedIn?: boolean;
 }) {
+  const router = useRouter();
   const pageTranslate = createTranslator({
     locale,
     messages: locale === 'vi' ? viMessages : enMessages,
@@ -252,6 +262,11 @@ export function CheckoutPage({
     messages: locale === 'vi' ? viMessages : enMessages,
     namespace: 'checkout.submit'
   });
+  const ordersTranslate = createTranslator({
+    locale,
+    messages: locale === 'vi' ? viMessages : enMessages,
+    namespace: 'orders'
+  });
   const t = {
     ...copy[locale],
     title: pageTranslate('title'), intro: pageTranslate('intro'), backToCart: pageTranslate('backToCart'),
@@ -261,7 +276,8 @@ export function CheckoutPage({
     success: pageTranslate('success'), deadline: pageTranslate('deadline'), retryQuote: pageTranslate('retry'),
     saveAddress: pageTranslate('saveAddress'), addressSaveWarning: pageTranslate('addressSaveWarning'),
     handoff: submitTranslate('handoff'), paypalHandoff: submitTranslate('paypal'), vietqrHandoff: submitTranslate('vietqr'),
-    submitting: submitTranslate('creatingOrder'), missingContact: submitTranslate('missingContact'), missingQuote: submitTranslate('missingTotal'),
+    checkingTotal: submitTranslate('checkingTotal'), submitting: submitTranslate('creatingOrder'),
+    missingContact: submitTranslate('missingContact'), missingQuote: submitTranslate('missingTotal'),
     missingPayment: submitTranslate('missingPayment'), missingShipping: submitTranslate('missingShipping'),
     unsupportedShipping: submitTranslate('unsupportedShipping'), blockedItems: submitTranslate('blockedItems'),
     updatingTotal: submitTranslate('updatingTotal'), reviewUpdatedTotal: submitTranslate('reviewUpdatedTotal'),
@@ -271,6 +287,10 @@ export function CheckoutPage({
       addressRequired: submitTranslate('addressRequired'), addressIncompleteUs: submitTranslate('addressIncompleteUs'),
       paymentMethodDrift: submitTranslate('paymentMethodDrift'), conflict: submitTranslate('conflict'), network: submitTranslate('network'),
       networkUnconfirmed: submitTranslate('unknownOutcome'), unknown: submitTranslate('unknown'), incidentCode: submitTranslate('incidentId')
+    },
+    unknownRecovery: {
+      orders: ordersTranslate('actions.myOrders'),
+      guest: ordersTranslate('accessDenied.recoverGuest')
     }
   };
   const { quote, cart, pending, completeOrder } = useCart();
@@ -285,6 +305,7 @@ export function CheckoutPage({
   const editableInteractedRef = useRef(false);
   const prefillRequestRef = useRef<string | null>(null);
   const idempotencyRef = useRef<ResolvedIdempotency | null>(null);
+  const submitInFlightRef = useRef(false);
   const feedbackRef = useRef<HTMLDivElement | null>(null);
   const acceptedQuote = lifecycle.acceptedQuote;
   const [email, setEmail] = useState(initialEmail);
@@ -298,11 +319,12 @@ export function CheckoutPage({
   const [saveAddress, setSaveAddress] = useState(false);
   const [addressSaveWarning, setAddressSaveWarning] = useState(false);
   const [submitResult, setSubmitResult] = useState<SubmitCheckoutActionState | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitStage, setSubmitStage] = useState<SubmitStage>('idle');
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
   const [dedupeGuaranteed, setDedupeGuaranteed] = useState(true);
   const paymentIntent = checkoutPaymentIntentForQuote(acceptedQuote);
+  const submitting = submitStage !== 'idle';
 
   const setLifecycle = useCallback((next: CheckoutQuoteLifecycleState) => {
     lifecycleRef.current = next;
@@ -540,8 +562,10 @@ export function CheckoutPage({
     Boolean(lifecycle.issue) ||
     paymentIntent === null ||
     (physicalCount > 0 && acceptedQuote.shipping.status !== 'ready');
-  const actionLabel = submitting
-    ? t.submitting
+  const actionLabel = submitStage === 'checking-total'
+    ? t.checkingTotal
+    : submitStage === 'creating-order'
+      ? t.submitting
     : paymentIntent === 'paypal_intent'
       ? t.paypalHandoff
       : paymentIntent === 'vietqr_intent'
@@ -698,6 +722,7 @@ export function CheckoutPage({
   }
 
   async function submit() {
+    if (submitInFlightRef.current) return;
     setSubmitAttempted(true);
     if (!readyToSubmit) {
       focusFirstIncompleteField();
@@ -705,7 +730,8 @@ export function CheckoutPage({
     }
     if (!acceptedQuote || !cart || !paymentIntent) return;
 
-    setSubmitting(true);
+    submitInFlightRef.current = true;
+    setSubmitStage('checking-total');
     setSubmitResult(null);
     try {
       const refreshedLifecycle = await requestQuote(
@@ -743,6 +769,7 @@ export function CheckoutPage({
         shippingAddress: physicalCount > 0 ? shippingAddress : null,
         discountCode: activeDiscountCode(refreshedQuote)
       };
+      setSubmitStage('creating-order');
       const prepared = await prepareGuestCheckoutRecoveryAction({
         acceptedQuote: refreshedQuote,
         acceptedQuoteHash: submitInput.acceptedQuoteHash,
@@ -797,7 +824,7 @@ export function CheckoutPage({
           }
         }
         completeOrder(completedLines);
-        window.location.assign(result.orderPath);
+        router.push(result.orderPath);
       } else {
         const focusTarget = presentSubmitError(result).focusTarget;
         if (focusTarget) {
@@ -807,7 +834,8 @@ export function CheckoutPage({
     } catch {
       setSubmitResult({ status: 'error', code: 'checkout_submit_failed' });
     } finally {
-      setSubmitting(false);
+      submitInFlightRef.current = false;
+      setSubmitStage('idle');
     }
   }
 
@@ -867,7 +895,10 @@ export function CheckoutPage({
         onApplyDiscount={applyDiscountCode}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-7">
+      <div
+        aria-busy={submitStage !== 'idle'}
+        className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-7"
+      >
         <section className="grid content-start gap-4">
           <Card className="overflow-hidden bg-[var(--surface-paper)] shadow-none">
             <CardContent className="space-y-0 p-0">
@@ -1040,10 +1071,24 @@ export function CheckoutPage({
             {submitResult && submitResult.status !== 'success'
               ? (() => {
                   const presentation = presentSubmitError(submitResult, {dedupeGuaranteed});
-                  return (
-                    <Alert variant={presentation.variant}>
-                      <p>{t.errors[presentation.messageKey]}</p>
-                      {submitResult.errorId ? (
+                      return (
+                        <Alert variant={presentation.variant} className="grid gap-3">
+                          <p>{t.errors[presentation.messageKey]}</p>
+                          {presentation.outcome === 'unknown' ? (
+                            <Link
+                              href={
+                                isSignedIn
+                                  ? getAccountOrdersPath(locale)
+                                  : getGuestOrderPath(locale)
+                              }
+                              className="inline-flex min-h-11 w-fit items-center text-sm font-semibold text-[var(--accent)] underline-offset-4 hover:underline"
+                            >
+                              {isSignedIn
+                                ? t.unknownRecovery.orders
+                                : t.unknownRecovery.guest}
+                            </Link>
+                          ) : null}
+                          {submitResult.errorId ? (
                         <p className="mt-1 text-xs text-[var(--muted-foreground)]">
                           {t.errors.incidentCode}: {submitResult.errorId}
                         </p>

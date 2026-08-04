@@ -254,7 +254,7 @@ test('checkout removes only final ordered quantities after successful order crea
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
   const successBranch = client.indexOf("if (result.status === 'success')");
   const completion = client.indexOf('completeOrder(', successBranch);
-  const navigation = client.indexOf('window.location.assign(result.orderPath)', successBranch);
+  const navigation = client.indexOf('router.push(result.orderPath)', successBranch);
   const priorSource = client.slice(0, successBranch);
   const branchSource = client.slice(successBranch, navigation);
 
