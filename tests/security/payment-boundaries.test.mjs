@@ -180,6 +180,33 @@ test('terminal recovery restores intent through cart authority and never retries
   assert.doesNotMatch(source, /\.from\(['"](?:checkout_orders|payments|checkout_inventory_reservations|download_entitlements)['"]\)/);
 });
 
+test('authorized payment composition has one pending deadline owner and state-specific primary action', () => {
+  const pageSource = readFileSync('src/components/payments/order-payment-page.tsx', 'utf8');
+  const panelSource = readFileSync('src/components/payments/payment-state-panel.tsx', 'utf8');
+  const authorizedStart = pageSource.indexOf('const status = mapCustomerPaymentStatus');
+  const authorized = pageSource.slice(authorizedStart);
+
+  assert.ok(authorizedStart >= 0);
+  assert.match(authorized, /presentation\.showPendingDeadline/);
+  assert.doesNotMatch(authorized, /getCheckoutPath\(locale\)/);
+  assert.doesNotMatch(authorized, /<ReservationCountdown\b/);
+  assert.match(authorized, /status=\{status\.status\}/);
+  assert.match(authorized, /catalogHref=\{getCatalogPath\(locale\)\}/);
+  assert.match(authorized, /browse:\s*t\('recovery\.browse'\)/);
+  assert.match(authorized, /storeTimeZone=\{publicSupportConfig\.storeTimeZone\}/);
+  assert.match(panelSource, /recheckProvider/);
+  assert.match(panelSource, /pollingStopped/);
+});
+
+test('paid, refund, and terminal composition does not render provider controls or live reservation work', () => {
+  const source = readFileSync('src/components/payments/order-payment-page.tsx', 'utf8');
+
+  assert.match(source, /showPayPal[\s\S]*status\.status === 'awaiting_payment'/);
+  assert.match(source, /showVietQr[\s\S]*status\.status === 'awaiting_payment'/);
+  assert.match(source, /showPendingDeadline[\s\S]*presentation\.showPendingDeadline/);
+  assert.match(source, /showFulfillmentDetails[\s\S]*status\.isPaid/);
+});
+
 test('npm security script includes the Phase 4 payment boundary harness', () => {
   const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
 
