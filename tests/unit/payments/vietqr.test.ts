@@ -1,4 +1,5 @@
 import {beforeEach, describe, expect, test, vi} from 'vitest';
+import {readFileSync} from 'node:fs';
 
 const {recordOperationalFailureMock} = vi.hoisted(() => ({
   recordOperationalFailureMock: vi.fn(async () => ({
@@ -19,10 +20,12 @@ import {
   type VietQrExpectedPayment
 } from '@/payments/vietqr/evidence';
 import {
+  buildVietQrDownloadFilename,
   getVietQrInstructions,
   type VietQrInstructionOrder,
   type VietQrServerConfig
 } from '@/payments/vietqr/instructions';
+import {getOrderQrDownloadPath} from '@/i18n/routing';
 
 const vietQrInstructionContract = {
   market: 'vn',
@@ -264,6 +267,39 @@ describe('VietQR instruction and evidence contract', () => {
       accountNoMasked: '******7890',
       paymentDeadlineAt: order.reservationExpiresAt
     });
+  });
+
+  test('derives a localized same-origin QR download and safe public-order filename', () => {
+    expect(getOrderQrDownloadPath('en', 'ATB-20260615-0002')).toBe(
+      '/en/orders/ATB-20260615-0002/qr'
+    );
+    expect(getOrderQrDownloadPath('vi', 'ATB 2026/0002')).toBe(
+      '/vi/don-hang/ATB%202026%2F0002/ma-qr'
+    );
+    expect(buildVietQrDownloadFilename(' ATB 2026/0002 ')).toBe(
+      'vietqr-ATB-2026-0002.png'
+    );
+    expect(buildVietQrDownloadFilename('***')).toBe('vietqr-order.png');
+  });
+
+  test('presents three truthful steps with durable manual and declaration fallbacks', () => {
+    const source = readFileSync('src/components/payments/vietqr-instructions.tsx', 'utf8');
+
+    const stepOne = source.indexOf('labels.stepOne');
+    const stepTwo = source.indexOf('labels.stepTwo');
+    const stepThree = source.indexOf('labels.stepThree');
+
+    expect(stepOne).toBeGreaterThan(-1);
+    expect(stepTwo).toBeGreaterThan(stepOne);
+    expect(stepThree).toBeGreaterThan(stepTwo);
+    expect(source).toMatch(/href=\{qrDownloadHref\}/);
+    expect(source).toMatch(/download=\{qrDownloadFilename\}/);
+    expect(source).toMatch(/min-h-11/);
+    expect(source).toMatch(/labels\.manualFallback/);
+    expect(source).toMatch(/labels\.declarationNote/);
+    expect(source).toMatch(/labels\.selectManually/);
+    expect(source).not.toMatch(/lockHeading|lockBody|LockKeyhole/);
+    expect(source).not.toMatch(/type=["']file["']|receipt|upload/i);
   });
 
   test('rejects ineligible market, currency, method, amount and deadline before creating instructions', async () => {
