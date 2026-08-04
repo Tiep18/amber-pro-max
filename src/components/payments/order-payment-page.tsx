@@ -16,7 +16,8 @@ import {
   getCartPath,
   getCatalogPath,
   getContactPath,
-  getGuestOrderPath
+  getGuestOrderPath,
+  getOrderQrDownloadPath
 } from '@/i18n/routing';
 import { getServerEnv } from '@/lib/env/server';
 import { getPublicSupportConfig } from '@/support/config';
@@ -239,6 +240,8 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
                   vietQrInstruction.paymentDeadlineAt
                 }
                 qrImageUrl={vietQrInstruction.qrImageUrl}
+                qrDownloadHref={getOrderQrDownloadPath(locale, result.order.orderNumber)}
+                qrDownloadFilename={vietQrInstruction.qrDownloadFilename}
                 qrAlt={vietqrT('qrAlt', { orderNumber: result.order.orderNumber })}
                 declared={Boolean(result.order.customerTransferDeclaredAt)}
                 onDeclare={declareVietQrTransferAction.bind(null, result.order.orderNumber)}
@@ -256,8 +259,6 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
                   copyReference: vietqrT('copyReference'),
                   copied: vietqrT('copied'),
                   loadingQr: vietqrT('loadingQr'),
-                  lockHeading: t('fulfillment.lockedHeading'),
-                  lockBody: t('fulfillment.lockedBody'),
                   checkStatus: vietqrT('checkStatus'),
                   checking: vietqrT('checkingStatus'),
                   lastChecked: vietqrT('lastChecked'),
@@ -268,6 +269,14 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
                   copyFailed: vietqrT('copyFailed'),
                   copyAccountNumber: vietqrT('copyAccountNumber'),
                   qrUnavailable: vietqrT('qrUnavailable'),
+                  stepOne: vietqrT('stepOne'),
+                  stepTwo: vietqrT('stepTwo'),
+                  stepThree: vietqrT('stepThree'),
+                  downloadQr: vietqrT('downloadQr'),
+                  downloadFailed: vietqrT('downloadFailed'),
+                  declarationNote: vietqrT('declarationNote'),
+                  manualFallback: vietqrT('manualFallback'),
+                  selectManually: vietqrT('selectManually'),
                   declareNotEligible: vietqrT('declareNotEligible'),
                   declareForbidden: vietqrT('declareForbidden'),
                   declareFailed: vietqrT('declareFailed')

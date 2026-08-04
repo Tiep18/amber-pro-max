@@ -34,6 +34,7 @@ export type VietQrInstructionSnapshot = {
   accountNoMasked: string;
   template: string;
   qrImageUrl: string;
+  qrDownloadFilename: string;
   paymentDeadlineAt: string;
 };
 
@@ -87,6 +88,15 @@ export function buildQuickLinkUrl(config: Extract<VietQrServerConfig, {status: '
   return url.toString();
 }
 
+export function buildVietQrDownloadFilename(orderNumber: string) {
+  const safeOrderNumber = orderNumber
+    .trim()
+    .replace(/[^A-Za-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+  return `vietqr-${safeOrderNumber || 'order'}.png`;
+}
+
 function validateOrder(order: VietQrInstructionOrder, now: Date): VietQrInstructionResult | null {
   if (order.market !== 'vn' || order.currencyCode !== 'VND' || order.paymentIntent !== 'vietqr_intent' || isTerminalStatus(order.paymentStatus)) {
     return {status: 'invalid', code: 'vietqr_order_not_eligible'};
@@ -128,6 +138,7 @@ function buildInstruction({
     accountNoMasked: maskAccountNo(config.accountNo),
     template: config.template,
     qrImageUrl: buildQuickLinkUrl(config, order.amountMinor, order.orderNumber),
+    qrDownloadFilename: buildVietQrDownloadFilename(order.orderNumber),
     paymentDeadlineAt: order.reservationExpiresAt as string
   };
 }

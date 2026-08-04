@@ -1,8 +1,7 @@
 'use client';
 
 import {useRef, useState} from 'react';
-import {Clock3, Copy, Landmark, LockKeyhole, MessageCircleMore, QrCode} from 'lucide-react';
-import {Alert, AlertTitle} from '@/components/ui/alert';
+import {Clock3, Copy, Download, Landmark, MessageCircleMore, QrCode} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {PaymentStatusRecheck, VIETQR_RECHECK_TIMING} from './payment-status-recheck';
@@ -21,8 +20,6 @@ type VietQrInstructionLabels = {
   copyReference: string;
   copied: string;
   loadingQr: string;
-  lockHeading: string;
-  lockBody: string;
   checkStatus: string;
   checking: string;
   lastChecked: string;
@@ -33,6 +30,14 @@ type VietQrInstructionLabels = {
   copyFailed: string;
   copyAccountNumber: string;
   qrUnavailable: string;
+  stepOne: string;
+  stepTwo: string;
+  stepThree: string;
+  downloadQr: string;
+  downloadFailed: string;
+  declarationNote: string;
+  manualFallback: string;
+  selectManually: string;
   declareNotEligible: string;
   declareForbidden: string;
   declareFailed: string;
@@ -47,6 +52,8 @@ type VietQrInstructionsProps = {
   transferReference: string;
   deadlineLabel: string;
   qrImageUrl: string;
+  qrDownloadHref: string;
+  qrDownloadFilename: string;
   qrAlt: string;
   declared: boolean;
   onDeclare: () => Promise<{status: string} | unknown>;
@@ -64,6 +71,8 @@ export function VietQrInstructions({
   transferReference,
   deadlineLabel,
   qrImageUrl,
+  qrDownloadHref,
+  qrDownloadFilename,
   qrAlt,
   declared,
   onDeclare,
@@ -151,24 +160,10 @@ export function VietQrInstructions({
         </div>
       </CardHeader>
       <CardContent className="grid gap-5">
-        <div className="grid gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-muted)] p-4">
-          <span className="text-sm font-semibold">{labels.amount}</span>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <strong ref={amountRef} className="text-xl font-semibold tabular-nums">
-              {amountLabel}
-            </strong>
-            <Button
-              variant="secondary"
-              className="min-h-11 gap-2"
-              onClick={() => copyValue(String(amountMinor), 'amount')}
-            >
-              <Copy aria-hidden="true" className="size-4" />
-              {copied === 'amount' ? labels.copied : labels.copyAmount}
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid justify-items-center gap-3">
+        <section className="grid justify-items-center gap-3" aria-labelledby="vietqr-step-one">
+          <h2 id="vietqr-step-one" className="w-full text-lg font-semibold">
+            {labels.stepOne}
+          </h2>
           <div className="relative grid size-[220px] place-items-center overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] sm:size-[240px]">
             {!qrLoaded && !qrFailed ? (
               <div className="absolute inset-0 grid place-items-center bg-[var(--surface-muted)] text-center text-sm text-[var(--muted-foreground)] motion-reduce:animate-none">
@@ -215,9 +210,43 @@ export function VietQrInstructions({
               />
             )}
           </div>
-        </div>
+          <a
+            href={qrDownloadHref}
+            download={qrDownloadFilename}
+            aria-describedby="vietqr-manual-fallback"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] px-4 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-muted)]"
+          >
+            <Download aria-hidden="true" className="size-4" />
+            {labels.downloadQr}
+          </a>
+        </section>
 
-        <dl className="grid gap-3">
+        <section className="grid gap-4" aria-labelledby="vietqr-step-two">
+          <h2 id="vietqr-step-two" className="text-lg font-semibold">
+            {labels.stepTwo}
+          </h2>
+          <div className="grid gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-muted)] p-4">
+            <span className="text-sm font-semibold">{labels.amount}</span>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <strong ref={amountRef} className="text-2xl font-semibold tabular-nums">
+                {amountLabel}
+              </strong>
+              <Button
+                variant="secondary"
+                className="min-h-11 gap-2"
+                onClick={() => copyValue(String(amountMinor), 'amount')}
+              >
+                <Copy aria-hidden="true" className="size-4" />
+                {copied === 'amount' ? labels.copied : labels.copyAmount}
+              </Button>
+            </div>
+          </div>
+
+          <p id="vietqr-manual-fallback" className="text-sm font-semibold text-[var(--muted-foreground)]">
+            {labels.manualFallback}
+          </p>
+
+          <dl className="grid gap-3">
           <div className="grid gap-1 rounded-[var(--radius-control)] border border-[var(--border)] p-3">
             <dt className="flex items-center gap-2 text-sm font-semibold">
               <Landmark aria-hidden="true" className="size-4" />
@@ -260,11 +289,28 @@ export function VietQrInstructions({
             </dt>
             <dd className="tabular-nums">{deadlineLabel}</dd>
           </div>
-        </dl>
+          </dl>
 
-        <div className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3">
+          <div
+            aria-live="polite"
+            className={`min-h-5 text-sm font-semibold ${copyFailed ? 'text-[var(--destructive)]' : 'text-[var(--success)]'}`}
+          >
+            {copied
+              ? labels.copied
+              : copyFailed
+                ? `${labels.copyFailed} ${labels.selectManually}`
+                : ''}
+          </div>
+        </section>
+
+        <section className="grid gap-3" aria-labelledby="vietqr-step-three">
+          <h2 id="vietqr-step-three" className="text-lg font-semibold">
+            {labels.stepThree}
+          </h2>
+          <p className="text-sm text-[var(--muted-foreground)]">{labels.declarationNote}</p>
+          <div className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3">
           {isDeclared ? (
-            <p role="status" className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--success)]">
+            <p role="status" className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
               <MessageCircleMore aria-hidden="true" className="size-4 shrink-0" />
               {labels.declaredStatus}
             </p>
@@ -292,29 +338,13 @@ export function VietQrInstructions({
               ) : null}
             </>
           )}
-        </div>
-
-        <PaymentStatusRecheck
-          timing={VIETQR_RECHECK_TIMING}
-          labels={{checkStatus: labels.checkStatus, checking: labels.checking, lastChecked: labels.lastChecked}}
-        />
-
-        <Alert variant="warning">
-          <div className="flex items-start gap-3">
-            <LockKeyhole aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-            <div>
-              <AlertTitle>{labels.lockHeading}</AlertTitle>
-              <p>{labels.lockBody}</p>
-            </div>
           </div>
-        </Alert>
 
-        <div
-          aria-live="polite"
-          className={`min-h-5 text-sm font-semibold ${copyFailed ? 'text-[var(--destructive)]' : 'text-[var(--success)]'}`}
-        >
-          {copied ? labels.copied : copyFailed ? labels.copyFailed : ''}
-        </div>
+          <PaymentStatusRecheck
+            timing={VIETQR_RECHECK_TIMING}
+            labels={{checkStatus: labels.checkStatus, checking: labels.checking, lastChecked: labels.lastChecked}}
+          />
+        </section>
       </CardContent>
     </Card>
   );

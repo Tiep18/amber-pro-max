@@ -87,6 +87,10 @@ export const pathnames = {
     vi: '/don-hang/[orderNumber]',
     en: '/orders/[orderNumber]'
   },
+  '/orders/[orderNumber]/qr': {
+    vi: '/don-hang/[orderNumber]/ma-qr',
+    en: '/orders/[orderNumber]/qr'
+  },
   '/newsletter/unsubscribe': {
     vi: '/ban-tin/huy-dang-ky',
     en: '/newsletter/unsubscribe'
@@ -211,6 +215,10 @@ export function getAccountPatternsPath(locale: Locale): `/${Locale}${string}` {
 
 export function getOrderPath(locale: Locale, orderNumber: string): `/${Locale}${string}` {
   return `/${locale}/${locale === 'vi' ? 'don-hang' : 'orders'}/${encodeURIComponent(orderNumber)}`;
+}
+
+export function getOrderQrDownloadPath(locale: Locale, orderNumber: string): `/${Locale}${string}` {
+  return `${getOrderPath(locale, orderNumber)}/${locale === 'vi' ? 'ma-qr' : 'qr'}`;
 }
 
 export function getNewsletterUnsubscribePath(locale: Locale): `/${Locale}${string}` {
