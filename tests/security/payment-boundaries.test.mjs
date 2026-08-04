@@ -254,6 +254,36 @@ test('VietQR attachment is private, sanitized, non-enumerating, and mutation-fre
   assert.doesNotMatch(source, /\.from\(['"](?:checkout_orders|payments|checkout_inventory_reservations|download_entitlements)['"]\)/);
 });
 
+test('verified paid alone leads with confirmation, masked email, and relevant next steps', () => {
+  const source = readFileSync('src/components/payments/order-payment-page.tsx', 'utf8');
+  const paidStart = source.indexOf('{showPaidSuccess ?');
+  const paidEnd = source.indexOf('{showReviewSupport ?', paidStart);
+  const paidLead = source.slice(paidStart, paidEnd);
+
+  assert.match(source, /const showPaidSuccess\s*=\s*status\.isPaid\s*&&\s*!status\.isRefunded/);
+  assert.ok(paidStart >= 0);
+  assert.ok(paidEnd > paidStart);
+  assert.match(paidLead, /CircleCheck/);
+  assert.match(paidLead, /status\.paid\.heading/);
+  assert.match(paidLead, /status\.paid\.confirmedTotal/);
+  assert.match(paidLead, /status\.paid\.email[\s\S]*contactEmailMasked/);
+  assert.doesNotMatch(paidLead, /customerTransferDeclaredAt|reservationExpiresAt|searchParams|window\.|Date\.now/);
+  assert.match(source, /showPaidSuccess[\s\S]*hasDigitalLines[\s\S]*<DownloadPanel/);
+  assert.match(source, /showPaidSuccess[\s\S]*hasPhysicalLines[\s\S]*<PhysicalTrackingPanel/);
+});
+
+test('paid downloads keep the existing entitlement-authorized private route unchanged', () => {
+  const pageSource = readFileSync('src/components/payments/order-payment-page.tsx', 'utf8');
+  const downloadRoute = readFileSync('src/app/api/downloads/route.ts', 'utf8');
+
+  assert.match(pageSource, /<DownloadPanel[\s\S]*orderNumber=\{result\.order\.orderNumber\}/);
+  assert.doesNotMatch(pageSource, /createSignedUrl|signedUrl|\/storage\/v1\/object|token=/);
+  assert.match(downloadRoute, /authorizeDownloadWithSupabase/);
+  assert.match(downloadRoute, /getGuestOrderAccessHashFromServer/);
+  assert.match(downloadRoute, /result\.status !== 'authorized'/);
+  assert.match(downloadRoute, /NextResponse\.redirect\(result\.url, \{status: 303\}\)/);
+});
+
 test('npm security script includes the Phase 4 payment boundary harness', () => {
   const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
 
