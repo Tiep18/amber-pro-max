@@ -66,7 +66,7 @@ export function CartLine({
 
   if (compact) {
     return (
-      <article className="grid grid-cols-[104px_minmax(0,1fr)_auto] grid-rows-[56px_44px] gap-x-4 gap-y-2 py-5 first:pt-1 last:pb-1">
+      <article className="grid grid-cols-[104px_minmax(0,1fr)_auto] grid-rows-[minmax(56px,auto)_44px] gap-x-4 gap-y-2 py-5 first:pt-1 last:pb-1">
         <div
           data-testid="mini-cart-thumbnail"
           className="relative row-span-2 aspect-square overflow-hidden rounded-[8px] bg-[var(--surface-muted)] ring-1 ring-[var(--border)]/45"
@@ -80,7 +80,7 @@ export function CartLine({
           )}
         </div>
 
-        <div className="min-w-0 overflow-hidden self-start">
+        <div className="min-w-0 self-start">
           <p className="mb-0.5 truncate text-[11px] font-semibold leading-4 text-[var(--accent)]">
             {typeLabel}
           </p>
@@ -88,7 +88,7 @@ export function CartLine({
             {line.title}
           </h2>
           {compactNotice ? (
-            <p className={`mt-0.5 truncate text-xs font-medium leading-4 ${compactNoticeTone}`}>
+            <p className={`mt-0.5 break-words text-xs font-medium leading-4 ${compactNoticeTone}`}>
               {compactNotice}
             </p>
           ) : null}
@@ -174,7 +174,7 @@ export function CartLine({
             {line.title}
           </h2>
           {line.variantLabel ? (
-            <p className="line-clamp-1 text-sm text-[var(--muted-foreground)]">
+            <p className="break-words text-sm text-[var(--muted-foreground)]">
               {line.variantLabel}
             </p>
           ) : null}

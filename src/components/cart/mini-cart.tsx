@@ -23,9 +23,14 @@ const copy = {
     continueShopping: 'Continue shopping',
     checkout: 'Checkout',
     closeCart: 'Close cart',
-    subtotal: 'Subtotal',
-    shipping: 'Shipping not calculated',
-    blocked: 'Review unavailable items before checkout.',
+    subtotal: 'Products subtotal',
+    shipping: 'Shipping is calculated at checkout. This is not the final total.',
+    blocked: (count: number, names: string) =>
+      names
+        ? `Review ${count} ${count === 1 ? 'item' : 'items'} before checkout: ${names}.`
+        : `Review ${count} ${count === 1 ? 'item' : 'items'} before checkout.`,
+    removed: 'Removed from cart.',
+    undo: 'Undo',
     pdf: 'PDF pattern',
     physical: 'Handmade item',
     unavailable: 'Unavailable for the current quote',
@@ -47,9 +52,14 @@ const copy = {
     continueShopping: 'Tiếp tục mua sắm',
     checkout: 'Tiến hành thanh toán',
     closeCart: 'Đóng giỏ hàng',
-    subtotal: 'Tạm tính',
-    shipping: 'Chưa tính phí vận chuyển',
-    blocked: 'Vui lòng kiểm tra sản phẩm không khả dụng trước khi thanh toán.',
+    subtotal: 'Tạm tính sản phẩm',
+    shipping: 'Phí giao hàng được tính khi thanh toán. Đây chưa phải tổng tiền cuối cùng.',
+    blocked: (count: number, names: string) =>
+      names
+        ? `Kiểm tra ${count} sản phẩm trước khi thanh toán: ${names}.`
+        : `Kiểm tra ${count} sản phẩm trước khi thanh toán.`,
+    removed: 'Đã xóa khỏi giỏ hàng.',
+    undo: 'Hoàn tác',
     pdf: 'Mẫu PDF',
     physical: 'Sản phẩm thủ công',
     unavailable: 'Không khả dụng trong báo giá hiện tại',
@@ -78,6 +88,8 @@ export function MiniCart({ locale }: { locale: Locale }) {
     blockReason,
     updateQuantity,
     removeLine,
+    removedLine,
+    undoRemove,
     retry
   } = useCart();
   const [mounted, setMounted] = useState(false);
@@ -95,6 +107,32 @@ export function MiniCart({ locale }: { locale: Locale }) {
     changes.unavailable.length > 0 ||
     changes.removed.length > 0;
   const quoteUnsafe = blockReason !== null || pending || !quote;
+  const blockedTitles = Array.from(
+    new Set(
+      displayLines
+        .filter(
+          (line) =>
+            line.status === 'unavailable' ||
+            line.status === 'invalid_variant' ||
+            removedLineIds.has(line.lineId)
+        )
+        .map((line) => line.title)
+    )
+  );
+  const blockedCount = Math.max(
+    blockedTitles.length,
+    changes.unavailable.length + changes.removed.length,
+    quote?.status === 'blocked' ? 1 : 0
+  );
+  const checkoutBlocker = hasBlocking
+    ? t.blocked(blockedCount, blockedTitles.join(', '))
+    : pending
+      ? t.loading
+      : blockReason !== null || !quote
+        ? t.refreshError
+        : !quote.lines.length
+          ? t.emptyBody
+          : null;
 
   useEffect(() => {
     setMounted(true);
@@ -200,6 +238,21 @@ export function MiniCart({ locale }: { locale: Locale }) {
           )}
         </div>
         <div className="grid gap-3.5 border-t border-[var(--border)]/60 bg-[var(--surface)]/95 px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:px-6">
+          {removedLine ? (
+            <Alert
+              variant="success"
+              className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
+            >
+              <span>{t.removed}</span>
+              <Button
+                variant="ghost"
+                className="min-h-11 px-3 text-sm font-semibold"
+                onClick={() => void undoRemove()}
+              >
+                {t.undo}
+              </Button>
+            </Alert>
+          ) : null}
           {pending ? (
             <Alert variant="warning" aria-live="polite" aria-atomic="true">
               {t.loading}
@@ -226,7 +279,15 @@ export function MiniCart({ locale }: { locale: Locale }) {
               compact
             />
           ) : null}
-          {hasBlocking ? <Alert variant="destructive">{t.blocked}</Alert> : null}
+          {checkoutBlocker ? (
+            <Alert
+              id="mini-cart-checkout-blocker"
+              variant={hasBlocking || blockReason ? 'destructive' : 'warning'}
+              className="leading-6"
+            >
+              {checkoutBlocker}
+            </Alert>
+          ) : null}
           <div className="flex items-end justify-between gap-3 tabular-nums">
             <div className="grid gap-0.5">
               <span className="text-sm font-medium text-[var(--muted-foreground)]">{t.subtotal}</span>
@@ -248,7 +309,13 @@ export function MiniCart({ locale }: { locale: Locale }) {
           </div>
           <div className="grid gap-2.5 pt-1">
             {hasBlocking || quoteUnsafe || !quote?.lines.length ? (
-              <Button className="min-h-12 w-full text-base font-semibold !text-white" disabled>
+              <Button
+                className="min-h-12 w-full text-base font-semibold !text-white"
+                disabled
+                aria-describedby={
+                  checkoutBlocker ? 'mini-cart-checkout-blocker' : undefined
+                }
+              >
                 {t.checkout}
               </Button>
             ) : (

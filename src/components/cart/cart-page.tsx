@@ -19,12 +19,15 @@ const copy = {
     title: 'Cart',
     emptyTitle: 'Your cart is empty',
     emptyBody: 'Add a PDF pattern or handmade item to start your order.',
-    subtotal: 'Subtotal',
-    shipping: 'Shipping not calculated',
-    total: 'Current total',
+    summaryTitle: 'Cart summary',
+    subtotal: 'Products subtotal',
+    shipping: 'Shipping is calculated at checkout. This is not the final total.',
     checkout: 'Checkout',
     continueShopping: 'Continue shopping',
-    blocked: 'Review unavailable items before checkout.',
+    blocked: (count: number, names: string) =>
+      names
+        ? `Review ${count} ${count === 1 ? 'item' : 'items'} before checkout: ${names}.`
+        : `Review ${count} ${count === 1 ? 'item' : 'items'} before checkout.`,
     removed: 'Removed from cart.',
     undo: 'Undo',
     pdf: 'PDF pattern',
@@ -46,12 +49,15 @@ const copy = {
     title: 'Giỏ hàng',
     emptyTitle: 'Giỏ hàng đang trống',
     emptyBody: 'Thêm mẫu PDF hoặc sản phẩm thủ công để bắt đầu đơn hàng.',
-    subtotal: 'Tạm tính',
-    shipping: 'Chưa tính phí giao hàng',
-    total: 'Tổng hiện tại',
+    summaryTitle: 'Tóm tắt giỏ hàng',
+    subtotal: 'Tạm tính sản phẩm',
+    shipping: 'Phí giao hàng được tính khi thanh toán. Đây chưa phải tổng tiền cuối cùng.',
     checkout: 'Tiến hành thanh toán',
     continueShopping: 'Tiếp tục mua hàng',
-    blocked: 'Kiểm tra sản phẩm không khả dụng trước khi thanh toán.',
+    blocked: (count: number, names: string) =>
+      names
+        ? `Kiểm tra ${count} sản phẩm trước khi thanh toán: ${names}.`
+        : `Kiểm tra ${count} sản phẩm trước khi thanh toán.`,
     removed: 'Đã xóa khỏi giỏ hàng.',
     undo: 'Hoàn tác',
     pdf: 'Mẫu PDF',
@@ -107,6 +113,32 @@ export function CartPageContent({ locale }: { locale: Locale }) {
     market === null
       ? t.checking
       : t.updating(market === 'intl' ? t.marketIntl : t.marketVn);
+  const blockedTitles = Array.from(
+    new Set(
+      displayLines
+        .filter(
+          (line) =>
+            line.status === 'unavailable' ||
+            line.status === 'invalid_variant' ||
+            removedLineIds.has(line.lineId)
+        )
+        .map((line) => line.title)
+    )
+  );
+  const blockedCount = Math.max(
+    blockedTitles.length,
+    changes.unavailable.length + changes.removed.length,
+    quote?.status === 'blocked' ? 1 : 0
+  );
+  const checkoutBlocker = hasBlocking
+    ? t.blocked(blockedCount, blockedTitles.join(', '))
+    : pending
+      ? updatingMessage
+      : blockReason !== null || !quote
+        ? t.refreshError
+        : !quote.lines.length
+          ? t.emptyBody
+          : null;
 
   return (
     <main className="container grid gap-5 py-7 lg:gap-6 lg:py-9">
@@ -237,12 +269,16 @@ export function CartPageContent({ locale }: { locale: Locale }) {
         </section>
         <Card className="h-fit bg-[var(--surface-paper)] shadow-[0_20px_70px_rgb(73_52_32/10%)] lg:sticky lg:top-24">
           <CardHeader className="mb-5">
-            <CardTitle className="text-lg">{t.total}</CardTitle>
+            <CardTitle className="text-lg">{t.summaryTitle}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {hasBlocking ? (
-              <Alert variant="destructive" className="px-4 py-3 text-sm leading-6">
-                {t.blocked}
+            {checkoutBlocker ? (
+              <Alert
+                id="cart-checkout-blocker"
+                variant={hasBlocking || blockReason ? 'destructive' : 'warning'}
+                className="px-4 py-3 text-sm leading-6"
+              >
+                {checkoutBlocker}
               </Alert>
             ) : null}
             <div className="flex justify-between gap-3 text-sm tabular-nums">
@@ -258,19 +294,12 @@ export function CartPageContent({ locale }: { locale: Locale }) {
             </div>
             <p className="text-sm leading-6 text-[var(--muted-foreground)]">{t.shipping}</p>
             <Separator className="border-[var(--border)]/70" />
-            <div className="flex justify-between gap-3 text-lg font-semibold tabular-nums sm:text-xl">
-              <span>{t.total}</span>
-              {money ? (
-                <span className="text-[var(--brand)]">{money}</span>
-              ) : (
-                <span
-                  aria-hidden="true"
-                  className="h-5 w-28 animate-pulse rounded bg-[var(--surface-muted)]"
-                />
-              )}
-            </div>
             {hasBlocking || quoteUnsafe || !quote?.lines.length ? (
-              <Button className="min-h-12 w-full" disabled>
+              <Button
+                className="min-h-12 w-full"
+                disabled
+                aria-describedby={checkoutBlocker ? 'cart-checkout-blocker' : undefined}
+              >
                 {t.checkout}
               </Button>
             ) : (
