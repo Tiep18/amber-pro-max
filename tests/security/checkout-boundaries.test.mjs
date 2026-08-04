@@ -280,3 +280,35 @@ test('checkout address persistence derives identity server-side and cannot affec
   assert.doesNotMatch(actionSource, /userId|ownerId|customerId|orderStatus|paymentStatus/);
   assert.doesNotMatch(actionSource, /\.from\(['"]customer_shipping_addresses['"]\)/);
 });
+
+test('checkout support config crosses only the server page narrow DTO seam', () => {
+  const route = readFileSync('src/app/[locale]/checkout/page.tsx', 'utf8');
+  const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  const links = readFileSync('src/components/support/support-links.tsx', 'utf8');
+  const config = readFileSync('src/support/config.ts', 'utf8');
+
+  assert.match(route, /getPublicSupportConfig/);
+  assert.match(route, /publicSupportConfig=\{publicSupportConfig\}/);
+  assert.match(client, /publicSupportConfig\?: PublicSupportConfig/);
+  assert.match(client, /<SupportLinks[\s\S]*config=\{publicSupportConfig\}/);
+  assert.doesNotMatch(client, /@\/support\/config|@\/lib\/env\/server|process\.env|SUPPORT_EMAIL|SUPPORT_ZALO_URL/);
+  assert.doesNotMatch(links, /@\/support\/config|@\/lib\/env\/server|process\.env|SUPPORT_EMAIL|SUPPORT_ZALO_URL/);
+  assert.match(links, /config\.emailHref \?/);
+  assert.match(links, /config\.zaloHref \?/);
+  assert.match(config, /url\.hostname === 'zalo\.me'/);
+  assert.doesNotMatch(route, /getServerEnv|process\.env|SUPPORT_EMAIL|SUPPORT_ZALO_URL/);
+});
+
+test('incident references expose only an opaque copyable identifier with durable feedback', () => {
+  const incident = readFileSync('src/components/support/incident-reference.tsx', 'utf8');
+
+  assert.match(incident, /incidentId: string/);
+  assert.match(incident, /navigator\.clipboard\.writeText\(incidentId\)/);
+  assert.match(incident, /min-h-11/);
+  assert.match(incident, /aria-live="polite"/);
+  assert.match(incident, /document\.createRange\(\)/);
+  assert.doesNotMatch(
+    incident,
+    /orderNumber|contactEmail|shippingAddress|guestAccessToken|idempotency|provider|amountMinor|bank|URLSearchParams|encodeURIComponent/
+  );
+});

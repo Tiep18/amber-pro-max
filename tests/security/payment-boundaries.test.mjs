@@ -143,6 +143,22 @@ test('the customer order surface never renders a raw, unmasked contact email', (
   assert.match(source, /contactEmailMasked/);
 });
 
+test('missing and unauthorized orders share generic guest recovery without enumeration', () => {
+  const source = readFileSync('src/components/payments/order-payment-page.tsx', 'utf8');
+  const denialStart = source.indexOf("if (result.status !== 'found')");
+  const denialEnd = source.indexOf('const status = mapCustomerPaymentStatus', denialStart);
+  const denial = source.slice(denialStart, denialEnd);
+
+  assert.ok(denialStart >= 0);
+  assert.ok(denialEnd > denialStart);
+  assert.match(denial, /accessDenied\.heading/);
+  assert.match(denial, /accessDenied\.body/);
+  assert.match(denial, /getGuestOrderPath\(locale\)/);
+  assert.match(denial, /accessDenied\.recoverGuest/);
+  assert.match(denial, /<SupportLinks[\s\S]*config=\{publicSupportConfig\}/);
+  assert.doesNotMatch(denial, /result\.order|orderNumber|provider|amountMinor|currencyCode|contactEmail/);
+});
+
 test('npm security script includes the Phase 4 payment boundary harness', () => {
   const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
 
