@@ -231,6 +231,23 @@ describe('shipping address UI helpers', () => {
     });
   });
 
+  test('maps Vietnam Province and Ward issues to their own controlled fields', () => {
+    const vietnamDraft: CheckoutShippingAddressDraft = {
+      ...completeAddress,
+      phoneNumber: '0912345678',
+      countryCode: 'VN',
+      region: null,
+      locality: null,
+      addressLine1: ''
+    };
+
+    expect(validateCheckoutShippingAddress(vietnamDraft, 'en')).toMatchObject({
+      region: 'Choose a valid Province or City.',
+      locality: 'Choose a valid Ward, Commune, or Special zone.',
+      addressLine1: 'Enter the street address.'
+    });
+  });
+
   test('accepts a complete address without validation errors', () => {
     expect(validateCheckoutShippingAddress(completeAddress, 'en')).toEqual({});
   });

@@ -7,6 +7,7 @@ import {
   customerAddressToShippingAddress,
   type CustomerShippingAddress
 } from '@/account/addresses';
+import {saveCheckoutShippingAddressAction} from '@/account/address-actions';
 import {
   prepareGuestCheckoutRecoveryAction,
   refreshCheckoutQuoteAction,
@@ -14,6 +15,11 @@ import {
   type SubmitCheckoutActionState
 } from '@/checkout/actions';
 import { checkoutPaymentIntentForQuote } from '@/checkout/payment-method';
+import {
+  clearEditableDraft,
+  readEditableDraft,
+  writeEditableDraft
+} from '@/checkout/editable-draft';
 import {
   clearStoredIdempotency,
   resolveIdempotencyKey,
@@ -40,11 +46,13 @@ import {
   type QuoteDestination
 } from '@/checkout/quote-lifecycle';
 import type { ShippingAddress } from '@/checkout/shipping-address';
+import {validateCheckoutShippingAddress} from '@/checkout/shipping-address-ui';
 import type { CartQuote } from '@/checkout/types';
 import { useCart } from '@/components/cart/cart-provider';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {Checkbox} from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { getCartPath, getCatalogPath, type Locale } from '@/i18n/routing';
 import { ContactForm } from './contact-form';
@@ -81,6 +89,8 @@ const copy = {
     deadline: 'Reservation deadline',
     blockedItems: 'Resolve unavailable items before continuing.',
     retryQuote: 'Try again',
+    saveAddress: 'Save this address to my account',
+    addressSaveWarning: 'Your order was created, but this address could not be saved to your account.',
     quoteIssue: {
       unsupported:
         'We cannot ship these items to the selected destination. Change the address to continue.',
@@ -128,6 +138,8 @@ const copy = {
     deadline: 'Hạn giữ hàng',
     blockedItems: 'Hãy xử lý các sản phẩm chưa khả dụng trước khi tiếp tục.',
     retryQuote: 'Thử lại',
+    saveAddress: 'Lưu địa chỉ này vào tài khoản',
+    addressSaveWarning: 'Đơn hàng đã được tạo, nhưng chưa thể lưu địa chỉ này vào tài khoản.',
     quoteIssue: {
       unsupported:
         'Hiện chưa thể giao các sản phẩm này tới địa chỉ đã chọn. Hãy đổi địa chỉ để tiếp tục.',
@@ -228,6 +240,7 @@ export function CheckoutPage({
   const [lifecycle, setLifecycleState] = useState(() => createCheckoutQuoteLifecycleState(quote));
   const lifecycleRef = useRef(lifecycle);
   const destinationAuthorityRef = useRef(false);
+  const editableInteractedRef = useRef(false);
   const prefillRequestRef = useRef<string | null>(null);
   const idempotencyRef = useRef<ResolvedIdempotency | null>(null);
   const feedbackRef = useRef<HTMLDivElement | null>(null);
@@ -238,7 +251,10 @@ export function CheckoutPage({
     savedShippingAddress ?? emptyShippingAddress
   );
   const shippingAddressRef = useRef(shippingAddress);
+  const [draftHydrated, setDraftHydrated] = useState(false);
   const [destinationExpanded, setDestinationExpanded] = useState(!savedShippingAddress);
+  const [saveAddress, setSaveAddress] = useState(false);
+  const [addressSaveWarning, setAddressSaveWarning] = useState(false);
   const [submitResult, setSubmitResult] = useState<SubmitCheckoutActionState | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
@@ -260,6 +276,11 @@ export function CheckoutPage({
     setSubmitResult(null);
     setFeedbackRevision((current) => current + 1);
   }, []);
+
+  const beginEditableInteraction = useCallback(() => {
+    editableInteractedRef.current = true;
+    beginCheckoutInteraction();
+  }, [beginCheckoutInteraction]);
 
   const requestQuote = useCallback(
     async (
@@ -320,6 +341,33 @@ export function CheckoutPage({
   );
 
   useEffect(() => {
+    const result = readEditableDraft({storage: checkoutSessionStorage()});
+    if (result.status === 'found') {
+      const restoredAddress = result.draft.shippingAddress;
+      setEmail(result.draft.email);
+      setShippingAddressState(restoredAddress);
+      setDestinationExpanded(true);
+      destinationAuthorityRef.current = Boolean(restoredAddress.countryCode);
+      setLifecycle(
+        createCheckoutQuoteLifecycleState(lifecycleRef.current.acceptedQuote, {
+          countryCode: restoredAddress.countryCode || null,
+          regionCode: restoredAddress.countryCode === 'US' ? restoredAddress.region : null
+        })
+      );
+    }
+    setDraftHydrated(true);
+  }, [setLifecycle, setShippingAddressState]);
+
+  useEffect(() => {
+    if (!draftHydrated || !editableInteractedRef.current) return;
+    writeEditableDraft({
+      storage: checkoutSessionStorage(),
+      draft: {email, shippingAddress}
+    });
+  }, [draftHydrated, email, shippingAddress]);
+
+  useEffect(() => {
+    if (!draftHydrated) return;
     if (!quote) return;
     const hasPhysical = quote.lines.some(
       (line) => line.fulfillmentType === 'physical' && line.requestedQuantity > 0
@@ -378,7 +426,7 @@ export function CheckoutPage({
     if (prefillRequestRef.current === requestKey) return;
     prefillRequestRef.current = requestKey;
     void requestQuote(destination, nextAddress, quote, 'prefill');
-  }, [quote, requestQuote, savedShippingAddress, setLifecycle, setShippingAddressState]);
+  }, [draftHydrated, quote, requestQuote, savedShippingAddress, setLifecycle, setShippingAddressState]);
 
   // The submit button sits in a sticky bottom dock on mobile, so feedback that
   // renders in the left column can land entirely off-screen: the customer taps
@@ -538,18 +586,32 @@ export function CheckoutPage({
   function focusDestinationSection() {
     setDestinationExpanded(true);
     window.requestAnimationFrame(() => {
-      const targetId = !shippingAddress.countryCode
-        ? 'shipping-country-trigger'
-        : !shippingAddress.recipientName
-          ? 'shipping-recipient-name'
-          : !shippingAddress.phoneNumber
-            ? 'shipping-phone-number'
-            : !shippingAddress.addressLine1
-              ? 'shipping-address-line-1'
-              : shippingAddress.countryCode === 'US' && !shippingAddress.region
-                ? 'shipping-region-trigger'
-                : 'shipping-country-trigger';
-      document.getElementById(targetId)?.focus();
+      const errors = validateCheckoutShippingAddress(shippingAddress, locale);
+      const orderedFields: Array<[keyof ShippingAddress, string]> = [
+        ['countryCode', 'shipping-country-trigger'],
+        ['recipientName', 'shipping-recipient-name'],
+        ['phoneNumber', 'shipping-phone-number'],
+        ...(shippingAddress.countryCode === 'VN'
+          ? ([
+              ['region', 'shipping-region-trigger'],
+              ['locality', 'shipping-locality-trigger'],
+              ['addressLine1', 'shipping-address-line-1']
+            ] as Array<[keyof ShippingAddress, string]>)
+          : shippingAddress.countryCode === 'US'
+            ? ([
+                ['region', 'shipping-region-trigger'],
+                ['postalCode', 'shipping-postal-code'],
+                ['addressLine1', 'shipping-address-line-1']
+              ] as Array<[keyof ShippingAddress, string]>)
+            : ([['addressLine1', 'shipping-address-line-1']] as Array<[
+                keyof ShippingAddress,
+                string
+              ]>))
+      ];
+      const targetId = orderedFields.find(([field]) => errors[field])?.[1] ?? 'shipping-country-trigger';
+      const target = document.getElementById(targetId);
+      target?.scrollIntoView({behavior: 'smooth', block: 'center'});
+      target?.focus({preventScroll: true});
     });
   }
 
@@ -659,8 +721,24 @@ export function CheckoutPage({
         }
         // The key has done its job. Leaving it behind would make a future
         // cart that happens to hash identically dedupe back onto this order.
+        clearEditableDraft(checkoutSessionStorage());
         clearStoredIdempotency(checkoutSessionStorage());
         idempotencyRef.current = null;
+        if (isSignedIn && saveAddress && physicalCount > 0) {
+          try {
+            const saveResult = await saveCheckoutShippingAddressAction({
+              locale,
+              address: {
+                label: shippingAddress.recipientName.trim().slice(0, 80),
+                ...shippingAddress,
+                isDefault: false
+              }
+            });
+            setAddressSaveWarning(saveResult.status !== 'saved');
+          } catch {
+            setAddressSaveWarning(true);
+          }
+        }
         completeOrder(completedLines);
         window.location.assign(result.orderPath);
       } else {
@@ -751,7 +829,7 @@ export function CheckoutPage({
                   locale={locale}
                   email={email}
                   onEmailChange={(nextEmail) => {
-                    beginCheckoutInteraction();
+                    beginEditableInteraction();
                     setEmail(nextEmail);
                   }}
                   onValidityChange={setContactReady}
@@ -826,6 +904,7 @@ export function CheckoutPage({
                             addresses={savedAddresses}
                             pending={lifecycle.activeRequestId !== null}
                             onApply={(address) => {
+                              beginEditableInteraction();
                               setDestinationExpanded(false);
                               void requestQuote(
                                 { countryCode: address.countryCode, regionCode: address.region },
@@ -840,13 +919,24 @@ export function CheckoutPage({
                           lifecycle={lifecycle}
                           showValidation={submitAttempted}
                           onShippingAddressChange={(nextAddress) => {
-                            beginCheckoutInteraction();
+                            beginEditableInteraction();
                             setShippingAddressState(nextAddress);
                           }}
                           onDestinationChange={(destination) => void requestQuote(destination)}
                         />
                       </div>
                     )}
+                    {isSignedIn ? (
+                      <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-[var(--radius-control)] px-1 py-2 text-sm font-semibold">
+                        <Checkbox
+                          checked={saveAddress}
+                          onCheckedChange={(checked) => setSaveAddress(checked === true)}
+                          aria-label={t.saveAddress}
+                          className="size-5"
+                        />
+                        <span className="min-w-0 break-words">{t.saveAddress}</span>
+                      </label>
+                    ) : null}
                   </section>
                 </>
               ) : null}
@@ -876,6 +966,7 @@ export function CheckoutPage({
                 {new Date(submitResult.reservationExpiresAt).toLocaleString(locale)}.
               </Alert>
             ) : null}
+            {addressSaveWarning ? <Alert variant="warning">{t.addressSaveWarning}</Alert> : null}
             {submitResult && submitResult.status !== 'success'
               ? (() => {
                   const presentation = presentSubmitError(submitResult, {dedupeGuaranteed});

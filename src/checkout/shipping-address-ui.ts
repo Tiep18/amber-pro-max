@@ -1,4 +1,5 @@
 import type {Locale} from '@/i18n/routing';
+import {vietnamAdministrativeSnapshot} from './vietnam-address';
 import {
   US_SHIPPING_REGION_CODES,
   validateShippingDestination,
@@ -16,10 +17,43 @@ export type ShippingCountryOption = {
   searchText: string;
 };
 
+export type ShippingSubdivisionOption = ShippingCountryOption;
+
 export const US_SHIPPING_REGION_OPTIONS = US_SHIPPING_REGION_CODES.map((code) => ({
   code,
   labelKey: 'shippingRegion.' + code
 }));
+
+const usRegionNames: Record<(typeof US_SHIPPING_REGION_CODES)[number], string> = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado',
+  CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho',
+  IL: 'Illinois', IN: 'Indiana', IA: 'Iowa', KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana',
+  ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota',
+  MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada',
+  NH: 'New Hampshire', NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina',
+  ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania',
+  RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas',
+  UT: 'Utah', VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia',
+  WI: 'Wisconsin', WY: 'Wyoming', DC: 'District of Columbia', AS: 'American Samoa', GU: 'Guam',
+  MP: 'Northern Mariana Islands', PR: 'Puerto Rico', VI: 'United States Virgin Islands'
+};
+
+const viUsRegionNames: Partial<Record<(typeof US_SHIPPING_REGION_CODES)[number], string>> = {
+  DC: 'Đặc khu Columbia',
+  AS: 'Samoa thuộc Mỹ',
+  MP: 'Quần đảo Bắc Mariana',
+  VI: 'Quần đảo Virgin thuộc Mỹ'
+};
+
+export function normalizeShippingSearchText(value: string, locale: Locale | 'vi' = 'en') {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/gi, (character) => (character === 'Đ' ? 'D' : 'd'))
+    .toLocaleLowerCase(locale)
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+}
 
 const fallbackRegionCodes = [
   'AD',
@@ -280,15 +314,19 @@ const validationCopy = {
     phoneNumber: 'Enter a phone number with at least 5 characters.',
     addressLine1: 'Enter the street address.',
     region: 'Choose a valid US state or territory.',
-    postalCode: 'Enter a valid US postal code.'
+    postalCode: 'Enter a valid US postal code.',
+    vnProvince: 'Choose a valid Province or City.',
+    vnWard: 'Choose a valid Ward, Commune, or Special zone.'
   },
   vi: {
     countryCode: 'Chọn quốc gia giao hàng.',
     recipientName: 'Nhập tên người nhận.',
-    phoneNumber: 'Nhập số điện thoại tối thiểu 5 ký tự.',
-    addressLine1: 'Nhập địa chỉ đường.',
-    region: 'Chọn bang hoặc lãnh thổ Hoa Kỳ hợp lệ.',
-    postalCode: 'Nhập mã bưu chính Hoa Kỳ hợp lệ.'
+    phoneNumber: 'Nhập số điện thoại hợp lệ.',
+    addressLine1: 'Nhập số nhà, tên đường và địa chỉ chi tiết.',
+    region: 'Chọn bang hoặc vùng lãnh thổ Hoa Kỳ hợp lệ.',
+    postalCode: 'Nhập mã bưu chính Hoa Kỳ hợp lệ.',
+    vnProvince: 'Chọn Tỉnh hoặc Thành phố hợp lệ.',
+    vnWard: 'Chọn Phường, Xã hoặc Đặc khu hợp lệ.'
   }
 } as const;
 
@@ -312,10 +350,39 @@ export function getShippingCountryOptions(locale: Locale): ShippingCountryOption
       return {
         code,
         label,
-        searchText: `${label} ${code}`.toLowerCase()
+        searchText: normalizeShippingSearchText(`${label} ${code}`, locale)
       };
     })
     .sort((a, b) => a.label.localeCompare(b.label, locale));
+}
+
+export function getUsShippingRegionOptions(locale: Locale): ShippingSubdivisionOption[] {
+  return US_SHIPPING_REGION_CODES.map((code) => {
+    const name = locale === 'vi' ? (viUsRegionNames[code] ?? usRegionNames[code]) : usRegionNames[code];
+    const label = `${name} (${code})`;
+    return {code, label, searchText: normalizeShippingSearchText(`${name} ${code}`, locale)};
+  });
+}
+
+export function getVietnamProvinceOptions(): ShippingSubdivisionOption[] {
+  return vietnamAdministrativeSnapshot.provinces.map((province) => ({
+    code: province.code,
+    label: province.name,
+    searchText: normalizeShippingSearchText(`${province.name} ${province.code}`, 'vi')
+  }));
+}
+
+export function getVietnamWardOptions(provinceCode: string | null | undefined): ShippingSubdivisionOption[] {
+  const province = vietnamAdministrativeSnapshot.provinces.find(
+    (candidate) => candidate.code === provinceCode?.trim()
+  );
+  return (
+    province?.wards.map((ward) => ({
+      code: ward.code,
+      label: ward.name,
+      searchText: normalizeShippingSearchText(`${ward.name} ${ward.code}`, 'vi')
+    })) ?? []
+  );
 }
 
 const issueFieldCopy: Record<ShippingAddressIssueCode, keyof typeof validationCopy.en> = {
@@ -328,10 +395,10 @@ const issueFieldCopy: Record<ShippingAddressIssueCode, keyof typeof validationCo
   us_region_invalid: 'region',
   us_postal_required: 'postalCode',
   us_postal_invalid: 'postalCode',
-  vn_province_required: 'region',
-  vn_province_invalid: 'region',
-  vn_ward_required: 'addressLine1',
-  vn_ward_invalid: 'addressLine1',
+  vn_province_required: 'vnProvince',
+  vn_province_invalid: 'vnProvince',
+  vn_ward_required: 'vnWard',
+  vn_ward_invalid: 'vnWard',
   invalid_address: 'countryCode'
 };
 
@@ -344,14 +411,28 @@ export function validateCheckoutShippingAddress(
   }
 ): ShippingAddressValidationErrors {
   const result = validateShippingDestination(address, options);
-  if (result.success) {
-    return {};
+  const copy = validationCopy[locale];
+  const errors = result.success
+    ? {}
+    : result.issues.reduce<ShippingAddressValidationErrors>((current, item) => {
+        const copyKey = issueFieldCopy[item.code];
+        current[item.field] = copy[copyKey];
+        return current;
+      }, {});
+
+  if (options.mode === 'final' && options.hasPhysicalLines && address.countryCode === 'VN') {
+    const province = getVietnamProvinceOptions().find(
+      (option) => option.code === address.region || option.label === address.region
+    );
+    if (!province) errors.region = copy.vnProvince;
+    const ward = province
+      ? getVietnamWardOptions(province.code).find(
+          (option) => option.code === address.locality || option.label === address.locality
+        )
+      : null;
+    if (!ward) errors.locality = copy.vnWard;
+    if (!address.addressLine1.trim()) errors.addressLine1 = copy.addressLine1;
   }
 
-  const copy = validationCopy[locale];
-  return result.issues.reduce<ShippingAddressValidationErrors>((errors, item) => {
-    const copyKey = issueFieldCopy[item.code];
-    errors[item.field] = copy[copyKey];
-    return errors;
-  }, {});
+  return errors;
 }

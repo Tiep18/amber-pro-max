@@ -1,57 +1,109 @@
 'use client';
 
-import {useState} from 'react';
-import {getShippingCountryOptions, US_SHIPPING_REGION_OPTIONS, validateCheckoutShippingAddress} from '@/checkout/shipping-address-ui';
+import {useMemo, useState} from 'react';
+import {
+  getShippingCountryOptions,
+  getUsShippingRegionOptions,
+  getVietnamProvinceOptions,
+  getVietnamWardOptions,
+  validateCheckoutShippingAddress
+} from '@/checkout/shipping-address-ui';
 import type {ShippingAddress} from '@/checkout/shipping-address';
 import type {CheckoutQuoteLifecycleState, QuoteDestination} from '@/checkout/quote-lifecycle';
 import type {Locale} from '@/i18n/routing';
 import {Input} from '@/components/ui/input';
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
+import {SearchableSelect} from '@/components/ui/searchable-select';
 
 const copy = {
   en: {
     country: 'Shipping country', recipient: 'Recipient name', phone: 'Phone number', addressLine1: 'Street address',
     addressLine2: 'Apartment, suite, etc.', locality: 'City', region: 'State or territory', postalCode: 'ZIP or postal code',
-    optional: 'Optional', countryPlaceholder: 'Choose a country', regionPlaceholder: 'Choose a state or territory',
+    province: 'Province/City', ward: 'Ward/Commune/Special zone', vnStreet: 'House number, street, and address details',
+    district: 'District (optional)', optional: 'Optional', countryPlaceholder: 'Choose a country',
+    regionPlaceholder: 'Choose a state or territory', provincePlaceholder: 'Choose a Province or City',
+    wardPlaceholder: 'Choose a Ward, Commune, or Special zone', searchCountry: 'Search shipping countries',
+    searchRegion: 'Search states and territories', searchProvince: 'Search Provinces and Cities',
+    searchWard: 'Search Wards, Communes, and Special zones', noResults: 'No matching options.',
     awaitingCountry: 'Choose a country to calculate shipping.', awaitingRegion: 'Choose a state or territory to finish calculating shipping.',
-    calculating: 'Calculating shipping...', updating: 'Updating shipping. Your previous total remains visible.',
+    calculating: 'Calculating shipping…', updating: 'Updating shipping. Your previous total remains visible.',
     ready: 'Shipping is calculated for this destination.', unsupported: 'We cannot ship these items to this destination. Edit the destination to try again.',
-    network: 'We could not reach the shipping service. Change the destination or try again.', server: 'Shipping could not be calculated. Change the destination or try again.'
+    network: 'We could not reach the shipping service. Change the destination or try again.', server: 'Shipping could not be calculated. Change the destination or try again.',
+    wardReselection: 'Choose the Ward, Commune, or Special zone again for the new Province or City.'
   },
   vi: {
-    country: 'Quốc gia giao hàng', recipient: 'Tên người nhận', phone: 'Số điện thoại', addressLine1: 'Địa chỉ',
+    country: 'Quốc gia giao hàng', recipient: 'Tên người nhận', phone: 'Số điện thoại', addressLine1: 'Địa chỉ đường',
     addressLine2: 'Căn hộ, tầng, tòa nhà', locality: 'Thành phố', region: 'Bang hoặc vùng lãnh thổ', postalCode: 'Mã ZIP hoặc mã bưu chính',
-    optional: 'Không bắt buộc', countryPlaceholder: 'Chọn quốc gia', regionPlaceholder: 'Chọn bang hoặc vùng lãnh thổ',
+    province: 'Tỉnh/Thành phố', ward: 'Phường/Xã/Đặc khu', vnStreet: 'Số nhà, tên đường và địa chỉ chi tiết',
+    district: 'Quận/Huyện (không bắt buộc)', optional: 'Không bắt buộc', countryPlaceholder: 'Chọn quốc gia',
+    regionPlaceholder: 'Chọn bang hoặc vùng lãnh thổ', provincePlaceholder: 'Chọn Tỉnh hoặc Thành phố',
+    wardPlaceholder: 'Chọn Phường, Xã hoặc Đặc khu', searchCountry: 'Tìm quốc gia giao hàng',
+    searchRegion: 'Tìm bang và vùng lãnh thổ', searchProvince: 'Tìm Tỉnh và Thành phố',
+    searchWard: 'Tìm Phường, Xã và Đặc khu', noResults: 'Không có lựa chọn phù hợp.',
     awaitingCountry: 'Chọn quốc gia để tính phí giao hàng.', awaitingRegion: 'Chọn bang hoặc vùng lãnh thổ để hoàn tất tính phí.',
-    calculating: 'Đang tính phí giao hàng...', updating: 'Đang cập nhật phí giao hàng. Tổng tiền trước đó vẫn được giữ nguyên.',
+    calculating: 'Đang tính phí giao hàng…', updating: 'Đang cập nhật phí giao hàng. Tổng tiền trước đó vẫn được giữ nguyên.',
     ready: 'Đã tính phí giao hàng cho địa chỉ này.', unsupported: 'Hiện chưa thể giao các sản phẩm này tới địa chỉ đã chọn. Hãy chỉnh sửa địa chỉ để thử lại.',
-    network: 'Không thể kết nối dịch vụ tính phí. Hãy thử lại hoặc đổi địa chỉ.', server: 'Không thể tính phí giao hàng. Hãy thử lại hoặc đổi địa chỉ.'
+    network: 'Không thể kết nối dịch vụ tính phí. Hãy thử lại hoặc đổi địa chỉ.', server: 'Không thể tính phí giao hàng. Hãy thử lại hoặc đổi địa chỉ.',
+    wardReselection: 'Chọn lại Phường, Xã hoặc Đặc khu cho Tỉnh hoặc Thành phố mới.'
   }
 } as const;
 
 export type CheckoutShippingAddress = ShippingAddress;
+type AddressField = keyof CheckoutShippingAddress;
 
-export function DestinationForm({locale, shippingAddress, lifecycle, showValidation, onShippingAddressChange, onDestinationChange}: {
+export function DestinationForm({
+  locale,
+  shippingAddress,
+  lifecycle,
+  showValidation,
+  disabled = false,
+  onShippingAddressChange,
+  onDestinationChange
+}: {
   locale: Locale;
   shippingAddress: CheckoutShippingAddress;
   lifecycle: CheckoutQuoteLifecycleState;
   showValidation: boolean;
+  disabled?: boolean;
   onShippingAddressChange: (address: CheckoutShippingAddress) => void;
   onDestinationChange: (destination: QuoteDestination) => void;
 }) {
   const t = copy[locale];
-  const [touched, setTouched] = useState(false);
-  const countries = getShippingCountryOptions(locale);
+  const [touchedFields, setTouchedFields] = useState<Set<AddressField>>(() => new Set());
+  const [wardReselection, setWardReselection] = useState(false);
+  const countries = useMemo(() => getShippingCountryOptions(locale), [locale]);
+  const usRegions = useMemo(() => getUsShippingRegionOptions(locale), [locale]);
+  const vietnamProvinces = useMemo(() => getVietnamProvinceOptions(), []);
+  const selectedProvinceCode = vietnamProvinces.find(
+    (province) => province.code === shippingAddress.region || province.label === shippingAddress.region
+  )?.code ?? '';
+  const vietnamWards = useMemo(
+    () => getVietnamWardOptions(selectedProvinceCode),
+    [selectedProvinceCode]
+  );
+  const selectedWardCode = vietnamWards.find(
+    (ward) => ward.code === shippingAddress.locality || ward.label === shippingAddress.locality
+  )?.code ?? '';
   const errors = validateCheckoutShippingAddress(shippingAddress, locale);
-  const revealErrors = showValidation || touched;
   const isUs = shippingAddress.countryCode === 'US';
+  const isVietnam = shippingAddress.countryCode === 'VN';
+
+  function touch(field: AddressField) {
+    setTouchedFields((current) => {
+      if (current.has(field)) return current;
+      const next = new Set(current);
+      next.add(field);
+      return next;
+    });
+  }
 
   function update(patch: Partial<CheckoutShippingAddress>) {
     onShippingAddressChange({...shippingAddress, ...patch});
   }
-  function errorFor(field: keyof CheckoutShippingAddress) {
-    return revealErrors ? errors[field] : null;
+
+  function errorFor(field: AddressField) {
+    return showValidation || touchedFields.has(field) ? errors[field] : null;
   }
+
   const status = lifecycle.loadingMode === 'initial' ? t.calculating
     : lifecycle.loadingMode === 'updating' ? t.updating
       : lifecycle.issue?.kind === 'unsupported' ? t.unsupported
@@ -60,59 +112,205 @@ export function DestinationForm({locale, shippingAddress, lifecycle, showValidat
             : !shippingAddress.countryCode ? t.awaitingCountry
               : isUs && !shippingAddress.region ? t.awaitingRegion : t.ready;
 
-  return <div className="grid gap-4">
-    <div className="grid gap-1.5">
-      <label className="text-sm font-semibold" id="shipping-country-label">{t.country} <span className="text-[var(--destructive)]">*</span></label>
-      <Select value={shippingAddress.countryCode} onValueChange={(countryCode) => {
-        const region = countryCode === 'US' ? shippingAddress.region : null;
-        update({countryCode, region});
-        onDestinationChange({countryCode, regionCode: region});
-      }}>
-        <SelectTrigger id="shipping-country-trigger" aria-labelledby="shipping-country-label" aria-invalid={Boolean(errorFor('countryCode'))}><SelectValue placeholder={t.countryPlaceholder}/></SelectTrigger>
-        <SelectContent>{countries.map((country) => <SelectItem key={country.code} value={country.code}>{country.label} ({country.code})</SelectItem>)}</SelectContent>
-      </Select>
-      {errorFor('countryCode') ? <p className="text-sm font-medium text-[var(--destructive)]">{errorFor('countryCode')}</p> : null}
-    </div>
+  return (
+    <div className="grid gap-4">
+      <SearchableField
+        field="countryCode"
+        id="shipping-country-trigger"
+        label={t.country}
+        locale={locale}
+        placeholder={t.countryPlaceholder}
+        searchLabel={t.searchCountry}
+        emptyLabel={t.noResults}
+        options={countries}
+        value={shippingAddress.countryCode}
+        error={errorFor('countryCode')}
+        disabled={disabled}
+        onTouched={() => touch('countryCode')}
+        onValueChange={(countryCode) => {
+          const countryChanged = countryCode !== shippingAddress.countryCode;
+          update({
+            countryCode,
+            region: countryChanged ? null : shippingAddress.region,
+            locality: countryChanged ? null : shippingAddress.locality,
+            postalCode: countryChanged ? null : shippingAddress.postalCode
+          });
+          setWardReselection(false);
+          onDestinationChange({countryCode, regionCode: null});
+        }}
+      />
 
-    {shippingAddress.countryCode && isUs ? <div className="grid gap-3 sm:grid-cols-2">
-      <div className="grid gap-1.5">
-        <label className="text-sm font-semibold" id="shipping-region-label">{t.region} <span className="text-[var(--destructive)]">*</span></label>
-        <Select value={shippingAddress.region ?? ''} onValueChange={(region) => {update({region}); onDestinationChange({countryCode: 'US', regionCode: region});}}>
-          <SelectTrigger id="shipping-region-trigger" aria-labelledby="shipping-region-label" aria-invalid={Boolean(errorFor('region'))}><SelectValue placeholder={t.regionPlaceholder}/></SelectTrigger>
-          <SelectContent>{US_SHIPPING_REGION_OPTIONS.map((option) => <SelectItem key={option.code} value={option.code}>{option.code}</SelectItem>)}</SelectContent>
-        </Select>
-        {errorFor('region') ? <p className="text-sm font-medium text-[var(--destructive)]">{errorFor('region')}</p> : null}
+      <div role="status" aria-live="polite" className="flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 px-3 py-2 text-xs font-medium leading-5 text-[var(--muted-foreground)]">
+        <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${lifecycle.issue ? 'bg-[var(--warning)]' : lifecycle.activeRequestId !== null ? 'animate-pulse motion-reduce:animate-none bg-[var(--accent)]' : 'bg-[var(--success)]'}`} />
+        <span className="min-w-0 break-words">{status}</span>
       </div>
-      <Field id="shipping-postal-code" label={t.postalCode} autoComplete="postal-code" required value={shippingAddress.postalCode ?? ''} error={errorFor('postalCode')} onBlur={() => setTouched(true)} onChange={(postalCode) => update({postalCode})}/>
-    </div> : null}
 
-    <div role="status" aria-live="polite" className="flex min-h-10 items-center gap-2 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 px-3 py-2 text-xs font-medium leading-5 text-[var(--muted-foreground)]">
-      <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${lifecycle.issue ? 'bg-[var(--warning)]' : lifecycle.activeRequestId !== null ? 'animate-pulse bg-[var(--accent)]' : 'bg-[var(--success)]'}`} />
-      {status}
+      {shippingAddress.countryCode ? (
+        <div className="grid gap-4 border-t border-[var(--border)]/60 pt-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field id="shipping-recipient-name" field="recipientName" label={t.recipient} autoComplete="name" required value={shippingAddress.recipientName} error={errorFor('recipientName')} disabled={disabled} onBlur={() => touch('recipientName')} onChange={(recipientName) => update({recipientName})}/>
+            <Field id="shipping-phone-number" field="phoneNumber" label={t.phone} autoComplete="tel" required type="tel" value={shippingAddress.phoneNumber} error={errorFor('phoneNumber')} disabled={disabled} onBlur={() => touch('phoneNumber')} onChange={(phoneNumber) => update({phoneNumber})}/>
+          </div>
+
+          {isVietnam ? (
+            <>
+              <SearchableField
+                field="region"
+                id="shipping-region-trigger"
+                label={t.province}
+                locale={locale}
+                placeholder={t.provincePlaceholder}
+                searchLabel={t.searchProvince}
+                emptyLabel={t.noResults}
+                options={vietnamProvinces}
+                value={selectedProvinceCode}
+                error={errorFor('region')}
+                disabled={disabled}
+                onTouched={() => touch('region')}
+                onValueChange={(region) => {
+                  const wardStillValid = getVietnamWardOptions(region).some(
+                    (ward) => ward.code === shippingAddress.locality || ward.label === shippingAddress.locality
+                  );
+                  const shouldClearWard = Boolean(shippingAddress.locality) && !wardStillValid;
+                  update({region, locality: wardStillValid ? shippingAddress.locality : null});
+                  setWardReselection(shouldClearWard);
+                }}
+              />
+              <SearchableField
+                field="locality"
+                id="shipping-locality-trigger"
+                label={t.ward}
+                locale={locale}
+                placeholder={t.wardPlaceholder}
+                searchLabel={t.searchWard}
+                emptyLabel={t.noResults}
+                options={vietnamWards}
+                value={selectedWardCode}
+                error={errorFor('locality')}
+                disabled={disabled || !selectedProvinceCode}
+                onTouched={() => touch('locality')}
+                onValueChange={(locality) => {
+                  update({locality});
+                  setWardReselection(false);
+                }}
+              />
+              {wardReselection ? <p role="status" className="text-sm leading-5 text-[var(--warning)]">{t.wardReselection}</p> : null}
+              <Field id="shipping-address-line-1" field="addressLine1" label={t.vnStreet} autoComplete="address-line1" required value={shippingAddress.addressLine1} error={errorFor('addressLine1')} disabled={disabled} onBlur={() => touch('addressLine1')} onChange={(addressLine1) => update({addressLine1})}/>
+              <Field id="shipping-address-line-2" field="addressLine2" label={t.district} autoComplete="address-level2" optional={t.optional} value={shippingAddress.addressLine2 ?? ''} disabled={disabled} onChange={(addressLine2) => update({addressLine2})}/>
+            </>
+          ) : (
+            <>
+              {isUs ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <SearchableField
+                    field="region"
+                    id="shipping-region-trigger"
+                    label={t.region}
+                    locale={locale}
+                    placeholder={t.regionPlaceholder}
+                    searchLabel={t.searchRegion}
+                    emptyLabel={t.noResults}
+                    options={usRegions}
+                    value={shippingAddress.region ?? ''}
+                    error={errorFor('region')}
+                    disabled={disabled}
+                    onTouched={() => touch('region')}
+                    onValueChange={(region) => {
+                      update({region});
+                      onDestinationChange({countryCode: 'US', regionCode: region});
+                    }}
+                  />
+                  <Field id="shipping-postal-code" field="postalCode" label={t.postalCode} autoComplete="postal-code" required value={shippingAddress.postalCode ?? ''} error={errorFor('postalCode')} disabled={disabled} onBlur={() => touch('postalCode')} onChange={(postalCode) => update({postalCode})}/>
+                </div>
+              ) : null}
+              <Field id="shipping-address-line-1" field="addressLine1" label={t.addressLine1} autoComplete="address-line1" required value={shippingAddress.addressLine1} error={errorFor('addressLine1')} disabled={disabled} onBlur={() => touch('addressLine1')} onChange={(addressLine1) => update({addressLine1})}/>
+              <Field id="shipping-address-line-2" field="addressLine2" label={t.addressLine2} autoComplete="address-line2" optional={t.optional} value={shippingAddress.addressLine2 ?? ''} disabled={disabled} onChange={(addressLine2) => update({addressLine2})}/>
+              {!isUs ? (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Field id="shipping-locality" field="locality" label={t.locality} autoComplete="address-level2" optional={t.optional} value={shippingAddress.locality ?? ''} disabled={disabled} onChange={(locality) => update({locality})}/>
+                  <Field id="shipping-region" field="region" label={t.region} autoComplete="address-level1" optional={t.optional} value={shippingAddress.region ?? ''} disabled={disabled} onChange={(region) => update({region})}/>
+                  <Field id="shipping-postal-code" field="postalCode" label={t.postalCode} autoComplete="postal-code" optional={t.optional} value={shippingAddress.postalCode ?? ''} disabled={disabled} onChange={(postalCode) => update({postalCode})}/>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+      ) : null}
     </div>
-
-    {shippingAddress.countryCode ? (
-      <div className="grid gap-4 border-t border-[var(--border)]/60 pt-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field id="shipping-recipient-name" label={t.recipient} autoComplete="name" required value={shippingAddress.recipientName} error={errorFor('recipientName')} onBlur={() => setTouched(true)} onChange={(recipientName) => update({recipientName})}/>
-          <Field id="shipping-phone-number" label={t.phone} autoComplete="tel" required type="tel" value={shippingAddress.phoneNumber} error={errorFor('phoneNumber')} onBlur={() => setTouched(true)} onChange={(phoneNumber) => update({phoneNumber})}/>
-        </div>
-        <Field id="shipping-address-line-1" label={t.addressLine1} autoComplete="address-line1" required value={shippingAddress.addressLine1} error={errorFor('addressLine1')} onBlur={() => setTouched(true)} onChange={(addressLine1) => update({addressLine1})}/>
-        <Field id="shipping-address-line-2" label={t.addressLine2} autoComplete="address-line2" optional={t.optional} value={shippingAddress.addressLine2 ?? ''} onChange={(addressLine2) => update({addressLine2})}/>
-        <div className={`grid gap-3 ${isUs ? '' : 'sm:grid-cols-3'}`}>
-          <Field id="shipping-locality" label={t.locality} autoComplete="address-level2" optional={t.optional} value={shippingAddress.locality ?? ''} onChange={(locality) => update({locality})}/>
-          {!isUs ? <Field id="shipping-region" label={t.region} autoComplete="address-level1" optional={t.optional} value={shippingAddress.region ?? ''} onChange={(region) => update({region})}/> : null}
-          {!isUs ? <Field id="shipping-postal-code" label={t.postalCode} autoComplete="postal-code" optional={t.optional} value={shippingAddress.postalCode ?? ''} onChange={(postalCode) => update({postalCode})}/> : null}
-        </div>
-      </div>
-    ) : null}
-  </div>;
+  );
 }
 
-function Field({id, label, value, required, optional, type, autoComplete, error, onChange, onBlur}: {id: string; label: string; value: string; required?: boolean; optional?: string; type?: string; autoComplete?: string; error?: string | null; onChange: (value: string) => void; onBlur?: () => void}) {
-  return <label className="grid gap-1.5" htmlFor={id}>
-    <span className="flex justify-between gap-3 text-sm font-semibold">{label}{required ? <span className="text-[var(--destructive)]">*</span> : optional ? <span className="text-xs font-medium text-[var(--muted-foreground)]">{optional}</span> : null}</span>
-    <Input id={id} type={type} autoComplete={autoComplete} value={value} aria-invalid={Boolean(error)} onBlur={onBlur} onChange={(event) => onChange(event.target.value)}/>
-    {error ? <span className="text-sm font-medium text-[var(--destructive)]">{error}</span> : null}
-  </label>;
+function SearchableField({field, id, label, locale, placeholder, searchLabel, emptyLabel, options, value, error, disabled, onValueChange, onTouched}: {
+  field: AddressField;
+  id: string;
+  label: string;
+  locale: Locale;
+  placeholder: string;
+  searchLabel: string;
+  emptyLabel: string;
+  options: ReturnType<typeof getShippingCountryOptions>;
+  value: string;
+  error?: string | null;
+  disabled?: boolean;
+  onValueChange: (value: string) => void;
+  onTouched: () => void;
+}) {
+  const errorId = `${id}-error`;
+  return (
+    <div className="grid gap-1.5">
+      <label className="text-sm font-semibold" htmlFor={id}>{label} <span className="text-[var(--destructive)]">*</span></label>
+      <SearchableSelect
+        id={id}
+        locale={locale}
+        label={label}
+        placeholder={placeholder}
+        searchLabel={searchLabel}
+        emptyLabel={emptyLabel}
+        options={options}
+        value={value}
+        disabled={disabled}
+        invalid={Boolean(error)}
+        describedBy={error ? errorId : undefined}
+        errorMessageId={errorId}
+        onValueChange={onValueChange}
+        onTouched={onTouched}
+      />
+      {error ? <p id={errorId} className="text-sm font-medium leading-5 text-[var(--destructive)]">{error}</p> : null}
+    </div>
+  );
+}
+
+function Field({id, field, label, value, required, optional, type, autoComplete, error, disabled, onChange, onBlur}: {
+  id: string;
+  field: AddressField;
+  label: string;
+  value: string;
+  required?: boolean;
+  optional?: string;
+  type?: string;
+  autoComplete?: string;
+  error?: string | null;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+  onBlur?: () => void;
+}) {
+  const errorId = `${id}-error`;
+  return (
+    <label className="grid gap-1.5" htmlFor={id} data-field={field}>
+      <span className="flex justify-between gap-3 text-sm font-semibold">{label}{required ? <span className="text-[var(--destructive)]">*</span> : optional ? <span className="text-xs font-medium text-[var(--muted-foreground)]">{optional}</span> : null}</span>
+      <Input
+        id={id}
+        type={type}
+        autoComplete={autoComplete}
+        value={value}
+        disabled={disabled}
+        aria-invalid={Boolean(error) || undefined}
+        aria-describedby={error ? errorId : undefined}
+        aria-errormessage={error ? errorId : undefined}
+        onBlur={onBlur}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {error ? <span id={errorId} className="text-sm font-medium leading-5 text-[var(--destructive)]">{error}</span> : null}
+    </label>
+  );
 }
