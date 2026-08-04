@@ -931,6 +931,7 @@ export function CheckoutPage({
                   ) : null}
                 </div>
                 <ContactForm
+                  key={draftHydrated ? 'draft-hydrated' : 'draft-pending'}
                   locale={locale}
                   email={email}
                   onEmailChange={(nextEmail) => {
