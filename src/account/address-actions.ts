@@ -13,6 +13,10 @@ type RpcClient = {
 };
 
 const addressIdSchema = z.string().uuid();
+const checkoutAddressSaveRequestSchema = z.object({
+  locale: z.enum(['vi', 'en']),
+  address: z.unknown()
+}).strict();
 
 export type AddressActionState =
   | {status: 'idle'}
@@ -22,6 +26,10 @@ export type AddressActionState =
   | {status: 'not_found'}
   | {status: 'invalid'; code: 'invalid_address' | 'invalid_address_id'}
   | {status: 'error'; code: 'address_action_failed'};
+
+export type CheckoutAddressSaveResult =
+  | {status: 'saved'; addressId: string}
+  | {status: 'not_saved'; code: 'invalid_address' | 'address_save_failed'};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -33,6 +41,10 @@ function localeFromForm(formData: FormData): Locale {
 
 function addressPath(locale: Locale) {
   return locale === 'vi' ? '/vi/tai-khoan/dia-chi' : '/en/account/addresses';
+}
+
+function checkoutPath(locale: Locale) {
+  return locale === 'vi' ? '/vi/thanh-toan' : '/en/checkout';
 }
 
 function formValue(formData: FormData, key: string) {
@@ -209,8 +221,8 @@ export async function setDefaultCustomerShippingAddress({
   });
 }
 
-async function authenticatedClient(locale: Locale): Promise<RpcClient> {
-  await requireUser({locale, next: addressPath(locale)});
+async function authenticatedClient(locale: Locale, next = addressPath(locale)): Promise<RpcClient> {
+  await requireUser({locale, next});
   return createSupabaseServerClient() as unknown as RpcClient;
 }
 
@@ -265,4 +277,25 @@ export async function setDefaultCustomerShippingAddressAction(
   const result = await setDefaultCustomerShippingAddress({addressId: formValue(formData, 'addressId') ?? '', client});
   if (result.status === 'default_set') revalidateAddressPages();
   return result;
+}
+
+export async function saveCheckoutShippingAddressAction(input: unknown): Promise<CheckoutAddressSaveResult> {
+  const request = checkoutAddressSaveRequestSchema.safeParse(input);
+  if (!request.success) return {status: 'not_saved', code: 'invalid_address'};
+
+  const normalized = parseCustomerShippingAddressInput(request.data.address);
+  if (!normalized.success) return {status: 'not_saved', code: 'invalid_address'};
+
+  const client = await authenticatedClient(request.data.locale, checkoutPath(request.data.locale));
+  const result = await saveCustomerShippingAddress({
+    addressId: null,
+    input: normalized.data,
+    client
+  });
+  if (result.status === 'saved') {
+    revalidateAddressPages();
+    return result;
+  }
+  if (result.status === 'invalid') return {status: 'not_saved', code: 'invalid_address'};
+  return {status: 'not_saved', code: 'address_save_failed'};
 }
