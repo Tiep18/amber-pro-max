@@ -459,11 +459,27 @@ Plans:
 
 ### Phase 10: Checkout and payment UX stabilization for Vietnamese and international customers
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Make the existing bilingual cart, checkout, and payment journey clear, accessible, recovery-safe, and appropriate for Vietnamese customers without weakening server-authoritative pricing, shipping, inventory, payment, or entitlement boundaries.
+**UI hint:** yes
+**Requirements**: MKT-01, MKT-02, MKT-06, CART-01, CART-02, CART-03, CART-04, CART-05, SHIP-03, SHIP-09, SHIP-10, SHIP-11, SHIP-12, SHIP-13, INV-02, INV-03, INV-04, INV-05, ORD-01, ORD-02, PAY-01, PAY-02, PAY-03, PAY-04, PAY-05, PAY-06, PAY-07, PAY-08, ACC-03, OPS-04
 **Depends on:** Phase 9
-**Plans:** 0 plans
+**Plans:** 7 plans
+
+**Success Criteria**:
+
+1. Vietnamese checkout requires an official current Province/City → Ward/Commune/Special zone pair and a normalized Vietnamese mobile contact, while international/US validation and authoritative destination requoting continue to work.
+2. Cart and checkout preserve entered intent safely, expose complete localized blockers, meet keyboard/touch/reflow requirements, and prevent conflicting edits or duplicate submission while an order is being created.
+3. Optional signed-in address saving, checkout draft persistence, support configuration, incident references, and guest-order recovery follow explicit consent, bounded PII, authorization, and non-enumerating error contracts.
+4. Every order/payment state emphasizes one truthful next action; terminal states restore eligible cart intent into a fresh order path, paid/terminal views omit stale reservation deadlines, and same-order retry remains forbidden.
+5. VietQR offers numbered instructions and an authorized bounded QR download while retaining manual transfer fallbacks; verified paid state begins with a localized confirmation and preserves private entitlement gating.
+6. Bilingual unit, security, Playwright, responsive/accessibility, payment-state, and full CI evidence pass without reopening deferred Phase 09 Vercel geo/SEO UAT.
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 10 to break down)
+- [ ] 10-01-PLAN.md — Stabilize PDP/cart accessibility, quantity, subtotal, and remove/Undo behavior (Wave 1)
+- [ ] 10-02-PLAN.md — Implement official Vietnamese destination, phone, checkout draft, and explicit address save contracts (Wave 2)
+- [ ] 10-03-PLAN.md — Build responsive checkout summary, field feedback, localized copy, and complete blocker presentation (Wave 3)
+- [ ] 10-04-PLAN.md — Lock checkout submission and add centralized bilingual support and incident recovery (Wave 4)
+- [ ] 10-05-PLAN.md — Simplify payment-state hierarchy, terminal recovery, deadlines, cooldowns, and polling completion (Wave 5)
+- [ ] 10-06-PLAN.md — Add safe VietQR guidance/download and the verified-paid success experience (Wave 6)
+- [ ] 10-07-PLAN.md — Run full regression, security, responsive Playwright, CI, and manual UAT handoff (Wave 7)

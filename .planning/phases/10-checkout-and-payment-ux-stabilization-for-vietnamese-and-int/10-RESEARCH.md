@@ -578,22 +578,20 @@ return new Response(await readBoundedBody(image.body, MAX_QR_BYTES), {
 
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
-| A1 | VN checkout contact phone may be validated as a current ten-digit Vietnamese mobile number (`0` + 9 digits / `+84` + 9 digits), without accepting fixed-line numbers. [ASSUMED] | Official Vietnam Data and Phone Contract | If customers enter landlines, valid checkout attempts would be rejected. Confirm the business expects mobile contact numbers; otherwise add separately sourced fixed-line rules. |
-| A2 | `Asia/Ho_Chi_Minh` is the preferred default store time zone if `STORE_TIME_ZONE` is absent. [ASSUMED] | Environment / payment formatting | International customers may expect another explicit zone. Keep the zone configurable and label it; changing the default does not affect stored UTC instants. |
+| A1 | VN checkout contact accepts current ten-digit Vietnamese mobile numbers (`0` + 9 digits / `+84` + 9 digits), rejects fixed-line numbers, and persists the canonical `+84` form. [RESOLVED] | Official Vietnam Data and Phone Contract | Locked for Phase 10 under the phase's implementation discretion because shipping/order communication requires a mobile contact. |
+| A2 | `STORE_TIME_ZONE` remains configurable and falls back to `Asia/Ho_Chi_Minh`; formatting labels the zone and stored UTC instants remain unchanged. [RESOLVED] | Environment / payment formatting | Locked for Phase 10 under the phase's implementation discretion; changing the fallback later does not change persisted timestamps. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should Vietnam shipping contact accept fixed-line numbers?**
+1. **Vietnam shipping contact accepts mobile numbers only.**
    - What we know: The locked contract requires common `0...` and `+84...` forms, and the official Ministry source confirms current mobile numbers are ten domestic digits. [CITED: https://english.mst.gov.vn/ten-digit-mobile-numbers-not-affected-by-network-code-shift-197137554.htm]
-   - What's unclear: The phase documents do not explicitly say “mobile only,” and the official source reviewed here does not define every fixed-line area-code shape. [ASSUMED]
-   - Recommendation: Plan and test mobile normalization now because shipping/order communication normally requires a mobile contact; expose the decision as a human check before locking the exact Zod regex. [ASSUMED]
+   - Resolution: Accept current ten-digit Vietnamese mobile numbers in common domestic/international forms, normalize to canonical `+84`, and reject fixed-line shapes. [RESOLVED: Phase 10 implementation discretion, 2026-08-04]
 
-2. **What explicit store time zone should customer deadlines name?**
+2. **Customer deadlines use a configurable store time zone with a Vietnam fallback.**
    - What we know: The current formatter does not pass a `timeZone`, and D-19 requires locale-controlled formatting. [VERIFIED: `src/payments/format.ts`; `10-CONTEXT.md` D-19]
-   - What's unclear: Project artifacts do not lock the business time zone.
-   - Recommendation: Add validated `STORE_TIME_ZONE`, default to and visibly label `Asia/Ho_Chi_Minh`, and keep all stored instants unchanged. [ASSUMED]
+   - Resolution: Add validated `STORE_TIME_ZONE`, fall back to and visibly label `Asia/Ho_Chi_Minh`, and keep all stored instants unchanged. [RESOLVED: Phase 10 implementation discretion, 2026-08-04]
 
-Neither question blocks the seven-plan structure; both are narrow configuration/validation decisions and do not alter commerce authority or schema. [VERIFIED: scope analysis]
+Both questions are resolved for Phase 10. They remain narrow, reversible validation/configuration choices and do not alter commerce authority or schema. [VERIFIED: scope analysis]
 
 ## Environment Availability
 
