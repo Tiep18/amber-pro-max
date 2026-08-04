@@ -207,6 +207,49 @@ test('checkout refreshes accepted commercial evidence immediately before submit'
   assert.match(client.slice(submitStart), /discountCode: activeDiscountCode\(refreshedQuote\)/);
 });
 
+test('checkout locks one editable region through truthful submit stages and navigates only after success', () => {
+  const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  const submitStart = client.indexOf('async function submit()');
+  const successBranch = client.indexOf("if (result.status === 'success')", submitStart);
+  const successSource = client.slice(successBranch);
+
+  assert.ok(submitStart >= 0);
+  assert.ok(successBranch > submitStart);
+  assert.match(client, /type SubmitStage = 'idle' \| 'checking-total' \| 'creating-order'/);
+  assert.match(client, /const \[submitStage, setSubmitStage\] = useState<SubmitStage>\('idle'\)/);
+  assert.match(client.slice(submitStart, successBranch), /if \(submitInFlightRef\.current\) return/);
+  assert.match(client.slice(submitStart, successBranch), /submitInFlightRef\.current = true/);
+  assert.match(client.slice(submitStart, successBranch), /setSubmitStage\('checking-total'\)/);
+  assert.match(client.slice(submitStart, successBranch), /setSubmitStage\('creating-order'\)/);
+  assert.match(client, /aria-busy=\{submitStage !== 'idle'\}/);
+  assert.match(client, /disabled=\{controlsDisabled\}/);
+  assert.match(successSource, /clearEditableDraft\(checkoutSessionStorage\(\)\)/);
+  assert.match(successSource, /clearStoredIdempotency\(checkoutSessionStorage\(\)\)/);
+  assert.match(successSource, /completeOrder\(completedLines\)/);
+  assert.match(successSource, /router\.push\(result\.orderPath\)/);
+  assert.doesNotMatch(client, /window\.location\.assign/);
+});
+
+test('checkout separates retryable known failures from unknown order outcomes', () => {
+  const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  const presentation = readFileSync('src/checkout/submit-error-copy.ts', 'utf8');
+
+  assert.match(presentation, /outcome: 'known' \| 'unknown'/);
+  assert.match(presentation, /retryAllowed: boolean/);
+  assert.match(
+    presentation,
+    /messageKey: 'networkUnconfirmed'[\s\S]*outcome: 'unknown'[\s\S]*retryAllowed: false/
+  );
+  assert.match(client, /presentation\.outcome === 'unknown'/);
+  assert.match(client, /getAccountOrdersPath\(locale\)/);
+  assert.match(client, /getGuestOrderPath\(locale\)/);
+  assert.match(client, /idempotencyRef\.current = null/);
+  assert.doesNotMatch(
+    client,
+    /presentation\.outcome === 'unknown'[\s\S]{0,1000}(retryQuote|submit\(\)|Try again)/
+  );
+});
+
 test('checkout removes only final ordered quantities after successful order creation', () => {
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
   const successBranch = client.indexOf("if (result.status === 'success')");
