@@ -24,6 +24,8 @@ const customerRecoveryFiles = [
   'src/components/payments/order-recovery-banner.tsx'
 ];
 
+const vietQrDownloadRoute = 'src/app/[locale]/orders/[orderNumber]/qr/route.ts';
+
 const paymentSurfaceFiles = [
   'src/checkout/actions.ts',
   'src/checkout/submit-checkout.ts',
@@ -205,6 +207,51 @@ test('paid, refund, and terminal composition does not render provider controls o
   assert.match(source, /showVietQr[\s\S]*status\.status === 'awaiting_payment'/);
   assert.match(source, /showPendingDeadline[\s\S]*presentation\.showPendingDeadline/);
   assert.match(source, /showFulfillmentDetails[\s\S]*status\.isPaid/);
+});
+
+test('VietQR attachment authorizes the localized order before deriving or fetching the fixed upstream', () => {
+  assert.ok(existsSync(vietQrDownloadRoute));
+  const source = readFileSync(vietQrDownloadRoute, 'utf8');
+  const authorizedLookup = source.indexOf('getAuthorizedOrderPayment');
+  const quickLink = source.indexOf('buildQuickLinkUrl');
+  const externalFetch = source.indexOf('fetch(');
+
+  assert.ok(authorizedLookup >= 0);
+  assert.ok(quickLink > authorizedLookup);
+  assert.ok(externalFetch > quickLink);
+  assert.match(source, /getGuestOrderAccessHashFromServer\(orderNumber\)/);
+  assert.match(source, /auth\.getUser\(\)/);
+  assert.match(source, /order\.market\s*!==\s*'vn'/);
+  assert.match(source, /order\.currencyCode\s*!==\s*'VND'/);
+  assert.match(source, /order\.paymentIntent\s*!==\s*'vietqr_intent'/);
+  assert.match(source, /order\.paymentStatus\s*!==\s*'pending'/);
+  assert.doesNotMatch(source, /searchParams|\.json\(\)|\.formData\(\)|upstreamUrl|rawGuestToken/);
+});
+
+test('VietQR attachment rejects redirects, timeout, wrong MIME, non-2xx, and oversized bodies', () => {
+  const source = readFileSync(vietQrDownloadRoute, 'utf8');
+
+  assert.match(source, /protocol\s*!==\s*'https:'[\s\S]*hostname\s*!==\s*'img\.vietqr\.io'[\s\S]*pathname\.startsWith\('\/image\/'\)/);
+  assert.match(source, /redirect:\s*'error'/);
+  assert.match(source, /AbortController/);
+  assert.match(source, /setTimeout\([\s\S]*\.abort\(\)/);
+  assert.match(source, /1\s*\*\s*1024\s*\*\s*1024/);
+  assert.match(source, /getReader\(\)/);
+  assert.match(source, /totalBytes\s*>\s*MAX_QR_BYTES/);
+  assert.match(source, /!upstream\.ok/);
+  assert.match(source, /content-type[\s\S]*image\/png/i);
+});
+
+test('VietQR attachment is private, sanitized, non-enumerating, and mutation-free', () => {
+  const source = readFileSync(vietQrDownloadRoute, 'utf8');
+
+  assert.match(source, /buildVietQrDownloadFilename\(orderNumber\)/);
+  assert.match(source, /Content-Disposition['"]?\s*:\s*`attachment; filename="\$\{filename\}"`/);
+  assert.match(source, /Cache-Control['"]?\s*:\s*'private, no-store'/);
+  assert.match(source, /X-Content-Type-Options['"]?\s*:\s*'nosniff'/);
+  assert.doesNotMatch(source, /console\.(?:log|info|warn|error)|qrImageUrl|accountNo|accountName/);
+  assert.doesNotMatch(source, /applyPaymentTransition|declareVietQrTransferAction|createSignedUrl/);
+  assert.doesNotMatch(source, /\.from\(['"](?:checkout_orders|payments|checkout_inventory_reservations|download_entitlements)['"]\)/);
 });
 
 test('npm security script includes the Phase 4 payment boundary harness', () => {
