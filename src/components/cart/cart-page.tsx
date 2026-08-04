@@ -2,9 +2,12 @@
 
 import { ArrowRight, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
+import { createTranslator } from 'next-intl';
 import { selectCartDisplayLines } from '@/cart/display-lines';
 import { formatMoney } from '@/catalog/money';
 import { getCatalogPath, getCheckoutPath, type Locale } from '@/i18n/routing';
+import enMessages from '@/messages/en.json';
+import viMessages from '@/messages/vi.json';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,71 +17,40 @@ import { useCart } from './cart-provider';
 import { CartLine } from './cart-line';
 import { CartChangeSummary } from './cart-change-summary';
 
-const copy = {
-  en: {
-    title: 'Cart',
-    emptyTitle: 'Your cart is empty',
-    emptyBody: 'Add a PDF pattern or handmade item to start your order.',
-    summaryTitle: 'Cart summary',
-    subtotal: 'Products subtotal',
-    shipping: 'Shipping is calculated at checkout. This is not the final total.',
-    checkout: 'Checkout',
-    continueShopping: 'Continue shopping',
-    blocked: (count: number, names: string) =>
-      names
-        ? `Review ${count} ${count === 1 ? 'item' : 'items'} before checkout: ${names}.`
-        : `Review ${count} ${count === 1 ? 'item' : 'items'} before checkout.`,
-    removed: 'Removed from cart.',
-    undo: 'Undo',
-    pdf: 'PDF pattern',
-    physical: 'Handmade item',
-    unavailable: 'Unavailable for the current quote',
-    quantityReduced: 'Quantity adjusted',
-    remove: 'Remove',
-    decrease: 'Decrease quantity for',
-    increase: 'Increase quantity for',
-    paidNote: 'PDF patterns are delivered only after the full order is confirmed paid.',
-    updating: (market: string) => `Updating cart for ${market}…`,
-    checking: 'Checking cart prices and availability…',
-    marketVn: 'Vietnam',
-    marketIntl: 'International',
-    refreshError: 'We couldn’t refresh your cart. Try again before checkout.',
-    retry: 'Try again'
-  },
-  vi: {
-    title: 'Giỏ hàng',
-    emptyTitle: 'Giỏ hàng đang trống',
-    emptyBody: 'Thêm mẫu PDF hoặc sản phẩm thủ công để bắt đầu đơn hàng.',
-    summaryTitle: 'Tóm tắt giỏ hàng',
-    subtotal: 'Tạm tính sản phẩm',
-    shipping: 'Phí giao hàng được tính khi thanh toán. Đây chưa phải tổng tiền cuối cùng.',
-    checkout: 'Tiến hành thanh toán',
-    continueShopping: 'Tiếp tục mua hàng',
-    blocked: (count: number, names: string) =>
-      names
-        ? `Kiểm tra ${count} sản phẩm trước khi thanh toán: ${names}.`
-        : `Kiểm tra ${count} sản phẩm trước khi thanh toán.`,
-    removed: 'Đã xóa khỏi giỏ hàng.',
-    undo: 'Hoàn tác',
-    pdf: 'Mẫu PDF',
-    physical: 'Sản phẩm thủ công',
-    unavailable: 'Không khả dụng trong báo giá hiện tại',
-    quantityReduced: 'Số lượng đã điều chỉnh',
-    remove: 'Xóa',
-    decrease: 'Giảm số lượng',
-    increase: 'Tăng số lượng',
-    paidNote: 'Mẫu PDF chỉ được cung cấp sau khi toàn bộ đơn hàng được xác nhận đã thanh toán.',
-    updating: (market: string) => `Đang cập nhật giỏ hàng cho ${market}…`,
-    checking: 'Đang kiểm tra giá và tình trạng hàng trong giỏ…',
-    marketVn: 'Việt Nam',
-    marketIntl: 'Quốc tế',
-    refreshError: 'Không thể cập nhật giỏ hàng. Hãy thử lại trước khi thanh toán.',
-    retry: 'Thử lại'
-  }
-} as const;
-
 export function CartPageContent({ locale }: { locale: Locale }) {
-  const t = copy[locale];
+  const translate = createTranslator({
+    locale,
+    messages: locale === 'vi' ? viMessages : enMessages,
+    namespace: 'cart'
+  });
+  const t = {
+    title: translate('title'),
+    emptyTitle: translate('emptyTitle'),
+    emptyBody: translate('emptyBody'),
+    summaryTitle: translate('summaryTitle'),
+    subtotal: translate('subtotal'),
+    shipping: translate('shipping'),
+    checkout: translate('checkout'),
+    continueShopping: translate('continueShopping'),
+    blocked: (count: number, names: string) =>
+      translate('blocked', { count, names: names ? `: ${names}` : '' }),
+    removed: translate('removed'),
+    undo: translate('undo'),
+    pdf: translate('pdf'),
+    physical: translate('physical'),
+    unavailable: translate('unavailable'),
+    quantityReduced: translate('quantityReduced'),
+    remove: translate('remove'),
+    decrease: translate('decrease'),
+    increase: translate('increase'),
+    paidNote: translate('paidNote'),
+    updating: (market: string) => translate('updating', { market }),
+    checking: translate('checking'),
+    marketVn: translate('marketVn'),
+    marketIntl: translate('marketIntl'),
+    refreshError: translate('refreshError'),
+    retry: translate('retry')
+  };
   const {
     quote,
     previousQuote,

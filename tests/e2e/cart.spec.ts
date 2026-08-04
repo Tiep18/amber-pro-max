@@ -32,7 +32,7 @@ function storedCart(lines: unknown[]) {
   });
 }
 
-test('Vietnamese cart accessibility quantity controls and Undo stay item specific', async ({ browser }) => {
+test('localized cart accessibility quantity controls and Undo stay item specific', async ({ browser }) => {
   const context = await browser.newContext({ extraHTTPHeaders: { 'x-vercel-ip-country': 'VN' } });
   const page = await context.newPage();
 
@@ -54,6 +54,10 @@ test('Vietnamese cart accessibility quantity controls and Undo stay item specifi
   await expect(pdfLine.getByTestId('cart-line-thumbnail')).toBeVisible();
   await expect(pdfLine.getByRole('heading', { name: 'Mau gau Viet Nam' })).toBeVisible();
   await expect(pdfLine.getByText('Mẫu PDF')).toBeVisible();
+  await expect(page.getByText('Tạm tính sản phẩm')).toBeVisible();
+  await expect(
+    page.getByText('Phí giao hàng được tính khi thanh toán. Đây chưa phải tổng tiền cuối cùng.')
+  ).toBeVisible();
 
   const increaseQuantity = page.getByRole('button', { name: /Tăng số lượng Mau gau Viet Nam/ });
   const removeLine = page.getByRole('button', { name: /Xóa Mau gau Viet Nam/ });
@@ -75,7 +79,7 @@ test('Vietnamese cart accessibility quantity controls and Undo stay item specifi
   await context.close();
 });
 
-test('PDP sticky accessibility and mini-cart undo share durable cart feedback', async ({
+test('localized cart PDP sticky accessibility and mini-cart undo share durable feedback', async ({
   page
 }) => {
   test.slow();
@@ -91,7 +95,7 @@ test('PDP sticky accessibility and mini-cart undo share durable cart feedback', 
   const describedBy = await stickyAction.getAttribute('aria-describedby');
   const stickyReason = page.locator(`#${describedBy}`);
   await expect(stickyReason).toBeVisible();
-  expect((await stickyReason.textContent())?.trim().length).toBeGreaterThan(20);
+  await expect(stickyReason).toHaveText('Choose an in-stock option to add to cart.');
   const stickyBox = await stickyAction.boundingBox();
   expect(stickyBox?.width).toBeGreaterThanOrEqual(44);
   expect(stickyBox?.height).toBeGreaterThanOrEqual(44);
@@ -115,7 +119,7 @@ test('PDP sticky accessibility and mini-cart undo share durable cart feedback', 
   await expect(cartDialog.getByRole('heading', { name: 'Both-market bear' })).toBeVisible();
 });
 
-test('blocked cart checkout links complete blockers and labels the products subtotal', async ({
+test('localized cart blocked checkout links complete blockers and product subtotal', async ({
   page
 }) => {
   const now = new Date().toISOString();
@@ -141,7 +145,7 @@ test('blocked cart checkout links complete blockers and labels the products subt
   await page.goto('/en/cart');
   const blockedLine = page.getByRole('article');
   await expect(blockedLine.getByRole('heading', { name: 'Unavailable item' })).toBeVisible();
-  await expect(blockedLine.getByText('Unavailable for the current quote')).toBeVisible();
+  await expect(blockedLine.getByText('This item is unavailable.')).toBeVisible();
   await expect(page.getByTestId('cart-line-thumbnail')).toBeVisible();
   await expect(page.getByText('Products subtotal')).toBeVisible();
   await expect(

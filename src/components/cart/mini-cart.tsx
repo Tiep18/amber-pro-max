@@ -2,10 +2,13 @@
 
 import { ArrowRight, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
+import { createTranslator } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { selectCartDisplayLines } from '@/cart/display-lines';
 import { formatMoney } from '@/catalog/money';
 import { getCatalogPath, getCheckoutPath, type Locale } from '@/i18n/routing';
+import enMessages from '@/messages/en.json';
+import viMessages from '@/messages/vi.json';
 import { useCart } from './cart-provider';
 import { CartLine } from './cart-line';
 import { Button } from '@/components/ui/button';
@@ -13,69 +16,39 @@ import { Alert } from '@/components/ui/alert';
 import { Sheet } from '@/components/ui/sheet';
 import { CartChangeSummary } from './cart-change-summary';
 
-const copy = {
-  en: {
-    cart: 'Cart',
-    trigger: (count: number) => `Cart, ${count} ${count === 1 ? 'item' : 'items'}`,
-    emptyTitle: 'Your cart is empty',
-    emptyBody: 'Add a PDF pattern or handmade item to start your order.',
-    loading: 'Refreshing your cart',
-    continueShopping: 'Continue shopping',
-    checkout: 'Checkout',
-    closeCart: 'Close cart',
-    subtotal: 'Products subtotal',
-    shipping: 'Shipping is calculated at checkout. This is not the final total.',
-    blocked: (count: number, names: string) =>
-      names
-        ? `Review ${count} ${count === 1 ? 'item' : 'items'} before checkout: ${names}.`
-        : `Review ${count} ${count === 1 ? 'item' : 'items'} before checkout.`,
-    removed: 'Removed from cart.',
-    undo: 'Undo',
-    pdf: 'PDF pattern',
-    physical: 'Handmade item',
-    unavailable: 'Unavailable for the current quote',
-    quantityReduced: 'Quantity adjusted',
-    remove: 'Remove',
-    decrease: 'Decrease quantity for',
-    increase: 'Increase quantity for',
-    marketVn: 'Vietnam',
-    marketIntl: 'International',
-    refreshError: 'We couldn’t refresh your cart. Try again before checkout.',
-    retry: 'Try again'
-  },
-  vi: {
-    cart: 'Giỏ hàng',
-    trigger: (count: number) => `Giỏ hàng, ${count} sản phẩm`,
-    emptyTitle: 'Giỏ hàng đang trống',
-    emptyBody: 'Thêm mẫu PDF hoặc sản phẩm thủ công để bắt đầu đơn hàng.',
-    loading: 'Đang cập nhật giỏ hàng',
-    continueShopping: 'Tiếp tục mua sắm',
-    checkout: 'Tiến hành thanh toán',
-    closeCart: 'Đóng giỏ hàng',
-    subtotal: 'Tạm tính sản phẩm',
-    shipping: 'Phí giao hàng được tính khi thanh toán. Đây chưa phải tổng tiền cuối cùng.',
-    blocked: (count: number, names: string) =>
-      names
-        ? `Kiểm tra ${count} sản phẩm trước khi thanh toán: ${names}.`
-        : `Kiểm tra ${count} sản phẩm trước khi thanh toán.`,
-    removed: 'Đã xóa khỏi giỏ hàng.',
-    undo: 'Hoàn tác',
-    pdf: 'Mẫu PDF',
-    physical: 'Sản phẩm thủ công',
-    unavailable: 'Không khả dụng trong báo giá hiện tại',
-    quantityReduced: 'Số lượng đã điều chỉnh',
-    remove: 'Xóa',
-    decrease: 'Giảm số lượng',
-    increase: 'Tăng số lượng',
-    marketVn: 'Việt Nam',
-    marketIntl: 'Quốc tế',
-    refreshError: 'Không thể cập nhật giỏ hàng. Hãy thử lại trước khi thanh toán.',
-    retry: 'Thử lại'
-  }
-} as const;
-
 export function MiniCart({ locale }: { locale: Locale }) {
-  const t = copy[locale];
+  const translate = createTranslator({
+    locale,
+    messages: locale === 'vi' ? viMessages : enMessages,
+    namespace: 'cart'
+  });
+  const t = {
+    cart: translate('title'),
+    trigger: (count: number) => translate('trigger', { count }),
+    emptyTitle: translate('emptyTitle'),
+    emptyBody: translate('emptyBody'),
+    loading: translate('loading'),
+    continueShopping: translate('continueShopping'),
+    checkout: translate('checkout'),
+    closeCart: translate('closeCart'),
+    subtotal: translate('subtotal'),
+    shipping: translate('shipping'),
+    blocked: (count: number, names: string) =>
+      translate('blocked', { count, names: names ? `: ${names}` : '' }),
+    removed: translate('removed'),
+    undo: translate('undo'),
+    pdf: translate('pdf'),
+    physical: translate('physical'),
+    unavailable: translate('unavailable'),
+    quantityReduced: translate('quantityReduced'),
+    remove: translate('remove'),
+    decrease: translate('decrease'),
+    increase: translate('increase'),
+    marketVn: translate('marketVn'),
+    marketIntl: translate('marketIntl'),
+    refreshError: translate('refreshError'),
+    retry: translate('retry')
+  };
   const {
     count,
     open,

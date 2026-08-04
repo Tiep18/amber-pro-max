@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { createTranslator } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import type { AddToCartIntent } from '@/cart/types';
 import type { MarketCode } from '@/catalog/market';
@@ -14,6 +15,8 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/components/cart/cart-provider';
 import { getCartPath, type Locale } from '@/i18n/routing';
+import enMessages from '@/messages/en.json';
+import viMessages from '@/messages/vi.json';
 import { VariantSelector, type PublicVariant } from './variant-selector';
 
 export type AddToCartAgreement = {
@@ -70,41 +73,6 @@ export function resolveAddToCartBlockedReason({
   if (!hasIntent) return messages.stale;
   return null;
 }
-
-const copy = {
-  en: {
-    add: 'Add to cart',
-    addPdf: 'Add to cart',
-    adding: 'Adding…',
-    added: 'Added to cart.',
-    select: 'Select an in-stock option before adding.',
-    unavailable: 'Unavailable in this shopping region.',
-    stale: 'We couldn’t confirm this offer. Try again.',
-    quoteFailed: 'We couldn’t refresh your cart. Try again before checkout.',
-    view: 'View cart',
-    continue: 'Continue shopping',
-    selected: 'Selected',
-    outOfStock: 'Out of stock',
-    options: 'Options',
-    inStock: 'In stock'
-  },
-  vi: {
-    add: 'Thêm vào giỏ',
-    addPdf: 'Thêm vào giỏ',
-    adding: 'Đang thêm…',
-    added: 'Đã thêm vào giỏ hàng.',
-    select: 'Chọn một tùy chọn còn hàng trước khi thêm.',
-    unavailable: 'Không có sẵn tại khu vực mua sắm này.',
-    stale: 'Không thể xác nhận ưu đãi này. Hãy thử lại.',
-    quoteFailed: 'Không thể cập nhật giỏ hàng. Hãy thử lại trước khi thanh toán.',
-    view: 'Xem giỏ hàng',
-    continue: 'Tiếp tục mua sắm',
-    selected: 'Đã chọn',
-    outOfStock: 'Hết hàng',
-    options: 'Tùy chọn',
-    inStock: 'Còn hàng'
-  }
-} as const;
 
 export function shouldResetVariantSelection(
   previous: ProjectionSelectionIdentity,
@@ -175,7 +143,26 @@ export function AddToCart({
   projection: AddToCartProjection;
   variants: PublicVariant[];
 }) {
-  const t = copy[locale];
+  const translate = createTranslator({
+    locale,
+    messages: locale === 'vi' ? viMessages : enMessages,
+    namespace: 'productCart'
+  });
+  const t = {
+    add: translate('add'),
+    adding: translate('adding'),
+    added: translate('added'),
+    select: translate('select'),
+    unavailable: translate('unavailable'),
+    stale: translate('stale'),
+    quoteFailed: translate('refreshError'),
+    view: translate('view'),
+    continue: translate('continue'),
+    selected: translate('selected'),
+    outOfStock: translate('outOfStock'),
+    options: translate('options'),
+    inStock: translate('inStock')
+  };
   const [selectedId, setSelectedId] = useState('');
   const [added, setAdded] = useState(false);
   const [quoteFailed, setQuoteFailed] = useState(false);
