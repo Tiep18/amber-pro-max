@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 10 planned - ready to execute
-last_updated: "2026-08-04T05:22:06.932Z"
-last_activity: 2026-08-04
+stopped_at: Completed 10-01-PLAN.md
+last_updated: "2026-08-04T06:44:40.227Z"
+last_activity: 2026-08-04 -- Phase 10 execution started
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 93
-  completed_plans: 86
+  completed_plans: 87
   percent: 80
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 10 (checkout-and-payment-ux-stabilization-for-vietnamese-and-int) — EXECUTING
-Plan: 1 of 7
+Plan: 2 of 7
 Status: Ready to execute
-Last activity: 2026-08-04
+Last activity: 2026-08-04 -- Phase 10 execution started
 
 Progress: All 15 Phase 09 plans are executed; deployment geo/SEO UAT remains pending.
 
@@ -108,6 +108,7 @@ Progress: All 15 Phase 09 plans are executed; deployment geo/SEO UAT remains pen
 | Phase 09 P13 | 1 day elapsed across checkpoint | 3 tasks | 25 files |
 | Phase 09 P14 | 98m | 3 tasks | 8 files |
 | Phase 09 P15 | 9 days elapsed across checkpoints | 3 tasks | 52 files |
+| Phase 10 P01 | 22min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -210,6 +211,9 @@ Recent decisions affecting current work:
 - [Phase 09]: Public-response equality preserves visible HTML and structured data while normalizing only Next runtime artifacts. — Price, identity, canonical, hreflang, and JSON-LD differences must remain observable to the release gate.
 - [Phase 09]: Release classification runs from clean generated artifacts against the configured Supabase schema. — A cached local build can otherwise mask remote schema drift and produce false release evidence.
 - [Phase 09]: Plan 09-15 execution is complete while deployment geo and external SEO UAT remain pending. — The user has no Vercel preview yet and explicitly deferred the external checkpoint; no deployment result may be inferred.
+- [Phase 10]: Unmount inactive mobile sticky add-to-cart actions — Keeps duplicate inactive controls out of keyboard focus while preserving the canonical blocked reason.
+- [Phase 10]: Reuse the cart provider remove and Undo contract in the mini-cart — Maintains one durable feedback state instead of introducing a competing undo stack.
+- [Phase 10]: Translate bounded cart namespaces with createTranslator and the active locale — The current client tree has no NextIntlClientProvider and layout files are outside this plan.
 
 ### Pending Todos
 
@@ -386,6 +390,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-04T05:21:46.431Z
-Stopped at: Phase 10 planned - ready to execute
-Resume file: .planning/phases/10-checkout-and-payment-ux-stabilization-for-vietnamese-and-int/10-01-PLAN.md
+Last session: 2026-08-04T06:44:40.217Z
+Stopped at: Completed 10-01-PLAN.md
+Resume file: None
