@@ -75,7 +75,7 @@ test('Vietnamese cart accessibility quantity controls and Undo stay item specifi
   await context.close();
 });
 
-test('PDP sticky accessibility keeps inactive actions unfocusable and blocked reasons linked', async ({
+test('PDP sticky accessibility and mini-cart undo share durable cart feedback', async ({
   page
 }) => {
   test.slow();
@@ -109,9 +109,15 @@ test('PDP sticky accessibility keeps inactive actions unfocusable and blocked re
   await expect(cartDialog.getByText('$31.00').first()).toBeVisible();
   await page.getByRole('button', { name: /Increase quantity/ }).click();
   await expect(cartDialog.getByText('$62.00').first()).toBeVisible();
+  await cartDialog.getByRole('button', { name: /Remove Both-market bear/ }).click();
+  await expect(cartDialog.getByText('Removed from cart.')).toBeVisible();
+  await cartDialog.getByRole('button', { name: 'Undo' }).click();
+  await expect(cartDialog.getByRole('heading', { name: 'Both-market bear' })).toBeVisible();
 });
 
-test('blocking cart lines remain visible and disable checkout', async ({ page }) => {
+test('blocked cart checkout links complete blockers and labels the products subtotal', async ({
+  page
+}) => {
   const now = new Date().toISOString();
   const blockedLines = [
     {
@@ -136,8 +142,29 @@ test('blocking cart lines remain visible and disable checkout', async ({ page })
   const blockedLine = page.getByRole('article');
   await expect(blockedLine.getByRole('heading', { name: 'Unavailable item' })).toBeVisible();
   await expect(blockedLine.getByText('Unavailable for the current quote')).toBeVisible();
-  await expect(page.getByText('Review unavailable items before checkout.')).toHaveCount(1);
   await expect(page.getByTestId('cart-line-thumbnail')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Checkout' })).toBeDisabled();
+  await expect(page.getByText('Products subtotal')).toBeVisible();
+  await expect(
+    page.getByText('Shipping is calculated at checkout. This is not the final total.')
+  ).toBeVisible();
+  await expect(page.getByText('Current total')).toHaveCount(0);
+
+  const checkout = page.getByRole('button', { name: 'Checkout' });
+  await expect(checkout).toBeDisabled();
+  await expect(checkout).toHaveAttribute('aria-describedby', 'cart-checkout-blocker');
+  await expect(page.locator('#cart-checkout-blocker')).toContainText('1');
+  await expect(page.locator('#cart-checkout-blocker')).toContainText('Unavailable item');
+
+  await page.getByRole('button', { name: /Cart, 1 item/ }).click();
+  const miniCart = page.getByRole('dialog', { name: 'Cart' });
+  const miniCheckout = miniCart.getByRole('button', { name: 'Checkout' });
+  await expect(miniCheckout).toBeDisabled();
+  await expect(miniCheckout).toHaveAttribute(
+    'aria-describedby',
+    'mini-cart-checkout-blocker'
+  );
+  await expect(miniCart.locator('#mini-cart-checkout-blocker')).toContainText(
+    'Unavailable item'
+  );
   await expect(page.getByText(/PayPal|VietQR/i)).toHaveCount(0);
 });
