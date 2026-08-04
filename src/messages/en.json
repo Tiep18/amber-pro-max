@@ -159,6 +159,144 @@
     "refreshError": "We could not refresh your cart. Try again before checkout.",
     "retry": "Try again"
   },
+  "checkout": {
+    "page": {
+      "title": "Checkout",
+      "intro": "Confirm your contact, delivery details, and current total.",
+      "backToCart": "Back to cart",
+      "contact": "Contact email",
+      "contactIntro": "Order and payment updates",
+      "destination": "Delivery address",
+      "destinationIntro": "Shipping is updated when the country or state changes.",
+      "changeAddress": "Change",
+      "calculating": "Calculating shipping for this address…",
+      "emptyTitle": "Your cart is empty",
+      "emptyBody": "Add a PDF pattern or handmade item before starting checkout.",
+      "continueShopping": "Continue shopping",
+      "success": "Your order is awaiting payment.",
+      "deadline": "Reservation deadline",
+      "retry": "Try again",
+      "saveAddress": "Save this address to my account",
+      "addressSaveWarning": "Your order was created, but this address could not be saved to your account."
+    },
+    "address": {
+      "country": "Shipping country",
+      "recipient": "Recipient name",
+      "phone": "Phone number",
+      "addressLine1": "Street address",
+      "addressLine2": "Apartment, suite, etc.",
+      "locality": "City",
+      "region": "State or territory",
+      "postalCode": "ZIP or postal code",
+      "province": "Province/City",
+      "ward": "Ward/Commune/Special zone",
+      "vnStreet": "House number, street, and address details",
+      "district": "District (optional)",
+      "optional": "Optional",
+      "countryPlaceholder": "Choose a country",
+      "regionPlaceholder": "Choose a state or territory",
+      "provincePlaceholder": "Choose a Province or City",
+      "wardPlaceholder": "Choose a Ward, Commune, or Special zone",
+      "searchCountry": "Search shipping countries",
+      "searchRegion": "Search states and territories",
+      "searchProvince": "Search Provinces and Cities",
+      "searchWard": "Search Wards, Communes, and Special zones",
+      "noResults": "No matching options.",
+      "awaitingCountry": "Choose a country to calculate shipping.",
+      "awaitingRegion": "Choose a state or territory to finish calculating shipping.",
+      "calculating": "Calculating shipping…",
+      "updating": "Updating shipping. Your previous total remains visible.",
+      "ready": "Shipping is calculated for this destination.",
+      "unsupported": "We cannot ship these items to this destination. Edit the destination to try again.",
+      "network": "We could not reach the shipping service. Change the destination or try again.",
+      "server": "Shipping could not be calculated. Change the destination or try again.",
+      "wardReselection": "Choose the Ward, Commune, or Special zone again for the new Province or City."
+    },
+    "summary": {
+      "title": "Your order",
+      "editCart": "Edit cart",
+      "quantity": "Qty",
+      "moreItems": "{count, plural, one {# more item in your cart} other {# more items in your cart}}",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "shipping": "Shipping",
+      "total": "Total",
+      "noShipping": "Not required",
+      "notCalculated": "Pending destination",
+      "unsupported": "Unavailable",
+      "payment": "Payment",
+      "paymentPending": "Available after the current total is ready",
+      "paypal": "PayPal · USD",
+      "vietqr": "VietQR transfer · VND",
+      "automaticPayment": "Selected from your confirmed shopping region and currency.",
+      "destination": "Deliver to",
+      "digitalDelivery": "Digital delivery by email after confirmed payment",
+      "complete": "Complete before continuing",
+      "policies": "Policies",
+      "trust": "Your order begins awaiting payment. Digital files become available only after full payment is confirmed.",
+      "show": "Show order summary",
+      "hide": "Hide order summary",
+      "paypalExpectation": "We will create your order and hold these items for {minutes} minutes. You pay on the next step.",
+      "vietqrExpectation": "We will create your order and hold these items for 24 hours, then show the VietQR transfer instructions.",
+      "paypalExpectationShort": "Items held {minutes} min · pay next",
+      "vietqrExpectationShort": "Items held 24h · VietQR next"
+    },
+    "discount": {
+      "label": "Discount code",
+      "add": "Add a discount code",
+      "apply": "Apply discount",
+      "remove": "Remove discount",
+      "pending": "Checking",
+      "applied": "Discount applied",
+      "removed": "Discount removed",
+      "invalid": "The discount could not be checked.",
+      "notEligible": "This discount is not available for the current cart."
+    },
+    "submit": {
+      "handoff": "Confirm total and continue",
+      "paypal": "Create order and continue to PayPal",
+      "vietqr": "Create order and view VietQR instructions",
+      "checkingTotal": "Checking the total…",
+      "creatingOrder": "Creating your order…",
+      "missingContact": "Enter a valid contact email.",
+      "missingTotal": "Refresh the current cart total.",
+      "missingPayment": "Wait for the payment method to match the confirmed total.",
+      "missingShipping": "Complete the delivery address.",
+      "unsupportedShipping": "Choose a supported shipping destination.",
+      "blockedItems": "Resolve unavailable items before continuing.",
+      "updatingTotal": "Wait while the current total is updated.",
+      "reviewUpdatedTotal": "Review and accept the updated total before continuing.",
+      "quoteUnsupported": "We cannot ship these items to the selected destination. Change the address to continue.",
+      "quoteNetwork": "We could not update your total. Check your connection and try again.",
+      "quoteServer": "We could not recalculate your total. Try again.",
+      "cookiesBlocked": "Your browser is blocking cookies, so the order could not be held. Enable cookies or exit private browsing and try again.",
+      "staleQuote": "The price or stock just changed. Review the updated total and try again.",
+      "staleShipping": "The shipping fee just changed. Confirm the delivery address again.",
+      "addressRequired": "The delivery address is incomplete.",
+      "addressIncompleteUs": "Orders shipping to the US need a state and ZIP code.",
+      "paymentMethodDrift": "The payment method no longer matches this shopping region. Reload the page.",
+      "conflict": "Checkout could not hold the current items. Review your cart and try again.",
+      "network": "We could not reach the server. Your order was not created—please try again.",
+      "unknownOutcome": "We could not confirm whether the order was created. Do not submit again yet; check your orders first.",
+      "unknown": "Something went wrong. Try again; if it keeps happening, send us the incident ID below.",
+      "incidentId": "Incident ID"
+    }
+  },
+  "support": {
+    "contact": {
+      "heading": "Contact support",
+      "body": "Choose an available contact method and include your order number or incident ID.",
+      "email": "Email support",
+      "zalo": "Contact us on Zalo",
+      "unavailable": "Support contact methods are temporarily unavailable. Return to the shop and try again later."
+    },
+    "incident": {
+      "label": "Incident ID",
+      "copy": "Copy incident ID",
+      "copied": "Incident ID copied",
+      "copyFailed": "Select the incident ID and copy it manually."
+    }
+  },
   "market": {
     "label": "Market",
     "current": "Active market",
@@ -312,7 +450,9 @@
     },
     "accessDenied": {
       "heading": "This order cannot be opened",
-      "body": "The link is invalid, expired, or you do not have access."
+      "body": "The link is invalid, expired, or you do not have access.",
+      "recoverGuest": "Recover a guest order",
+      "contactSupport": "Contact support"
     },
     "summary": {
       "title": "Order summary",
@@ -329,7 +469,9 @@
       "body": "The reservation ended before payment was confirmed. Restore these items to your cart to try again.",
       "restore": "Restore items to cart",
       "restoring": "Restoring…",
-      "unavailable": "These items are no longer available to restore."
+      "unavailable": "These items cannot be restored. Browse currently available products.",
+      "browse": "Browse products",
+      "restored": "Items restored to your cart."
     },
     "shippingAddress": {
       "title": "Shipping address"
@@ -365,7 +507,13 @@
       },
       "paid": {
         "heading": "Payment confirmed",
-        "body": "The full order payment has been confirmed."
+        "body": "The full order payment has been confirmed.",
+        "email": "We sent the order details to {email}.",
+        "confirmedTotal": "Confirmed total",
+        "confirmedAt": "Confirmed at",
+        "digitalNext": "Your pattern downloads are ready below.",
+        "physicalNext": "We will update this page when your handmade items are packed and shipped.",
+        "mixedNext": "Your pattern downloads are ready, and we will update shipping for your handmade items below."
       },
       "failed": {
         "heading": "Payment failed",
@@ -435,7 +583,9 @@
       "cancelled": "Payment cancelled. Your order is still held — you can pay again below.",
       "checkStatus": "Check order status",
       "captureUncertain": "We could not confirm whether your payment completed. Do not pay again — check the order status below, and contact us with your order number if it still says awaiting payment.",
-      "captureReconciliation": "PayPal returned payment details that did not match this order. Do not pay again. Contact us with your order number so we can check the payment safely."
+      "captureReconciliation": "PayPal returned payment details that did not match this order. Do not pay again. Contact us with your order number so we can check the payment safely.",
+      "uncertainResult": "We could not confirm the PayPal result. Do not pay again; check the order status.",
+      "pollingStopped": "Automatic checks have stopped. Check again when you are ready."
     },
     "vietqr": {
       "title": "Transfer the exact amount and reference",
@@ -464,7 +614,15 @@
       "qrUnavailable": "The QR code could not load. Transfer manually with these details:",
       "declareNotEligible": "This order can no longer accept a transfer confirmation. Refresh the page to see its current status.",
       "declareForbidden": "Your access to this order expired. Reopen it from the link in your order email, then confirm again.",
-      "declareFailed": "We could not record your confirmation. Please try again in a moment."
+      "declareFailed": "We could not record your confirmation. Please try again in a moment.",
+      "stepOne": "1. Scan or download the QR code",
+      "stepTwo": "2. Transfer the exact amount and reference",
+      "stepThree": "3. Tell us after the transfer is complete",
+      "downloadQr": "Download QR code",
+      "downloadFailed": "The QR code could not be downloaded. Use the manual transfer details below.",
+      "declarationNote": "This notice does not confirm payment. The seller still needs to verify the transfer.",
+      "manualFallback": "Manual bank transfer details",
+      "selectManually": "Select this value and copy it manually."
     }
   },
   "footer": {

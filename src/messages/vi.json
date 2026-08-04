@@ -159,6 +159,144 @@
     "refreshError": "Chưa thể cập nhật giỏ hàng. Hãy thử lại trước khi thanh toán.",
     "retry": "Thử lại"
   },
+  "checkout": {
+    "page": {
+      "title": "Thanh toán",
+      "intro": "Xác nhận email, địa chỉ giao hàng và tổng tiền hiện tại.",
+      "backToCart": "Quay lại giỏ hàng",
+      "contact": "Email nhận đơn",
+      "contactIntro": "Nhận cập nhật đơn hàng và thanh toán",
+      "destination": "Địa chỉ giao hàng",
+      "destinationIntro": "Phí giao hàng được cập nhật khi quốc gia hoặc bang thay đổi.",
+      "changeAddress": "Thay đổi",
+      "calculating": "Đang tính phí giao hàng cho địa chỉ này…",
+      "emptyTitle": "Giỏ hàng đang trống",
+      "emptyBody": "Hãy thêm mẫu PDF hoặc sản phẩm thủ công trước khi thanh toán.",
+      "continueShopping": "Tiếp tục mua sắm",
+      "success": "Đơn hàng đang chờ thanh toán.",
+      "deadline": "Hạn giữ hàng",
+      "retry": "Thử lại",
+      "saveAddress": "Lưu địa chỉ này vào tài khoản",
+      "addressSaveWarning": "Đơn hàng đã được tạo, nhưng chưa thể lưu địa chỉ này vào tài khoản."
+    },
+    "address": {
+      "country": "Quốc gia giao hàng",
+      "recipient": "Tên người nhận",
+      "phone": "Số điện thoại",
+      "addressLine1": "Địa chỉ đường",
+      "addressLine2": "Căn hộ, tầng, tòa nhà",
+      "locality": "Thành phố",
+      "region": "Bang hoặc vùng lãnh thổ",
+      "postalCode": "Mã ZIP hoặc mã bưu chính",
+      "province": "Tỉnh/Thành phố",
+      "ward": "Phường/Xã/Đặc khu",
+      "vnStreet": "Số nhà, tên đường và địa chỉ chi tiết",
+      "district": "Quận/Huyện (không bắt buộc)",
+      "optional": "Không bắt buộc",
+      "countryPlaceholder": "Chọn quốc gia",
+      "regionPlaceholder": "Chọn bang hoặc vùng lãnh thổ",
+      "provincePlaceholder": "Chọn Tỉnh hoặc Thành phố",
+      "wardPlaceholder": "Chọn Phường, Xã hoặc Đặc khu",
+      "searchCountry": "Tìm quốc gia giao hàng",
+      "searchRegion": "Tìm bang và vùng lãnh thổ",
+      "searchProvince": "Tìm Tỉnh và Thành phố",
+      "searchWard": "Tìm Phường, Xã và Đặc khu",
+      "noResults": "Không có lựa chọn phù hợp.",
+      "awaitingCountry": "Chọn quốc gia để tính phí giao hàng.",
+      "awaitingRegion": "Chọn bang hoặc vùng lãnh thổ để hoàn tất tính phí.",
+      "calculating": "Đang tính phí giao hàng…",
+      "updating": "Đang cập nhật phí giao hàng. Tổng tiền trước đó vẫn được giữ nguyên.",
+      "ready": "Đã tính phí giao hàng cho địa chỉ này.",
+      "unsupported": "Hiện chưa thể giao các sản phẩm này tới địa chỉ đã chọn. Hãy chỉnh sửa địa chỉ để thử lại.",
+      "network": "Không thể kết nối dịch vụ tính phí. Hãy thử lại hoặc đổi địa chỉ.",
+      "server": "Không thể tính phí giao hàng. Hãy thử lại hoặc đổi địa chỉ.",
+      "wardReselection": "Chọn lại Phường, Xã hoặc Đặc khu cho Tỉnh hoặc Thành phố mới."
+    },
+    "summary": {
+      "title": "Đơn hàng của bạn",
+      "editCart": "Sửa giỏ hàng",
+      "quantity": "SL",
+      "moreItems": "Còn {count} sản phẩm trong giỏ",
+      "subtotal": "Tạm tính",
+      "discount": "Giảm giá",
+      "shipping": "Giao hàng",
+      "total": "Tổng cộng",
+      "noShipping": "Không cần",
+      "notCalculated": "Chờ địa chỉ",
+      "unsupported": "Chưa hỗ trợ",
+      "payment": "Thanh toán",
+      "paymentPending": "Hiển thị sau khi tổng tiền hiện tại sẵn sàng",
+      "paypal": "PayPal · USD",
+      "vietqr": "Chuyển khoản VietQR · VND",
+      "automaticPayment": "Được chọn theo khu vực mua sắm và tiền tệ đã xác nhận.",
+      "destination": "Giao tới",
+      "digitalDelivery": "Nhận sản phẩm số qua email sau khi xác nhận thanh toán",
+      "complete": "Cần hoàn tất trước khi tiếp tục",
+      "policies": "Chính sách",
+      "trust": "Đơn hàng bắt đầu ở trạng thái chờ thanh toán. Mẫu PDF chỉ có thể tải xuống sau khi toàn bộ thanh toán được xác nhận.",
+      "show": "Xem tóm tắt đơn hàng",
+      "hide": "Ẩn tóm tắt đơn hàng",
+      "paypalExpectation": "Chúng tôi sẽ tạo đơn hàng và giữ các sản phẩm này trong {minutes} phút. Bạn thanh toán ở bước tiếp theo.",
+      "vietqrExpectation": "Chúng tôi sẽ tạo đơn hàng và giữ các sản phẩm này trong 24 giờ, sau đó hiển thị hướng dẫn chuyển khoản VietQR.",
+      "paypalExpectationShort": "Giữ hàng {minutes} phút · thanh toán tiếp theo",
+      "vietqrExpectationShort": "Giữ hàng 24 giờ · tiếp theo là VietQR"
+    },
+    "discount": {
+      "label": "Mã giảm giá",
+      "add": "Thêm mã giảm giá",
+      "apply": "Áp dụng",
+      "remove": "Gỡ mã",
+      "pending": "Đang kiểm tra",
+      "applied": "Đã áp dụng",
+      "removed": "Đã gỡ mã giảm giá",
+      "invalid": "Chưa thể kiểm tra mã giảm giá.",
+      "notEligible": "Mã giảm giá này không áp dụng cho giỏ hàng hiện tại."
+    },
+    "submit": {
+      "handoff": "Xác nhận tổng tiền và tiếp tục",
+      "paypal": "Tạo đơn và tiếp tục tới PayPal",
+      "vietqr": "Tạo đơn và xem hướng dẫn VietQR",
+      "checkingTotal": "Đang kiểm tra lại tổng tiền…",
+      "creatingOrder": "Đang tạo đơn hàng…",
+      "missingContact": "Nhập email liên hệ hợp lệ.",
+      "missingTotal": "Cập nhật lại tổng tiền hiện tại của giỏ hàng.",
+      "missingPayment": "Chờ phương thức thanh toán khớp với tổng tiền đã xác nhận.",
+      "missingShipping": "Hoàn tất địa chỉ giao hàng.",
+      "unsupportedShipping": "Chọn địa chỉ giao hàng được hỗ trợ.",
+      "blockedItems": "Hãy xử lý các sản phẩm chưa khả dụng trước khi tiếp tục.",
+      "updatingTotal": "Chờ cập nhật xong tổng tiền hiện tại.",
+      "reviewUpdatedTotal": "Xem và chấp nhận tổng tiền đã cập nhật trước khi tiếp tục.",
+      "quoteUnsupported": "Hiện chưa thể giao các sản phẩm này tới địa chỉ đã chọn. Hãy đổi địa chỉ để tiếp tục.",
+      "quoteNetwork": "Không cập nhật được tổng tiền. Kiểm tra kết nối rồi thử lại.",
+      "quoteServer": "Không tính lại được tổng tiền. Hãy thử lại.",
+      "cookiesBlocked": "Trình duyệt đang chặn cookie nên không giữ được đơn. Bật cookie hoặc thoát chế độ duyệt riêng tư rồi thử lại.",
+      "staleQuote": "Giá hoặc tình trạng hàng vừa thay đổi. Xem lại tổng tiền rồi thử lại.",
+      "staleShipping": "Phí giao hàng vừa thay đổi. Xác nhận lại địa chỉ giao hàng.",
+      "addressRequired": "Địa chỉ giao hàng chưa đầy đủ.",
+      "addressIncompleteUs": "Đơn giao tới Mỹ cần bang và mã ZIP.",
+      "paymentMethodDrift": "Phương thức thanh toán chưa khớp khu vực mua sắm. Hãy tải lại trang.",
+      "conflict": "Chưa thể giữ các sản phẩm trong giỏ. Xem lại giỏ hàng rồi thử lại.",
+      "network": "Không kết nối được máy chủ. Đơn của bạn chưa được tạo—hãy thử lại.",
+      "unknownOutcome": "Chưa thể xác nhận đơn đã được tạo. Đừng gửi lại ngay; hãy kiểm tra đơn hàng trước.",
+      "unknown": "Có lỗi xảy ra. Hãy thử lại; nếu vẫn lỗi, gửi cho chúng tôi mã sự cố bên dưới.",
+      "incidentId": "Mã sự cố"
+    }
+  },
+  "support": {
+    "contact": {
+      "heading": "Liên hệ hỗ trợ",
+      "body": "Chọn một kênh liên hệ đang khả dụng và cung cấp mã đơn hàng hoặc mã sự cố.",
+      "email": "Gửi email hỗ trợ",
+      "zalo": "Liên hệ qua Zalo",
+      "unavailable": "Các kênh hỗ trợ đang tạm thời không khả dụng. Hãy quay lại cửa hàng và thử lại sau."
+    },
+    "incident": {
+      "label": "Mã sự cố",
+      "copy": "Sao chép mã sự cố",
+      "copied": "Đã sao chép mã sự cố",
+      "copyFailed": "Chọn mã sự cố và sao chép thủ công."
+    }
+  },
   "market": {
     "label": "Thị trường",
     "current": "Thị trường đang dùng",
@@ -312,7 +450,9 @@
     },
     "accessDenied": {
       "heading": "Không thể mở đơn hàng này",
-      "body": "Liên kết không hợp lệ, đã hết hạn hoặc bạn không có quyền truy cập."
+      "body": "Liên kết không hợp lệ, đã hết hạn hoặc bạn không có quyền truy cập.",
+      "recoverGuest": "Mở lại đơn hàng khách",
+      "contactSupport": "Liên hệ hỗ trợ"
     },
     "summary": {
       "title": "Tóm tắt đơn hàng",
@@ -327,9 +467,11 @@
     "recovery": {
       "heading": "Đơn hàng này đã hết hạn",
       "body": "Hạn giữ hàng đã qua trước khi thanh toán được xác nhận. Khôi phục các sản phẩm về giỏ hàng để thử lại.",
-      "restore": "Khôi phục vào giỏ hàng",
+      "restore": "Khôi phục sản phẩm vào giỏ",
       "restoring": "Đang khôi phục…",
-      "unavailable": "Các sản phẩm này không còn để khôi phục."
+      "unavailable": "Không thể khôi phục các sản phẩm này. Hãy xem sản phẩm hiện có.",
+      "browse": "Xem sản phẩm",
+      "restored": "Đã khôi phục sản phẩm vào giỏ."
     },
     "shippingAddress": {
       "title": "Địa chỉ giao hàng"
@@ -364,8 +506,14 @@
         "vietqrBody": "Chuyển khoản đang chờ người bán kiểm tra. Quyền PDF và xử lý giao hàng vẫn bị khóa đến khi toàn bộ đơn hàng được xác nhận đã thanh toán."
       },
       "paid": {
-        "heading": "Đã thanh toán",
-        "body": "Thanh toán cho toàn bộ đơn hàng đã được xác nhận."
+        "heading": "Thanh toán đã được xác nhận",
+        "body": "Thanh toán cho toàn bộ đơn hàng đã được xác nhận.",
+        "email": "Chúng tôi đã gửi thông tin đơn hàng tới {email}.",
+        "confirmedTotal": "Tổng tiền đã xác nhận",
+        "confirmedAt": "Xác nhận lúc",
+        "digitalNext": "Mẫu PDF của bạn đã sẵn sàng để tải bên dưới.",
+        "physicalNext": "Chúng tôi sẽ cập nhật trang này khi sản phẩm thủ công được đóng gói và giao đi.",
+        "mixedNext": "Mẫu PDF của bạn đã sẵn sàng để tải; thông tin giao hàng cho sản phẩm thủ công sẽ được cập nhật bên dưới."
       },
       "failed": {
         "heading": "Thanh toán không thành công",
@@ -435,7 +583,9 @@
       "cancelled": "Đã hủy thanh toán. Đơn hàng vẫn đang được giữ — bạn có thể thanh toán lại bên dưới.",
       "checkStatus": "Kiểm tra trạng thái đơn",
       "captureUncertain": "Chúng tôi chưa xác nhận được thanh toán của bạn đã hoàn tất hay chưa. Đừng thanh toán lại — hãy kiểm tra trạng thái đơn bên dưới, và liên hệ chúng tôi kèm mã đơn nếu vẫn báo chờ thanh toán.",
-      "captureReconciliation": "PayPal trả về thông tin thanh toán không khớp với đơn hàng này. Đừng thanh toán lại. Hãy liên hệ với chúng tôi kèm mã đơn để được kiểm tra an toàn."
+      "captureReconciliation": "PayPal trả về thông tin thanh toán không khớp với đơn hàng này. Đừng thanh toán lại. Hãy liên hệ với chúng tôi kèm mã đơn để được kiểm tra an toàn.",
+      "uncertainResult": "Chưa thể xác nhận kết quả với PayPal. Đừng thanh toán lại; hãy kiểm tra trạng thái đơn.",
+      "pollingStopped": "Đã dừng kiểm tra tự động. Bạn có thể kiểm tra lại khi cần."
     },
     "vietqr": {
       "title": "Chuyển khoản đúng số tiền và nội dung",
@@ -464,7 +614,15 @@
       "qrUnavailable": "Không tải được mã QR. Hãy chuyển khoản thủ công với thông tin sau:",
       "declareNotEligible": "Đơn hàng này không còn nhận xác nhận chuyển khoản. Hãy tải lại trang để xem trạng thái hiện tại.",
       "declareForbidden": "Quyền truy cập đơn hàng của bạn đã hết hạn. Hãy mở lại đơn từ liên kết trong email rồi xác nhận lại.",
-      "declareFailed": "Chúng tôi chưa ghi nhận được xác nhận của bạn. Vui lòng thử lại sau giây lát."
+      "declareFailed": "Chúng tôi chưa ghi nhận được xác nhận của bạn. Vui lòng thử lại sau giây lát.",
+      "stepOne": "1. Quét hoặc tải mã QR",
+      "stepTwo": "2. Chuyển đúng số tiền và nội dung",
+      "stepThree": "3. Thông báo sau khi chuyển khoản xong",
+      "downloadQr": "Tải mã QR",
+      "downloadFailed": "Chưa thể tải mã QR. Hãy dùng thông tin chuyển khoản thủ công bên dưới.",
+      "declarationNote": "Thông báo này không xác nhận thanh toán. Người bán vẫn cần kiểm tra chuyển khoản.",
+      "manualFallback": "Thông tin chuyển khoản thủ công",
+      "selectManually": "Chọn giá trị này và sao chép thủ công."
     }
   },
   "footer": {

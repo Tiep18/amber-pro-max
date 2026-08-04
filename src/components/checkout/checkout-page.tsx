@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Check, MapPin, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
+import {createTranslator} from 'next-intl';
 import {
   customerAddressToShippingAddress,
   type CustomerShippingAddress
@@ -55,11 +56,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import {Checkbox} from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { getCartPath, getCatalogPath, type Locale } from '@/i18n/routing';
+import enMessages from '@/messages/en.json';
+import viMessages from '@/messages/vi.json';
 import { ContactForm } from './contact-form';
 import { DestinationForm } from './destination-form';
 import type { DiscountApplyOutcome } from './discount-code-form';
 import {
-  createOrderSummaryViewModel,
+  buildOrderSummaryViewModel,
   MobileCheckoutDock,
   MobileOrderSummary,
   OrderSummary
@@ -239,7 +242,37 @@ export function CheckoutPage({
   policyLinks?: CheckoutPolicyLink[];
   isSignedIn?: boolean;
 }) {
-  const t = copy[locale];
+  const pageTranslate = createTranslator({
+    locale,
+    messages: locale === 'vi' ? viMessages : enMessages,
+    namespace: 'checkout.page'
+  });
+  const submitTranslate = createTranslator({
+    locale,
+    messages: locale === 'vi' ? viMessages : enMessages,
+    namespace: 'checkout.submit'
+  });
+  const t = {
+    ...copy[locale],
+    title: pageTranslate('title'), intro: pageTranslate('intro'), backToCart: pageTranslate('backToCart'),
+    contact: pageTranslate('contact'), contactIntro: pageTranslate('contactIntro'), destination: pageTranslate('destination'),
+    destinationIntro: pageTranslate('destinationIntro'), changeAddress: pageTranslate('changeAddress'), calculating: pageTranslate('calculating'),
+    emptyTitle: pageTranslate('emptyTitle'), emptyBody: pageTranslate('emptyBody'), continueShopping: pageTranslate('continueShopping'),
+    success: pageTranslate('success'), deadline: pageTranslate('deadline'), retryQuote: pageTranslate('retry'),
+    saveAddress: pageTranslate('saveAddress'), addressSaveWarning: pageTranslate('addressSaveWarning'),
+    handoff: submitTranslate('handoff'), paypalHandoff: submitTranslate('paypal'), vietqrHandoff: submitTranslate('vietqr'),
+    submitting: submitTranslate('creatingOrder'), missingContact: submitTranslate('missingContact'), missingQuote: submitTranslate('missingTotal'),
+    missingPayment: submitTranslate('missingPayment'), missingShipping: submitTranslate('missingShipping'),
+    unsupportedShipping: submitTranslate('unsupportedShipping'), blockedItems: submitTranslate('blockedItems'),
+    updatingTotal: submitTranslate('updatingTotal'), reviewUpdatedTotal: submitTranslate('reviewUpdatedTotal'),
+    quoteIssue: {unsupported: submitTranslate('quoteUnsupported'), network: submitTranslate('quoteNetwork'), server: submitTranslate('quoteServer')},
+    errors: {
+      cookiesBlocked: submitTranslate('cookiesBlocked'), staleQuote: submitTranslate('staleQuote'), staleShipping: submitTranslate('staleShipping'),
+      addressRequired: submitTranslate('addressRequired'), addressIncompleteUs: submitTranslate('addressIncompleteUs'),
+      paymentMethodDrift: submitTranslate('paymentMethodDrift'), conflict: submitTranslate('conflict'), network: submitTranslate('network'),
+      networkUnconfirmed: submitTranslate('unknownOutcome'), unknown: submitTranslate('unknown'), incidentCode: submitTranslate('incidentId')
+    }
+  };
   const { quote, cart, pending, completeOrder } = useCart();
   const savedAddress = useMemo(() => preferredAddress(savedAddresses), [savedAddresses]);
   const savedShippingAddress = useMemo(
@@ -268,7 +301,6 @@ export function CheckoutPage({
   const [submitting, setSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
-  const [feedbackRevision, setFeedbackRevision] = useState(0);
   const [dedupeGuaranteed, setDedupeGuaranteed] = useState(true);
   const paymentIntent = checkoutPaymentIntentForQuote(acceptedQuote);
 
@@ -284,7 +316,6 @@ export function CheckoutPage({
 
   const beginCheckoutInteraction = useCallback(() => {
     setSubmitResult(null);
-    setFeedbackRevision((current) => current + 1);
   }, []);
 
   const beginEditableInteraction = useCallback(() => {
@@ -521,7 +552,7 @@ export function CheckoutPage({
     : lifecycle.proposal
       ? t.reviewUpdatedTotal
       : blockingNotice;
-  const orderSummaryModel = createOrderSummaryViewModel({
+  const orderSummaryModel = buildOrderSummaryViewModel({
     quote: acceptedQuote,
     locale,
     paymentIntent,
@@ -831,7 +862,6 @@ export function CheckoutPage({
         model={orderSummaryModel}
         expanded={mobileSummaryExpanded}
         onExpandedChange={setMobileSummaryExpanded}
-        feedbackRevision={feedbackRevision}
         discountPending={lifecycle.activeRequestId !== null}
         controlsDisabled={controlsDisabled}
         onApplyDiscount={applyDiscountCode}
@@ -1028,7 +1058,6 @@ export function CheckoutPage({
         <aside className="hidden lg:sticky lg:top-24 lg:block">
           <OrderSummary
             model={orderSummaryModel}
-            feedbackRevision={feedbackRevision}
             actionLabel={actionLabel}
             actionDisabled={actionDisabled}
             onSubmit={() => void submit()}

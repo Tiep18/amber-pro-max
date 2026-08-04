@@ -1,6 +1,7 @@
 'use client';
 
 import {useMemo, useState} from 'react';
+import {createTranslator} from 'next-intl';
 import {
   getShippingCountryOptions,
   getUsShippingRegionOptions,
@@ -11,41 +12,10 @@ import {
 import type {ShippingAddress} from '@/checkout/shipping-address';
 import type {CheckoutQuoteLifecycleState, QuoteDestination} from '@/checkout/quote-lifecycle';
 import type {Locale} from '@/i18n/routing';
+import enMessages from '@/messages/en.json';
+import viMessages from '@/messages/vi.json';
 import {Input} from '@/components/ui/input';
 import {SearchableSelect} from '@/components/ui/searchable-select';
-
-const copy = {
-  en: {
-    country: 'Shipping country', recipient: 'Recipient name', phone: 'Phone number', addressLine1: 'Street address',
-    addressLine2: 'Apartment, suite, etc.', locality: 'City', region: 'State or territory', postalCode: 'ZIP or postal code',
-    province: 'Province/City', ward: 'Ward/Commune/Special zone', vnStreet: 'House number, street, and address details',
-    district: 'District (optional)', optional: 'Optional', countryPlaceholder: 'Choose a country',
-    regionPlaceholder: 'Choose a state or territory', provincePlaceholder: 'Choose a Province or City',
-    wardPlaceholder: 'Choose a Ward, Commune, or Special zone', searchCountry: 'Search shipping countries',
-    searchRegion: 'Search states and territories', searchProvince: 'Search Provinces and Cities',
-    searchWard: 'Search Wards, Communes, and Special zones', noResults: 'No matching options.',
-    awaitingCountry: 'Choose a country to calculate shipping.', awaitingRegion: 'Choose a state or territory to finish calculating shipping.',
-    calculating: 'Calculating shipping…', updating: 'Updating shipping. Your previous total remains visible.',
-    ready: 'Shipping is calculated for this destination.', unsupported: 'We cannot ship these items to this destination. Edit the destination to try again.',
-    network: 'We could not reach the shipping service. Change the destination or try again.', server: 'Shipping could not be calculated. Change the destination or try again.',
-    wardReselection: 'Choose the Ward, Commune, or Special zone again for the new Province or City.'
-  },
-  vi: {
-    country: 'Quốc gia giao hàng', recipient: 'Tên người nhận', phone: 'Số điện thoại', addressLine1: 'Địa chỉ đường',
-    addressLine2: 'Căn hộ, tầng, tòa nhà', locality: 'Thành phố', region: 'Bang hoặc vùng lãnh thổ', postalCode: 'Mã ZIP hoặc mã bưu chính',
-    province: 'Tỉnh/Thành phố', ward: 'Phường/Xã/Đặc khu', vnStreet: 'Số nhà, tên đường và địa chỉ chi tiết',
-    district: 'Quận/Huyện (không bắt buộc)', optional: 'Không bắt buộc', countryPlaceholder: 'Chọn quốc gia',
-    regionPlaceholder: 'Chọn bang hoặc vùng lãnh thổ', provincePlaceholder: 'Chọn Tỉnh hoặc Thành phố',
-    wardPlaceholder: 'Chọn Phường, Xã hoặc Đặc khu', searchCountry: 'Tìm quốc gia giao hàng',
-    searchRegion: 'Tìm bang và vùng lãnh thổ', searchProvince: 'Tìm Tỉnh và Thành phố',
-    searchWard: 'Tìm Phường, Xã và Đặc khu', noResults: 'Không có lựa chọn phù hợp.',
-    awaitingCountry: 'Chọn quốc gia để tính phí giao hàng.', awaitingRegion: 'Chọn bang hoặc vùng lãnh thổ để hoàn tất tính phí.',
-    calculating: 'Đang tính phí giao hàng…', updating: 'Đang cập nhật phí giao hàng. Tổng tiền trước đó vẫn được giữ nguyên.',
-    ready: 'Đã tính phí giao hàng cho địa chỉ này.', unsupported: 'Hiện chưa thể giao các sản phẩm này tới địa chỉ đã chọn. Hãy chỉnh sửa địa chỉ để thử lại.',
-    network: 'Không thể kết nối dịch vụ tính phí. Hãy thử lại hoặc đổi địa chỉ.', server: 'Không thể tính phí giao hàng. Hãy thử lại hoặc đổi địa chỉ.',
-    wardReselection: 'Chọn lại Phường, Xã hoặc Đặc khu cho Tỉnh hoặc Thành phố mới.'
-  }
-} as const;
 
 export type CheckoutShippingAddress = ShippingAddress;
 type AddressField = keyof CheckoutShippingAddress;
@@ -67,7 +37,24 @@ export function DestinationForm({
   onShippingAddressChange: (address: CheckoutShippingAddress) => void;
   onDestinationChange: (destination: QuoteDestination) => void;
 }) {
-  const t = copy[locale];
+  const translate = createTranslator({
+    locale,
+    messages: locale === 'vi' ? viMessages : enMessages,
+    namespace: 'checkout.address'
+  });
+  const t = {
+    country: translate('country'), recipient: translate('recipient'), phone: translate('phone'),
+    addressLine1: translate('addressLine1'), addressLine2: translate('addressLine2'), locality: translate('locality'),
+    region: translate('region'), postalCode: translate('postalCode'), province: translate('province'), ward: translate('ward'),
+    vnStreet: translate('vnStreet'), district: translate('district'), optional: translate('optional'),
+    countryPlaceholder: translate('countryPlaceholder'), regionPlaceholder: translate('regionPlaceholder'),
+    provincePlaceholder: translate('provincePlaceholder'), wardPlaceholder: translate('wardPlaceholder'),
+    searchCountry: translate('searchCountry'), searchRegion: translate('searchRegion'), searchProvince: translate('searchProvince'),
+    searchWard: translate('searchWard'), noResults: translate('noResults'), awaitingCountry: translate('awaitingCountry'),
+    awaitingRegion: translate('awaitingRegion'), calculating: translate('calculating'), updating: translate('updating'),
+    ready: translate('ready'), unsupported: translate('unsupported'), network: translate('network'), server: translate('server'),
+    wardReselection: translate('wardReselection')
+  };
   const [touchedFields, setTouchedFields] = useState<Set<AddressField>>(() => new Set());
   const [wardReselection, setWardReselection] = useState(false);
   const countries = useMemo(() => getShippingCountryOptions(locale), [locale]);

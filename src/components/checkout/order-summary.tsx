@@ -3,6 +3,7 @@
 import {CreditCard, FileText, MapPin, Package, ShieldCheck} from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import {createTranslator} from 'next-intl';
 import {formatMoney} from '@/catalog/money';
 import {resolvePublicProductImageUrl} from '@/catalog/product-image-url';
 import type {CheckoutPaymentIntent} from '@/checkout/schemas';
@@ -11,6 +12,8 @@ import {getShippingCountryOptions} from '@/checkout/shipping-address-ui';
 import type {CartQuote} from '@/checkout/types';
 import type {Locale} from '@/i18n/routing';
 import {getCartPath} from '@/i18n/routing';
+import enMessages from '@/messages/en.json';
+import viMessages from '@/messages/vi.json';
 import {Alert} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
@@ -18,36 +21,29 @@ import {Separator} from '@/components/ui/separator';
 import {PAYPAL_RESERVATION_WINDOW_MINUTES} from '@/payments/reservation';
 import {DiscountCodeForm, type DiscountApplyOutcome} from './discount-code-form';
 
-const copy = {
-  en: {
-    title: 'Your order', editCart: 'Edit cart', quantity: 'Qty', subtotal: 'Subtotal', discount: 'Discount',
-    shipping: 'Shipping', total: 'Total', noShipping: 'Not required', notCalculated: 'Pending destination',
-    unsupported: 'Unavailable', payment: 'Payment', paymentPending: 'Available after the current total is ready',
-    paypal: 'PayPal · USD', vietqr: 'VietQR transfer · VND', automaticPayment: 'Selected from your confirmed shopping region and currency.',
-    destination: 'Deliver to', digitalDelivery: 'Digital delivery by email after confirmed payment', complete: 'Complete before continuing',
-    policies: 'Policies', trust: 'Your order begins awaiting payment. Digital files become available only after full payment is confirmed.',
-    showSummary: 'Show order summary', hideSummary: 'Hide order summary',
-    expectationPaypal: (minutes: number) => `We will create your order and hold these items for ${minutes} minutes. You pay on the next step.`,
-    expectationVietqr: 'We will create your order and hold these items for 24 hours, then show the VietQR transfer instructions.',
-    expectationPaypalShort: (minutes: number) => `Items held ${minutes} min · pay next`, expectationVietqrShort: 'Items held 24h · VietQR next',
-    moreItems: (count: number) => `${count} more item${count === 1 ? '' : 's'} in your cart`
-  },
-  vi: {
-    title: 'Đơn hàng của bạn', editCart: 'Sửa giỏ hàng', quantity: 'SL', subtotal: 'Tạm tính', discount: 'Giảm giá',
-    shipping: 'Giao hàng', total: 'Tổng cộng', noShipping: 'Không cần', notCalculated: 'Chờ địa chỉ', unsupported: 'Chưa hỗ trợ',
-    payment: 'Thanh toán', paymentPending: 'Hiển thị sau khi tổng tiền hiện tại sẵn sàng', paypal: 'PayPal · USD',
-    vietqr: 'Chuyển khoản VietQR · VND', automaticPayment: 'Được chọn theo khu vực mua sắm và tiền tệ đã xác nhận.',
-    destination: 'Giao tới', digitalDelivery: 'Nhận sản phẩm số qua email sau khi xác nhận thanh toán', complete: 'Cần hoàn tất trước khi tiếp tục',
-    policies: 'Chính sách', trust: 'Đơn hàng bắt đầu ở trạng thái chờ thanh toán. File số chỉ mở sau khi toàn bộ thanh toán được xác nhận.',
-    showSummary: 'Xem tóm tắt đơn hàng', hideSummary: 'Ẩn tóm tắt đơn hàng',
-    expectationPaypal: (minutes: number) => `Chúng tôi sẽ tạo đơn hàng và giữ các sản phẩm này trong ${minutes} phút. Bạn thanh toán ở bước tiếp theo.`,
-    expectationVietqr: 'Chúng tôi sẽ tạo đơn hàng và giữ các sản phẩm này trong 24 giờ, sau đó hiển thị hướng dẫn chuyển khoản VietQR.',
-    expectationPaypalShort: (minutes: number) => `Giữ hàng ${minutes} phút · thanh toán tiếp theo`, expectationVietqrShort: 'Giữ hàng 24 giờ · tiếp theo là VietQR',
-    moreItems: (count: number) => `Còn ${count} sản phẩm trong giỏ`
-  }
-} as const;
-
 export type CheckoutPolicyLink = {policyKind: string; title: string; href: string};
+
+function summaryCopy(locale: Locale) {
+  const translate = createTranslator({
+    locale,
+    messages: locale === 'vi' ? viMessages : enMessages,
+    namespace: 'checkout.summary'
+  });
+  return {
+    title: translate('title'), editCart: translate('editCart'), quantity: translate('quantity'),
+    subtotal: translate('subtotal'), discount: translate('discount'), shipping: translate('shipping'), total: translate('total'),
+    noShipping: translate('noShipping'), notCalculated: translate('notCalculated'), unsupported: translate('unsupported'),
+    payment: translate('payment'), paymentPending: translate('paymentPending'), paypal: translate('paypal'), vietqr: translate('vietqr'),
+    automaticPayment: translate('automaticPayment'), destination: translate('destination'), digitalDelivery: translate('digitalDelivery'),
+    complete: translate('complete'), policies: translate('policies'), trust: translate('trust'),
+    showSummary: translate('show'), hideSummary: translate('hide'),
+    expectationPaypal: (minutes: number) => translate('paypalExpectation', {minutes}),
+    expectationVietqr: translate('vietqrExpectation'),
+    expectationPaypalShort: (minutes: number) => translate('paypalExpectationShort', {minutes}),
+    expectationVietqrShort: translate('vietqrExpectationShort'),
+    moreItems: (count: number) => translate('moreItems', {count})
+  };
+}
 
 export type OrderSummaryViewModel = Readonly<{
   quote: CartQuote | null;
@@ -69,7 +65,7 @@ export type OrderSummaryViewModel = Readonly<{
 }>;
 
 function shippingText(quote: CartQuote, locale: Locale) {
-  const t = copy[locale];
+  const t = summaryCopy(locale);
   if (quote.shipping.status === 'ready') {
     return quote.currencyCode ? formatMoney({amountMinor: quote.shipping.amountMinor, currencyCode: quote.currencyCode}) : '-';
   }
@@ -84,27 +80,27 @@ function destinationText(address: ShippingAddress, locale: Locale) {
 }
 
 function paymentText(intent: CheckoutPaymentIntent | null, locale: Locale) {
-  const t = copy[locale];
+  const t = summaryCopy(locale);
   if (intent === 'paypal_intent') return t.paypal;
   if (intent === 'vietqr_intent') return t.vietqr;
   return t.paymentPending;
 }
 
 function expectationText(intent: CheckoutPaymentIntent | null, locale: Locale) {
-  const t = copy[locale];
+  const t = summaryCopy(locale);
   if (intent === 'paypal_intent') return t.expectationPaypal(PAYPAL_RESERVATION_WINDOW_MINUTES);
   if (intent === 'vietqr_intent') return t.expectationVietqr;
   return null;
 }
 
 function expectationTextShort(intent: CheckoutPaymentIntent | null, locale: Locale) {
-  const t = copy[locale];
+  const t = summaryCopy(locale);
   if (intent === 'paypal_intent') return t.expectationPaypalShort(PAYPAL_RESERVATION_WINDOW_MINUTES);
   if (intent === 'vietqr_intent') return t.expectationVietqrShort;
   return null;
 }
 
-export function createOrderSummaryViewModel({quote, locale, paymentIntent, shippingAddress, blockingIssues, showBlockingIssues, policyLinks, pending}: {
+export function buildOrderSummaryViewModel({quote, locale, paymentIntent, shippingAddress, blockingIssues, showBlockingIssues, policyLinks, pending}: {
   quote: CartQuote | null;
   locale: Locale;
   paymentIntent: CheckoutPaymentIntent | null;
@@ -125,7 +121,7 @@ export function createOrderSummaryViewModel({quote, locale, paymentIntent, shipp
     remainingLineCount: Math.max(0, (quote?.lines.length ?? 0) - visibleLines.length),
     subtotal: quote && currencyCode ? formatMoney({amountMinor: quote.subtotalMinor, currencyCode}) : '-',
     discount: quote?.discount.status === 'applied' && currencyCode ? formatMoney({amountMinor: quote.discount.amountMinor, currencyCode}) : null,
-    shipping: quote ? shippingText(quote, locale) : copy[locale].notCalculated,
+    shipping: quote ? shippingText(quote, locale) : summaryCopy(locale).notCalculated,
     total: quote && currencyCode ? formatMoney({amountMinor: quote.totalMinor, currencyCode}) : '-',
     destination: hasPhysical && shippingAddress.countryCode ? destinationText(shippingAddress, locale) : null,
     hasPhysical,
@@ -139,18 +135,17 @@ export function createOrderSummaryViewModel({quote, locale, paymentIntent, shipp
 
 type SummaryInteractionProps = {
   model: OrderSummaryViewModel;
-  feedbackRevision: number;
   discountPending: boolean;
   controlsDisabled: boolean;
   onApplyDiscount: (code: string | null) => Promise<DiscountApplyOutcome>;
 };
 
-function OrderSummaryBody({model, feedbackRevision, discountPending, controlsDisabled, onApplyDiscount, surface, action}: SummaryInteractionProps & {
+function OrderSummaryBody({model, discountPending, controlsDisabled, onApplyDiscount, surface, action}: SummaryInteractionProps & {
   surface: 'mobile' | 'desktop';
   action?: {label: string; disabled: boolean; onSubmit: () => void};
 }) {
   const {quote, locale} = model;
-  const t = copy[locale];
+  const t = summaryCopy(locale);
   const blockerId = `checkout-submit-blocker-${surface}`;
   return (
     <CardContent className="grid gap-4 px-4 py-4 sm:px-5">
@@ -174,7 +169,7 @@ function OrderSummaryBody({model, feedbackRevision, discountPending, controlsDis
       ) : null}
 
       <div className="border-y border-[var(--border)]/60 py-1">
-        <DiscountCodeForm locale={locale} acceptedQuote={quote} feedbackRevision={feedbackRevision} pending={discountPending} disabled={controlsDisabled} idSuffix={surface} onApply={onApplyDiscount} />
+        <DiscountCodeForm locale={locale} acceptedQuote={quote} pending={discountPending} disabled={controlsDisabled} idSuffix={surface} onApply={onApplyDiscount} />
       </div>
 
       <dl className="grid gap-2 text-sm tabular-nums">
@@ -203,7 +198,7 @@ function OrderSummaryBody({model, feedbackRevision, discountPending, controlsDis
 }
 
 export function OrderSummary(props: SummaryInteractionProps & {actionLabel: string; actionDisabled: boolean; onSubmit: () => void}) {
-  const t = copy[props.model.locale];
+  const t = summaryCopy(props.model.locale);
   return (
     <Card className="overflow-hidden bg-[var(--surface-paper)] shadow-[0_18px_54px_rgb(73_52_32/9%)]">
       <CardHeader className="mb-0 flex-row items-center justify-between gap-3 border-b border-[var(--border)]/70 px-4 py-4 sm:px-5"><CardTitle className="min-w-0 break-words text-lg">{t.title}</CardTitle><Link href={getCartPath(props.model.locale)} className="shrink-0 rounded-sm text-sm font-semibold text-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">{t.editCart}</Link></CardHeader>
@@ -213,7 +208,7 @@ export function OrderSummary(props: SummaryInteractionProps & {actionLabel: stri
 }
 
 export function MobileOrderSummary({expanded, onExpandedChange, ...props}: SummaryInteractionProps & {expanded: boolean; onExpandedChange: (expanded: boolean) => void}) {
-  const t = copy[props.model.locale];
+  const t = summaryCopy(props.model.locale);
   const contentId = 'checkout-mobile-order-summary-content';
   return (
     <section className="lg:hidden" aria-label={t.title}>
@@ -231,7 +226,7 @@ export function MobileOrderSummary({expanded, onExpandedChange, ...props}: Summa
 }
 
 export function MobileCheckoutDock({model, label, disabled, onSubmit}: {model: OrderSummaryViewModel; label: string; disabled: boolean; onSubmit: () => void}) {
-  const t = copy[model.locale];
+  const t = summaryCopy(model.locale);
   const blockerId = 'checkout-submit-blocker-dock';
   const showBlockers = model.showBlockingIssues && model.blockingIssues.length > 0;
   const topLine = !disabled ? expectationTextShort(model.paymentIntent, model.locale) : null;
