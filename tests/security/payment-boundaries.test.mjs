@@ -21,8 +21,7 @@ const contractFiles = [
 const customerRecoveryFiles = [
   'src/payments/status.ts',
   'src/payments/order-recovery.ts',
-  'src/components/payments/order-recovery-banner.tsx',
-  'src/components/payments/order-payment-page.tsx'
+  'src/components/payments/order-recovery-banner.tsx'
 ];
 
 const paymentSurfaceFiles = [

@@ -54,6 +54,8 @@ export type PaymentStatusPresentation = {
   surface: 'default' | 'success' | 'warning' | 'destructive';
   headingKey: string;
   bodyKey: string;
+  nextAction: 'provider' | 'recheck' | 'support' | 'recovery' | null;
+  showPendingDeadline: boolean;
   primaryAction: {href: `/${Locale}${string}`; labelKey: string} | null;
 };
 
@@ -140,7 +142,7 @@ export function mapCustomerPaymentStatus(input: CustomerPaymentStatusInput): Cus
 export function getPaymentStatusPresentation(
   status: CustomerPaymentLifecycleStatus,
   _locale: Locale,
-  freshCheckoutPath: `/${Locale}${string}`
+  _freshCheckoutPath: `/${Locale}${string}`
 ): PaymentStatusPresentation {
   const surface =
     status === 'paid'
@@ -151,13 +153,24 @@ export function getPaymentStatusPresentation(
           ? 'default'
           : 'warning';
 
-  const needsFreshCheckout = status === 'failed' || status === 'cancelled' || status === 'rejected' || status === 'expired';
+  const nextAction =
+    status === 'awaiting_payment'
+      ? 'provider'
+      : status === 'verifying_payment'
+        ? 'recheck'
+        : status === 'review_required'
+          ? 'support'
+          : status === 'failed' || status === 'cancelled' || status === 'rejected' || status === 'expired'
+            ? 'recovery'
+            : null;
 
   return {
     status,
     surface,
     headingKey: `orders.status.${status}.heading`,
     bodyKey: `orders.status.${status}.body`,
-    primaryAction: needsFreshCheckout ? {href: freshCheckoutPath, labelKey: 'orders.actions.newCheckout'} : null
+    nextAction,
+    showPendingDeadline: status === 'awaiting_payment' || status === 'verifying_payment',
+    primaryAction: null
   };
 }
