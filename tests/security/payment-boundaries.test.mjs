@@ -206,7 +206,8 @@ test('paid, refund, and terminal composition does not render provider controls o
   assert.match(source, /showPayPal[\s\S]*status\.status === 'awaiting_payment'/);
   assert.match(source, /showVietQr[\s\S]*status\.status === 'awaiting_payment'/);
   assert.match(source, /showPendingDeadline[\s\S]*presentation\.showPendingDeadline/);
-  assert.match(source, /showFulfillmentDetails[\s\S]*status\.isPaid/);
+  assert.match(source, /showPaidSuccess[\s\S]*status\.isPaid/);
+  assert.match(source, /showRefundFulfillmentDetails[\s\S]*status\.isPaid/);
 });
 
 test('VietQR attachment authorizes the localized order before deriving or fetching the fixed upstream', () => {
@@ -256,15 +257,15 @@ test('VietQR attachment is private, sanitized, non-enumerating, and mutation-fre
 
 test('verified paid alone leads with confirmation, masked email, and relevant next steps', () => {
   const source = readFileSync('src/components/payments/order-payment-page.tsx', 'utf8');
-  const paidStart = source.indexOf('{showPaidSuccess ?');
-  const paidEnd = source.indexOf('{showReviewSupport ?', paidStart);
+  const paidStart = source.indexOf('const paidSuccess = showPaidSuccess ?');
+  const paidEnd = source.indexOf('  return (', paidStart);
   const paidLead = source.slice(paidStart, paidEnd);
 
   assert.match(source, /const showPaidSuccess\s*=\s*status\.isPaid\s*&&\s*!status\.isRefunded/);
   assert.ok(paidStart >= 0);
   assert.ok(paidEnd > paidStart);
   assert.match(paidLead, /CircleCheck/);
-  assert.match(paidLead, /status\.paid\.heading/);
+  assert.match(source, /showPaidSuccess\s*\?\s*t\('status\.paid\.heading'\)/);
   assert.match(paidLead, /status\.paid\.confirmedTotal/);
   assert.match(paidLead, /status\.paid\.email[\s\S]*contactEmailMasked/);
   assert.doesNotMatch(paidLead, /customerTransferDeclaredAt|reservationExpiresAt|searchParams|window\.|Date\.now/);

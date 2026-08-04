@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
+import { CircleCheck } from 'lucide-react';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMoney } from '@/catalog/money';
@@ -152,47 +153,74 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
     : null;
   const vietQrInstruction = vietQrResult?.status === 'ready' ? vietQrResult.instruction : null;
   const showPendingDeadline = presentation.showPendingDeadline && !vietQrInstruction;
-  const showFulfillmentDetails = status.isPaid;
+  const showPaidSuccess = status.isPaid && !status.isRefunded;
+  const showRefundFulfillmentDetails = status.isPaid && status.isRefunded;
   const showTerminalRecovery = presentation.nextAction === 'recovery';
   const showReviewSupport =
     presentation.nextAction === 'support' && publicSupportConfig.hasChannels;
+  const paidSuccess = showPaidSuccess ? (
+    <section
+      role="status"
+      className="grid gap-4 rounded-[var(--radius-card)] border border-[var(--success)]/30 bg-[var(--success-surface)] p-5"
+    >
+      <div className="flex items-start gap-3">
+        <CircleCheck aria-hidden="true" className="mt-0.5 size-7 shrink-0 text-[var(--success)]" />
+        <p className="text-base text-[var(--foreground)]">{t('status.paid.body')}</p>
+      </div>
+      <dl className="grid gap-1 rounded-[var(--radius-control)] bg-[var(--surface)] p-4">
+        <dt className="text-sm font-semibold text-[var(--muted-foreground)]">
+          {t('status.paid.confirmedTotal')}
+        </dt>
+        <dd className="text-2xl font-semibold tabular-nums">{total}</dd>
+      </dl>
+      {result.order.contactEmailMasked ? (
+        <p className="text-sm text-[var(--muted-foreground)]">
+          {t('status.paid.email', {email: result.order.contactEmailMasked})}
+        </p>
+      ) : null}
+    </section>
+  ) : null;
 
   return (
     <main className="container grid gap-5 py-10">
       {/* The page previously had no h1 at all — its highest heading was the h2
           inside PaymentStatePanel, so the document outline started at level 2. */}
       <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.01em]">
-        {t('pageHeading', { orderNumber: result.order.orderNumber })}
+        {showPaidSuccess
+          ? t('status.paid.heading')
+          : t('pageHeading', { orderNumber: result.order.orderNumber })}
       </h1>
       <CheckoutStepper current={status.isPaid ? 'done' : 'payment'} locale={locale} />
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <GuestOrderSessionSync orderNumber={result.order.orderNumber} paid={status.isPaid} />
         <section className="grid content-start gap-5">
-          <PaymentStatePanel
-            orderNumber={result.order.orderNumber}
-            heading={t(`status.${status.status}.heading`)}
-            body={t(
-              isVietQrOrder ? vietQrStatusBodyKey(status.status) : `status.${status.status}.body`
-            )}
-            presentation={presentation}
-            deadlineLabel={t('labels.deadline')}
-            deadlineValue={showPendingDeadline ? deadlineValue : null}
-            reservationExpiresAt={showPendingDeadline ? result.order.reservationExpiresAt : null}
-            orderLabel={t('labels.order')}
-            locale={locale}
-            storeTimeZone={publicSupportConfig.storeTimeZone}
-            recheckProvider={isVietQrOrder ? 'vietqr' : 'paypal'}
-            recheckLabels={{
-              checkStatus: t('actions.checkStatus'),
-              checking: t('actions.checkingStatus'),
-              lastChecked: t('labels.lastChecked'),
-              pollingStopped: paypalT('pollingStopped')
-            }}
-            countdownLabels={{
-              remaining: t('labels.countdownRemaining'),
-              expired: t('labels.countdownExpired')
-            }}
-          />
+          {paidSuccess ?? (
+            <PaymentStatePanel
+              orderNumber={result.order.orderNumber}
+              heading={t(`status.${status.status}.heading`)}
+              body={t(
+                isVietQrOrder ? vietQrStatusBodyKey(status.status) : `status.${status.status}.body`
+              )}
+              presentation={presentation}
+              deadlineLabel={t('labels.deadline')}
+              deadlineValue={showPendingDeadline ? deadlineValue : null}
+              reservationExpiresAt={showPendingDeadline ? result.order.reservationExpiresAt : null}
+              orderLabel={t('labels.order')}
+              locale={locale}
+              storeTimeZone={publicSupportConfig.storeTimeZone}
+              recheckProvider={isVietQrOrder ? 'vietqr' : 'paypal'}
+              recheckLabels={{
+                checkStatus: t('actions.checkStatus'),
+                checking: t('actions.checkingStatus'),
+                lastChecked: t('labels.lastChecked'),
+                pollingStopped: paypalT('pollingStopped')
+              }}
+              countdownLabels={{
+                remaining: t('labels.countdownRemaining'),
+                expired: t('labels.countdownExpired')
+              }}
+            />
+          )}
 
           <OrderRecoveryBanner
             orderNumber={result.order.orderNumber}
@@ -322,17 +350,38 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
             </Card>
           ) : null}
 
-          {status.isPaid && !status.isRefunded && (hasDigitalLines || hasPhysicalLines) ? (
-            <div className="grid gap-1.5 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-muted)]/50 p-4 text-sm">
-              <p className="font-semibold text-[var(--foreground)]">{t('nextSteps.title')}</p>
-              {hasDigitalLines ? (
-                <p>{t('nextSteps.digital', { email: result.order.contactEmailMasked ?? '' })}</p>
-              ) : null}
-              {hasPhysicalLines ? <p>{t('nextSteps.physical')}</p> : null}
-            </div>
+          {showPaidSuccess && hasDigitalLines ? (
+            <DownloadPanel
+              orderNumber={result.order.orderNumber}
+              eligible
+              labels={{
+                title: t('downloads.title'),
+                readyBody: t('status.paid.digitalNext'),
+                lockedBody: t('downloads.lockedBody'),
+                expiredBody: t('downloads.expiredBody'),
+                action: t('downloads.action')
+              }}
+            />
           ) : null}
 
-          {showFulfillmentDetails ? (
+          {showPaidSuccess && hasPhysicalLines ? (
+            <PhysicalTrackingPanel
+              tracking={result.order.physicalTracking ?? null}
+              labels={{
+                title: t('tracking.title'),
+                awaiting: t('status.paid.physicalNext'),
+                packing: t('tracking.packing'),
+                shippedNoTracking: t('tracking.shippedNoTracking'),
+                shippedTracking: t('tracking.shippedTracking'),
+                delivered: t('tracking.delivered'),
+                carrier: t('tracking.carrier'),
+                trackingNumber: t('tracking.trackingNumber'),
+                openTracking: t('tracking.openTracking')
+              }}
+            />
+          ) : null}
+
+          {showRefundFulfillmentDetails ? (
             <>
               <FulfillmentTrackSummary
                 digitalStatus={
@@ -352,20 +401,6 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
                   physicalDelivered: t('tracks.physicalDelivered')
                 }}
               />
-
-              {!status.isRefunded ? (
-                <DownloadPanel
-                  orderNumber={result.order.orderNumber}
-                  eligible={!status.fulfillmentLocked}
-                  labels={{
-                    title: t('downloads.title'),
-                    readyBody: t('downloads.readyBody'),
-                    lockedBody: t('downloads.lockedBody'),
-                    expiredBody: t('downloads.expiredBody'),
-                    action: t('downloads.action')
-                  }}
-                />
-              ) : null}
 
               <PhysicalTrackingPanel
                 tracking={result.order.physicalTracking ?? null}
@@ -403,7 +438,7 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
             </div>
           ) : null}
 
-          {!isSignedIn && result.order.contactEmailMasked ? (
+          {!showPaidSuccess && !isSignedIn && result.order.contactEmailMasked ? (
             <p className="text-sm text-[var(--muted-foreground)]">
               {t('guestNote', { email: result.order.contactEmailMasked })}
             </p>
