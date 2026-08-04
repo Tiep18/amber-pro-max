@@ -115,6 +115,7 @@ Progress: All 15 Phase 09 plans are executed; deployment geo/SEO UAT remains pen
 
 - Phase 8 added: Shipping profile fallbacks, destination zones, and US region surcharges.
 - Phase 9 added: Independent locale and market commerce projection with SEO-safe ISR and checkout preservation.
+- Phase 10 added: Checkout and payment UX stabilization for Vietnamese and international customers.
 
 ### Decisions
 

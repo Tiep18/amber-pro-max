@@ -456,3 +456,14 @@ Plans:
 - [x] 09-13-PLAN.md — Ship independent locale and market controls across desktop and mobile (Wave 8)
 - [x] 09-14-PLAN.md — Finalize SEO, sitemaps, cache boundaries, and security assertions (Wave 9)
 - [x] 09-15-PLAN.md — Prove four-combination commerce, checkout preservation, and deployment behavior (Wave 10)
+
+### Phase 10: Checkout and payment UX stabilization for Vietnamese and international customers
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 9
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 10 to break down)
