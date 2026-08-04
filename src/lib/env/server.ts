@@ -1,3 +1,4 @@
+import 'server-only';
 import {getClientEnv} from './client';
 import {z} from 'zod';
 
@@ -7,6 +8,12 @@ const paypalApiBaseSchema = z
   .url()
   .default('https://api-m.sandbox.paypal.com')
   .refine((value) => value.startsWith('https://'), {message: 'PayPal API base must use HTTPS'});
+
+const supportEnvSchema = z.object({
+  SUPPORT_EMAIL: z.string().trim().optional(),
+  SUPPORT_ZALO_URL: z.string().trim().optional(),
+  STORE_TIME_ZONE: z.string().trim().optional()
+});
 
 const serverEnvSchema = z.object({
   SUPABASE_SECRET_KEY: optionalSecretSchema,
@@ -24,8 +31,21 @@ const serverEnvSchema = z.object({
   RESEND_API_KEY: optionalSecretSchema,
   RESEND_FROM_EMAIL: z.email().optional(),
   TRANSACTIONAL_EMAIL_WORKER_SECRET: optionalSecretSchema,
-  CRON_SECRET: optionalSecretSchema
+  CRON_SECRET: optionalSecretSchema,
+  SUPPORT_EMAIL: supportEnvSchema.shape.SUPPORT_EMAIL,
+  SUPPORT_ZALO_URL: supportEnvSchema.shape.SUPPORT_ZALO_URL,
+  STORE_TIME_ZONE: supportEnvSchema.shape.STORE_TIME_ZONE
 });
+
+export function getSupportEnv(
+  source: Readonly<Record<string, string | undefined>> = process.env
+) {
+  return supportEnvSchema.parse({
+    SUPPORT_EMAIL: source.SUPPORT_EMAIL,
+    SUPPORT_ZALO_URL: source.SUPPORT_ZALO_URL,
+    STORE_TIME_ZONE: source.STORE_TIME_ZONE
+  });
+}
 
 function splitCountries(value: string | undefined) {
   return (value ?? '')
@@ -55,7 +75,8 @@ export function getServerEnv(source: NodeJS.ProcessEnv = process.env) {
     RESEND_API_KEY: source.RESEND_API_KEY,
     RESEND_FROM_EMAIL: source.RESEND_FROM_EMAIL,
     TRANSACTIONAL_EMAIL_WORKER_SECRET: source.TRANSACTIONAL_EMAIL_WORKER_SECRET,
-    CRON_SECRET: source.CRON_SECRET
+    CRON_SECRET: source.CRON_SECRET,
+    ...getSupportEnv(source)
   });
   const paypalConfigured = configured(serverEnv, [
     'PAYPAL_CLIENT_ID',
@@ -111,6 +132,11 @@ export function getServerEnv(source: NodeJS.ProcessEnv = process.env) {
           code: 'missing_transactional_email_config' as const
         },
     transactionalEmailWorkerSecret: serverEnv.TRANSACTIONAL_EMAIL_WORKER_SECRET ?? null,
-    cronSecret: serverEnv.CRON_SECRET ?? null
+    cronSecret: serverEnv.CRON_SECRET ?? null,
+    support: {
+      email: serverEnv.SUPPORT_EMAIL ?? null,
+      zaloUrl: serverEnv.SUPPORT_ZALO_URL ?? null,
+      storeTimeZone: serverEnv.STORE_TIME_ZONE ?? null
+    }
   };
 }

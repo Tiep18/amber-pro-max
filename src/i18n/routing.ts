@@ -98,6 +98,10 @@ export const pathnames = {
   '/guest-order': {
     vi: '/don-hang-khach',
     en: '/guest-order'
+  },
+  '/contact': {
+    vi: '/lien-he',
+    en: '/contact'
   }
 } as const;
 
@@ -219,6 +223,10 @@ export function getExceptionRequestPath(locale: Locale): `/${Locale}${string}` {
 
 export function getGuestOrderPath(locale: Locale): `/${Locale}${string}` {
   return getLocalizedPath('/guest-order', locale);
+}
+
+export function getContactPath(locale: Locale): `/${Locale}${string}` {
+  return getLocalizedPath('/contact', locale);
 }
 
 export function getEquivalentLocalizedPath(
