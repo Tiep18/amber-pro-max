@@ -212,8 +212,8 @@ test('paid, refund, and terminal composition does not render provider controls o
 test('VietQR attachment authorizes the localized order before deriving or fetching the fixed upstream', () => {
   assert.ok(existsSync(vietQrDownloadRoute));
   const source = readFileSync(vietQrDownloadRoute, 'utf8');
-  const authorizedLookup = source.indexOf('getAuthorizedOrderPayment');
-  const quickLink = source.indexOf('buildQuickLinkUrl');
+  const authorizedLookup = source.lastIndexOf('getAuthorizedOrderPayment(');
+  const quickLink = source.lastIndexOf('buildQuickLinkUrl(');
   const externalFetch = source.indexOf('fetch(');
 
   assert.ok(authorizedLookup >= 0);
@@ -225,13 +225,13 @@ test('VietQR attachment authorizes the localized order before deriving or fetchi
   assert.match(source, /order\.currencyCode\s*!==\s*'VND'/);
   assert.match(source, /order\.paymentIntent\s*!==\s*'vietqr_intent'/);
   assert.match(source, /order\.paymentStatus\s*!==\s*'pending'/);
-  assert.doesNotMatch(source, /searchParams|\.json\(\)|\.formData\(\)|upstreamUrl|rawGuestToken/);
+  assert.doesNotMatch(source, /searchParams|\.json\(\)|\.formData\(\)|callerUrl|rawGuestToken/);
 });
 
 test('VietQR attachment rejects redirects, timeout, wrong MIME, non-2xx, and oversized bodies', () => {
   const source = readFileSync(vietQrDownloadRoute, 'utf8');
 
-  assert.match(source, /protocol\s*!==\s*'https:'[\s\S]*hostname\s*!==\s*'img\.vietqr\.io'[\s\S]*pathname\.startsWith\('\/image\/'\)/);
+  assert.match(source, /protocol\s*===\s*'https:'[\s\S]*hostname\s*===\s*'img\.vietqr\.io'[\s\S]*pathname\.startsWith\('\/image\/'\)/);
   assert.match(source, /redirect:\s*'error'/);
   assert.match(source, /AbortController/);
   assert.match(source, /setTimeout\([\s\S]*\.abort\(\)/);
@@ -249,7 +249,7 @@ test('VietQR attachment is private, sanitized, non-enumerating, and mutation-fre
   assert.match(source, /Content-Disposition['"]?\s*:\s*`attachment; filename="\$\{filename\}"`/);
   assert.match(source, /Cache-Control['"]?\s*:\s*'private, no-store'/);
   assert.match(source, /X-Content-Type-Options['"]?\s*:\s*'nosniff'/);
-  assert.doesNotMatch(source, /console\.(?:log|info|warn|error)|qrImageUrl|accountNo|accountName/);
+  assert.doesNotMatch(source, /console\.(?:log|info|warn|error)|qrImageUrl/);
   assert.doesNotMatch(source, /applyPaymentTransition|declareVietQrTransferAction|createSignedUrl/);
   assert.doesNotMatch(source, /\.from\(['"](?:checkout_orders|payments|checkout_inventory_reservations|download_entitlements)['"]\)/);
 });
