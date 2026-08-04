@@ -1,5 +1,10 @@
 import {z} from 'zod';
-import {quoteHasPhysicalLines, quoteShippingCountryCode, shippingAddressSchema} from './shipping-address';
+import {
+  normalizeShippingAddressForPersistence,
+  quoteHasPhysicalLines,
+  quoteShippingCountryCode,
+  shippingAddressSchema
+} from './shipping-address';
 import {quoteCartInputSchema} from './types';
 
 export const checkoutPaymentIntentSchema = z.enum(['paypal_intent', 'vietqr_intent']);
@@ -19,7 +24,14 @@ export const submitCheckoutInputSchema = quoteCartInputSchema.extend({
   guestCartId: z.string().trim().max(128).optional().nullable(),
   guestRecovery: guestRecoverySchema.optional(),
   exceptionGrantToken: z.string().trim().max(256).optional().nullable(),
-  shippingAddress: shippingAddressSchema.optional().nullable()
+  shippingAddress: shippingAddressSchema.transform((address, context) => {
+    const normalized = normalizeShippingAddressForPersistence(address);
+    if (normalized.success) return normalized.data;
+    for (const issue of normalized.issues) {
+      context.addIssue({code: 'custom', path: [issue.field], message: issue.code});
+    }
+    return z.NEVER;
+  }).optional().nullable()
 }).superRefine((input, context) => {
   if (!quoteHasPhysicalLines(input.acceptedQuote)) {
     return;

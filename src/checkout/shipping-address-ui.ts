@@ -328,6 +328,10 @@ const issueFieldCopy: Record<ShippingAddressIssueCode, keyof typeof validationCo
   us_region_invalid: 'region',
   us_postal_required: 'postalCode',
   us_postal_invalid: 'postalCode',
+  vn_province_required: 'region',
+  vn_province_invalid: 'region',
+  vn_ward_required: 'addressLine1',
+  vn_ward_invalid: 'addressLine1',
   invalid_address: 'countryCode'
 };
 

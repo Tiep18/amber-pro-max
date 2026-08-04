@@ -1,5 +1,10 @@
 import {z} from 'zod';
-import {normalizeLegacyShippingAddress, shippingAddressSchema, type ShippingAddress} from '@/checkout/shipping-address';
+import {
+  normalizeLegacyShippingAddress,
+  normalizeShippingAddressForPersistence,
+  shippingAddressSchema,
+  type ShippingAddress
+} from '@/checkout/shipping-address';
 import {runMonitoredAction} from '@/operations/monitoring';
 
 const customerShippingAddressBaseSchema = shippingAddressSchema.extend({
@@ -7,10 +12,23 @@ const customerShippingAddressBaseSchema = shippingAddressSchema.extend({
   region: z.string().trim().max(200).optional().nullable().transform((value) => value || null),
   label: z.string().trim().min(1).max(80),
   isDefault: z.boolean().default(false)
+}).superRefine((value, context) => {
+  const normalized = normalizeShippingAddressForPersistence(value);
+  if (normalized.success) return;
+  for (const issue of normalized.issues) {
+    context.addIssue({code: 'custom', path: [issue.field], message: issue.code});
+  }
 });
 
 export const customerShippingAddressInputSchema = customerShippingAddressBaseSchema.transform(
-  (value) => normalizeLegacyShippingAddress(value) as z.infer<typeof customerShippingAddressBaseSchema>
+  (value) => {
+    const legacyNormalized = normalizeLegacyShippingAddress(value) as typeof value;
+    const normalized = normalizeShippingAddressForPersistence(legacyNormalized);
+    return {
+      ...value,
+      ...(normalized.success ? normalized.data : legacyNormalized)
+    } as z.infer<typeof customerShippingAddressBaseSchema>;
+  }
 );
 
 type QueryClient = {

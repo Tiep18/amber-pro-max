@@ -1,4 +1,6 @@
 import {z} from 'zod';
+import {validateVietnamAddress} from './vietnam-address';
+import {normalizeVietnamPhone} from './vietnam-phone';
 
 export const US_SHIPPING_REGION_CODES = [
   'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -21,6 +23,10 @@ export type ShippingAddressIssueCode =
   | 'us_region_invalid'
   | 'us_postal_required'
   | 'us_postal_invalid'
+  | 'vn_province_required'
+  | 'vn_province_invalid'
+  | 'vn_ward_required'
+  | 'vn_ward_invalid'
   | 'invalid_address';
 
 const optionalAddressPart = z
@@ -84,6 +90,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function issue(field: keyof ShippingAddress, code: ShippingAddressIssueCode): ShippingAddressIssue {
   return {field, code};
+}
+
+export function normalizeShippingAddressForPersistence(input: ShippingAddress):
+  | {success: true; data: ShippingAddress}
+  | {success: false; issues: ShippingAddressIssue[]} {
+  if (input.countryCode !== 'VN') return {success: true, data: input};
+
+  const issues: ShippingAddressIssue[] = [];
+  const phoneNumber = normalizeVietnamPhone(input.phoneNumber);
+  if (!phoneNumber) issues.push(issue('phoneNumber', 'phone_invalid'));
+
+  const address = validateVietnamAddress(input);
+  if (!address.success) {
+    const issueByCode: Record<typeof address.code, ShippingAddressIssue> = {
+      province_required: issue('region', 'vn_province_required'),
+      province_invalid: issue('region', 'vn_province_invalid'),
+      ward_required: issue('locality', 'vn_ward_required'),
+      ward_invalid: issue('locality', 'vn_ward_invalid'),
+      address_line1_required: issue('addressLine1', 'address_line1_required')
+    };
+    issues.push(issueByCode[address.code]);
+  }
+
+  if (issues.length || !phoneNumber || !address.success) return {success: false, issues};
+  return {
+    success: true,
+    data: {
+      ...input,
+      phoneNumber,
+      region: address.data.provinceName,
+      locality: address.data.wardName,
+      addressLine1: address.data.addressLine1
+    }
+  };
 }
 
 /**
@@ -183,7 +223,10 @@ export function validateShippingDestination(
     }
   }
 
-  return {success: true, data: parsed.data};
+  const normalized = normalizeShippingAddressForPersistence(parsed.data);
+  if (!normalized.success) return normalized;
+
+  return normalized;
 }
 
 export function quoteHasPhysicalLines(quote: unknown) {
