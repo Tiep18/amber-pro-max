@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-08-04T06:44:40.227Z"
+stopped_at: Completed 10-02-PLAN.md
+last_updated: "2026-08-04T07:18:42.254Z"
 last_activity: 2026-08-04 -- Phase 10 execution started
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 93
-  completed_plans: 87
+  completed_plans: 88
   percent: 80
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 10 (checkout-and-payment-ux-stabilization-for-vietnamese-and-int) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-08-04 -- Phase 10 execution started
 
@@ -109,6 +109,7 @@ Progress: All 15 Phase 09 plans are executed; deployment geo/SEO UAT remains pen
 | Phase 09 P14 | 98m | 3 tasks | 8 files |
 | Phase 09 P15 | 9 days elapsed across checkpoints | 3 tasks | 52 files |
 | Phase 10 P01 | 22min | 3 tasks | 8 files |
+| Phase 10 P02 | 16min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -214,6 +215,11 @@ Recent decisions affecting current work:
 - [Phase 10]: Unmount inactive mobile sticky add-to-cart actions — Keeps duplicate inactive controls out of keyboard focus while preserving the canonical blocked reason.
 - [Phase 10]: Reuse the cart provider remove and Undo contract in the mini-cart — Maintains one durable feedback state instead of introducing a competing undo stack.
 - [Phase 10]: Translate bounded cart namespaces with createTranslator and the active locale — The current client tree has no NextIntlClientProvider and layout files are outside this plan.
+- [Phase 10]: Vietnam destinations persist canonical official province and ward names after validating reviewed code/name pairs. — Keeps official two-level membership authoritative without a runtime API or schema change.
+- [Phase 10]: Vietnam mobile input accepts only domestic 0-prefix or +84 mobile forms and persists canonical +84 numbers. — Rejects fixed-line and forged shapes consistently at browser-shared and server boundaries.
+- [Phase 10]: Editable checkout drafts are authority-free, versioned, capped at 16KiB, and expire after exactly 12 hours. — Keeps session persistence bounded, disposable, and separate from commerce authority.
+- [Phase 10]: Optional checkout address saves derive identity server-side and reuse the existing RPC/RLS path. — Caller identity fields are rejected and save failure cannot alter checkout or order success.
+- [Phase 10]: Plan 10-02 owns only four exhaustive Vietnam issue mappings in shipping-address-ui. — Plan 10-03 retains interaction, explicit consent, and final copy ownership.
 
 ### Pending Todos
 
@@ -390,6 +396,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-04T06:44:40.217Z
-Stopped at: Completed 10-01-PLAN.md
+Last session: 2026-08-04T07:18:42.242Z
+Stopped at: Completed 10-02-PLAN.md
 Resume file: None

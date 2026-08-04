@@ -463,7 +463,7 @@ Plans:
 **UI hint:** yes
 **Requirements**: MKT-01, MKT-02, MKT-06, CART-01, CART-02, CART-03, CART-04, CART-05, SHIP-03, SHIP-09, SHIP-10, SHIP-11, SHIP-12, SHIP-13, INV-02, INV-03, INV-04, INV-05, ORD-01, ORD-02, PAY-01, PAY-02, PAY-03, PAY-04, PAY-05, PAY-06, PAY-07, PAY-08, ACC-03, OPS-04
 **Depends on:** Phase 9
-**Plans:** 1/7 plans executed
+**Plans:** 2/7 plans executed
 
 **Success Criteria**:
 
@@ -481,7 +481,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 10-02-PLAN.md — Implement official Vietnamese destination, phone, checkout draft, and explicit address save contracts (Wave 2)
+- [x] 10-02-PLAN.md — Implement official Vietnamese destination, phone, checkout draft, and explicit address save contracts (Wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
