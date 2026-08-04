@@ -1,4 +1,3 @@
-import 'server-only';
 import {getClientEnv} from './client';
 import {z} from 'zod';
 

@@ -65,7 +65,7 @@ export default async function ContactPage({params}: {params: Promise<{locale: Lo
             href={getCatalogPath(locale)}
             className="inline-flex min-h-11 items-center font-semibold text-[var(--accent)] underline-offset-4 hover:underline"
           >
-            {navigation('catalog')}
+            {navigation('shop')}
           </Link>
           <Link
             href={getGuestOrderPath(locale)}
