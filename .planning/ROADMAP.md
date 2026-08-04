@@ -475,11 +475,30 @@ Plans:
 6. Bilingual unit, security, Playwright, responsive/accessibility, payment-state, and full CI evidence pass without reopening deferred Phase 09 Vercel geo/SEO UAT.
 
 Plans:
+**Wave 1**
 
 - [ ] 10-01-PLAN.md — Stabilize PDP/cart accessibility, quantity, subtotal, and remove/Undo behavior (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 10-02-PLAN.md — Implement official Vietnamese destination, phone, checkout draft, and explicit address save contracts (Wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 10-03-PLAN.md — Build responsive checkout summary, field feedback, localized copy, and complete blocker presentation (Wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 10-04-PLAN.md — Lock checkout submission and add centralized bilingual support and incident recovery (Wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 10-05-PLAN.md — Simplify payment-state hierarchy, terminal recovery, deadlines, cooldowns, and polling completion (Wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 10-06-PLAN.md — Add safe VietQR guidance/download and the verified-paid success experience (Wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 10-07-PLAN.md — Run full regression, security, responsive Playwright, CI, and manual UAT handoff (Wave 7)
