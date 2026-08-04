@@ -6,12 +6,21 @@ import { formatMoney } from '@/catalog/money';
 import { formatShippingAddressLines } from '@/checkout/shipping-address';
 import { getRequestUser } from '@/auth/request-user';
 import { CheckoutStepper } from '@/components/checkout/checkout-stepper';
+import {SupportLinks} from '@/components/support/support-links';
 import { DownloadPanel } from '@/components/fulfillment/download-panel';
 import { FulfillmentTrackSummary } from '@/components/fulfillment/fulfillment-track-summary';
 import { PhysicalTrackingPanel } from '@/components/fulfillment/physical-tracking-panel';
 import type { Locale } from '@/i18n/routing';
-import { getAccountOrdersPath, getCartPath, getCatalogPath, getCheckoutPath } from '@/i18n/routing';
+import {
+  getAccountOrdersPath,
+  getCartPath,
+  getCatalogPath,
+  getCheckoutPath,
+  getContactPath,
+  getGuestOrderPath
+} from '@/i18n/routing';
 import { getServerEnv } from '@/lib/env/server';
+import {getPublicSupportConfig} from '@/support/config';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { formatPaymentDateTime } from '@/payments/format';
 import { getGuestOrderAccessHashFromServer } from '@/payments/guest-access';
@@ -59,6 +68,7 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
     getRequestUser()
   ]);
   const isSignedIn = Boolean(requestUser);
+  const publicSupportConfig = getPublicSupportConfig();
 
   if (result.status !== 'found') {
     return (
@@ -66,6 +76,17 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
         <Alert variant="destructive">
           <AlertTitle>{t('accessDenied.heading')}</AlertTitle>
           <p>{t('accessDenied.body')}</p>
+          <Link
+            href={getGuestOrderPath(locale)}
+            className="mt-3 inline-flex min-h-11 w-fit items-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white"
+          >
+            {t('accessDenied.recoverGuest')}
+          </Link>
+          <SupportLinks
+            locale={locale}
+            config={publicSupportConfig}
+            contactHref={getContactPath(locale)}
+          />
         </Alert>
       </main>
     );

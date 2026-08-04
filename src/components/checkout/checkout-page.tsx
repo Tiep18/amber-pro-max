@@ -56,10 +56,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {Checkbox} from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
+import {IncidentReference} from '@/components/support/incident-reference';
+import {
+  SupportLinks,
+  type PublicSupportConfig
+} from '@/components/support/support-links';
 import {
   getAccountOrdersPath,
   getCartPath,
   getCatalogPath,
+  getContactPath,
   getGuestOrderPath,
   type Locale
 } from '@/i18n/routing';
@@ -243,13 +249,15 @@ export function CheckoutPage({
   initialEmail = '',
   savedAddresses = [],
   policyLinks = [],
-  isSignedIn = false
+  isSignedIn = false,
+  publicSupportConfig
 }: {
   locale: Locale;
   initialEmail?: string;
   savedAddresses?: CustomerShippingAddress[];
   policyLinks?: CheckoutPolicyLink[];
   isSignedIn?: boolean;
+  publicSupportConfig?: PublicSupportConfig;
 }) {
   const router = useRouter();
   const pageTranslate = createTranslator({
@@ -1089,11 +1097,21 @@ export function CheckoutPage({
                             </Link>
                           ) : null}
                           {submitResult.errorId ? (
-                        <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                          {t.errors.incidentCode}: {submitResult.errorId}
-                        </p>
-                      ) : null}
-                    </Alert>
+                            <IncidentReference
+                              incidentId={submitResult.errorId}
+                              locale={locale}
+                            />
+                          ) : null}
+                          {submitResult.errorId ||
+                          presentation.outcome === 'unknown' ||
+                          !presentation.retryAllowed ? (
+                            <SupportLinks
+                              locale={locale}
+                              config={publicSupportConfig}
+                              contactHref={getContactPath(locale)}
+                            />
+                          ) : null}
+                        </Alert>
                   );
                 })()
               : null}

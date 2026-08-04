@@ -244,10 +244,10 @@ test('checkout separates retryable known failures from unknown order outcomes', 
   assert.match(client, /getAccountOrdersPath\(locale\)/);
   assert.match(client, /getGuestOrderPath\(locale\)/);
   assert.match(client, /idempotencyRef\.current = null/);
-  assert.doesNotMatch(
-    client,
-    /presentation\.outcome === 'unknown'[\s\S]{0,1000}(retryQuote|submit\(\)|Try again)/
-  );
+  const recoveryStart = client.indexOf("presentation.outcome === 'unknown'");
+  const recoveryEnd = client.indexOf('submitResult.errorId ?', recoveryStart);
+  assert.ok(recoveryEnd > recoveryStart);
+  assert.doesNotMatch(client.slice(recoveryStart, recoveryEnd), /retryQuote|submit\(\)|Try again/);
 });
 
 test('checkout removes only final ordered quantities after successful order creation', () => {

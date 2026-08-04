@@ -3,11 +3,13 @@ import { getCustomerShippingAddresses } from '@/account/addresses';
 import { CheckoutPage } from '@/components/checkout/checkout-page';
 import { getPublishedRequiredPolicyLinks } from '@/launch/settings';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import {getPublicSupportConfig} from '@/support/config';
 
 type Params = Promise<{ locale: Locale }>;
 
 export default async function CheckoutRoute({ params }: { params: Params }) {
   const { locale } = await params;
+  const publicSupportConfig = getPublicSupportConfig();
   const policyLinksPromise = getPublishedRequiredPolicyLinks(locale);
   const client = await createSupabaseServerClient();
   const {
@@ -27,6 +29,7 @@ export default async function CheckoutRoute({ params }: { params: Params }) {
       savedAddresses={savedAddresses?.status === 'success' ? savedAddresses.addresses : []}
       policyLinks={policyLinks}
       isSignedIn={Boolean(user)}
+      publicSupportConfig={publicSupportConfig}
     />
   );
 }
