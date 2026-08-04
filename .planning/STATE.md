@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 10-04-PLAN.md
-last_updated: "2026-08-04T08:43:25.435Z"
+stopped_at: Completed 10-05-PLAN.md
+last_updated: "2026-08-04T09:45:37.978Z"
 last_activity: 2026-08-04 -- Phase 10 execution started
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 93
-  completed_plans: 90
+  completed_plans: 91
   percent: 80
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 10 (checkout-and-payment-ux-stabilization-for-vietnamese-and-int) — EXECUTING
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
 Last activity: 2026-08-04 -- Phase 10 execution started
 
@@ -112,6 +112,7 @@ Progress: All 15 Phase 09 plans are executed; deployment geo/SEO UAT remains pen
 | Phase 10 P02 | 16min | 3 tasks | 14 files |
 | Phase 10 P03 | 52min | 3 tasks | 10 files |
 | Phase 10 P04 | 13min | 3 tasks | 14 files |
+| Phase 10 P05 | 19min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -229,6 +230,9 @@ Recent decisions affecting current work:
 - [Phase 10]: Checkout submission uses explicit checking-total and creating-order stages plus an immediate ref guard; all existing requote, guest recovery, idempotency, snapshot, reservation, and completion authority remains unchanged.
 - [Phase 10]: Support values stay server-read, tolerate malformed optional configuration, and cross into clients only as PublicSupportConfig with validated mailto/HTTPS facts.
 - [Phase 10]: The contact and order-denial surfaces render no placeholder channel, sensitive order fact, provider fact, or raw operational error.
+- [Phase 10]: Payment presentation derives next action and deadline visibility from authorized server facts. — The client must not gain payment, inventory, reservation, fulfillment, or entitlement authority.
+- [Phase 10]: Terminal recovery restores eligible immutable purchase intent to cart or routes to localized catalog. — A terminal order is never retried or mutated in place.
+- [Phase 10]: Recheck windows retain one absolute deadline and format timestamps in a validated store timezone. — Rerenders and tab visibility cannot extend the polling window; invalid zones fall back to Asia/Ho_Chi_Minh.
 
 ### Pending Todos
 
@@ -405,6 +409,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-04T08:41:21.869Z
-Stopped at: Completed 10-04-PLAN.md
+Last session: 2026-08-04T09:45:37.965Z
+Stopped at: Completed 10-05-PLAN.md
 Resume file: None
