@@ -205,10 +205,11 @@ export function WishlistProvider({ children, locale }: { children: ReactNode; lo
 export function useWishlistProduct(productId: string) {
   const context = useContext(WishlistContext);
   if (!context) throw new Error('wishlist_context_missing');
-  useEffect(() => context.register(productId), [context, productId]);
+  const { register, selected, setSelected } = context;
+  useEffect(() => register(productId), [productId, register]);
   return {
-    selected: context.selected[productId],
-    setSelected: (value: boolean) => context.setSelected(productId, value)
+    selected: selected[productId],
+    setSelected: (value: boolean) => setSelected(productId, value)
   };
 }
 

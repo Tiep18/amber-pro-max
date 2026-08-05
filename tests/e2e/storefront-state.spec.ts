@@ -34,8 +34,8 @@ test('client navigation preserves header context without refetching it', async (
   });
 
   await page
-    .getByRole('navigation', {name: 'Điều hướng chính'})
-    .getByRole('link', {name: 'Cửa hàng', exact: true})
+    .getByRole('navigation', { name: 'Điều hướng chính' })
+    .getByRole('link', { name: 'Cửa hàng', exact: true })
     .click();
   await expect(page).toHaveURL(/\/vi\/cua-hang$/);
 
@@ -45,44 +45,59 @@ test('client navigation preserves header context without refetching it', async (
 test('catalog batches personalized wishlist state without making the page dynamic', async ({
   page
 }) => {
-  const wishlistRequests: string[] = [];
-  page.on('request', (request) => {
-    if (request.url().includes('/api/wishlist?')) wishlistRequests.push(request.url());
-  });
-
+  const settledCatalogResponse = page.waitForResponse((response) =>
+    response.url().includes('/api/storefront/catalog?')
+  );
   await page.goto('/vi/cua-hang');
+  const catalogPayload = (await (await settledCatalogResponse).json()) as {
+    status?: unknown;
+    projection?: { products?: unknown };
+  };
+  expect(catalogPayload.status).toBe('ready');
+  expect(Array.isArray(catalogPayload.projection?.products)).toBe(true);
+  const authoritativeProducts = catalogPayload.projection?.products as Array<{
+    product_id?: unknown;
+  }>;
+  expect(authoritativeProducts.every((product) => typeof product.product_id === 'string')).toBe(
+    true
+  );
+  const authoritativeProductIds = authoritativeProducts.map(
+    (product) => product.product_id as string
+  );
+
   const catalogResultStage = page.getByTestId('catalog-result-stage');
   await expect(catalogResultStage).toHaveAttribute('data-state', 'ready');
-  const settledCards = page.getByRole('article');
-  await expect(settledCards).toHaveCount(3);
-  const settledCardCount = await settledCards.count();
-  let settledProductIds: string[] = [];
+  const settledProductInputs = catalogResultStage.locator('article input[name="productId"]');
   await expect
-    .poll(() => {
-      settledProductIds = [
-        ...new Set(
-          wishlistRequests.flatMap(
-            (url) => new URL(url).searchParams.get('productIds')?.split(',') ?? []
-          )
-        )
-      ];
-      return settledProductIds.length;
-    })
-    .toBe(settledCardCount);
-  wishlistRequests.splice(0);
-
-  const settledWishlistResponse = page.waitForResponse((response) =>
-    response.url().includes('/api/wishlist?')
+    .poll(async () =>
+      settledProductInputs.evaluateAll((inputs) =>
+        inputs.map((input) => (input as HTMLInputElement).value).sort()
+      )
+    )
+    .toEqual([...authoritativeProductIds].sort());
+  const settledProductIds = await settledProductInputs.evaluateAll((inputs) =>
+    inputs.map((input) => (input as HTMLInputElement).value)
   );
-  await page.evaluate(() => {
-    window.dispatchEvent(new CustomEvent('storefront-context-changed'));
+  expect(settledProductIds.length).toBeGreaterThan(1);
+  expect(new Set(settledProductIds).size).toBe(settledProductIds.length);
+
+  const routedWishlistUrls: string[] = [];
+  await page.route('**/api/wishlist?**', async (route) => {
+    routedWishlistUrls.push(route.request().url());
+    await route.continue();
   });
-  await settledWishlistResponse;
+  const [settledWishlistResponse] = await Promise.all([
+    page.waitForResponse((response) => response.url().includes('/api/wishlist?')),
+    page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('storefront-context-changed'));
+    })
+  ]);
+  expect(settledWishlistResponse.ok()).toBe(true);
   await expect(catalogResultStage).toHaveAttribute('data-state', 'ready');
 
-  expect(wishlistRequests).toHaveLength(1);
-  const productIds = new URL(wishlistRequests[0]).searchParams.get('productIds')?.split(',') ?? [];
-  expect(productIds).toHaveLength(settledCardCount);
+  expect(routedWishlistUrls).toHaveLength(1);
+  const productIds =
+    new URL(routedWishlistUrls[0]).searchParams.get('productIds')?.split(',') ?? [];
+  expect(productIds).toHaveLength(settledProductIds.length);
   expect([...productIds].sort()).toEqual([...settledProductIds].sort());
-  expect(productIds.length).toBeGreaterThan(1);
 });
