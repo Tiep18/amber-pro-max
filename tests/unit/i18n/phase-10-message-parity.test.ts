@@ -39,12 +39,15 @@ describe('Phase 10 bounded message catalog', () => {
     );
   });
 
-  it('explains rejected payments with customer outcome and recovery guidance', () => {
+  it('explains rejected payments with recovery that works without support channels', () => {
     expect(en.orders.status.rejected.body).toBe(
-      'Payment was not confirmed, so the items are no longer held and this order cannot be retried. Restore the items to your cart, or contact support if you believe this is an error.'
+      'Payment was not confirmed, so the items are no longer held and this order cannot be retried. Restore the items to your cart to place a new order.'
     );
     expect(vi.orders.status.rejected.body).toBe(
-      'Thanh toán chưa được xác nhận, nên sản phẩm không còn được giữ và đơn hàng này không thể thử lại. Hãy khôi phục sản phẩm vào giỏ, hoặc liên hệ hỗ trợ nếu bạn cho rằng đây là lỗi.'
+      'Thanh toán chưa được xác nhận, nên sản phẩm không còn được giữ và đơn hàng này không thể thử lại. Hãy khôi phục sản phẩm vào giỏ để đặt đơn hàng mới.'
+    );
+    expect(`${en.orders.status.rejected.body}\n${vi.orders.status.rejected.body}`).not.toMatch(
+      /contact support|liên hệ hỗ trợ/i
     );
   });
 

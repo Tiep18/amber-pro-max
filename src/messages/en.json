@@ -527,7 +527,7 @@
       },
       "rejected": {
         "heading": "Bank transfer rejected",
-        "body": "Payment was not confirmed, so the items are no longer held and this order cannot be retried. Restore the items to your cart, or contact support if you believe this is an error."
+        "body": "Payment was not confirmed, so the items are no longer held and this order cannot be retried. Restore the items to your cart to place a new order."
       },
       "expired": {
         "heading": "Payment window expired",
