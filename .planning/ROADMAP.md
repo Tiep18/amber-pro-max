@@ -2,7 +2,7 @@
 
 ## Overview
 
-The project grows through seven vertical MVP phases. Each phase leaves a usable end-to-end capability: a secure bilingual application, a browsable market-aware catalog, a trustworthy mixed checkout, confirmed payments, complete digital and physical fulfillment, customer-retention tools, and finally a launch-ready content and SEO system. Commerce correctness and access control are established before traffic-building features.
+The project grows through ten vertical MVP and stabilization phases. The first seven establish the end-to-end commerce product; Phases 8-10 harden shipping resolution, independent locale/market behavior, and checkout/payment UX. Commerce correctness and access control are established before traffic-building features.
 
 ## Phases
 
@@ -18,6 +18,9 @@ The project grows through seven vertical MVP phases. Each phase leaves a usable 
 - [x] **Phase 5: Fulfillment and Purchase Access** - Paid customers receive secure PDFs and can follow physical fulfillment without conflating the two workflows. (completed 2026-06-20)
 - [x] **Phase 6: Customer Retention and Trust** - Customers can manage repeat-purchase data, wishlists, reviews, and newsletter relationships. (completed 2026-06-23)
 - [ ] **Phase 7: Content, SEO, and Launch Readiness** - The bilingual store is discoverable, operable, policy-complete, monitored, and verified for launch.
+- [x] **Phase 8: Shipping profile fallbacks, destination zones, and US region surcharges** - Shipping fees resolve predictably through explicit and fallback destination rules. (completed 2026-07-12)
+- [ ] **Phase 9: Independent locale and market commerce projection with SEO-safe ISR and checkout preservation** - Implementation is complete; deployment geo and external SEO UAT remain deferred until a Vercel preview exists.
+- [x] **Phase 10: Checkout and payment UX stabilization for Vietnamese and international customers** - The bilingual cart, checkout, and payment journey is accessible, recovery-safe, and appropriate for Vietnamese customers. (completed 2026-08-11)
 
 ## Phase Details
 
@@ -371,6 +374,8 @@ Phases execute in numeric order. Decimal insertions execute between their surrou
 | 6. Customer Retention and Trust | 10/10 | Complete    | 2026-06-23 |
 | 7. Content, SEO, and Launch Readiness | 9/10 | In Progress|  |
 | 8. Shipping profile fallbacks, destination zones, and US region surcharges | 9/9 | Complete   | 2026-07-12 |
+| 9. Independent locale and market commerce projection with SEO-safe ISR and checkout preservation | 15/15 | Awaiting deployment geo/SEO UAT | - |
+| 10. Checkout and payment UX stabilization for Vietnamese and international customers | 7/7 | Complete | 2026-08-11 |
 
 ### Phase 8: Shipping profile fallbacks, destination zones, and US region surcharges
 

@@ -14,7 +14,7 @@ Customers in Vietnam and international markets can reliably discover, purchase, 
 
 ### Validated
 
-(None yet - ship to validate)
+- [x] Phase 10 stabilized the bilingual cart, checkout, and payment journey with official Vietnamese destination/mobile validation, identity-scoped bounded drafts, one responsive summary model, safe terminal-order recovery, authorized VietQR downloads, and server-authoritative paid/entitlement gates.
 
 ### Active
 
@@ -103,6 +103,11 @@ The website must strengthen brand credibility, reduce dependence on Etsy, suppor
 | Allow admin-reviewed market exceptions | Preserve sales opportunities without bypassing product availability controls automatically | - Pending |
 | Separate type, category, technique, tags, and collections | Keeps product format, merchandising, and discovery concerns flexible and maintainable | - Pending |
 | Allow both guest and account checkout | Minimize purchase friction while offering richer post-purchase features to registered customers | - Pending |
+| Use the official two-level Vietnamese administrative snapshot and normalized mobile numbers at checkout | Reduce undeliverable addresses while keeping authoritative destination requoting intact | ✓ Validated in Phase 10 |
+| Treat checkout drafts as bounded convenience data scoped with a server HMAC | Preserve user input without allowing browser storage to become commerce authority or leak PII across identities | ✓ Validated in Phase 10 |
+| Render mobile and desktop checkout summaries from one immutable view model | Prevent responsive surfaces from owning conflicting totals, destinations, discounts, or blockers | ✓ Validated in Phase 10; residual equality-test risk accepted |
+| Recover terminal payment failures through a fresh cart/order path | Avoid mutating or retrying a terminal order while preserving eligible purchase intent | ✓ Validated in Phase 10 |
+| Authorize VietQR downloads before bounded external image retrieval and retain entitlement checks for digital delivery | Prevent unauthorized provider fetches and keep paid/download truth server-owned | ✓ Validated in Phase 10 |
 
 ## Evolution
 
@@ -122,4 +127,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-12 after initialization*
+*Last updated: 2026-08-11 after Phase 10 transition*

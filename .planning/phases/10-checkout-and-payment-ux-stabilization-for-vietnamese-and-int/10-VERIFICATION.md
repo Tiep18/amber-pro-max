@@ -5,7 +5,7 @@ status: passed
 score: 35/35 must-haves verified
 overrides_applied: 0
 re_verification:
-  previous_status: human_needed
+  previous_status: pending_manual_uat
   previous_score: 35/35
   gaps_closed: []
   gaps_remaining: []
@@ -73,7 +73,7 @@ next_action: "Phase 10 đã đạt goal và sẵn sàng cho bước tiếp theo;
 | P07-3 | Security gates chứng minh PII/auth/provider/requote/reservation/QR/paid/inventory/entitlement boundaries | ✓ VERIFIED | Fresh `npm run test:security` 77/77, bao gồm ASVS checkout/payment matrices. |
 | P07-4 | Full CI xanh trước UAT; Phase 09 geo/SEO bị loại khỏi Phase 10 | ✓ VERIFIED | Recorded release evidence trên final review-fix chain + fresh lint/typecheck/unit/security; không có file Phase 09 geo/SEO bị Phase 10 verifier sửa. |
 
-**Score:** 35/35 truths verified (6 roadmap + 29 PLAN truths). Bốn human checks hậu review-fix đã đóng tại `10-UAT.md`; không còn điều kiện chờ để giữ trạng thái `human_needed`.
+**Score:** 35/35 truths verified (6 roadmap + 29 PLAN truths). Bốn human checks hậu review-fix đã đóng tại `10-UAT.md`; không còn điều kiện chờ kiểm thử thủ công.
 
 ## Required Artifacts
 
