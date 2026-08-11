@@ -139,3 +139,11 @@ export function getServerEnv(source: NodeJS.ProcessEnv = process.env) {
     }
   };
 }
+
+export function requirePrivilegedServerKey(source: NodeJS.ProcessEnv = process.env) {
+  const key = getServerEnv(source).SUPABASE_SECRET_KEY;
+  if (!key) {
+    throw new Error('missing_supabase_secret_key');
+  }
+  return key;
+}

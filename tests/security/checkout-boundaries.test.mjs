@@ -193,6 +193,7 @@ test('checkout draft uses a server-only HMAC account scope without exposing raw 
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
   const draft = readFileSync('src/checkout/editable-draft.ts', 'utf8');
   const scopePath = 'src/checkout/editable-draft-scope.server.ts';
+  const serverEnv = readFileSync('src/lib/env/server.ts', 'utf8');
   assert.ok(existsSync(scopePath), 'authenticated draft scope must live in a server-only module');
   const scope = readFileSync(scopePath, 'utf8');
 
@@ -207,7 +208,12 @@ test('checkout draft uses a server-only HMAC account scope without exposing raw 
   assert.match(scope, /^import 'server-only';/);
   assert.match(scope, /createHmac\(['"]sha256['"],\s*secret\)/);
   assert.match(scope, /checkout-editable-draft:account-scope:v2:/);
-  assert.match(scope, /SUPABASE_SECRET_KEY/);
+  assert.match(scope, /requirePrivilegedServerKey\(source\)/);
+  assert.doesNotMatch(scope, /SUPABASE_SECRET|SECRET_KEY|SERVICE_ROLE|sb_secret_/i);
+  assert.match(
+    serverEnv,
+    /function requirePrivilegedServerKey\([\s\S]*SUPABASE_SECRET_KEY[\s\S]*missing_supabase_secret_key/
+  );
   assert.doesNotMatch(client, /draftScope=.*(?:email|userId|user\.id)/);
 });
 
