@@ -188,18 +188,26 @@ test('checkout prefill uses authenticated server identity and deterministic dest
   assert.match(prefill, /source !== 'prefill'/);
 });
 
-test('checkout draft is scoped by an opaque server-derived identity and cleared on auth transitions', () => {
+test('checkout draft uses a server-only HMAC account scope without exposing raw identity', () => {
   const page = readFileSync('src/app/[locale]/checkout/page.tsx', 'utf8');
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
   const draft = readFileSync('src/checkout/editable-draft.ts', 'utf8');
-  const context = readFileSync('src/components/storefront-context.tsx', 'utf8');
+  const scopePath = 'src/checkout/editable-draft-scope.server.ts';
+  assert.ok(existsSync(scopePath), 'authenticated draft scope must live in a server-only module');
+  const scope = readFileSync(scopePath, 'utf8');
 
-  assert.match(page, /buildCheckoutDraftScope\(user\?\.id\s*\?\?\s*null\)/);
+  assert.match(page, /buildAuthenticatedCheckoutDraftScope\(user\.id\)/);
+  assert.match(page, /CHECKOUT_GUEST_DRAFT_SCOPE/);
   assert.match(page, /draftScope=\{draftScope\}/);
   assert.match(client, /readEditableDraft\(\{[\s\S]*scope:\s*draftScope/);
   assert.match(client, /writeEditableDraft\(\{[\s\S]*scope:\s*draftScope/);
   assert.match(draft, /scope_mismatch/);
-  assert.match(context, /clearBrowserEditableDraft/);
+  assert.match(draft, /atb_checkout_editable_draft_v2/);
+  assert.doesNotMatch(draft, /buildCheckoutDraftScope|userId/);
+  assert.match(scope, /^import 'server-only';/);
+  assert.match(scope, /createHmac\(['"]sha256['"],\s*secret\)/);
+  assert.match(scope, /checkout-editable-draft:account-scope:v2:/);
+  assert.match(scope, /SUPABASE_SECRET_KEY/);
   assert.doesNotMatch(client, /draftScope=.*(?:email|userId|user\.id)/);
 });
 

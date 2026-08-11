@@ -1,7 +1,8 @@
 import type { Locale } from '@/i18n/routing';
 import { getCustomerShippingAddresses } from '@/account/addresses';
 import { CheckoutPage } from '@/components/checkout/checkout-page';
-import {buildCheckoutDraftScope} from '@/checkout/editable-draft';
+import {CHECKOUT_GUEST_DRAFT_SCOPE} from '@/checkout/editable-draft';
+import {buildAuthenticatedCheckoutDraftScope} from '@/checkout/editable-draft-scope.server';
 import { getPublishedRequiredPolicyLinks } from '@/launch/settings';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import {getPublicSupportConfig} from '@/support/config';
@@ -22,7 +23,9 @@ export default async function CheckoutRoute({ params }: { params: Params }) {
       : Promise.resolve(null),
     policyLinksPromise
   ]);
-  const draftScope = buildCheckoutDraftScope(user?.id ?? null);
+  const draftScope = user
+    ? buildAuthenticatedCheckoutDraftScope(user.id)
+    : CHECKOUT_GUEST_DRAFT_SCOPE;
 
   return (
     <CheckoutPage

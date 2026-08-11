@@ -1,15 +1,32 @@
-import {describe, expect, test} from 'vitest';
+import {describe, expect, test, vi} from 'vitest';
+
+vi.mock('server-only', () => ({}));
 
 import {
   CHECKOUT_EDITABLE_DRAFT_MAX_BYTES,
   CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY,
   CHECKOUT_EDITABLE_DRAFT_TTL_MS,
+  CHECKOUT_GUEST_DRAFT_SCOPE,
   clearEditableDraft,
   readEditableDraft,
   writeEditableDraft,
   type EditableDraftStorage
 } from '@/checkout/editable-draft';
-import * as editableDraftModule from '@/checkout/editable-draft';
+
+type DraftScopeModule = {
+  buildAuthenticatedCheckoutDraftScope: (
+    userId: string,
+    source?: NodeJS.ProcessEnv
+  ) => string;
+};
+
+async function loadDraftScopeModule() {
+  try {
+    return await vi.importActual<DraftScopeModule>('@/checkout/editable-draft-scope.server');
+  } catch {
+    return null;
+  }
+}
 
 function memoryStorage(seed: Record<string, string> = {}): EditableDraftStorage & {
   dump: () => Record<string, string>;
@@ -39,22 +56,41 @@ const draft = {
 const scope = 'a'.repeat(64);
 
 describe('editable checkout draft lifecycle', () => {
-  test('derives opaque guest and authenticated scopes without exposing the raw identity', () => {
-    const buildScope = (
-      editableDraftModule as typeof editableDraftModule & {
-        buildCheckoutDraftScope?: (userId: string | null) => string;
-      }
-    ).buildCheckoutDraftScope;
-    expect(typeof buildScope).toBe('function');
+  test('derives deterministic domain-separated account scopes with a server secret', async () => {
+    const scopeModule = await loadDraftScopeModule();
+    expect(scopeModule).not.toBeNull();
+    if (!scopeModule) return;
 
-    const userId = '76000000-0000-4000-8000-000000000001';
-    const guestScope = buildScope!(null);
-    const accountScope = buildScope!(userId);
+    const source: NodeJS.ProcessEnv = {
+      NODE_ENV: 'test',
+      NEXT_PUBLIC_SITE_URL: 'https://shop.example.test',
+      NEXT_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key',
+      SUPABASE_SECRET_KEY: 'test-only-strong-server-secret-with-more-than-32-bytes'
+    };
+    const firstUserId = '76000000-0000-4000-8000-000000000001';
+    const secondUserId = '76000000-0000-4000-8000-000000000002';
+    const firstScope = scopeModule.buildAuthenticatedCheckoutDraftScope(firstUserId, source);
 
-    expect(guestScope).toMatch(/^[a-f0-9]{64}$/);
-    expect(accountScope).toMatch(/^[a-f0-9]{64}$/);
-    expect(accountScope).not.toBe(guestScope);
-    expect(accountScope).not.toContain(userId);
+    expect(firstScope).toMatch(/^[a-f0-9]{64}$/);
+    expect(scopeModule.buildAuthenticatedCheckoutDraftScope(firstUserId, source)).toBe(firstScope);
+    expect(scopeModule.buildAuthenticatedCheckoutDraftScope(secondUserId, source)).not.toBe(firstScope);
+    expect(firstScope).not.toContain(firstUserId);
+    expect(firstScope).not.toBe(CHECKOUT_GUEST_DRAFT_SCOPE);
+  });
+
+  test('discards public version-one scope records instead of restoring them', () => {
+    const legacyKey = 'atb_checkout_editable_draft_v1';
+    const storage = memoryStorage({
+      [legacyKey]: JSON.stringify({...strictStored(), version: 1})
+    });
+
+    expect(CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY).toBe('atb_checkout_editable_draft_v2');
+    expect(readEditableDraft({storage, scope, now: () => strictStored().savedAt + 1})).toEqual({
+      status: 'discarded',
+      reason: 'unsupported_version'
+    });
+    expect(storage.dump()).toEqual({});
   });
 
   test('removes a draft when its opaque identity scope does not match the current checkout', () => {
@@ -97,7 +133,7 @@ describe('editable checkout draft lifecycle', () => {
 
   test.each([
     ['malformed JSON', '{', 'malformed'],
-    ['unknown version', JSON.stringify({...strictStored(), version: 2}), 'unsupported_version'],
+    ['unknown version', JSON.stringify({...strictStored(), version: 3}), 'unsupported_version'],
     ['extra authority field', JSON.stringify({...strictStored(), quoteHash: 'forged'}), 'malformed'],
     ['forged expiry', JSON.stringify({...strictStored(), expiresAt: strictStored().expiresAt + 1}), 'malformed']
   ])('removes %s records', (_name, raw, reason) => {
@@ -145,7 +181,7 @@ describe('editable checkout draft lifecycle', () => {
 function strictStored() {
   const savedAt = 1_750_000_000_000;
   return {
-    version: 1,
+    version: 2,
     scope: 'a'.repeat(64),
     savedAt,
     expiresAt: savedAt + CHECKOUT_EDITABLE_DRAFT_TTL_MS,

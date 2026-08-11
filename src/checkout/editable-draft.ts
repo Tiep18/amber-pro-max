@@ -3,10 +3,12 @@
 
 import {sha256} from '@/catalog/sha256';
 
-export const CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY = 'atb_checkout_editable_draft_v1';
+const LEGACY_CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY = 'atb_checkout_editable_draft_v1';
+export const CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY = 'atb_checkout_editable_draft_v2';
 export const CHECKOUT_EDITABLE_DRAFT_TTL_MS = 12 * 60 * 60 * 1000;
 export const CHECKOUT_EDITABLE_DRAFT_MAX_BYTES = 16 * 1024;
-export const CHECKOUT_EDITABLE_DRAFT_VERSION = 1 as const;
+export const CHECKOUT_EDITABLE_DRAFT_VERSION = 2 as const;
+export const CHECKOUT_GUEST_DRAFT_SCOPE = sha256('checkout-editable-draft:guest-scope:v2');
 
 export type EditableDraftStorage = {
   getItem: (key: string) => string | null;
@@ -104,10 +106,6 @@ function isSupportedStoredDraft(value: unknown): value is StoredEditableDraft {
   );
 }
 
-export function buildCheckoutDraftScope(userId: string | null) {
-  return sha256(`checkout-editable-draft:v1:${userId ?? 'guest'}`);
-}
-
 function trimNullable(value: string | null) {
   if (value === null) return null;
   return value.trim();
@@ -144,6 +142,13 @@ function discard(storage: EditableDraftStorage, reason: Extract<EditableDraftRea
   return {status: 'discarded', reason};
 }
 
+function discardLegacyDraft(storage: EditableDraftStorage) {
+  const legacy = storage.getItem(LEGACY_CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY);
+  if (!legacy) return false;
+  storage.removeItem(LEGACY_CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY);
+  return true;
+}
+
 export function readEditableDraft({
   storage,
   scope,
@@ -155,12 +160,18 @@ export function readEditableDraft({
 }): EditableDraftReadResult {
   if (!storage) return {status: 'unavailable'};
   let raw: string | null;
+  let discardedLegacy: boolean;
   try {
+    discardedLegacy = discardLegacyDraft(storage);
     raw = storage.getItem(CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY);
   } catch {
     return {status: 'unavailable'};
   }
-  if (!raw) return {status: 'empty'};
+  if (!raw) {
+    return discardedLegacy
+      ? {status: 'discarded', reason: 'unsupported_version'}
+      : {status: 'empty'};
+  }
   if (utf8Size(raw) > CHECKOUT_EDITABLE_DRAFT_MAX_BYTES) return discard(storage, 'oversized');
 
   let parsed: unknown;
@@ -208,6 +219,7 @@ export function writeEditableDraft({
     return {status: 'too_large'};
   }
   try {
+    discardLegacyDraft(storage);
     storage.setItem(CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY, raw);
     return {status: 'written', draft: stored};
   } catch {
@@ -218,6 +230,7 @@ export function writeEditableDraft({
 export function clearEditableDraft(storage: EditableDraftStorage | null): EditableDraftClearResult {
   if (!storage) return {status: 'unavailable'};
   try {
+    storage.removeItem(LEGACY_CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY);
     storage.removeItem(CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY);
     return {status: 'cleared'};
   } catch {
