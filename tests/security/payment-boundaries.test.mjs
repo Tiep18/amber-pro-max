@@ -215,11 +215,13 @@ test('VietQR attachment authorizes the localized order before deriving or fetchi
   assert.ok(existsSync(vietQrDownloadRoute));
   const source = readFileSync(vietQrDownloadRoute, 'utf8');
   const authorizedLookup = source.lastIndexOf('getAuthorizedOrderPayment(');
+  const paymentWindowCheck = source.lastIndexOf('isVietQrPaymentWindowOpen(');
   const quickLink = source.lastIndexOf('buildQuickLinkUrl(');
   const externalFetch = source.indexOf('fetch(');
 
   assert.ok(authorizedLookup >= 0);
-  assert.ok(quickLink > authorizedLookup);
+  assert.ok(paymentWindowCheck > authorizedLookup);
+  assert.ok(quickLink > paymentWindowCheck);
   assert.ok(externalFetch > quickLink);
   assert.match(source, /getGuestOrderAccessHashFromServer\(orderNumber\)/);
   assert.match(source, /auth\.getUser\(\)/);

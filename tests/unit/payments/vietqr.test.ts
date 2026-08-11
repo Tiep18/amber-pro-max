@@ -25,6 +25,7 @@ import {
   type VietQrInstructionOrder,
   type VietQrServerConfig
 } from '@/payments/vietqr/instructions';
+import * as vietQrInstructions from '@/payments/vietqr/instructions';
 import {getOrderQrDownloadPath} from '@/i18n/routing';
 
 const vietQrInstructionContract = {
@@ -218,6 +219,22 @@ const reviewBlockedDetail = {
 };
 
 describe('VietQR instruction and evidence contract', () => {
+  test.each([
+    ['missing', null, false],
+    ['invalid', 'not-a-date', false],
+    ['expired', '2026-06-16T08:59:59.999Z', false],
+    ['exact boundary', '2026-06-16T09:00:00.000Z', false],
+    ['future', '2026-06-16T09:00:00.001Z', true]
+  ])('treats a %s reservation deadline as QR-download eligible=%s', (_name, deadline, expected) => {
+    const predicate = (
+      vietQrInstructions as typeof vietQrInstructions & {
+        isVietQrPaymentWindowOpen?: (deadline: string | null, nowMs: number) => boolean;
+      }
+    ).isVietQrPaymentWindowOpen;
+    expect(typeof predicate).toBe('function');
+    expect(predicate!(deadline, Date.parse('2026-06-16T09:00:00.000Z'))).toBe(expected);
+  });
+
   beforeEach(() => {
     recordOperationalFailureMock.mockReset();
     recordOperationalFailureMock.mockImplementation(async () => ({

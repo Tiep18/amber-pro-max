@@ -97,6 +97,14 @@ export function buildVietQrDownloadFilename(orderNumber: string) {
   return `vietqr-${safeOrderNumber || 'order'}.png`;
 }
 
+export function isVietQrPaymentWindowOpen(
+  reservationExpiresAt: string | null,
+  nowMs = Date.now()
+) {
+  const deadlineMs = reservationExpiresAt ? Date.parse(reservationExpiresAt) : Number.NaN;
+  return Number.isFinite(deadlineMs) && deadlineMs > nowMs;
+}
+
 function validateOrder(order: VietQrInstructionOrder, now: Date): VietQrInstructionResult | null {
   if (order.market !== 'vn' || order.currencyCode !== 'VND' || order.paymentIntent !== 'vietqr_intent' || isTerminalStatus(order.paymentStatus)) {
     return {status: 'invalid', code: 'vietqr_order_not_eligible'};
@@ -110,8 +118,7 @@ function validateOrder(order: VietQrInstructionOrder, now: Date): VietQrInstruct
     return {status: 'invalid', code: 'invalid_vietqr_reference'};
   }
 
-  const deadlineMs = order.reservationExpiresAt ? Date.parse(order.reservationExpiresAt) : Number.NaN;
-  if (!Number.isFinite(deadlineMs) || deadlineMs <= now.getTime()) {
+  if (!isVietQrPaymentWindowOpen(order.reservationExpiresAt, now.getTime())) {
     return {status: 'invalid', code: 'vietqr_payment_window_closed'};
   }
 

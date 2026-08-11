@@ -7,7 +7,8 @@ import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
 import {getAuthorizedOrderPayment} from '@/payments/queries';
 import {
   buildQuickLinkUrl,
-  buildVietQrDownloadFilename
+  buildVietQrDownloadFilename,
+  isVietQrPaymentWindowOpen
 } from '@/payments/vietqr/instructions';
 
 export const dynamic = 'force-dynamic';
@@ -116,6 +117,7 @@ export async function GET(
     order.paymentIntent !== 'vietqr_intent' ||
     order.provider !== 'vietqr' ||
     order.paymentStatus !== 'pending' ||
+    !isVietQrPaymentWindowOpen(order.reservationExpiresAt) ||
     !Number.isInteger(order.amountMinor) ||
     order.amountMinor <= 0
   ) {
