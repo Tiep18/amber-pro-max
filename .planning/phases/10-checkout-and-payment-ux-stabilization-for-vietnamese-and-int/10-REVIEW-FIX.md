@@ -1,102 +1,73 @@
 ---
 phase: 10-checkout-and-payment-ux-stabilization-for-vietnamese-and-int
-fixed_at: 2026-08-11T09:34:19.6444034Z
+fixed_at: 2026-08-11T09:53:42.8749809Z
 review_path: .planning/phases/10-checkout-and-payment-ux-stabilization-for-vietnamese-and-int/10-REVIEW.md
-iteration: 2
-findings_in_scope: 4
-fixed: 4
+iteration: 3
+findings_in_scope: 1
+fixed: 1
 skipped: 0
 status: all_fixed
 ---
 
 # Phase 10: Code Review Fix Report
 
-**Fixed at:** 2026-08-11T09:34:19.6444034Z
+**Fixed at:** 2026-08-11T09:53:42.8749809Z
 
 **Source review:** `.planning/phases/10-checkout-and-payment-ux-stabilization-for-vietnamese-and-int/10-REVIEW.md`
 
-**Iteration:** 2
+**Iteration:** 3
 
 ## Summary
 
-- Findings in scope this iteration: 4
-- Fixed this iteration: 4
+- Findings in scope this iteration: 1
+- Fixed this iteration: 1
 - Skipped this iteration: 0
-- Cumulative review-fix history: 9 findings fixed, 0 skipped across iterations 1 and 2
-- No package, lockfile, migration, schema, generated database type, or RLS change was introduced
+- Cumulative review-fix history: 10 findings fixed, 0 skipped across iterations 1, 2, and 3
+- No package, lockfile, migration, environment, schema, generated database type, or RLS change was introduced
 
 ## Fixed Issues
 
-### CR-01: Draft scope là hash công khai có thể đối chiếu ngược với danh tính ứng viên
+### WR-01: Nhánh VietQR rejected chọn key không tồn tại nên copy recovery mới không bao giờ hiển thị
 
 **Status:** fixed: requires human verification
 
-**Files modified:** `src/app/[locale]/checkout/page.tsx`, `src/checkout/editable-draft-scope.server.ts`, `src/checkout/editable-draft.ts`, `src/lib/env/server.ts`, `tests/unit/checkout/editable-draft.test.ts`, `tests/security/checkout-boundaries.test.mjs`
+**Files modified:** `src/components/payments/order-payment-page.tsx`, `tests/unit/payments/order-payment-page-message.test.ts`
 
-**Commits:** `ba5d3d1b`, `e66d9376`
+**Commit:** `b2747fcc`
 
-**Applied fix:** Chuyển account-scope builder sang module `server-only`, dùng HMAC-SHA-256 với khóa đặc quyền hiện hữu được đọc tập trung từ `SUPABASE_SECRET_KEY`, và domain separation phiên bản `checkout-editable-draft:account-scope:v2:`. Client chỉ nhận digest 64 ký tự; raw identity và raw key không đi qua client/shared module hoặc log. Guest scope dùng domain v2 riêng, cố định và không chứa PII. Storage key/schema tăng lên v2; thao tác đọc, ghi và xóa đều loại record v1 công khai.
+**Applied fix:** Loại `rejected` khỏi nhánh chọn copy riêng cho VietQR. Trạng thái terminal này giờ dùng `orders.status.rejected.body` chung ở cả tiếng Anh và tiếng Việt, đúng với payment status model và giữ nguyên hướng dẫn khôi phục giỏ độc lập với kênh support. Thêm test component-consumer gọi thật `OrderPaymentPage` với order VietQR rejected, translator runtime thật và catalog thật cho `en`/`vi`; test xác nhận body recovery được truyền xuống `PaymentStatePanel`, không trả literal key, không phát `MISSING_MESSAGE`, và không chứa giả định liên hệ support.
 
-### WR-01: Auth notifier xóa draft hợp lệ trước khi biết scope có đổi hoặc sign-out thành công
+## Skipped Issues
 
-**Status:** fixed: requires human verification
-
-**Files modified:** `src/components/storefront-context.tsx`, `tests/unit/components/storefront-context-notifier.test.ts`, `tests/security/checkout-boundaries.test.mjs`
-
-**Commit:** `8bfca299`
-
-**Applied fix:** Bỏ thao tác xóa draft vô điều kiện khỏi notifier storefront chung. Notifier chỉ phát tín hiệu thay đổi/invalidation; checkout giữ draft khi auth thất bại hoặc identity vẫn cùng scope, còn `readEditableDraft` tự loại record bằng `scope_mismatch` sau khi scope xác thực thực sự đổi.
-
-### WR-02: Test deadline VietQR không chạy route nên chưa chứng minh upstream không được gọi
-
-**Status:** fixed
-
-**Files modified:** `tests/unit/payments/vietqr-download-route.test.ts`
-
-**Commit:** `fb9b7f64`
-
-**Applied fix:** Thêm runtime route tests với fake clock và mock đúng các biên auth/query/upstream. Các nhánh unauthorized, deadline thiếu, sai, hết hạn và đúng biên đều trả generic 404; URL builder và `fetch` không được gọi. Deadline tương lai là control duy nhất được phép gọi upstream. Route production không cần refactor.
-
-### WR-03: Copy rejected luôn yêu cầu liên hệ support dù có thể không có kênh support
-
-**Status:** fixed
-
-**Files modified:** `src/messages/en.json`, `src/messages/vi.json`, `tests/unit/i18n/phase-10-message-parity.test.ts`
-
-**Commit:** `c2089d37`
-
-**Applied fix:** Thay body rejected bằng hướng dẫn recovery độc lập với support ở cả tiếng Anh và tiếng Việt: giải thích kết quả, yêu cầu khôi phục sản phẩm vào giỏ và đặt đơn mới. Test cấm giả định `contact support`/`liên hệ hỗ trợ`; cấu hình zero-channel và configured-channel đều có hành động hợp lệ.
+None.
 
 ## TDD Evidence
 
-- **CR-01 RED:** unit test thất bại vì server HMAC module chưa tồn tại và storage/schema vẫn v1; security test thất bại vì account scope còn được dựng bằng SHA-256 công khai. **GREEN:** 12/12 draft unit, checkout/secret security 20/20, typecheck và diff check.
-- **WR-01 RED:** cả hai notifier tests thất bại vì draft bị xóa ngay khi notifier chạy; source boundary cũng phát hiện `clearBrowserEditableDraft`. **GREEN:** 14/14 focused unit và 19/19 checkout security, typecheck và diff check.
-- **WR-02 mutation RED:** sau khi tạm vô hiệu deadline guard, bốn case missing/invalid/expired/exact-boundary đều trả 200 thay vì 404. Mutation được khôi phục trước commit. **GREEN:** 34/34 VietQR unit và 20/20 payment security, typecheck; route production không còn diff.
-- **WR-03 RED:** message parity test nhận copy luôn giả định support. **GREEN:** 20/20 message/support unit, JSON parse, Vietnamese diacritics và typecheck.
+- **RED:** Sau khi cô lập các dependency server/client không thuộc phạm vi, test runtime thất bại 2/2 cho `en` và `vi`: component truyền literal `orders.status.rejected.vietqrBody` thay vì copy recovery mong đợi. Đây là đúng triệu chứng `MISSING_MESSAGE` của review, không phải kiểm tra parity tĩnh.
+- **GREEN:** Sau thay đổi production một dòng, test runtime mới cùng message parity và payment status mapping passed 24/24. Test giữ các assertion cấm literal key, cấm lỗi translator và cấm `contact support`/`liên hệ hỗ trợ`.
 
 ## Verification
 
-- Focused aggregate: 68/68 unit tests và 39/39 checkout/payment security tests passed.
-- `npm run lint`: passed.
+- Focused unit/message/runtime: 24/24 passed (`order-payment-page-message`, `phase-10-message-parity`, `status-mapping`).
+- Payment UX Playwright trên local Supabase và cấu hình provider từ môi trường kín: 4/4 passed, gồm mọi trạng thái payment, VietQR song ngữ, unauthorized recovery và terminal recovery.
 - `npm run typecheck`: passed.
-- `npm run check:vi-diacritics`: passed; UTF-8 tiếng Việt được xác nhận bằng source search và JSON parse.
-- `npm run test:security`: 77/77 passed, gồm secret scanner sau khi giữ tên privileged key trong module env tập trung.
-- Full CI prefix trên local Supabase: lint, typecheck, diacritics, 987/987 unit tests, DB reset/lint, 942 pgTAP assertions và generated-type diff passed.
-- Lần `npm run ci` duy nhất dừng ở build vì worktree ban đầu dùng junction `node_modules` trỏ ra ngoài filesystem root của Turbopack. Junction được thay bằng dependency install cục bộ không đổi package/lock; không chạy lại full CI.
-- CI suffix trên cùng HEAD và local Supabase: production build passed, 77/77 security passed, DB reset passed.
-- Full Playwright trên `http://localhost:3210` ghi nhận đúng một failure do worktree chưa nạp VietQR provider config; `.last-run.json` chỉ có một failed test ID. Sau khi nạp `.env.local` kín, vẫn override Supabase bằng local CLI values và giữ port 3210, focused rerun của test VietQR thất bại trước đó passed 1/1.
-- Phase 09 Vercel geo/external SEO UAT vẫn deferred và không bị thay đổi.
+- `npm run lint`: passed.
+- `npm run check:vi-diacritics`: passed.
+- `npm run test:security`: 77/77 passed.
+- `git diff --check`: passed; file test mới đã được Prettier kiểm tra.
+- Playwright web server ghi log cảnh báo LCP và một số `ECONNRESET` khi đóng request, nhưng tiến trình kết thúc exit 0 và không có test failure.
 
 ## Cumulative Iteration Evidence
 
 - Iteration 1: 5 findings fixed, 0 skipped (`fdf88d1c`, `f3ea4c6e`, `3a4bf880`, `9d003ed9`, `a2dfc0e0`).
 - Iteration 2: 4 findings fixed, 0 skipped (`ba5d3d1b`, `e66d9376`, `8bfca299`, `fb9b7f64`, `c2089d37`).
-- Cumulative: 9 findings fixed, 0 skipped.
+- Iteration 3: 1 finding fixed, 0 skipped (`b2747fcc`).
+- Cumulative: 10 findings fixed, 0 skipped.
 
 ---
 
-_Fixed: 2026-08-11T09:34:19.6444034Z_
+_Fixed: 2026-08-11T09:53:42.8749809Z_
 
 _Fixer: the agent (gsd-code-fixer)_
 
-_Iteration: 2_
+_Iteration: 3_
