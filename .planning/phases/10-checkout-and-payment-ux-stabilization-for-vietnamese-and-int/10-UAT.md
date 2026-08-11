@@ -1,19 +1,24 @@
 ---
 phase: 10-checkout-and-payment-ux-stabilization-for-vietnamese-and-int
-status: testing
+status: complete
 source:
   - 10-VERIFICATION.md
 started: 2026-08-11T10:08:36Z
-updated: 2026-08-11T10:08:36Z
+updated: 2026-08-11T10:47:00Z
 ---
 
 # Phase 10 — Post-review UAT
 
 Đây là checkpoint UAT hẹp cho các thay đổi user-visible được sửa sau lần duyệt Phase 10 ban đầu. Phase 09 geo/SEO không thuộc checkpoint này.
 
+## Current Test
+
+[testing complete]
+
 ## Test 1 — Checkout draft qua thay đổi danh tính
 
-**Trạng thái:** pending
+result: pass
+evidence: Playwright chạy luồng tài khoản A → B và guest → account trong cùng tab; 1/1 test pass ngày 2026-08-11.
 
 1. Trong cùng một tab, đăng nhập tài khoản A và nhập email/địa chỉ checkout nhưng chưa đặt hàng.
 2. Đăng xuất rồi đăng nhập tài khoản B, mở lại checkout.
@@ -26,7 +31,8 @@ updated: 2026-08-11T10:08:36Z
 
 ## Test 2 — Copy và accessible name tiếng Việt
 
-**Trạng thái:** pending
+result: pass
+evidence: Người dùng xác nhận copy `/vi/lien-he` đúng; focused i18n/accessibility unit 11/11 pass.
 
 1. Mở `/vi/lien-he`.
 2. Xác nhận cảnh báo bảo mật hiển thị tiếng Việt đúng dấu, không có ký tự lỗi/méo chữ.
@@ -37,7 +43,8 @@ updated: 2026-08-11T10:08:36Z
 
 ## Test 3 — VietQR hết hạn và link QR cũ
 
-**Trạng thái:** pending
+result: pass
+evidence: Người dùng xác nhận trang expired; runtime QR deadline tests 6/6 pass.
 
 1. Mở một đơn VietQR đã hết hạn.
 2. Xác nhận trang không còn hướng dẫn chuyển khoản hoặc nút tải QR.
@@ -49,7 +56,8 @@ updated: 2026-08-11T10:08:36Z
 
 ## Test 4 — VietQR rejected ở cả hai locale
 
-**Trạng thái:** pending
+result: pass
+evidence: Người dùng xác nhận bản tiếng Việt; browser verification xác nhận bản tiếng Anh tương đương, không literal key/MISSING_MESSAGE và không retry cùng order.
 
 1. Mở một đơn VietQR trạng thái `rejected` dưới `/vi` và `/en`.
 2. Xác nhận không xuất hiện literal key `orders.status.rejected.vietqrBody`, `MISSING_MESSAGE`, hoặc nội dung mặc định giả định luôn có kênh hỗ trợ.
@@ -63,9 +71,9 @@ updated: 2026-08-11T10:08:36Z
 | Kết quả | Số lượng |
 |---|---:|
 | Total | 4 |
-| Passed | 0 |
+| Passed | 4 |
 | Issues | 0 |
-| Pending | 4 |
+| Pending | 0 |
 | Skipped | 0 |
 | Blocked | 0 |
 
