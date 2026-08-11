@@ -21,9 +21,7 @@ export default async function ContactPage({params}: {params: Promise<{locale: Lo
           <h1 className="text-[28px] font-semibold leading-tight">{t('heading')}</h1>
           <p className="max-w-[68ch] leading-6 text-[var(--muted-foreground)]">{t('body')}</p>
           <p className="max-w-[68ch] text-sm leading-6 text-[var(--destructive)]">
-            {locale === 'vi'
-              ? 'KhÃ´ng chia sáº» máº­t kháº©u, thÃ´ng tin Ä‘Äƒng nháº­p ngÃ¢n hÃ ng hoáº·c liÃªn káº¿t truy cáº­p Ä‘Æ¡n hÃ ng.'
-              : 'Do not share passwords, bank credentials, or private order-access links.'}
+            {t('securityNotice')}
           </p>
         </header>
 

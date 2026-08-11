@@ -52,4 +52,15 @@ describe('Phase 10 bounded message catalog', () => {
     expect(vi.payments).toHaveProperty('vietqr');
     expect(vi.support).toHaveProperty('contact');
   });
+
+  it('keeps the contact security notice localized and valid UTF-8', () => {
+    expect(en.support.contact).toHaveProperty('securityNotice');
+    expect(vi.support.contact).toHaveProperty('securityNotice');
+    expect((vi.support.contact as {securityNotice?: string}).securityNotice).toBe(
+      'Không chia sẻ mật khẩu, thông tin đăng nhập ngân hàng hoặc liên kết truy cập đơn hàng riêng tư.'
+    );
+    expect(JSON.stringify({en: en.support.contact, vi: vi.support.contact})).not.toMatch(
+      /Ã.|Â.|â€|Ä‘/
+    );
+  });
 });

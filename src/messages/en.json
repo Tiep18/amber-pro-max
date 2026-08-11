@@ -286,6 +286,7 @@
     "contact": {
       "heading": "Contact support",
       "body": "Choose an available contact method and include your order number or incident ID.",
+      "securityNotice": "Do not share passwords, bank credentials, or private order-access links.",
       "email": "Email support",
       "zalo": "Contact us on Zalo",
       "unavailable": "Support contact methods are temporarily unavailable. Return to the shop and try again later."

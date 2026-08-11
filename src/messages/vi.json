@@ -286,6 +286,7 @@
     "contact": {
       "heading": "Liên hệ hỗ trợ",
       "body": "Chọn một kênh liên hệ đang khả dụng và cung cấp mã đơn hàng hoặc mã sự cố.",
+      "securityNotice": "Không chia sẻ mật khẩu, thông tin đăng nhập ngân hàng hoặc liên kết truy cập đơn hàng riêng tư.",
       "email": "Gửi email hỗ trợ",
       "zalo": "Liên hệ qua Zalo",
       "unavailable": "Các kênh hỗ trợ đang tạm thời không khả dụng. Hãy quay lại cửa hàng và thử lại sau."
