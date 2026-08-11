@@ -11,7 +11,6 @@ import {
   type ReactNode
 } from 'react';
 import { commitActiveMarketAction } from '@/catalog/market-actions';
-import {clearBrowserEditableDraft} from '@/checkout/editable-draft';
 import { isMarketCode, type MarketCode } from '@/catalog/market';
 import type { Locale } from '@/i18n/routing';
 import {
@@ -63,7 +62,6 @@ export function notifyStorefrontContextInvalidated() {
 export function notifyStorefrontContextChanged() {
   if (typeof window === 'undefined') return;
 
-  clearBrowserEditableDraft();
   window.dispatchEvent(new CustomEvent(STOREFRONT_CONTEXT_CHANGED));
   notifyStorefrontContextInvalidated();
 }

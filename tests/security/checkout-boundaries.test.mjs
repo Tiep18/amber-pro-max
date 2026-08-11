@@ -211,6 +211,14 @@ test('checkout draft uses a server-only HMAC account scope without exposing raw 
   assert.doesNotMatch(client, /draftScope=.*(?:email|userId|user\.id)/);
 });
 
+test('generic storefront context invalidation never pre-clears an editable checkout draft', () => {
+  const context = readFileSync('src/components/storefront-context.tsx', 'utf8');
+
+  assert.doesNotMatch(context, /clearBrowserEditableDraft/);
+  assert.match(context, /window\.dispatchEvent\(new CustomEvent\(STOREFRONT_CONTEXT_CHANGED\)\)/);
+  assert.match(context, /notifyStorefrontContextInvalidated\(\)/);
+});
+
 test('checkout completion icons use the active-locale accessible name', () => {
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
   assert.doesNotMatch(client, /aria-label=['"]Complete['"]/);
