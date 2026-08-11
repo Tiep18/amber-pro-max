@@ -1,33 +1,30 @@
 ---
 phase: 10-checkout-and-payment-ux-stabilization-for-vietnamese-and-int
-verified: 2026-08-11T10:08:36Z
-status: human_needed
+verified: 2026-08-11T10:48:35Z
+status: passed
 score: 35/35 must-haves verified
 overrides_applied: 0
-human_verification:
-  - test: "Draft checkout khi đổi danh tính trong cùng tab"
-    expected: "Draft của tài khoản A hoặc guest không xuất hiện cho tài khoản B; draft hợp lệ không bị xóa chỉ vì notifier chạy khi danh tính thực tế chưa đổi."
-    why_human: "Luồng auth/draft đã thay đổi sau UAT ngày 2026-08-11; cần xác nhận cảm nhận khôi phục dữ liệu và chuyển phiên thực tế."
-  - test: "Copy và accessible name tiếng Việt sau review-fix"
-    expected: "Trang /vi/lien-he hiển thị cảnh báo bảo mật tiếng Việt đúng Unicode; icon hoàn tất checkout được công nghệ hỗ trợ đọc bằng tên tiếng Việt, không phải Complete."
-    why_human: "Đây là copy và trải nghiệm assistive user-visible được sửa sau lần UAT đã duyệt."
-  - test: "VietQR hết hạn và link QR cũ"
-    expected: "Order hết hạn không còn hướng dẫn/tải QR để thanh toán; mở link tải QR cũ bị từ chối chung, không làm lộ order và không khuyến khích chuyển khoản sau hạn."
-    why_human: "Deadline guard đã được thêm sau UAT; unit/runtime/security đều pass nhưng hành trình khách hàng ở ranh giới hết hạn chưa được người dùng tái duyệt."
-  - test: "Recovery của VietQR rejected ở cả hai locale"
-    expected: "Order rejected hiển thị copy recovery hoàn chỉnh ở /vi và /en, không hiện literal key/MISSING_MESSAGE, không giả định có support; hành động chính là khôi phục giỏ hoặc xem catalog, không retry cùng order."
-    why_human: "Nhánh chọn message rejected là thay đổi user-visible cuối cùng sau UAT và là finding iteration 3."
-next_action: "Thực hiện 4 kiểm tra UAT hẹp ở trên; nếu đạt, cập nhật xác nhận human để Phase 10 có thể chuyển từ human_needed sang passed."
+re_verification:
+  previous_status: human_needed
+  previous_score: 35/35
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
+human_verification_completed:
+  source: 10-UAT.md
+  commit: 65d4a1457fd663ab5c3cb908584a59303d13514b
+  result: 4/4 passed, 0 issues
+next_action: "Phase 10 đã đạt goal và sẵn sàng cho bước tiếp theo; Phase 09 geo/SEO vẫn là phạm vi UAT riêng."
 ---
 
 # Phase 10: Checkout and payment UX stabilization Verification Report
 
 **Phase Goal:** Làm hành trình cart, checkout và payment song ngữ rõ ràng, accessible, recovery-safe và phù hợp khách Việt Nam mà không làm yếu pricing, shipping, inventory, payment hoặc entitlement authority ở server.
 
-**Verified:** 2026-08-11T10:08:36Z  
-**Status:** human_needed  
-**Re-verification:** Không — đây là verification đầu tiên; không có `10-VERIFICATION.md` trước đó.  
-**Kết luận:** Không có gap kỹ thuật. Toàn bộ must-have được xác minh, nhưng UAT ngày 2026-08-11 không tự động bao phủ các thay đổi user-visible thực hiện sau đó trong ba vòng review-fix.
+**Verified:** 2026-08-11T10:48:35Z
+**Status:** passed
+**Re-verification:** Có — sau khi hoàn tất UAT hậu review tại commit `65d4a145`.
+**Kết luận:** Không có gap kỹ thuật hoặc human-verification còn mở. Toàn bộ must-have được xác minh và bốn hành vi user-visible thay đổi sau review-fix đã được UAT lại với kết quả 4/4 pass, 0 issue.
 
 ## Goal Achievement
 
@@ -40,7 +37,7 @@ next_action: "Thực hiện 4 kiểm tra UAT hẹp ở trên; nếu đạt, cậ
 | R3 | Address save, draft, support, incident và guest recovery tuân consent/PII/auth/non-enumeration | ✓ VERIFIED | Draft v2 TTL 12h/16KiB/HMAC scope tại `editable-draft.ts` và `editable-draft-scope.server.ts`; server-derived address identity tại `address-actions.ts:282-300`; validated support DTO tại `support/config.ts`; generic denial tại `order-payment-page.tsx:74-94`. |
 | R4 | Mỗi payment state có next action đúng; terminal phục hồi qua cart mới; paid/terminal không có deadline; same-order retry bị cấm | ✓ VERIFIED | Pure mapping `payments/status.ts:119-178`, `sameOrderRetryAllowed:false`; recovery model `order-recovery.ts`; composition `order-payment-page.tsx:133-240`; status/recovery/recheck tests pass. |
 | R5 | VietQR có hướng dẫn đánh số, QR download bounded/authorized, manual fallback; verified paid bắt đầu bằng xác nhận và giữ entitlement private | ✓ VERIFIED | `vietqr-instructions.tsx`; authorization-first QR route `orders/[orderNumber]/qr/route.ts`; deadline helper `payments/vietqr/instructions.ts:99-125`; paid projection/download gating `order-payment-page.tsx:156-197,344-385` và `/api/downloads`. |
-| R6 | Có bằng chứng unit/security/Playwright/responsive/payment/full CI song ngữ mà không mở lại Phase 09 UAT | ✓ VERIFIED | Verifier chạy full unit 989/989, focused 167/167, security 77/77, lint/typecheck/diacritics pass; 22 Phase 10 Playwright tests được enumerate, 0 skip/fixme. Post-fix evidence ghi nhận payment E2E 4/4 và release prefix/suffix/full-E2E; Phase 09 geo/SEO được loại đúng phạm vi. |
+| R6 | Có bằng chứng unit/security/Playwright/responsive/payment/full CI song ngữ mà không mở lại Phase 09 UAT | ✓ VERIFIED | Verifier chạy full unit 989/989, focused 167/167, security 77/77, lint/typecheck/diacritics pass; 22 Phase 10 Playwright tests được enumerate, 0 skip/fixme. Post-fix evidence ghi nhận payment E2E 4/4 và release prefix/suffix/full-E2E; UAT hậu review 4/4 pass; Phase 09 geo/SEO được loại đúng phạm vi. |
 
 ### PLAN Frontmatter Truths
 
@@ -76,7 +73,7 @@ next_action: "Thực hiện 4 kiểm tra UAT hẹp ở trên; nếu đạt, cậ
 | P07-3 | Security gates chứng minh PII/auth/provider/requote/reservation/QR/paid/inventory/entitlement boundaries | ✓ VERIFIED | Fresh `npm run test:security` 77/77, bao gồm ASVS checkout/payment matrices. |
 | P07-4 | Full CI xanh trước UAT; Phase 09 geo/SEO bị loại khỏi Phase 10 | ✓ VERIFIED | Recorded release evidence trên final review-fix chain + fresh lint/typecheck/unit/security; không có file Phase 09 geo/SEO bị Phase 10 verifier sửa. |
 
-**Score:** 35/35 truths verified (6 roadmap + 29 PLAN truths). `human_needed` đến từ UAT sau review-fix, không phải truth kỹ thuật thất bại.
+**Score:** 35/35 truths verified (6 roadmap + 29 PLAN truths). Bốn human checks hậu review-fix đã đóng tại `10-UAT.md`; không còn điều kiện chờ để giữ trạng thái `human_needed`.
 
 ## Required Artifacts
 
@@ -130,6 +127,7 @@ next_action: "Thực hiện 4 kiểm tra UAT hẹp ở trên; nếu đạt, cậ
 | Vietnamese text | `npm run check:vi-diacritics` | no obviously unaccented strings | ✓ PASS |
 | Phase 10 browser evidence exists | `npx playwright test ... --list` | 22 tests across checkout/payment/order-status | ✓ PASS |
 | Phase 10 skip/fixme scan | `rg test.skip/test.fixme/...` | no matches | ✓ PASS |
+| Post-review human verification | `10-UAT.md` tại commit `65d4a145` | 4/4 passed, 0 issues | ✓ PASS |
 
 Không chạy lại full browser/CI trong verifier. Post-review evidence trên final chain ghi nhận payment E2E 4/4, prior-phase regression E2E 29/29, iteration-2 release prefix/suffix và full-E2E; verifier đã chạy lại toàn bộ unit và security trên HEAD hiện tại.
 
@@ -229,13 +227,13 @@ Không có requirement nào mapped tới Phase 10 nhưng không xuất hiện tr
 | Check | Result |
 |---|---|
 | Baseline | `a7f51be6` (parent of first Phase 10 implementation commit) |
-| Verified HEAD | `58d4fb1e` |
+| Verified HEAD | `65d4a145` |
 | `package.json` / `package-lock.json` | No diff |
 | `supabase/migrations/**` | No diff |
 | DB schema/generated types/RLS | No Phase 10 diff |
 | New provider/payment state | None |
 | Payment authority | Server pair/requote/webhook/admin/transition boundaries unchanged and security-tested |
-| Working tree | Pre-existing `next-env.d.ts` line-ending-only modification left untouched; not part of Phase 10 verification |
+| Working tree | Pre-existing `next-env.d.ts` line-ending-only modification left untouched; verifier chỉ sửa báo cáo này, không chạm source/tests/planning state |
 
 ## Anti-Patterns Found
 
@@ -251,47 +249,32 @@ Không có requirement nào mapped tới Phase 10 nhưng không xuất hiện tr
 
 - **Một requirement dễ bị chỉ đáp ứng một phần:** D-08 ban đầu chỉ hash identity bằng SHA-256 công khai; review-fix đã thay bằng server-only HMAC v2. Source và test hiện tại chứng minh gap đã đóng.
 - **Một test từng gây hiểu lầm:** deadline QR ban đầu chỉ source-scan helper mà chưa thực thi route. `vietqr-download-route.test.ts` hiện gọi route với fake clock và chứng minh unauthorized/missing/invalid/expired/exact-boundary không gọi builder/fetch.
-- **Một error path từng thiếu coverage:** VietQR rejected chọn key không tồn tại. Runtime component test mới dùng translator/catalog thật cho en/vi và hiện pass; vẫn yêu cầu human regression vì copy user-visible được đổi sau UAT.
+- **Một error path từng thiếu coverage:** VietQR rejected chọn key không tồn tại. Runtime component test mới dùng translator/catalog thật cho en/vi và hiện pass; human regression hậu review cũng đã xác nhận cả hai locale không có literal key/MISSING_MESSAGE hoặc same-order retry.
 
-## Human Verification Required
+## Human Verification Closure
 
-UAT tổng thể đã được user duyệt ngày 2026-08-11, nhưng approval đó xảy ra trước các commit review-fix `fdf88d1c`…`b2747fcc`. Chỉ cần tái kiểm tra bốn vùng thay đổi sau; không cần chạy lại toàn bộ ma trận Phase 10.
+UAT tổng thể ban đầu được duyệt ngày 2026-08-11 trước các review-fix. Bốn vùng user-visible thay đổi sau đó đã được tái kiểm tra trong `10-UAT.md`, hoàn tất tại commit `65d4a145` với 4/4 pass, 0 issue:
 
-### 1. Draft checkout khi đổi danh tính trong cùng tab
+| # | Kiểm tra hậu review | Kết quả | Evidence |
+|---:|---|---|---|
+| 1 | Draft checkout qua tài khoản A → B, guest → account và notifier không đổi identity | ✓ PASS | Playwright cùng-tab 1/1 pass; không lộ PII và draft đúng scope được giữ. |
+| 2 | Copy `/vi/lien-he` và accessible name hoàn tất checkout tiếng Việt | ✓ PASS | User xác nhận copy; focused i18n/accessibility unit 11/11 pass. |
+| 3 | VietQR hết hạn và URL QR cũ | ✓ PASS | User xác nhận expired journey; runtime deadline tests 6/6 pass. |
+| 4 | VietQR rejected ở `/vi` và `/en` | ✓ PASS | User/browser xác nhận không literal key/MISSING_MESSAGE, không support assumption, không same-order retry. |
 
-**Test:** Tài khoản A nhập email/address rồi sign out; sign in tài khoản B trong cùng tab; lặp guest → account. Đồng thời thử một auth action thất bại/không đổi identity.  
-**Expected:** B/owner mới chỉ thấy prefill của mình; không thấy PII của A/guest. Draft hợp lệ không bị xóa chỉ vì notifier chạy khi scope thực tế chưa đổi.  
-**Why human:** Identity scoping và notifier behavior được sửa sau approval; automation pass nhưng restoration experience chưa được user duyệt lại.
-
-### 2. Copy và accessible name tiếng Việt
-
-**Test:** Mở `/vi/lien-he` và một `/vi/checkout` có contact/destination hoàn tất; dùng screen reader/accessibility tree kiểm tra icon hoàn tất.  
-**Expected:** Cảnh báo bảo mật hiển thị Unicode tiếng Việt đúng; icon được đọc bằng tên localized, không phải `Complete`; không có mojibake.  
-**Why human:** Visual text và assistive announcement luôn cần người dùng/AT xác nhận, và cả hai thay đổi sau UAT.
-
-### 3. VietQR hết hạn và link QR cũ
-
-**Test:** Dùng fixture/order VietQR chuyển sang expired; mở order và thử lại URL QR download đã lưu trước đó.  
-**Expected:** Không còn UI chuyển khoản/QR trên expired state; link cũ trả denial chung, không lộ order/bank fact, không gợi ý thanh toán sau hạn; recovery dẫn về cart/catalog.  
-**Why human:** Server guard có runtime tests nhưng khách hàng cần thấy hành trình hết hạn rõ và không mâu thuẫn.
-
-### 4. VietQR rejected recovery ở `/vi` và `/en`
-
-**Test:** Mở seeded rejected VietQR order ở hai locale.  
-**Expected:** Body recovery hiển thị bình thường, không literal key/MISSING_MESSAGE, không yêu cầu contact support khi chưa cấu hình; primary recovery là restore cart hoặc catalog và không có provider retry.  
-**Why human:** Đây là finding user-visible cuối cùng được sửa sau UAT.
+Không còn human verification item mở. Việc re-verification trên HEAD xác nhận commit UAT chỉ sửa `10-UAT.md`; không có thay đổi source, tests, dependency, migration, schema hoặc RLS kể từ HEAD kỹ thuật đã verify.
 
 ## Gaps Summary
 
 Không có blocker hoặc warning kỹ thuật. Không có item nào cần defer sang phase sau. Phase 09 Vercel geo/external SEO UAT là debt đã được ghi ở Phase 09 và **không** phải gap của Phase 10.
 
-Overall status là `human_needed` theo decision tree: 35/35 truths verified, artifacts/links/data-flow/authority đều pass, nhưng danh sách human verification sau review-fix không rỗng.
+Overall status là `passed` theo decision tree: 35/35 truths verified, artifacts/links/data-flow/authority đều pass, bốn human checks hậu review đã hoàn tất và không còn gap hay human-verification item mở.
 
 ## Next Action
 
-Thực hiện bốn UAT hẹp ở trên. Nếu cả bốn đạt, ghi nhận approval sau review-fix và re-run verifier để đổi status sang `passed`; nếu có lỗi, báo chính xác locale/state/step để tạo gap plan có phạm vi nhỏ.
+Phase 10 đã đạt goal và sẵn sàng cho bước tiếp theo của workflow. Không thay đổi trạng thái ROADMAP/STATE trong re-verification này. Phase 09 Vercel geo/external SEO UAT tiếp tục được quản lý riêng và không phải gap của Phase 10.
 
 ---
 
-_Verified: 2026-08-11T10:08:36Z_  
+_Verified: 2026-08-11T10:48:35Z_
 _Verifier: the agent (gsd-verifier)_
