@@ -203,6 +203,12 @@ test('checkout draft is scoped by an opaque server-derived identity and cleared 
   assert.doesNotMatch(client, /draftScope=.*(?:email|userId|user\.id)/);
 });
 
+test('checkout completion icons use the active-locale accessible name', () => {
+  const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  assert.doesNotMatch(client, /aria-label=['"]Complete['"]/);
+  assert.equal(client.match(/aria-label=\{t\.complete\}/g)?.length, 2);
+});
+
 test('checkout refreshes accepted commercial evidence immediately before submit', () => {
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
   const submitStart = client.indexOf('async function submit()');

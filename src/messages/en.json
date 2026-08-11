@@ -166,6 +166,7 @@
       "backToCart": "Back to cart",
       "contact": "Contact email",
       "contactIntro": "Order and payment updates",
+      "complete": "Complete",
       "destination": "Delivery address",
       "destinationIntro": "Shipping is updated when the country or state changes.",
       "changeAddress": "Change",

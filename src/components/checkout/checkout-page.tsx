@@ -280,7 +280,7 @@ export function CheckoutPage({
   const t = {
     ...copy[locale],
     title: pageTranslate('title'), intro: pageTranslate('intro'), backToCart: pageTranslate('backToCart'),
-    contact: pageTranslate('contact'), contactIntro: pageTranslate('contactIntro'), destination: pageTranslate('destination'),
+    contact: pageTranslate('contact'), contactIntro: pageTranslate('contactIntro'), complete: pageTranslate('complete'), destination: pageTranslate('destination'),
     destinationIntro: pageTranslate('destinationIntro'), changeAddress: pageTranslate('changeAddress'), calculating: pageTranslate('calculating'),
     emptyTitle: pageTranslate('emptyTitle'), emptyBody: pageTranslate('emptyBody'), continueShopping: pageTranslate('continueShopping'),
     success: pageTranslate('success'), deadline: pageTranslate('deadline'), retryQuote: pageTranslate('retry'),
@@ -928,7 +928,7 @@ export function CheckoutPage({
                   </div>
                   {contactReady ? (
                     <Check
-                      aria-label="Complete"
+                      aria-label={t.complete}
                       className="mt-0.5 size-4 shrink-0 text-[var(--success)]"
                     />
                   ) : null}
@@ -965,7 +965,7 @@ export function CheckoutPage({
                       </div>
                       {shippingAddressReady ? (
                         <Check
-                          aria-label="Complete"
+                          aria-label={t.complete}
                           className="mt-0.5 size-4 shrink-0 text-[var(--success)]"
                         />
                       ) : null}

@@ -63,4 +63,9 @@ describe('Phase 10 bounded message catalog', () => {
       /Ã.|Â.|â€|Ä‘/
     );
   });
+
+  it('provides bilingual checkout completion accessible names', () => {
+    expect((en.checkout.page as {complete?: string}).complete).toBe('Complete');
+    expect((vi.checkout.page as {complete?: string}).complete).toBe('Hoàn tất');
+  });
 });
