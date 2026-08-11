@@ -49,7 +49,6 @@ function vietQrStatusBodyKey(status: string) {
   if (
     status === 'awaiting_payment' ||
     status === 'verifying_payment' ||
-    status === 'rejected' ||
     status === 'expired' ||
     status === 'review_required'
   ) {
