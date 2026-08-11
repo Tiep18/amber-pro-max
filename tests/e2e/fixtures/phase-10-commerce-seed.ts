@@ -40,6 +40,7 @@ export type Phase10OrderFixture = {
 
 export type Phase10CommerceSeed = {
   customer: E2EUser;
+  secondCustomer: E2EUser;
   products: {
     digital: SeededProduct;
     physical: SeededProduct;
@@ -303,7 +304,8 @@ async function seedOrder({
 
 export async function seedPhase10Commerce(): Promise<Phase10CommerceSeed> {
   const customer = await createConfirmedUser('customer');
-  createdUsers.push(customer);
+  const secondCustomer = await createConfirmedUser('customer');
+  createdUsers.push(customer, secondCustomer);
   const id = suffix();
   const digital = await createProduct({
     type: 'pdf_pattern',
@@ -339,7 +341,7 @@ export async function seedPhase10Commerce(): Promise<Phase10CommerceSeed> {
     entries.push([state, await seedOrder({state, owner: customer, digital, physical})] as const);
   }
 
-  return {customer, products: {digital, physical}, orders: Object.fromEntries(entries) as Phase10CommerceSeed['orders']};
+  return {customer, secondCustomer, products: {digital, physical}, orders: Object.fromEntries(entries) as Phase10CommerceSeed['orders']};
 }
 
 function assertLoopbackSupabase() {

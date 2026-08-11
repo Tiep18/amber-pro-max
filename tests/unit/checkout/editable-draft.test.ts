@@ -9,6 +9,7 @@ import {
   writeEditableDraft,
   type EditableDraftStorage
 } from '@/checkout/editable-draft';
+import * as editableDraftModule from '@/checkout/editable-draft';
 
 function memoryStorage(seed: Record<string, string> = {}): EditableDraftStorage & {
   dump: () => Record<string, string>;
@@ -35,26 +36,59 @@ const draft = {
     postalCode: ''
   }
 };
+const scope = 'a'.repeat(64);
 
 describe('editable checkout draft lifecycle', () => {
+  test('derives opaque guest and authenticated scopes without exposing the raw identity', () => {
+    const buildScope = (
+      editableDraftModule as typeof editableDraftModule & {
+        buildCheckoutDraftScope?: (userId: string | null) => string;
+      }
+    ).buildCheckoutDraftScope;
+    expect(typeof buildScope).toBe('function');
+
+    const userId = '76000000-0000-4000-8000-000000000001';
+    const guestScope = buildScope!(null);
+    const accountScope = buildScope!(userId);
+
+    expect(guestScope).toMatch(/^[a-f0-9]{64}$/);
+    expect(accountScope).toMatch(/^[a-f0-9]{64}$/);
+    expect(accountScope).not.toBe(guestScope);
+    expect(accountScope).not.toContain(userId);
+  });
+
+  test('removes a draft when its opaque identity scope does not match the current checkout', () => {
+    const storage = memoryStorage();
+    const now = 1_750_000_000_000;
+    const accountScope = 'a'.repeat(64);
+    const otherAccountScope = 'b'.repeat(64);
+
+    writeEditableDraft({storage, draft, now: () => now, scope: accountScope} as never);
+
+    expect(
+      readEditableDraft({storage, now: () => now + 1, scope: otherAccountScope} as never)
+    ).toEqual({status: 'discarded', reason: 'scope_mismatch'});
+    expect(storage.dump()).toEqual({});
+  });
+
   test('round-trips only the strict versioned allowlist for exactly 12 hours', () => {
     const storage = memoryStorage();
     const now = 1_750_000_000_000;
-    const written = writeEditableDraft({storage, draft, now: () => now});
+    const written = writeEditableDraft({storage, draft, now: () => now, scope} as never);
 
     expect(written.status).toBe('written');
     const stored = JSON.parse(storage.dump()[CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY]);
-    expect(stored).toEqual({...strictStored(), savedAt: now, expiresAt: now + CHECKOUT_EDITABLE_DRAFT_TTL_MS});
-    expect(Object.keys(stored)).toEqual(['version', 'savedAt', 'expiresAt', 'email', 'shippingAddress']);
-    expect(readEditableDraft({storage, now: () => now + 1})).toEqual({status: 'found', draft: stored});
+    expect(stored).toEqual({...strictStored(), scope, savedAt: now, expiresAt: now + CHECKOUT_EDITABLE_DRAFT_TTL_MS});
+    expect(Object.keys(stored)).toEqual(['version', 'scope', 'savedAt', 'expiresAt', 'email', 'shippingAddress']);
+    expect(readEditableDraft({storage, now: () => now + 1, scope} as never)).toEqual({status: 'found', draft: stored});
   });
 
   test('removes expired records at the exact 12-hour boundary', () => {
     const storage = memoryStorage();
     const now = 1_750_000_000_000;
-    writeEditableDraft({storage, draft, now: () => now});
+    writeEditableDraft({storage, draft, scope, now: () => now});
 
-    expect(readEditableDraft({storage, now: () => now + CHECKOUT_EDITABLE_DRAFT_TTL_MS})).toEqual({
+    expect(readEditableDraft({storage, scope, now: () => now + CHECKOUT_EDITABLE_DRAFT_TTL_MS})).toEqual({
       status: 'discarded',
       reason: 'expired'
     });
@@ -68,7 +102,7 @@ describe('editable checkout draft lifecycle', () => {
     ['forged expiry', JSON.stringify({...strictStored(), expiresAt: strictStored().expiresAt + 1}), 'malformed']
   ])('removes %s records', (_name, raw, reason) => {
     const storage = memoryStorage({[CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY]: raw});
-    expect(readEditableDraft({storage, now: () => strictStored().savedAt + 1})).toEqual({
+    expect(readEditableDraft({storage, scope, now: () => strictStored().savedAt + 1})).toEqual({
       status: 'discarded',
       reason
     });
@@ -79,10 +113,11 @@ describe('editable checkout draft lifecycle', () => {
     const oversized = 'x'.repeat(CHECKOUT_EDITABLE_DRAFT_MAX_BYTES + 1);
     const storage = memoryStorage({[CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY]: oversized});
 
-    expect(readEditableDraft({storage, now: () => 1})).toEqual({status: 'discarded', reason: 'oversized'});
+    expect(readEditableDraft({storage, scope, now: () => 1})).toEqual({status: 'discarded', reason: 'oversized'});
     expect(writeEditableDraft({
       storage,
       draft: {...draft, email: `${'x'.repeat(CHECKOUT_EDITABLE_DRAFT_MAX_BYTES)}@example.com`},
+      scope,
       now: () => 1
     })).toEqual({status: 'too_large'});
     expect(storage.dump()).toEqual({});
@@ -95,14 +130,14 @@ describe('editable checkout draft lifecycle', () => {
       removeItem: () => { throw new Error('blocked'); }
     };
 
-    expect(readEditableDraft({storage, now: () => 1})).toEqual({status: 'unavailable'});
-    expect(writeEditableDraft({storage, draft, now: () => 1})).toEqual({status: 'unavailable'});
+    expect(readEditableDraft({storage, scope, now: () => 1})).toEqual({status: 'unavailable'});
+    expect(writeEditableDraft({storage, draft, scope, now: () => 1})).toEqual({status: 'unavailable'});
     expect(clearEditableDraft(storage)).toEqual({status: 'unavailable'});
   });
 
   test('returns deterministic empty and clear outcomes', () => {
     const storage = memoryStorage();
-    expect(readEditableDraft({storage, now: () => 1})).toEqual({status: 'empty'});
+    expect(readEditableDraft({storage, scope, now: () => 1})).toEqual({status: 'empty'});
     expect(clearEditableDraft(storage)).toEqual({status: 'cleared'});
   });
 });
@@ -111,6 +146,7 @@ function strictStored() {
   const savedAt = 1_750_000_000_000;
   return {
     version: 1,
+    scope: 'a'.repeat(64),
     savedAt,
     expiresAt: savedAt + CHECKOUT_EDITABLE_DRAFT_TTL_MS,
     email: 'shopper@example.com',

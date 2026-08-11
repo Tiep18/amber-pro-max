@@ -188,6 +188,21 @@ test('checkout prefill uses authenticated server identity and deterministic dest
   assert.match(prefill, /source !== 'prefill'/);
 });
 
+test('checkout draft is scoped by an opaque server-derived identity and cleared on auth transitions', () => {
+  const page = readFileSync('src/app/[locale]/checkout/page.tsx', 'utf8');
+  const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  const draft = readFileSync('src/checkout/editable-draft.ts', 'utf8');
+  const context = readFileSync('src/components/storefront-context.tsx', 'utf8');
+
+  assert.match(page, /buildCheckoutDraftScope\(user\?\.id\s*\?\?\s*null\)/);
+  assert.match(page, /draftScope=\{draftScope\}/);
+  assert.match(client, /readEditableDraft\(\{[\s\S]*scope:\s*draftScope/);
+  assert.match(client, /writeEditableDraft\(\{[\s\S]*scope:\s*draftScope/);
+  assert.match(draft, /scope_mismatch/);
+  assert.match(context, /clearBrowserEditableDraft/);
+  assert.doesNotMatch(client, /draftScope=.*(?:email|userId|user\.id)/);
+});
+
 test('checkout refreshes accepted commercial evidence immediately before submit', () => {
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
   const submitStart = client.indexOf('async function submit()');
@@ -332,7 +347,7 @@ test('ASVS L1 checkout authority matrix keeps browser state as intent and server
 
   assert.match(draft, /CHECKOUT_EDITABLE_DRAFT_TTL_MS = 12 \* 60 \* 60 \* 1000/);
   assert.match(draft, /CHECKOUT_EDITABLE_DRAFT_MAX_BYTES = 16 \* 1024/);
-  assert.match(draft, /topLevelKeys = \['version', 'savedAt', 'expiresAt', 'email', 'shippingAddress'\]/);
+  assert.match(draft, /topLevelKeys = \['version', 'scope', 'savedAt', 'expiresAt', 'email', 'shippingAddress'\]/);
   assert.doesNotMatch(
     draft,
     /guestAccessToken|attemptId|\bproof\b|quoteHash|paymentStatus|provider|saveAddress|saveConsent|localStorage/i

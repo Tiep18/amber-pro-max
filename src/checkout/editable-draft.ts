@@ -1,6 +1,8 @@
 // Editable checkout PII is deliberately tab-scoped in sessionStorage. It is
 // disposable input convenience only: every value is revalidated at checkout.
 
+import {sha256} from '@/catalog/sha256';
+
 export const CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY = 'atb_checkout_editable_draft_v1';
 export const CHECKOUT_EDITABLE_DRAFT_TTL_MS = 12 * 60 * 60 * 1000;
 export const CHECKOUT_EDITABLE_DRAFT_MAX_BYTES = 16 * 1024;
@@ -30,6 +32,7 @@ export type EditableDraftInput = {
 
 export type StoredEditableDraft = EditableDraftInput & {
   version: typeof CHECKOUT_EDITABLE_DRAFT_VERSION;
+  scope: string;
   savedAt: number;
   expiresAt: number;
 };
@@ -37,7 +40,7 @@ export type StoredEditableDraft = EditableDraftInput & {
 export type EditableDraftReadResult =
   | {status: 'found'; draft: StoredEditableDraft}
   | {status: 'empty'}
-  | {status: 'discarded'; reason: 'malformed' | 'expired' | 'oversized' | 'unsupported_version'}
+  | {status: 'discarded'; reason: 'malformed' | 'expired' | 'oversized' | 'unsupported_version' | 'scope_mismatch'}
   | {status: 'unavailable'};
 
 export type EditableDraftWriteResult =
@@ -48,7 +51,7 @@ export type EditableDraftWriteResult =
 
 export type EditableDraftClearResult = {status: 'cleared'} | {status: 'unavailable'};
 
-const topLevelKeys = ['version', 'savedAt', 'expiresAt', 'email', 'shippingAddress'] as const;
+const topLevelKeys = ['version', 'scope', 'savedAt', 'expiresAt', 'email', 'shippingAddress'] as const;
 const addressKeys = [
   'recipientName',
   'phoneNumber',
@@ -91,12 +94,18 @@ function isSupportedStoredDraft(value: unknown): value is StoredEditableDraft {
   if (!isRecord(value) || !hasExactKeys(value, topLevelKeys)) return false;
   return (
     value.version === CHECKOUT_EDITABLE_DRAFT_VERSION &&
+    typeof value.scope === 'string' &&
+    /^[a-f0-9]{64}$/.test(value.scope) &&
     Number.isSafeInteger(value.savedAt) &&
     Number.isSafeInteger(value.expiresAt) &&
     value.expiresAt === (value.savedAt as number) + CHECKOUT_EDITABLE_DRAFT_TTL_MS &&
     typeof value.email === 'string' &&
     isEditableAddress(value.shippingAddress)
   );
+}
+
+export function buildCheckoutDraftScope(userId: string | null) {
+  return sha256(`checkout-editable-draft:v1:${userId ?? 'guest'}`);
 }
 
 function trimNullable(value: string | null) {
@@ -137,9 +146,11 @@ function discard(storage: EditableDraftStorage, reason: Extract<EditableDraftRea
 
 export function readEditableDraft({
   storage,
+  scope,
   now = Date.now
 }: {
   storage: EditableDraftStorage | null;
+  scope: string;
   now?: () => number;
 }): EditableDraftReadResult {
   if (!storage) return {status: 'unavailable'};
@@ -162,6 +173,7 @@ export function readEditableDraft({
     return discard(storage, 'unsupported_version');
   }
   if (!isSupportedStoredDraft(parsed) || parsed.savedAt > now()) return discard(storage, 'malformed');
+  if (parsed.scope !== scope) return discard(storage, 'scope_mismatch');
   if (parsed.expiresAt <= now()) return discard(storage, 'expired');
   return {status: 'found', draft: parsed};
 }
@@ -169,18 +181,23 @@ export function readEditableDraft({
 export function writeEditableDraft({
   storage,
   draft,
+  scope,
   now = Date.now
 }: {
   storage: EditableDraftStorage | null;
   draft: EditableDraftInput;
+  scope: string;
   now?: () => number;
 }): EditableDraftWriteResult {
   if (!storage) return {status: 'unavailable'};
   const normalized = normalizeInput(draft);
   const savedAt = now();
-  if (!normalized || !Number.isSafeInteger(savedAt)) return {status: 'invalid'};
+  if (!normalized || !Number.isSafeInteger(savedAt) || !/^[a-f0-9]{64}$/.test(scope)) {
+    return {status: 'invalid'};
+  }
   const stored: StoredEditableDraft = {
     version: CHECKOUT_EDITABLE_DRAFT_VERSION,
+    scope,
     savedAt,
     expiresAt: savedAt + CHECKOUT_EDITABLE_DRAFT_TTL_MS,
     ...normalized
@@ -203,6 +220,14 @@ export function clearEditableDraft(storage: EditableDraftStorage | null): Editab
   try {
     storage.removeItem(CHECKOUT_EDITABLE_DRAFT_STORAGE_KEY);
     return {status: 'cleared'};
+  } catch {
+    return {status: 'unavailable'};
+  }
+}
+
+export function clearBrowserEditableDraft(): EditableDraftClearResult {
+  try {
+    return clearEditableDraft(typeof window === 'undefined' ? null : window.sessionStorage);
   } catch {
     return {status: 'unavailable'};
   }

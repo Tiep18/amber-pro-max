@@ -213,6 +213,36 @@ test('field blur is isolated and the tab draft excludes authority, proof, and co
   await expect(page.getByLabel('Recipient name')).toHaveValue('Taylor Customer');
 });
 
+test('same-tab auth transitions never hydrate checkout PII from another identity', async ({page}) => {
+  test.setTimeout(90_000);
+  await signIn(page, seed.customer, '/en/account');
+  await setCart(page, 'en');
+  await page.goto('/en/checkout');
+  const firstEmail = page.getByRole('region', {name: 'Contact email'}).getByRole('textbox');
+  await firstEmail.fill('private-a@example.test');
+  await page.waitForTimeout(100);
+
+  await page.goto('/en/account');
+  await page.getByRole('button', {name: 'Sign out'}).click();
+  await expect(page).toHaveURL(/\/en$/);
+  await signIn(page, seed.secondCustomer, '/en/checkout');
+  await expect(
+    page.getByRole('region', {name: 'Contact email'}).getByRole('textbox')
+  ).toHaveValue(seed.secondCustomer.email);
+
+  await page.goto('/en/account');
+  await page.getByRole('button', {name: 'Sign out'}).click();
+  await page.goto('/en/checkout');
+  const guestEmail = page.getByRole('region', {name: 'Contact email'}).getByRole('textbox');
+  await guestEmail.fill('private-guest@example.test');
+  await page.waitForTimeout(100);
+
+  await signIn(page, seed.customer, '/en/checkout');
+  await expect(
+    page.getByRole('region', {name: 'Contact email'}).getByRole('textbox')
+  ).toHaveValue(seed.customer.email);
+});
+
 test('authenticated address saving is signed-in only and unchecked on every load', async ({page}) => {
   await signIn(page, seed.customer, '/en/account');
   await setCart(page, 'en');

@@ -246,6 +246,7 @@ function checkoutSessionStorage() {
 
 export function CheckoutPage({
   locale,
+  draftScope,
   initialEmail = '',
   savedAddresses = [],
   policyLinks = [],
@@ -253,6 +254,7 @@ export function CheckoutPage({
   publicSupportConfig
 }: {
   locale: Locale;
+  draftScope: string;
   initialEmail?: string;
   savedAddresses?: CustomerShippingAddress[];
   policyLinks?: CheckoutPolicyLink[];
@@ -412,7 +414,7 @@ export function CheckoutPage({
   );
 
   useEffect(() => {
-    const result = readEditableDraft({storage: checkoutSessionStorage()});
+    const result = readEditableDraft({storage: checkoutSessionStorage(), scope: draftScope});
     if (result.status === 'found') {
       const restoredAddress = result.draft.shippingAddress;
       setEmail(result.draft.email);
@@ -427,15 +429,16 @@ export function CheckoutPage({
       );
     }
     setDraftHydrated(true);
-  }, [setLifecycle, setShippingAddressState]);
+  }, [draftScope, setLifecycle, setShippingAddressState]);
 
   useEffect(() => {
     if (!draftHydrated || !editableInteractedRef.current) return;
     writeEditableDraft({
       storage: checkoutSessionStorage(),
+      scope: draftScope,
       draft: {email, shippingAddress}
     });
-  }, [draftHydrated, email, shippingAddress]);
+  }, [draftHydrated, draftScope, email, shippingAddress]);
 
   useEffect(() => {
     if (!draftHydrated) return;
