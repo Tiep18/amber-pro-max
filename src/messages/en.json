@@ -527,7 +527,7 @@
       },
       "rejected": {
         "heading": "Bank transfer rejected",
-        "body": "The payment evidence was not accepted because the amount or reference did not match. The paid gate stays closed and this order cannot be retried."
+        "body": "Payment was not confirmed, so the items are no longer held and this order cannot be retried. Restore the items to your cart, or contact support if you believe this is an error."
       },
       "expired": {
         "heading": "Payment window expired",

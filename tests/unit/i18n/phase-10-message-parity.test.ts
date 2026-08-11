@@ -35,7 +35,16 @@ describe('Phase 10 bounded message catalog', () => {
     ]).join('\n');
 
     expect(values).not.toMatch(
-      /quote hash|payment gate|gate open|entitlement|provider event|webhook|immutable snapshot|reservation record/i
+      /quote hash|payment gate|paid gate|gate open|entitlement|provider event|webhook|immutable snapshot|reservation record|cổng thanh toán|cổng đã mở/i
+    );
+  });
+
+  it('explains rejected payments with customer outcome and recovery guidance', () => {
+    expect(en.orders.status.rejected.body).toBe(
+      'Payment was not confirmed, so the items are no longer held and this order cannot be retried. Restore the items to your cart, or contact support if you believe this is an error.'
+    );
+    expect(vi.orders.status.rejected.body).toBe(
+      'Thanh toán chưa được xác nhận, nên sản phẩm không còn được giữ và đơn hàng này không thể thử lại. Hãy khôi phục sản phẩm vào giỏ, hoặc liên hệ hỗ trợ nếu bạn cho rằng đây là lỗi.'
     );
   });
 
