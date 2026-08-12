@@ -1060,6 +1060,7 @@ export type Database = {
           id: string
           purpose: string
           revoked_at: string | null
+          source_email_outbox_id: string | null
           status: string
           token_hash: string
         }
@@ -1071,6 +1072,7 @@ export type Database = {
           id?: string
           purpose?: string
           revoked_at?: string | null
+          source_email_outbox_id?: string | null
           status?: string
           token_hash: string
         }
@@ -1082,6 +1084,7 @@ export type Database = {
           id?: string
           purpose?: string
           revoked_at?: string | null
+          source_email_outbox_id?: string | null
           status?: string
           token_hash?: string
         }
@@ -1091,6 +1094,13 @@ export type Database = {
             columns: ["entitlement_id"]
             isOneToOne: false
             referencedRelation: "digital_entitlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "digital_access_tokens_source_email_outbox_id_fkey"
+            columns: ["source_email_outbox_id"]
+            isOneToOne: false
+            referencedRelation: "transactional_email_outbox"
             referencedColumns: ["id"]
           },
         ]
@@ -1504,6 +1514,7 @@ export type Database = {
           id: string
           order_id: string
           purpose: string
+          source_email_outbox_id: string | null
           status: string
           token_hash: string
         }
@@ -1515,6 +1526,7 @@ export type Database = {
           id?: string
           order_id: string
           purpose: string
+          source_email_outbox_id?: string | null
           status?: string
           token_hash: string
         }
@@ -1526,6 +1538,7 @@ export type Database = {
           id?: string
           order_id?: string
           purpose?: string
+          source_email_outbox_id?: string | null
           status?: string
           token_hash?: string
         }
@@ -1543,6 +1556,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "order_payment_statuses"
             referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "guest_order_access_tokens_source_email_outbox_id_fkey"
+            columns: ["source_email_outbox_id"]
+            isOneToOne: false
+            referencedRelation: "transactional_email_outbox"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1876,6 +1896,7 @@ export type Database = {
           expires_at: string
           id: string
           normalized_email: string
+          source_email_outbox_id: string | null
           token_hash: string
         }
         Insert: {
@@ -1884,6 +1905,7 @@ export type Database = {
           expires_at: string
           id?: string
           normalized_email: string
+          source_email_outbox_id?: string | null
           token_hash: string
         }
         Update: {
@@ -1892,6 +1914,7 @@ export type Database = {
           expires_at?: string
           id?: string
           normalized_email?: string
+          source_email_outbox_id?: string | null
           token_hash?: string
         }
         Relationships: [
@@ -1901,6 +1924,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "newsletter_subscribers"
             referencedColumns: ["normalized_email"]
+          },
+          {
+            foreignKeyName: "newsletter_unsubscribe_tokens_source_email_outbox_id_fkey"
+            columns: ["source_email_outbox_id"]
+            isOneToOne: false
+            referencedRelation: "transactional_email_outbox"
+            referencedColumns: ["id"]
           },
         ]
       }

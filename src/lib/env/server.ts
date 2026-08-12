@@ -1,12 +1,12 @@
-import {getClientEnv} from './client';
-import {z} from 'zod';
+import { getClientEnv } from './client';
+import { z } from 'zod';
 
 const optionalSecretSchema = z.string().trim().min(1).optional();
 
 const paypalApiBaseSchema = z
   .url()
   .default('https://api-m.sandbox.paypal.com')
-  .refine((value) => value.startsWith('https://'), {message: 'PayPal API base must use HTTPS'});
+  .refine((value) => value.startsWith('https://'), { message: 'PayPal API base must use HTTPS' });
 
 const supportEnvSchema = z.object({
   SUPPORT_EMAIL: z.string().trim().optional(),
@@ -29,6 +29,9 @@ const serverEnvSchema = z.object({
   VIETQR_TEMPLATE: z.string().trim().min(1).default('compact2'),
   RESEND_API_KEY: optionalSecretSchema,
   RESEND_FROM_EMAIL: z.email().optional(),
+  // Preserve the exact value so the token derivation boundary can reject
+  // short or whitespace-padded secrets without silently normalizing them.
+  TRANSACTIONAL_EMAIL_TOKEN_SECRET: z.string().optional(),
   TRANSACTIONAL_EMAIL_WORKER_SECRET: optionalSecretSchema,
   CRON_SECRET: optionalSecretSchema,
   SUPPORT_EMAIL: supportEnvSchema.shape.SUPPORT_EMAIL,
@@ -36,9 +39,7 @@ const serverEnvSchema = z.object({
   STORE_TIME_ZONE: supportEnvSchema.shape.STORE_TIME_ZONE
 });
 
-export function getSupportEnv(
-  source: Readonly<Record<string, string | undefined>> = process.env
-) {
+export function getSupportEnv(source: Readonly<Record<string, string | undefined>> = process.env) {
   return supportEnvSchema.parse({
     SUPPORT_EMAIL: source.SUPPORT_EMAIL,
     SUPPORT_ZALO_URL: source.SUPPORT_ZALO_URL,
@@ -73,6 +74,7 @@ export function getServerEnv(source: NodeJS.ProcessEnv = process.env) {
     VIETQR_TEMPLATE: source.VIETQR_TEMPLATE,
     RESEND_API_KEY: source.RESEND_API_KEY,
     RESEND_FROM_EMAIL: source.RESEND_FROM_EMAIL,
+    TRANSACTIONAL_EMAIL_TOKEN_SECRET: source.TRANSACTIONAL_EMAIL_TOKEN_SECRET,
     TRANSACTIONAL_EMAIL_WORKER_SECRET: source.TRANSACTIONAL_EMAIL_WORKER_SECRET,
     CRON_SECRET: source.CRON_SECRET,
     ...getSupportEnv(source)
@@ -83,8 +85,15 @@ export function getServerEnv(source: NodeJS.ProcessEnv = process.env) {
     'PAYPAL_WEBHOOK_ID',
     'PAYPAL_EXPECTED_MERCHANT_ID'
   ]);
-  const vietQrConfigured = configured(serverEnv, ['VIETQR_BANK_ID', 'VIETQR_ACCOUNT_NO', 'VIETQR_ACCOUNT_NAME']);
-  const transactionalEmailConfigured = configured(serverEnv, ['RESEND_API_KEY', 'RESEND_FROM_EMAIL']);
+  const vietQrConfigured = configured(serverEnv, [
+    'VIETQR_BANK_ID',
+    'VIETQR_ACCOUNT_NO',
+    'VIETQR_ACCOUNT_NAME'
+  ]);
+  const transactionalEmailConfigured = configured(serverEnv, [
+    'RESEND_API_KEY',
+    'RESEND_FROM_EMAIL'
+  ]);
 
   return {
     ...getClientEnv(source),
@@ -130,6 +139,7 @@ export function getServerEnv(source: NodeJS.ProcessEnv = process.env) {
           status: 'unconfigured' as const,
           code: 'missing_transactional_email_config' as const
         },
+    transactionalEmailTokenSecret: serverEnv.TRANSACTIONAL_EMAIL_TOKEN_SECRET ?? null,
     transactionalEmailWorkerSecret: serverEnv.TRANSACTIONAL_EMAIL_WORKER_SECRET ?? null,
     cronSecret: serverEnv.CRON_SECRET ?? null,
     support: {

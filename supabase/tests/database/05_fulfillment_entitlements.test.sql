@@ -1,6 +1,6 @@
 begin;
 
-select plan(28);
+select plan(31);
 
 select has_table('public', 'digital_entitlements', 'paid digital entitlement table exists');
 select has_table('public', 'digital_access_tokens', 'download token table exists');
@@ -20,6 +20,16 @@ select col_is_fk('public', 'digital_access_tokens', 'entitlement_id', 'download 
 select col_type_is('public', 'digital_access_tokens', 'token_hash', 'text', 'download token stores a hash');
 select col_type_is('public', 'digital_access_tokens', 'expires_at', 'timestamp with time zone', 'download token expiry is explicit');
 select col_type_is('public', 'digital_access_tokens', 'revoked_at', 'timestamp with time zone', 'download token revocation timestamp is explicit');
+select col_is_fk('public', 'digital_access_tokens', 'source_email_outbox_id', 'download token issuance references its source outbox row');
+select has_index('public', 'digital_access_tokens', 'digital_access_tokens_source_email_outbox_idx', 'download token issuance is indexed by source outbox');
+select results_eq(
+  $$select i.indisunique and i.indpred is not null
+    from pg_index i
+    join pg_class c on c.oid = i.indexrelid
+    where c.relname = 'digital_access_tokens_source_email_outbox_idx'$$,
+  $$values (true)$$,
+  'download token source index is unique only for linked email rows'
+);
 
 select col_type_is('public', 'transactional_email_outbox', 'event_type', 'text', 'outbox records typed fulfillment email intent');
 select col_type_is('public', 'transactional_email_outbox', 'payload', 'jsonb', 'outbox payload is structured and sanitized');

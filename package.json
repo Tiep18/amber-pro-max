@@ -18,7 +18,7 @@
     "db:reset": "node scripts/reset-supabase.mjs",
     "db:lint": "supabase db lint --local --fail-on error",
     "db:test": "supabase test db",
-    "db:types": "supabase gen types typescript --local > src/types/supabase.ts",
+    "db:types": "supabase gen types typescript --db-url postgresql://postgres:postgres@127.0.0.1:55432/postgres > src/types/supabase.ts",
     "ci": "npm run lint && npm run typecheck && npm run check:vi-diacritics && npm run test:unit && npm run db:reset && npm run db:lint && npm run db:test && npm run db:types && git diff --exit-code src/types/supabase.ts && npm run build && npm run test:security && npm run db:reset && npm run test:e2e"
   },
   "dependencies": {

@@ -1,6 +1,6 @@
 begin;
 
-select plan(13);
+select plan(16);
 
 select has_table('public', 'guest_order_access_tokens', 'guest reopen and claim token table exists');
 select col_is_fk('public', 'guest_order_access_tokens', 'order_id', 'guest token references order');
@@ -9,6 +9,16 @@ select col_type_is('public', 'guest_order_access_tokens', 'purpose', 'text', 'gu
 select col_type_is('public', 'guest_order_access_tokens', 'expires_at', 'timestamp with time zone', 'guest token expiry is explicit');
 select col_type_is('public', 'guest_order_access_tokens', 'consumed_at', 'timestamp with time zone', 'guest token consumption is retained');
 select has_index('public', 'guest_order_access_tokens', 'guest_order_access_tokens_order_idx', 'guest token lookup is scoped by order purpose and status');
+select col_is_fk('public', 'guest_order_access_tokens', 'source_email_outbox_id', 'guest token issuance references its source outbox row');
+select has_index('public', 'guest_order_access_tokens', 'guest_order_access_tokens_source_email_outbox_idx', 'guest token issuance is indexed by source outbox');
+select results_eq(
+  $$select i.indisunique and i.indpred is not null
+    from pg_index i
+    join pg_class c on c.oid = i.indexrelid
+    where c.relname = 'guest_order_access_tokens_source_email_outbox_idx'$$,
+  $$values (true)$$,
+  'guest token source index is unique only for linked email rows'
+);
 select table_privs_are('public', 'guest_order_access_tokens', 'anon', array[]::text[], 'anon cannot read claim hashes');
 select table_privs_are('public', 'guest_order_access_tokens', 'authenticated', array[]::text[], 'authenticated cannot read claim hashes');
 select throws_ok(

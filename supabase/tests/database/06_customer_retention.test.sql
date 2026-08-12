@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(111);
+select plan(114);
 
 select has_table('public', 'customer_shipping_addresses', 'customer shipping address table exists');
 select col_is_fk('public', 'customer_shipping_addresses', 'user_id', 'saved addresses belong to auth users');
@@ -773,6 +773,16 @@ select col_is_fk('public', 'newsletter_unsubscribe_tokens', 'normalized_email', 
 select has_column('public', 'newsletter_unsubscribe_tokens', 'token_hash', 'unsubscribe token hash is stored');
 select has_column('public', 'newsletter_unsubscribe_tokens', 'expires_at', 'unsubscribe token expiry is stored');
 select has_column('public', 'newsletter_unsubscribe_tokens', 'consumed_at', 'unsubscribe token consumption is stored');
+select col_is_fk('public', 'newsletter_unsubscribe_tokens', 'source_email_outbox_id', 'unsubscribe token issuance references its source outbox row');
+select has_index('public', 'newsletter_unsubscribe_tokens', 'newsletter_unsubscribe_tokens_source_email_outbox_idx', 'unsubscribe token issuance is indexed by source outbox');
+select results_eq(
+  $$select i.indisunique and i.indpred is not null
+    from pg_index i
+    join pg_class c on c.oid = i.indexrelid
+    where c.relname = 'newsletter_unsubscribe_tokens_source_email_outbox_idx'$$,
+  $$values (true)$$,
+  'unsubscribe token source index is unique only for linked email rows'
+);
 select hasnt_column('public', 'newsletter_unsubscribe_tokens', 'raw_token', 'raw unsubscribe token is never stored');
 select hasnt_column('public', 'newsletter_unsubscribe_tokens', 'token', 'raw unsubscribe token alias is never stored');
 select table_privs_are(

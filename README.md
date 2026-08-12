@@ -58,7 +58,10 @@ Supabase:
 Vercel:
 
 - Configure `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-- Configure `RESEND_API_KEY` and `RESEND_FROM_EMAIL` for transactional email.
+- Configure `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and a stable
+  `TRANSACTIONAL_EMAIL_TOKEN_SECRET` of at least 32 random characters for
+  transactional email. Store the token secret only as an encrypted Vercel
+  environment variable; it does not require Supabase Vault or a paid service.
 - Run the CI gate before promoting a preview.
 
 Scheduled work setup (in this order):
@@ -71,7 +74,9 @@ Scheduled work setup (in this order):
    reads only these two specifically named secrets; it never stores a URL or credential
    in source control.
 3. Configure `TRANSACTIONAL_EMAIL_WORKER_SECRET` on Vercel with exactly the same
-   worker-secret value from step 2.
+   worker-secret value from step 2. Keep `TRANSACTIONAL_EMAIL_TOKEN_SECRET`
+   stable across deployments and environments with pending outbox rows; rotating
+   it changes the derived bearer link and must be coordinated after the queue drains.
 4. Apply migrations. If the extensions were enabled or repaired after migrations were
    applied, run `select private.repair_scheduled_jobs();` from the Supabase SQL editor.
    The repair is idempotent: it leaves one `trusted-payment-expiry` job running every

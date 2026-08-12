@@ -10,6 +10,7 @@ const eslintConfig = [
       'test-results/**',
       'playwright-report/**',
       '.playwright-cli/**',
+      'supabase/.temp/**',
       'output/**',
       'eslint.config.mjs',
       'postcss.config.mjs',

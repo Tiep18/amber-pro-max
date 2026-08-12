@@ -114,13 +114,31 @@ test('download signed URL creation is isolated behind entitlement authorization'
 test('transactional email worker keeps tokens and provider secrets out of durable payloads', () => {
   const source = readExisting(fulfillmentEmailFiles);
   const route = readFileSync('src/app/api/fulfillment/email-outbox/route.ts', 'utf8');
+  const serverEnv = readFileSync('src/lib/env/server.ts', 'utf8');
+  const tokenMigration = readFileSync(
+    'supabase/migrations/20260812162048_transactional_email_retry_tokens.sql',
+    'utf8'
+  );
 
   assert.match(route, /authorization|x-worker-secret/i);
   assert.match(route, /transactionalEmailWorkerSecret/);
-  const sanitizerPattern = /export function sanitizeEmailFailureCode[\s\S]*?export function validateRetryCandidate/;
-  const sourceWithoutSanitizer = source.replace(sanitizerPattern, 'export function validateRetryCandidate');
+  assert.match(route, /tokenSecret:\s*env\.transactionalEmailTokenSecret/);
+  assert.match(source, /tokenSecret:\s*env\.transactionalEmailTokenSecret/);
+  assert.match(serverEnv, /TRANSACTIONAL_EMAIL_TOKEN_SECRET/);
+  assert.doesNotMatch(serverEnv, /NEXT_PUBLIC_TRANSACTIONAL_EMAIL_TOKEN_SECRET/);
+  assert.match(tokenMigration, /source_email_outbox_id/);
+  assert.match(tokenMigration, /unique index/);
+  const sanitizerPattern =
+    /export function sanitizeEmailFailureCode[\s\S]*?export function validateRetryCandidate/;
+  const sourceWithoutSanitizer = source.replace(
+    sanitizerPattern,
+    'export function validateRetryCandidate'
+  );
 
-  assert.doesNotMatch(sourceWithoutSanitizer, /console\.(log|error|warn)|provider_payload|signed_url|signedUrl|object_path|pattern-pdfs/i);
+  assert.doesNotMatch(
+    sourceWithoutSanitizer,
+    /console\.(log|error|warn)|provider_payload|signed_url|signedUrl|object_path|pattern-pdfs/i
+  );
   assert.doesNotMatch(source, /RESEND_API_KEY|TRANSACTIONAL_EMAIL_WORKER_SECRET/);
   assert.doesNotMatch(source, /attachments\s*:/i);
 });
@@ -129,7 +147,10 @@ test('account purchase library delegates downloads through the app route without
   const source = readExisting(fulfillmentAccountFiles);
 
   assert.match(source, /\/api\/downloads/);
-  assert.doesNotMatch(source, /createSignedUrl|signedUrl|token_hash|bucket_id|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+  assert.doesNotMatch(
+    source,
+    /createSignedUrl|signedUrl|token_hash|bucket_id|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
+  );
 });
 
 test('customer fulfillment tracking separates digital and physical state without admin-only leakage', () => {
@@ -138,7 +159,10 @@ test('customer fulfillment tracking separates digital and physical state without
   assert.match(source, /FulfillmentTrackSummary/);
   assert.match(source, /PhysicalTrackingPanel/);
   assert.match(source, /https:\/\//);
-  assert.doesNotMatch(source, /admin_note|fulfillment_audit|provider_payload|raw_token|token_hash|object_path|pattern-pdfs|signedUrl|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+  assert.doesNotMatch(
+    source,
+    /admin_note|fulfillment_audit|provider_payload|raw_token|token_hash|object_path|pattern-pdfs|signedUrl|SUPABASE_SERVICE_ROLE_KEY|service_role/i
+  );
 });
 
 test('admin physical fulfillment keeps tracking customer-safe and admin-only notes out of customer surfaces', () => {
@@ -146,7 +170,10 @@ test('admin physical fulfillment keeps tracking customer-safe and admin-only not
 
   assert.match(source, /physical_shipped/);
   assert.match(source, /trackingUrl|tracking_url/);
-  assert.doesNotMatch(source, /createSignedUrl|signedUrl|raw_token|token_hash|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+  assert.doesNotMatch(
+    source,
+    /createSignedUrl|signedUrl|raw_token|token_hash|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
+  );
 });
 
 test('guest reopen and order claim keep token material out of UI and durable payloads', () => {
@@ -155,7 +182,10 @@ test('guest reopen and order claim keep token material out of UI and durable pay
   assert.match(source, /guest_order_reopen/);
   assert.match(source, /guest_order_claim/);
   assert.match(source, /hashGuestOrderAccessToken/);
-  assert.doesNotMatch(source, /console\.(log|error|warn)|rawToken.*payload|token_hash.*payload|signedUrl|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+  assert.doesNotMatch(
+    source,
+    /console\.(log|error|warn)|rawToken.*payload|token_hash.*payload|signedUrl|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
+  );
 });
 
 test('guest order reopen redemption only redirects and never returns order data as JSON', () => {
@@ -174,7 +204,10 @@ test('admin entitlement actions keep revoke and reissue behind safe RPC and UI b
   assert.match(source, /revoke_digital_entitlement/);
   assert.match(source, /reissue_digital_access_token/);
   assert.match(source, /requireAdmin/);
-  assert.doesNotMatch(source, /createSignedUrl|signedUrl|rawToken|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+  assert.doesNotMatch(
+    source,
+    /createSignedUrl|signedUrl|rawToken|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
+  );
 });
 
 test('fulfillment audit and outbox payloads reject unsafe secrets', () => {
