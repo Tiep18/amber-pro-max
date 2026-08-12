@@ -35,6 +35,7 @@ const fulfillmentCustomerTrackingFiles = [
 
 const fulfillmentPhysicalFiles = [
   'src/fulfillment/physical.ts',
+  'src/components/admin/fulfillment/physical-fulfillment-action-form.tsx',
   'src/components/admin/fulfillment/physical-fulfillment-form.tsx',
   'src/components/admin/orders/order-detail.tsx',
   'src/components/admin/orders/order-queue.tsx'
@@ -167,9 +168,24 @@ test('customer fulfillment tracking separates digital and physical state without
 
 test('admin physical fulfillment keeps tracking customer-safe and admin-only notes out of customer surfaces', () => {
   const source = readExisting(fulfillmentPhysicalFiles);
+  const adapter = readFileSync('src/fulfillment/physical.ts', 'utf8');
+  const migration = readExisting([
+    'supabase/migrations/20260812171748_atomic_physical_fulfillment_email.sql'
+  ]);
 
-  assert.match(source, /physical_shipped/);
+  assert.match(adapter, /rpc\(['"]update_physical_fulfillment['"]/);
+  assert.doesNotMatch(
+    adapter,
+    /\.from\(['"](?:physical_fulfillments|physical_fulfillment_events|transactional_email_outbox)['"]\)/
+  );
+  assert.match(migration, /private\.is_admin\(\)/);
+  assert.match(migration, /auth\.uid\(\)/);
+  assert.match(migration, /insert into public\.physical_fulfillment_events/);
+  assert.match(migration, /insert into public\.transactional_email_outbox/);
+  assert.match(migration, /grant execute on function public\.update_physical_fulfillment\(jsonb\) to authenticated/);
+  assert.doesNotMatch(migration, /grant execute[^;]+\bto\s+(?:anon|public)\b/i);
   assert.match(source, /trackingUrl|tracking_url/);
+  assert.doesNotMatch(source, /name=['"](?:recipientEmail|locale)['"]/);
   assert.doesNotMatch(
     source,
     /createSignedUrl|signedUrl|raw_token|token_hash|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i

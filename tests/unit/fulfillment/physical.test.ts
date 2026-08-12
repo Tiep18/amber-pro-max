@@ -4,37 +4,43 @@ import {getFulfillmentTrackLabels} from '@/components/fulfillment/fulfillment-tr
 import {safeTrackingHref} from '@/components/fulfillment/physical-tracking-panel';
 
 describe('admin physical fulfillment transitions', () => {
-  test('allows forward status flow and queues shipped email without tracking', async () => {
-    const operations: unknown[] = [];
-    const client = {
-      from: vi.fn((table: string) => {
-        if (table === 'physical_fulfillments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'phys-1', order_id: 'order-1', status: 'packing', version: 2}, error: null}))}))
-            })),
-            update: vi.fn((value: unknown) => ({
-              eq: vi.fn(() => {
-                operations.push({table, value});
-                return Promise.resolve({data: null, error: null});
-              })
-            }))
-          };
-        }
-        return {insert: vi.fn((value: unknown) => { operations.push({table, value}); return Promise.resolve({data: null, error: null}); })};
-      })
-    };
+  const orderId = '11111111-1111-4111-8111-111111111111';
+
+  test('delegates shipped state, event, and email intent to one bounded RPC', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {status: 'updated', physicalStatus: 'shipped', version: 3},
+      error: null
+    });
 
     const result = await updatePhysicalFulfillment(
-      {orderId: '11111111-1111-4111-8111-111111111111', expectedStatus: 'packing', expectedVersion: 2, status: 'shipped', locale: 'en', orderNumber: 'ATB-1', recipientEmail: 'buyer@example.test'},
-      client as never
+      {
+        orderId,
+        expectedStatus: 'packing',
+        expectedVersion: 2,
+        status: 'shipped',
+        carrier: ' ',
+        trackingNumber: ' ',
+        trackingUrl: ' ',
+        note: ' '
+      },
+      {rpc} as never
     );
 
     expect(result).toEqual({status: 'updated', physicalStatus: 'shipped', version: 3});
-    expect(operations).toEqual(expect.arrayContaining([
-      expect.objectContaining({table: 'physical_fulfillments', value: expect.objectContaining({status: 'shipped', version: 3})}),
-      expect.objectContaining({table: 'transactional_email_outbox', value: expect.objectContaining({event_type: 'physical_shipped', recipient_email: 'buyer@example.test'})})
-    ]));
+    expect(rpc).toHaveBeenCalledOnce();
+    expect(rpc).toHaveBeenCalledWith('update_physical_fulfillment', {
+      p_payload: {
+        orderId,
+        expectedStatus: 'packing',
+        expectedVersion: 2,
+        status: 'shipped',
+        carrier: null,
+        trackingNumber: null,
+        trackingUrl: null,
+        note: null
+      }
+    });
+    expect(JSON.stringify(rpc.mock.calls)).not.toMatch(/recipientEmail|buyer@example|locale|orderNumber|actorId|shippedAt/i);
   });
 
   test('validates https tracking URL and normalizes optional carrier facts', () => {
@@ -48,61 +54,60 @@ describe('admin physical fulfillment transitions', () => {
     });
   });
 
-  test('rejects backwards, impossible, and stale transitions', async () => {
-    const client = {
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'phys-1', order_id: 'order-1', status: 'shipped', version: 5}, error: null}))}))
-        }))
-      }))
-    };
+  test.each([
+    [{status: 'stale'}, {status: 'stale', code: 'physical_state_changed'}],
+    [
+      {status: 'invalid', code: 'invalid_physical_transition'},
+      {status: 'invalid', code: 'invalid_physical_transition'}
+    ],
+    [
+      {status: 'invalid', code: 'invalid_tracking_url'},
+      {status: 'invalid', code: 'invalid_tracking_url'}
+    ],
+    [
+      {status: 'not_found'},
+      {status: 'not_found', code: 'physical_fulfillment_not_found'}
+    ]
+  ])('maps bounded RPC result %j', async (data, expected) => {
+    const client = {rpc: vi.fn().mockResolvedValue({data, error: null})};
 
-    await expect(updatePhysicalFulfillment({orderId: '11111111-1111-4111-8111-111111111111', expectedStatus: 'packing', expectedVersion: 5, status: 'delivered', locale: 'en', orderNumber: 'ATB-1', recipientEmail: 'buyer@example.test'}, client as never)).resolves.toEqual({status: 'stale', code: 'physical_state_changed'});
-    await expect(updatePhysicalFulfillment({orderId: '11111111-1111-4111-8111-111111111111', expectedStatus: 'shipped', expectedVersion: 5, status: 'packing', locale: 'en', orderNumber: 'ATB-1', recipientEmail: 'buyer@example.test'}, client as never)).resolves.toEqual({status: 'invalid', code: 'invalid_physical_transition'});
+    await expect(
+      updatePhysicalFulfillment(
+        {orderId, expectedStatus: 'packing', expectedVersion: 2, status: 'shipped'},
+        client as never
+      )
+    ).resolves.toEqual(expected);
   });
 
-  test('delivered transition does not require a customer email', async () => {
-    const inserts: unknown[] = [];
-    const client = {
-      from: vi.fn((table: string) => {
-        if (table === 'physical_fulfillments') {
-          return {
-            select: vi.fn(() => ({eq: vi.fn(() => ({maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'phys-1', order_id: 'order-1', status: 'shipped', version: 5}, error: null}))}))})),
-            update: vi.fn(() => ({eq: vi.fn(() => Promise.resolve({data: null, error: null}))}))
-          };
-        }
-        return {insert: vi.fn((value: unknown) => { inserts.push({table, value}); return Promise.resolve({data: null, error: null}); })};
-      })
-    };
+  test('rejects malformed successful responses and maps forbidden or transport errors safely', async () => {
+    const recordOperationalFailure = vi.fn().mockResolvedValue({status: 'recorded'});
+    const malformed = {rpc: vi.fn().mockResolvedValue({data: {status: 'updated', physicalStatus: 'shipped', version: 0}, error: null})};
+    const forbidden = {rpc: vi.fn().mockResolvedValue({data: {status: 'forbidden'}, error: null})};
+    const transport = {rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'buyer@example.test TRACK123'}})};
 
-    await expect(updatePhysicalFulfillment({orderId: '11111111-1111-4111-8111-111111111111', expectedStatus: 'shipped', expectedVersion: 5, status: 'delivered', locale: 'en', orderNumber: 'ATB-1', recipientEmail: 'buyer@example.test'}, client as never)).resolves.toMatchObject({status: 'updated', physicalStatus: 'delivered'});
-    expect(inserts).not.toEqual(expect.arrayContaining([expect.objectContaining({table: 'transactional_email_outbox'})]));
+    for (const client of [malformed, forbidden, transport]) {
+      await expect(
+        updatePhysicalFulfillment(
+          {orderId, expectedStatus: 'packing', expectedVersion: 2, status: 'shipped'},
+          client as never,
+          recordOperationalFailure
+        )
+      ).resolves.toEqual({status: 'error', code: 'physical_update_failed'});
+    }
+
+    expect(recordOperationalFailure).toHaveBeenCalledTimes(3);
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/buyer@example|TRACK123/i);
   });
 
-  test('records operational failure when shipped email queue insert fails', async () => {
+  test('records a bounded operational failure when the atomic RPC fails', async () => {
     const recordOperationalFailure = vi.fn(async () => ({
       status: 'recorded',
       errorId: '76000000-0000-4000-8000-000000000001'
     }));
-    const client = {
-      from: vi.fn((table: string) => {
-        if (table === 'physical_fulfillments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'phys-1', order_id: '11111111-1111-4111-8111-111111111111', status: 'packing', version: 2}, error: null}))}))
-            })),
-            update: vi.fn(() => ({eq: vi.fn(() => Promise.resolve({data: null, error: null}))}))
-          };
-        }
-        if (table === 'transactional_email_outbox') {
-          return {insert: vi.fn(() => Promise.resolve({data: null, error: {message: 'db unavailable'}}))};
-        }
-        return {insert: vi.fn(() => Promise.resolve({data: null, error: null}))};
-      })
-    };
+    const client = {rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'db unavailable'}})};
 
     const result = await updatePhysicalFulfillment(
-      {orderId: '11111111-1111-4111-8111-111111111111', expectedStatus: 'packing', expectedVersion: 2, status: 'shipped', locale: 'en', orderNumber: 'ATB-1', recipientEmail: 'buyer@example.test', trackingUrl: 'https://tracking.example.test/TRACK123', trackingNumber: 'TRACK123'},
+      {orderId, expectedStatus: 'packing', expectedVersion: 2, status: 'shipped'},
       client as never,
       recordOperationalFailure
     );
@@ -113,11 +118,10 @@ describe('admin physical fulfillment transitions', () => {
         area: 'fulfillment',
         severity: 'error',
         errorCode: 'physical_update_failed',
-        summary: 'Physical fulfillment shipped email queue failed',
+        summary: 'Atomic physical fulfillment update failed',
         facts: expect.objectContaining({
-          action: 'email_queue',
-          orderId: '11111111-1111-4111-8111-111111111111',
-          orderNumber: 'ATB-1',
+          action: 'update',
+          orderId,
           fulfillmentStatus: 'shipped',
           code: 'physical_update_failed'
         })
@@ -130,25 +134,10 @@ describe('admin physical fulfillment transitions', () => {
     const recordOperationalFailure = vi.fn(async () => {
       throw new Error('operational table unavailable');
     });
-    const client = {
-      from: vi.fn((table: string) => {
-        if (table === 'physical_fulfillments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'phys-1', order_id: '11111111-1111-4111-8111-111111111111', status: 'packing', version: 2}, error: null}))}))
-            })),
-            update: vi.fn(() => ({eq: vi.fn(() => Promise.resolve({data: null, error: null}))}))
-          };
-        }
-        if (table === 'transactional_email_outbox') {
-          return {insert: vi.fn(() => Promise.resolve({data: null, error: {message: 'db unavailable'}}))};
-        }
-        return {insert: vi.fn(() => Promise.resolve({data: null, error: null}))};
-      })
-    };
+    const client = {rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'db unavailable'}})};
 
     await expect(updatePhysicalFulfillment(
-      {orderId: '11111111-1111-4111-8111-111111111111', expectedStatus: 'packing', expectedVersion: 2, status: 'shipped', locale: 'en', orderNumber: 'ATB-1', recipientEmail: 'buyer@example.test'},
+      {orderId, expectedStatus: 'packing', expectedVersion: 2, status: 'shipped'},
       client as never,
       recordOperationalFailure
     )).resolves.toEqual({status: 'error', code: 'physical_update_failed'});

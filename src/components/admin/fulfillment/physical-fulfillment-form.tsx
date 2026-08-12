@@ -18,7 +18,6 @@ export function PhysicalFulfillmentForm({ order }: { order: AdminOrderDetail }) 
           <PhysicalFulfillmentActionForm
             orderId={order.orderId}
             orderNumber={order.orderNumber}
-            recipientEmail={order.contactEmail}
             physical={physical}
           />
         ) : (

@@ -2251,6 +2251,7 @@ export type Database = {
       }
       physical_fulfillments: {
         Row: {
+          admin_note: string | null
           carrier: string | null
           created_at: string
           delivered_at: string | null
@@ -2264,6 +2265,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          admin_note?: string | null
           carrier?: string | null
           created_at?: string
           delivered_at?: string | null
@@ -2277,6 +2279,7 @@ export type Database = {
           version?: number
         }
         Update: {
+          admin_note?: string | null
           carrier?: string | null
           created_at?: string
           delivered_at?: string | null
@@ -4031,6 +4034,7 @@ export type Database = {
         Returns: boolean
       }
       unsubscribe_newsletter: { Args: { p_token_hash: string }; Returns: Json }
+      update_physical_fulfillment: { Args: { p_payload: Json }; Returns: Json }
       upsert_review_admin_reply: {
         Args: {
           p_body: string

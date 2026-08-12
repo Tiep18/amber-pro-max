@@ -28,12 +28,10 @@ async function updateAction(_: PhysicalState, formData: FormData): Promise<Physi
 export function PhysicalFulfillmentActionForm({
   orderId,
   orderNumber,
-  recipientEmail,
   physical
 }: {
   orderId: string;
   orderNumber: string;
-  recipientEmail: string;
   physical: {
     status: string;
     version: number;
@@ -52,8 +50,6 @@ export function PhysicalFulfillmentActionForm({
       <input type="hidden" name="expectedStatus" value={physical.status} />
       <input type="hidden" name="expectedVersion" value={physical.version} />
       <input type="hidden" name="orderNumber" value={orderNumber} />
-      <input type="hidden" name="recipientEmail" value={recipientEmail} />
-      <input type="hidden" name="locale" value="en" />
       <dl className="grid gap-2 text-sm sm:grid-cols-4">
         <div>
           <dt className="font-semibold">Current status</dt>
