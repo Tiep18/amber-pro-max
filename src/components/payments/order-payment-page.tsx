@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
-import { CircleCheck } from 'lucide-react';
+import { CircleCheck, Mail } from 'lucide-react';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMoney } from '@/catalog/money';
@@ -180,31 +180,37 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
     </section>
   ) : null;
 
+  const statusBody = t(
+    isVietQrOrder ? vietQrStatusBodyKey(status.status) : `status.${status.status}.body`
+  );
+
   return (
-    <main className="container grid gap-5 py-10">
-      {/* The page previously had no h1 at all — its highest heading was the h2
-          inside PaymentStatePanel, so the document outline started at level 2. */}
-      <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.01em]">
-        {showPaidSuccess
-          ? t('status.paid.heading')
-          : t('pageHeading', { orderNumber: result.order.orderNumber })}
-      </h1>
-      <CheckoutStepper current={status.isPaid ? 'done' : 'payment'} locale={locale} />
+    <main className="container grid gap-6 py-8 lg:py-10">
+      {/* The h1 used to be the order reference and the panel below repeated the
+          status as a second 28px heading, so the page opened with two titles and
+          the reference number three times. The heading now answers the only
+          question a customer arrives with — what is happening to my order — and
+          the reference drops to a meta chip beside it. */}
+      <header className="grid max-w-[68ch] gap-4">
+        <CheckoutStepper current={status.isPaid ? 'done' : 'payment'} locale={locale} />
+        <h1 className="text-[30px] font-semibold leading-[1.15] tracking-[-0.02em] sm:text-[36px]">
+          {showPaidSuccess ? t('status.paid.heading') : t(`status.${status.status}.heading`)}
+        </h1>
+        <p className="inline-flex w-fit items-center gap-2 rounded-full bg-[var(--surface-muted)]/70 px-3 py-1.5 text-sm font-semibold tabular-nums ring-1 ring-[var(--border)]/60">
+          <span className="font-medium text-[var(--muted-foreground)]">{t('labels.order')}</span>
+          {result.order.orderNumber}
+        </p>
+      </header>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <GuestOrderSessionSync orderNumber={result.order.orderNumber} paid={status.isPaid} />
         <section className="grid content-start gap-5">
           {paidSuccess ?? (
             <PaymentStatePanel
-              orderNumber={result.order.orderNumber}
-              heading={t(`status.${status.status}.heading`)}
-              body={t(
-                isVietQrOrder ? vietQrStatusBodyKey(status.status) : `status.${status.status}.body`
-              )}
+              body={statusBody}
               presentation={presentation}
               deadlineLabel={t('labels.deadline')}
               deadlineValue={showPendingDeadline ? deadlineValue : null}
               reservationExpiresAt={showPendingDeadline ? result.order.reservationExpiresAt : null}
-              orderLabel={t('labels.order')}
               locale={locale}
               storeTimeZone={publicSupportConfig.storeTimeZone}
               recheckProvider={isVietQrOrder ? 'vietqr' : 'paypal'}
@@ -302,6 +308,7 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
                   downloadQr: vietqrT('downloadQr'),
                   downloadFailed: vietqrT('downloadFailed'),
                   declarationNote: vietqrT('declarationNote'),
+                  reconciliationSla: vietqrT('reconciliationSla'),
                   manualFallback: vietqrT('manualFallback'),
                   selectManually: vietqrT('selectManually'),
                   declareNotEligible: vietqrT('declareNotEligible'),
@@ -317,10 +324,9 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
           ) : null}
 
           {showPayPal ? (
+            // No CardTitle: PayPalButtons already leads with the same string, so
+            // the section used to render "Thanh toán bằng PayPal" twice in a row.
             <Card>
-              <CardHeader>
-                <CardTitle>{paypalT('pay')}</CardTitle>
-              </CardHeader>
               <CardContent>
                 {paypalClientId ? (
                   <PayPalButtons
@@ -437,9 +443,12 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
             </div>
           ) : null}
 
+          {/* For a guest this is the only way back to the order, so it stops
+              being the smallest grey line on the page. */}
           {!showPaidSuccess && !isSignedIn && result.order.contactEmailMasked ? (
-            <p className="text-sm text-[var(--muted-foreground)]">
-              {t('guestNote', { email: result.order.contactEmailMasked })}
+            <p className="flex items-start gap-2.5 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/60 px-4 py-3 text-sm leading-6 ring-1 ring-[var(--border)]/60">
+              <Mail aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[var(--accent)]" />
+              <span className="min-w-0">{t('guestNote', { email: result.order.contactEmailMasked })}</span>
             </p>
           ) : null}
         </section>
@@ -449,13 +458,9 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
             <CardHeader>
               <CardTitle>{t('summary.title')}</CardTitle>
             </CardHeader>
+            {/* The order number lives in the page header now; repeating it here
+                made it the third copy on one screen. */}
             <CardContent className="grid gap-4">
-              <div className="flex justify-between gap-3">
-                <span>{t('labels.order')}</span>
-                <span className="break-all text-right font-semibold tabular-nums">
-                  {result.order.orderNumber}
-                </span>
-              </div>
               <OrderLineSummary
                 lines={result.order.lines}
                 money={result.order.money}

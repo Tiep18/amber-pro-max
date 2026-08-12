@@ -387,7 +387,17 @@ describe('material quote dialog accessibility contract', () => {
     expect(source).toContain('aria-describedby="quote-diff-description"');
     expect(source).toContain('onCloseAutoFocus={restoreDestinationFocus}');
     expect(source).toContain('<DialogPrimitive.Close asChild>');
-    expect(source).toContain('[aria-labelledby="shipping-country-label"]');
     expect(source).toContain('onClick={onConfirm}');
+
+    // This used to assert the selector string alone, which is how it kept
+    // passing while pointing at an element that has never existed: focus left
+    // the dialog and landed on `body`. Assert the target *and* that the
+    // destination form still renders something with that id.
+    const destinationForm = readFileSync(
+      join(process.cwd(), 'src/components/checkout/destination-form.tsx'),
+      'utf8'
+    );
+    expect(source).toContain("document.getElementById('shipping-country-trigger')");
+    expect(destinationForm).toContain('id="shipping-country-trigger"');
   });
 });

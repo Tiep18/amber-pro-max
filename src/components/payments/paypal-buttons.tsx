@@ -66,6 +66,10 @@ function sdkUrl(clientId: string) {
   url.searchParams.set('client-id', clientId);
   url.searchParams.set('currency', 'USD');
   url.searchParams.set('intent', 'capture');
+  // PayPal usually offers the card button on its own, but whether it appears
+  // depends on the buyer's eligibility and cookies. Asking for it explicitly
+  // makes "pay by card, no PayPal account" a guarantee rather than a maybe.
+  url.searchParams.set('enable-funding', 'card');
   return url.toString();
 }
 
@@ -265,9 +269,9 @@ export function PayPalButtons({ orderNumber, clientId, amountLabel, labels }: Pa
 
   return (
     <div className="grid gap-3" aria-busy={pending || refreshPending}>
-      <div>
-        <p className="text-sm font-semibold">{labels.pay}</p>
-        <p className="text-sm text-[var(--muted-foreground)]">{amountLabel}</p>
+      <div className="grid gap-1">
+        <p className="text-lg font-semibold leading-tight">{labels.pay}</p>
+        <p className="text-sm leading-6 text-[var(--muted-foreground)]">{amountLabel}</p>
       </div>
       {outcomeMessage ? (
         <Alert variant={outcomeVariant} className="grid gap-3 p-3 text-sm">

@@ -68,7 +68,7 @@ test.describe('saved address retention (ACC-03, D-01, D-02, D-04)', () => {
 
     // Moving from the VN default to the US address changes market, currency and
     // total, so the blocking confirmation gate has to be accepted first.
-    const review = page.getByRole('dialog', {name: 'Shipping and total changed'});
+    const review = page.getByRole('dialog', {name: 'Your order just changed'});
     await review.getByRole('button', {name: 'Use updated quote'}).click();
     await expect(review).toHaveCount(0);
 

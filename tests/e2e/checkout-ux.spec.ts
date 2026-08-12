@@ -132,9 +132,17 @@ test('keyboard-only destination selection keeps normalized codes behind localize
   await page.keyboard.press('Enter');
   await expect(country).toContainText('United States');
 
-  const quoteReview = page.getByRole('dialog', {name: 'Shipping and total changed'});
-  await expect(quoteReview).toBeVisible();
-  await quoteReview.getByRole('button', {name: 'Use updated quote'}).click();
+  // Choosing a destination settles that destination's own shipping fee inline.
+  // The blocking review dialog is reserved for changes the customer did not
+  // ask for — a market, currency, price, or availability move.
+  await expect(page.getByTestId('checkout-shipping-notice')).toBeVisible();
+  await expect(page.getByRole('dialog', {name: 'Your order just changed'})).toHaveCount(0);
+
+  // Once shipping resolves, the summary answers "when will it arrive?" next to
+  // "how much is shipping?" instead of leaving the first one unanswered.
+  await expect(page.getByTestId('checkout-delivery-estimate-desktop')).toHaveText(
+    /7.*14 business days/
+  );
 
   const region = page.getByRole('combobox', {name: 'State or territory'});
   await expect(region).toBeEnabled({timeout: 20_000});
@@ -160,9 +168,9 @@ test('field blur is isolated and the tab draft excludes authority, proof, and co
   await page.getByRole('textbox', {name: 'Search shipping countries'}).fill('United States');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  const quoteReview = page.getByRole('dialog', {name: 'Shipping and total changed'});
-  await expect(quoteReview).toBeVisible();
-  await quoteReview.getByRole('button', {name: 'Use updated quote'}).click();
+  // Waiting for the inline shipping notice also waits out the requote that
+  // disables the address fields, so the blur assertions below are not racing it.
+  await expect(page.getByTestId('checkout-shipping-notice')).toBeVisible();
 
   const recipient = page.getByLabel('Recipient name');
   const phone = page.getByLabel('Phone number');
@@ -241,6 +249,85 @@ test('same-tab auth transitions never hydrate checkout PII from another identity
   await expect(
     page.getByRole('region', {name: 'Contact email'}).getByRole('textbox')
   ).toHaveValue(seed.customer.email);
+});
+
+test('the pay button stays pressable and routes to whatever is still missing', async ({page}) => {
+  await setCart(page, 'en');
+  await page.goto('/en/checkout');
+
+  // A physical cart with no address yet: the grand total is labelled as
+  // incomplete rather than presented as the final price, and the button is
+  // live rather than greyed out with no explanation.
+  // Scoped to the desktop summary: the mobile dock and collapsed mobile summary
+  // carry the same label but are display:none at this viewport.
+  const desktopSummary = page.getByRole('complementary');
+  const submit = page.getByTestId('checkout-submit');
+  await expect(submit).toBeEnabled();
+  await expect(
+    desktopSummary.getByText('Estimated total (shipping not included)')
+  ).toBeVisible();
+
+  const contactEmail = page.getByRole('region', {name: 'Contact email'}).getByRole('textbox');
+  await submit.click();
+  await expect(contactEmail).toBeFocused();
+
+  await contactEmail.fill('taylor.checkout@example.test');
+  // The summary echoes the address the order will be sent to, which also
+  // proves the contact step is complete before the second press.
+  await expect(page.getByTestId('checkout-contact-email-desktop')).toHaveText(
+    'taylor.checkout@example.test'
+  );
+  await submit.click();
+  await expect(page.getByRole('combobox', {name: 'Shipping country'})).toBeFocused();
+});
+
+test('a returning guest is offered the sign-in that unlocks their saved address', async ({page}) => {
+  await setCart(page, 'en');
+  await page.goto('/en/checkout');
+
+  const signIn = page.getByRole('link', {name: 'Sign in to use a saved address'});
+  await expect(signIn).toBeVisible();
+  // `next` has to survive the round trip, or signing in drops them on the
+  // account page with their cart still unpaid.
+  await expect(signIn).toHaveAttribute('href', '/en/sign-in?next=%2Fen%2Fcheckout');
+
+  await signIn.click();
+  await expect(page).toHaveURL(/\/en\/sign-in\?next=%2Fen%2Fcheckout/);
+});
+
+test('the collapsed mobile summary shows what is in the order without a tap', async ({page}) => {
+  await page.setViewportSize({width: 390, height: 844});
+  await setCart(page, 'en');
+  await page.goto('/en/checkout');
+
+  const summaryToggle = page.getByRole('button', {name: 'Show order summary'});
+  await expect(summaryToggle).toBeVisible();
+  const thumbnails = page.getByTestId('checkout-mobile-summary-thumbnails');
+  await expect(thumbnails).toBeVisible();
+
+  // Decorative: the panel this opens names every line, so the strip steps out
+  // of the way once it is open rather than repeating itself.
+  await summaryToggle.click();
+  await expect(page.getByRole('button', {name: 'Hide order summary'})).toBeVisible();
+  await expect(thumbnails).toHaveCount(0);
+});
+
+test('a mistyped email domain is offered a correction before paying', async ({page}) => {
+  await setCart(page, 'en');
+  await page.goto('/en/checkout');
+  // The contact form remounts once the tab draft has hydrated, so wait for
+  // checkout to settle before typing into it.
+  await expect(page.getByTestId('checkout-submit')).toBeEnabled();
+
+  const contactEmail = page.getByRole('region', {name: 'Contact email'}).getByRole('textbox');
+  await contactEmail.fill('taylor@gmial.com');
+  await contactEmail.blur();
+
+  const suggestion = page.getByText('Did you mean taylor@gmail.com?');
+  await expect(suggestion).toBeVisible();
+  await page.getByRole('button', {name: 'Use this address'}).click();
+  await expect(contactEmail).toHaveValue('taylor@gmail.com');
+  await expect(suggestion).toHaveCount(0);
 });
 
 test('authenticated address saving is signed-in only and unchecked on every load', async ({page}) => {

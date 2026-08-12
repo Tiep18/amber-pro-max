@@ -3,23 +3,15 @@
 import {useEffect, useMemo, useRef} from 'react';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {useForm} from 'react-hook-form';
+import {createTranslator} from 'next-intl';
 import {z} from 'zod';
+import {suggestEmailCorrection} from '@/checkout/email-suggestion';
 import type {Locale} from '@/i18n/routing';
+import enMessages from '@/messages/en.json';
+import viMessages from '@/messages/vi.json';
+import {Button} from '@/components/ui/button';
 import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
 import {Input} from '@/components/ui/input';
-
-const copy = {
-  en: {
-    email: 'Email',
-    emailHint: 'We will send order and payment updates to this address.',
-    emailInvalid: 'Enter a valid email address.'
-  },
-  vi: {
-    email: 'Email',
-    emailHint: 'Chúng tôi sẽ gửi cập nhật đơn hàng và thanh toán tới địa chỉ này.',
-    emailInvalid: 'Nhập địa chỉ email hợp lệ.'
-  }
-} as const;
 
 type ContactFormValues = {
   email: string;
@@ -40,7 +32,18 @@ export function ContactForm({
   showValidation?: boolean;
   disabled?: boolean;
 }) {
-  const t = copy[locale];
+  const translate = createTranslator({
+    locale,
+    messages: locale === 'vi' ? viMessages : enMessages,
+    namespace: 'checkout.contact'
+  });
+  const t = {
+    email: translate('email'),
+    emailHint: translate('emailHint'),
+    emailInvalid: translate('emailInvalid'),
+    suggestion: (suggested: string) => translate('suggestion', {email: suggested}),
+    useSuggestion: translate('useSuggestion')
+  };
   const schema = useMemo(
     () =>
       z.object({
@@ -58,6 +61,17 @@ export function ContactForm({
   });
   const initialValidationDone = useRef(false);
   const watchedEmail = form.watch('email');
+  // A domain we merely *suspect* is mistyped must never nag mid-typing:
+  // `a@gmial.co` is a valid address on its way to becoming `a@gmial.com`.
+  // Waiting for the first blur (or a submit attempt) keeps the hint to the
+  // moment the customer has actually finished the field.
+  const emailTouched = Boolean(form.formState.touchedFields.email);
+  // Applying the suggestion makes it stop matching, so the hint clears itself
+  // without any dismissed-state bookkeeping to get out of sync.
+  const visibleSuggestion =
+    form.formState.isValid && (emailTouched || showValidation)
+      ? suggestEmailCorrection(watchedEmail)
+      : null;
 
   useEffect(() => {
     if (watchedEmail !== email) {
@@ -99,6 +113,28 @@ export function ContactForm({
             </FormItem>
           )}
         />
+        <div role="status" aria-live="polite" className="empty:hidden">
+          {visibleSuggestion ? (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 px-3 py-2 text-sm leading-5">
+              <span className="min-w-0 break-words">{t.suggestion(visibleSuggestion)}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={disabled}
+                className="min-h-11 shrink-0 px-2 text-sm font-semibold text-[var(--accent)]"
+                onClick={() => {
+                  form.setValue('email', visibleSuggestion, {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                    shouldTouch: true
+                  });
+                }}
+              >
+                {t.useSuggestion}
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </form>
     </Form>
   );

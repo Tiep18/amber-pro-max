@@ -1,57 +1,64 @@
 'use client';
 
 import {Dialog as DialogPrimitive} from 'radix-ui';
+import {createTranslator} from 'next-intl';
 import {formatMoney} from '@/catalog/money';
 import type {MaterialQuoteChange} from '@/checkout/market-revalidation';
 import type {CartQuote} from '@/checkout/types';
 import type {Locale} from '@/i18n/routing';
+import enMessages from '@/messages/en.json';
+import viMessages from '@/messages/vi.json';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 
-const copy = {
-  en: {
-    title: 'Shipping and total changed',
-    body: 'Review the server-calculated changes before continuing with this destination.',
-    confirm: 'Use updated quote',
-    cancel: 'Review destination',
-    market: 'Shopping region',
-    currency: 'Currency',
-    shipping: 'Shipping',
-    line: 'Item',
-    total: 'Total',
-    unavailable: 'unavailable',
-    missing: 'removed',
-    ready: 'available',
-    invalid_variant: 'invalid option',
-    quantity_capped: 'quantity adjusted',
-    unknown: 'Not available'
-  },
-  vi: {
-    title: 'Phí giao hàng và tổng tiền đã thay đổi',
-    body: 'Hãy xem lại các thay đổi do hệ thống tính trước khi tiếp tục với địa chỉ này.',
-    confirm: 'Dùng báo giá mới',
-    cancel: 'Xem lại địa chỉ',
-    market: 'Khu vực mua sắm',
-    currency: 'Đơn vị tiền tệ',
-    shipping: 'Phí giao hàng',
-    line: 'Sản phẩm',
-    total: 'Tổng tiền',
-    unavailable: 'không khả dụng',
-    missing: 'đã bị xóa',
-    ready: 'khả dụng',
-    invalid_variant: 'tùy chọn không hợp lệ',
-    quantity_capped: 'số lượng đã điều chỉnh',
-    unknown: 'Không khả dụng'
-  }
-} as const;
+type QuoteReviewCopy = {
+  title: string;
+  body: string;
+  confirm: string;
+  cancel: string;
+  market: string;
+  currency: string;
+  shipping: string;
+  line: string;
+  total: string;
+  unknown: string;
+  status: (value: string) => string;
+};
+
+function quoteReviewCopy(locale: Locale): QuoteReviewCopy {
+  const translate = createTranslator({
+    locale,
+    messages: locale === 'vi' ? viMessages : enMessages,
+    namespace: 'checkout.quoteReview'
+  });
+  const statuses: Record<string, string> = {
+    unavailable: translate('statusUnavailable'),
+    missing: translate('statusMissing'),
+    ready: translate('statusReady'),
+    invalid_variant: translate('statusInvalidVariant'),
+    quantity_capped: translate('statusQuantityCapped')
+  };
+  return {
+    title: translate('title'),
+    body: translate('body'),
+    confirm: translate('confirm'),
+    cancel: translate('cancel'),
+    market: translate('market'),
+    currency: translate('currency'),
+    shipping: translate('shipping'),
+    line: translate('line'),
+    total: translate('total'),
+    unknown: translate('unknown'),
+    status: (value: string) => statuses[value] ?? value.replaceAll('_', ' ')
+  };
+}
 
 function changeLabel(
-  locale: Locale,
+  t: QuoteReviewCopy,
   change: MaterialQuoteChange,
   quote: CartQuote,
   previousCurrency: CartQuote['currencyCode']
 ) {
-  const t = copy[locale];
   const previousMoney = (amount: number | null) =>
     amount === null || !previousCurrency
       ? t.unknown
@@ -60,22 +67,6 @@ function changeLabel(
     amount === null || !quote.currencyCode
       ? t.unknown
       : formatMoney({amountMinor: amount, currencyCode: quote.currencyCode});
-  const status = (value: string) => {
-    switch (value) {
-      case 'unavailable':
-        return t.unavailable;
-      case 'missing':
-        return t.missing;
-      case 'ready':
-        return t.ready;
-      case 'invalid_variant':
-        return t.invalid_variant;
-      case 'quantity_capped':
-        return t.quantity_capped;
-      default:
-        return value.replaceAll('_', ' ');
-    }
-  };
 
   switch (change.type) {
     case 'market_changed':
@@ -85,7 +76,7 @@ function changeLabel(
     case 'shipping_changed':
       return `${t.shipping}: ${previousMoney(change.previousAmountMinor)} → ${currentMoney(change.currentAmountMinor)}`;
     case 'line_changed':
-      return `${t.line} — ${change.title}: ${status(change.previousStatus)} → ${status(change.currentStatus)}`;
+      return `${t.line} — ${change.title}: ${t.status(change.previousStatus)} → ${t.status(change.currentStatus)}`;
     case 'total_changed':
       return `${t.total}: ${previousMoney(change.previousTotalMinor)} → ${currentMoney(change.currentTotalMinor)}`;
   }
@@ -104,7 +95,7 @@ export function QuoteDiffDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const t = copy[locale];
+  const t = quoteReviewCopy(locale);
   const currencyChange = changes.find(
     (change): change is Extract<MaterialQuoteChange, {type: 'currency_changed'}> =>
       change.type === 'currency_changed'
@@ -116,12 +107,16 @@ export function QuoteDiffDialog({
       : proposal.currencyCode;
 
   function restoreDestinationFocus(event: Event) {
+    // This dialog is opened by a quote settling, not by a trigger element, so
+    // Radix has nothing to restore focus to and drops it on `body`. Send it to
+    // the control the customer was last using instead — and only override the
+    // default when that control is actually on the page, which it is not for a
+    // digital-only cart. The previous selector matched nothing at all: no
+    // element has ever carried `aria-labelledby="shipping-country-label"`.
+    const target = document.getElementById('shipping-country-trigger');
+    if (!target) return;
     event.preventDefault();
-    window.requestAnimationFrame(() => {
-      document
-        .querySelector<HTMLElement>('[aria-labelledby="shipping-country-label"]')
-        ?.focus();
-    });
+    window.requestAnimationFrame(() => target.focus());
   }
 
   return (
@@ -154,7 +149,7 @@ export function QuoteDiffDialog({
                     key={`${change.type}-${index}`}
                     className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm font-medium"
                   >
-                    {changeLabel(locale, change, proposal, previousCurrency)}
+                    {changeLabel(t, change, proposal, previousCurrency)}
                   </li>
                 ))}
               </ul>

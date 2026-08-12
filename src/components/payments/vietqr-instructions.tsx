@@ -36,6 +36,7 @@ type VietQrInstructionLabels = {
   downloadQr: string;
   downloadFailed: string;
   declarationNote: string;
+  reconciliationSla: string;
   manualFallback: string;
   selectManually: string;
   declareNotEligible: string;
@@ -346,6 +347,13 @@ export function VietQrInstructions({
             {labels.stepThree}
           </h2>
           <p className="text-sm text-[var(--muted-foreground)]">{labels.declarationNote}</p>
+          {/* Manual reconciliation is the one step of this flow the customer
+              cannot see happening. Saying how long it takes is what turns the
+              wait from "did my money vanish?" into a known interval. */}
+          <p className="flex items-start gap-2 rounded-[var(--radius-control)] bg-[var(--surface-muted)] px-3 py-2 text-sm font-medium leading-5">
+            <Clock3 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[var(--accent)]" />
+            <span className="min-w-0 break-words">{labels.reconciliationSla}</span>
+          </p>
           <div className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3">
           {isDeclared ? (
             <p role="status" className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">

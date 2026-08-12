@@ -317,6 +317,13 @@ describe('VietQR instruction and evidence contract', () => {
     expect(source).toMatch(/min-h-11/);
     expect(source).toMatch(/labels\.manualFallback/);
     expect(source).toMatch(/labels\.declarationNote/);
+    // Manual reconciliation is the one step the customer cannot watch happen,
+    // so how long it takes has to be on screen whether or not they declared.
+    expect(source).toMatch(/labels\.reconciliationSla/);
+    expect(
+      source.indexOf('labels.reconciliationSla') > stepThree &&
+        source.indexOf('labels.reconciliationSla') < source.indexOf('isDeclared ?')
+    ).toBe(true);
     expect(source).toMatch(/labels\.selectManually/);
     expect(source).not.toMatch(/lockHeading|lockBody|LockKeyhole/);
     expect(source).not.toMatch(/type=["']file["']|receipt|upload/i);

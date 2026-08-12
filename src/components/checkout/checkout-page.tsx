@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, MapPin, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Check, MapPin, ShoppingBag, Truck } from 'lucide-react';
 import Link from 'next/link';
 import {useRouter} from 'next/navigation';
 import {createTranslator} from 'next-intl';
@@ -17,6 +17,12 @@ import {
   type SubmitCheckoutActionState
 } from '@/checkout/actions';
 import { checkoutPaymentIntentForQuote } from '@/checkout/payment-method';
+import type { CheckoutPaymentIntent } from '@/checkout/schemas';
+import {
+  settleExpectedQuoteChange,
+  type ShippingChangeNotice
+} from '@/checkout/quote-review';
+import { formatMoney } from '@/catalog/money';
 import {
   clearEditableDraft,
   readEditableDraft,
@@ -65,8 +71,10 @@ import {
   getAccountOrdersPath,
   getCartPath,
   getCatalogPath,
+  getCheckoutPath,
   getContactPath,
   getGuestOrderPath,
+  getLocalizedPath,
   type Locale
 } from '@/i18n/routing';
 import enMessages from '@/messages/en.json';
@@ -82,111 +90,6 @@ import {
 } from './order-summary';
 import { QuoteDiffDialog } from './quote-diff-dialog';
 import { SavedAddressSelector } from './saved-address-selector';
-
-const copy = {
-  en: {
-    title: 'Checkout',
-    intro: 'Confirm your contact, delivery details, and current total.',
-    backToCart: 'Back to cart',
-    contact: 'Contact email',
-    contactIntro: 'Order and payment updates',
-    destination: 'Delivery address',
-    destinationIntro: 'Shipping is recalculated when the country or state changes.',
-    changeAddress: 'Change',
-    calculating: 'Calculating shipping for this address…',
-    handoff: 'Confirm total and continue',
-    paypalHandoff: 'Create order and continue to PayPal',
-    vietqrHandoff: 'Create order and view VietQR',
-    submitting: 'Creating order…',
-    emptyTitle: 'Your cart is empty',
-    emptyBody: 'Add a PDF pattern or handmade item before starting checkout.',
-    continueShopping: 'Continue shopping',
-    missingContact: 'Enter a valid contact email.',
-    missingQuote: 'Refresh the cart quote.',
-    missingPayment: 'Wait for the payment method to match the confirmed total.',
-    missingShipping: 'Complete the delivery address.',
-    unsupportedShipping: 'Choose a supported shipping destination.',
-    success: 'Order is awaiting payment.',
-    deadline: 'Reservation deadline',
-    blockedItems: 'Resolve unavailable items before continuing.',
-    updatingTotal: 'Wait while the current total is updated.',
-    reviewUpdatedTotal: 'Review and accept the updated total before continuing.',
-    retryQuote: 'Try again',
-    saveAddress: 'Save this address to my account',
-    addressSaveWarning: 'Your order was created, but this address could not be saved to your account.',
-    quoteIssue: {
-      unsupported:
-        'We cannot ship these items to the selected destination. Change the address to continue.',
-      network: 'We could not refresh your total. Check your connection and try again.',
-      server: 'We could not recalculate your total. Try again.'
-    },
-    errors: {
-      cookiesBlocked: 'Your browser is blocking cookies, so the order could not be held. Enable cookies or exit private/incognito mode and try again.',
-      staleQuote: 'The price or stock just changed. Review the updated total and try again.',
-      staleShipping: 'The shipping fee just changed. Confirm the delivery address again.',
-      addressRequired: 'The delivery address is incomplete.',
-      addressIncompleteUs: 'Orders shipping to the US need a state and ZIP code.',
-      paymentMethodDrift: 'The payment method no longer matches this market. Reload the page.',
-      conflict: 'Checkout could not reserve the current items. Review your cart and try again.',
-      network: 'Could not reach the server. Your order was not created — please try again.',
-      networkUnconfirmed:
-        'We could not confirm whether your order went through. Check "My orders" before trying again so you do not order twice.',
-      unknown: 'Something went wrong. Try again; if it keeps happening, send us the incident code below.',
-      incidentCode: 'Incident code'
-    }
-  },
-  vi: {
-    title: 'Thanh toán',
-    intro: 'Xác nhận email, địa chỉ giao hàng và tổng tiền hiện tại.',
-    backToCart: 'Quay lại giỏ hàng',
-    contact: 'Email nhận đơn',
-    contactIntro: 'Nhận cập nhật đơn hàng và hướng dẫn thanh toán',
-    destination: 'Địa chỉ giao hàng',
-    destinationIntro: 'Phí giao hàng được tính lại khi quốc gia hoặc bang thay đổi.',
-    changeAddress: 'Thay đổi',
-    calculating: 'Đang tính phí giao hàng cho địa chỉ này…',
-    handoff: 'Xác nhận tổng tiền và tiếp tục',
-    paypalHandoff: 'Tạo đơn và tiếp tục tới PayPal',
-    vietqrHandoff: 'Tạo đơn và xem mã VietQR',
-    submitting: 'Đang tạo đơn…',
-    emptyTitle: 'Giỏ hàng đang trống',
-    emptyBody: 'Hãy thêm mẫu PDF hoặc sản phẩm thủ công trước khi thanh toán.',
-    continueShopping: 'Tiếp tục mua sắm',
-    missingContact: 'Nhập email liên hệ hợp lệ.',
-    missingQuote: 'Cập nhật lại báo giá giỏ hàng.',
-    missingPayment: 'Chờ phương thức thanh toán khớp với tổng tiền đã xác nhận.',
-    missingShipping: 'Hoàn tất địa chỉ giao hàng.',
-    unsupportedShipping: 'Chọn địa chỉ giao hàng được hỗ trợ.',
-    success: 'Đơn hàng đang chờ thanh toán.',
-    deadline: 'Hạn giữ hàng',
-    blockedItems: 'Hãy xử lý các sản phẩm chưa khả dụng trước khi tiếp tục.',
-    updatingTotal: 'Chờ cập nhật xong tổng tiền hiện tại.',
-    reviewUpdatedTotal: 'Xem và chấp nhận tổng tiền đã cập nhật trước khi tiếp tục.',
-    retryQuote: 'Thử lại',
-    saveAddress: 'Lưu địa chỉ này vào tài khoản',
-    addressSaveWarning: 'Đơn hàng đã được tạo, nhưng chưa thể lưu địa chỉ này vào tài khoản.',
-    quoteIssue: {
-      unsupported:
-        'Hiện chưa thể giao các sản phẩm này tới địa chỉ đã chọn. Hãy đổi địa chỉ để tiếp tục.',
-      network: 'Không cập nhật được tổng tiền. Kiểm tra kết nối rồi thử lại.',
-      server: 'Không tính lại được tổng tiền. Hãy thử lại.'
-    },
-    errors: {
-      cookiesBlocked: 'Trình duyệt đang chặn cookie nên không giữ được đơn. Bật cookie hoặc thoát chế độ ẩn danh rồi thử lại.',
-      staleQuote: 'Giá hoặc tình trạng hàng vừa thay đổi. Xem lại tổng tiền rồi thử lại.',
-      staleShipping: 'Phí giao hàng vừa thay đổi. Xác nhận lại địa chỉ giao hàng.',
-      addressRequired: 'Địa chỉ giao hàng chưa đầy đủ.',
-      addressIncompleteUs: 'Đơn giao tới Mỹ cần bang và mã ZIP.',
-      paymentMethodDrift: 'Phương thức thanh toán chưa khớp thị trường. Hãy tải lại trang.',
-      conflict: 'Không giữ được sản phẩm trong giỏ. Xem lại giỏ hàng rồi thử lại.',
-      network: 'Không kết nối được máy chủ. Đơn của bạn chưa được tạo — hãy thử lại.',
-      networkUnconfirmed:
-        'Chúng tôi chưa xác nhận được đơn của bạn đã tạo hay chưa. Hãy kiểm tra "Đơn hàng của tôi" trước khi thử lại để tránh đặt trùng.',
-      unknown: 'Có lỗi xảy ra. Hãy thử lại; nếu vẫn lỗi, gửi cho chúng tôi mã sự cố bên dưới.',
-      incidentCode: 'Mã sự cố'
-    }
-  }
-} as const;
 
 const emptyShippingAddress: ShippingAddress = {
   recipientName: '',
@@ -278,13 +181,16 @@ export function CheckoutPage({
     namespace: 'orders'
   });
   const t = {
-    ...copy[locale],
     title: pageTranslate('title'), intro: pageTranslate('intro'), backToCart: pageTranslate('backToCart'),
     contact: pageTranslate('contact'), contactIntro: pageTranslate('contactIntro'), complete: pageTranslate('complete'), destination: pageTranslate('destination'),
     destinationIntro: pageTranslate('destinationIntro'), changeAddress: pageTranslate('changeAddress'), calculating: pageTranslate('calculating'),
     emptyTitle: pageTranslate('emptyTitle'), emptyBody: pageTranslate('emptyBody'), continueShopping: pageTranslate('continueShopping'),
     success: pageTranslate('success'), deadline: pageTranslate('deadline'), retryQuote: pageTranslate('retry'),
     saveAddress: pageTranslate('saveAddress'), addressSaveWarning: pageTranslate('addressSaveWarning'),
+    signInPrompt: pageTranslate('signInPrompt'), signInAction: pageTranslate('signInAction'),
+    shippingCalculated: (amount: string) => pageTranslate('shippingCalculated', {amount}),
+    shippingUpdated: (previous: string, current: string) =>
+      pageTranslate('shippingUpdated', {previous, current}),
     handoff: submitTranslate('handoff'), paypalHandoff: submitTranslate('paypal'), vietqrHandoff: submitTranslate('vietqr'),
     checkingTotal: submitTranslate('checkingTotal'), submitting: submitTranslate('creatingOrder'),
     missingContact: submitTranslate('missingContact'), missingQuote: submitTranslate('missingTotal'),
@@ -316,6 +222,10 @@ export function CheckoutPage({
   const prefillRequestRef = useRef<string | null>(null);
   const idempotencyRef = useRef<ResolvedIdempotency | null>(null);
   const submitInFlightRef = useRef(false);
+  // Set when a pay attempt was interrupted by a review dialog, so accepting
+  // the reviewed quote finishes the attempt instead of asking for the same
+  // button press a second time.
+  const resumeSubmitAfterReviewRef = useRef(false);
   const feedbackRef = useRef<HTMLDivElement | null>(null);
   const acceptedQuote = lifecycle.acceptedQuote;
   const [email, setEmail] = useState(initialEmail);
@@ -333,6 +243,10 @@ export function CheckoutPage({
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
   const [dedupeGuaranteed, setDedupeGuaranteed] = useState(true);
+  const [shippingNotice, setShippingNotice] = useState<{
+    notice: ShippingChangeNotice;
+    currencyCode: NonNullable<CartQuote['currencyCode']>;
+  } | null>(null);
   const paymentIntent = checkoutPaymentIntentForQuote(acceptedQuote);
   const submitting = submitStage !== 'idle';
 
@@ -348,6 +262,7 @@ export function CheckoutPage({
 
   const beginCheckoutInteraction = useCallback(() => {
     setSubmitResult(null);
+    setShippingNotice(null);
   }, []);
 
   const beginEditableInteraction = useCallback(() => {
@@ -364,6 +279,9 @@ export function CheckoutPage({
       discountCodeOverride?: { code: string | null }
     ) => {
       beginCheckoutInteraction();
+      if (source !== 'submit') {
+        resumeSubmitAfterReviewRef.current = false;
+      }
       if (source !== 'upstream') {
         destinationAuthorityRef.current = Boolean(destination.countryCode);
       }
@@ -384,6 +302,7 @@ export function CheckoutPage({
           priorAcceptedQuoteHash: current.acceptedQuote?.hash ?? null
         });
         const latest = lifecycleRef.current;
+        const previousAcceptedQuote = latest.acceptedQuote;
         const settlementState =
           !shouldReviewCheckoutQuoteChange(source) &&
           result.status === 'success' &&
@@ -400,8 +319,25 @@ export function CheckoutPage({
                 status: result.status === 'invalid' ? 'server_error' : 'network_error',
                 code: result.code
               });
-        setLifecycle(settled);
-        return settled;
+        // A destination edit that only moved the shipping fee has already been
+        // decided by the customer. Absorb it here and say what changed inline
+        // rather than raising a modal over the answer they just gave. A late
+        // response from a superseded request owns none of this: a newer request
+        // is already driving the screen.
+        const ownsRequest = settlementState.activeRequestId === transition.request.requestId;
+        const resolved = ownsRequest
+          ? settleExpectedQuoteChange({ state: settled, previousAcceptedQuote, source })
+          : { state: settled, notice: null };
+        if (ownsRequest) {
+          const noticeCurrency = resolved.state.acceptedQuote?.currencyCode ?? null;
+          setShippingNotice(
+            resolved.notice && noticeCurrency
+              ? { notice: resolved.notice, currencyCode: noticeCurrency }
+              : null
+          );
+        }
+        setLifecycle(resolved.state);
+        return resolved.state;
       } catch {
         const settled = settleQuoteRequest(lifecycleRef.current, transition.request.requestId, {
           status: 'network_error'
@@ -563,16 +499,23 @@ export function CheckoutPage({
   const blockingNotice =
     acceptedQuote?.status === 'blocked' ? t.blockedItems : (quoteIssueText ?? null);
   const controlsDisabled = submitting || lifecycle.activeRequestId !== null || pending;
+  // Refuse the press only when pressing genuinely cannot help: checkout is
+  // busy, a decision is already on screen with its own controls (the review
+  // dialog, the failed-requote alert and its retry button), or the cart itself
+  // is what needs fixing and the summary already links to it.
+  //
+  // A destination the customer simply has not entered yet is *not* one of those
+  // — it used to grey the button out on arrival for every physical cart, with
+  // the explanation buried in small print. Pressing now moves focus to the
+  // first field still missing, which says far more than a dead control.
   const actionDisabled =
     controlsDisabled ||
+    Boolean(lifecycle.proposal) ||
+    Boolean(lifecycle.issue) ||
     !acceptedQuote ||
     acceptedQuote.lines.length === 0 ||
     acceptedQuote.status !== 'ready' ||
-    lifecycle.activeRequestId !== null ||
-    Boolean(lifecycle.proposal) ||
-    Boolean(lifecycle.issue) ||
-    paymentIntent === null ||
-    (physicalCount > 0 && acceptedQuote.shipping.status !== 'ready');
+    paymentIntent === null;
   const actionLabel = submitStage === 'checking-total'
     ? t.checkingTotal
     : submitStage === 'creating-order'
@@ -592,7 +535,10 @@ export function CheckoutPage({
     locale,
     paymentIntent,
     shippingAddress,
+    contactEmail: contactReady ? email : null,
     blockingIssues: [...submitIssues, ...(actionBlocker ? [actionBlocker] : [])],
+    // Unchanged, but it now stays quiet on arrival: a missing address no longer
+    // disables the button, so it no longer needs small print to explain one.
     showBlockingIssues: submitAttempted || actionDisabled,
     policyLinks,
     pending: lifecycle.activeRequestId !== null
@@ -600,6 +546,25 @@ export function CheckoutPage({
   const isEmpty =
     acceptedQuote?.status === 'empty' ||
     (!pending && Boolean(cart) && (cart?.lines.length ?? 0) === 0);
+  const shippingNoticeText = shippingNotice
+    ? shippingNotice.notice.kind === 'calculated'
+      ? t.shippingCalculated(
+          formatMoney({
+            amountMinor: shippingNotice.notice.currentAmountMinor,
+            currencyCode: shippingNotice.currencyCode
+          })
+        )
+      : t.shippingUpdated(
+          formatMoney({
+            amountMinor: shippingNotice.notice.previousAmountMinor,
+            currencyCode: shippingNotice.currencyCode
+          }),
+          formatMoney({
+            amountMinor: shippingNotice.notice.currentAmountMinor,
+            currencyCode: shippingNotice.currencyCode
+          })
+        )
+    : null;
 
   async function applyDiscountCode(code: string | null): Promise<DiscountApplyOutcome> {
     if (!acceptedQuote) {
@@ -636,10 +601,19 @@ export function CheckoutPage({
 
   function acceptProposedQuote() {
     beginCheckoutInteraction();
-    setLifecycle(acceptQuoteProposal(lifecycleRef.current));
+    const accepted = acceptQuoteProposal(lifecycleRef.current);
+    setLifecycle(accepted);
+    if (!resumeSubmitAfterReviewRef.current) {
+      return;
+    }
+    resumeSubmitAfterReviewRef.current = false;
+    // The customer pressed pay, was shown exactly what moved, and accepted it.
+    // Asking for the same press again is asking for the same decision twice.
+    void continueSubmitWithReviewedQuote(accepted);
   }
 
   function reviewProposedDestination() {
+    resumeSubmitAfterReviewRef.current = false;
     const current = lifecycleRef.current;
     const acceptedDestination = current.acceptedQuote
       ? quoteDestination(current.acceptedQuote)
@@ -751,97 +725,162 @@ export function CheckoutPage({
         acceptedQuote,
         'submit'
       );
+      if (refreshedLifecycle.proposal) {
+        // Hold on to the intent to pay so accepting the reviewed quote finishes
+        // this attempt rather than starting a new one.
+        resumeSubmitAfterReviewRef.current = true;
+        return;
+      }
       const refreshedQuote = refreshedLifecycle.acceptedQuote;
       const refreshedPaymentIntent = checkoutPaymentIntentForQuote(refreshedQuote);
       if (
         !refreshedQuote ||
         refreshedLifecycle.activeRequestId !== null ||
-        refreshedLifecycle.proposal ||
         refreshedLifecycle.issue ||
         !refreshedPaymentIntent
       ) {
         return;
       }
 
-      const submitInput = {
-        locale,
-        market: refreshedQuote.market,
-        lines: quoteIntentLines(refreshedQuote),
-        acceptedQuote: refreshedQuote,
-        acceptedQuoteHash: refreshedQuote.hash,
-        idempotencyKey: idempotencyKeyForQuote(refreshedQuote.hash),
-        contactEmail: email.trim(),
-        paymentIntent: refreshedPaymentIntent,
-        destinationCountryCode:
-          refreshedQuote.shipping.status === 'ready' ||
-          refreshedQuote.shipping.status === 'unsupported_destination'
-            ? refreshedQuote.shipping.countryCode
-            : null,
-        shippingAddress: physicalCount > 0 ? shippingAddress : null,
-        discountCode: activeDiscountCode(refreshedQuote)
-      };
-      setSubmitStage('creating-order');
-      const prepared = await prepareGuestCheckoutRecoveryAction({
-        acceptedQuote: refreshedQuote,
-        acceptedQuoteHash: submitInput.acceptedQuoteHash,
-        contactEmail: submitInput.contactEmail,
-        paymentIntent: submitInput.paymentIntent
+      await placeOrderForQuote(
+        refreshedQuote,
+        refreshedPaymentIntent,
+        physicalLineCount(refreshedQuote)
+      );
+    } catch {
+      setSubmitResult({ status: 'error', code: 'checkout_submit_failed' });
+    } finally {
+      submitInFlightRef.current = false;
+      setSubmitStage('idle');
+    }
+  }
+
+
+  function physicalLineCount(quote: CartQuote) {
+    return quote.lines.filter(
+      (line) => line.fulfillmentType === 'physical' && line.quantity > 0
+    ).length;
+  }
+
+  /**
+   * Places the order for one quote that has already passed the freshness and
+   * material-change gates. The caller owns `submitInFlightRef` and the submit
+   * stage reset, so the button never falls back to its idle label between
+   * checking the total and placing the order.
+   */
+  async function placeOrderForQuote(
+    refreshedQuote: CartQuote,
+    quotePaymentIntent: CheckoutPaymentIntent,
+    physicalLines: number
+  ) {
+    if (!cart) return;
+
+    const submitInput = {
+      locale,
+      market: refreshedQuote.market,
+      lines: quoteIntentLines(refreshedQuote),
+      acceptedQuote: refreshedQuote,
+      acceptedQuoteHash: refreshedQuote.hash,
+      idempotencyKey: idempotencyKeyForQuote(refreshedQuote.hash),
+      contactEmail: email.trim(),
+      paymentIntent: quotePaymentIntent,
+      destinationCountryCode:
+        refreshedQuote.shipping.status === 'ready' ||
+        refreshedQuote.shipping.status === 'unsupported_destination'
+          ? refreshedQuote.shipping.countryCode
+          : null,
+      shippingAddress: physicalLines > 0 ? shippingAddress : null,
+      discountCode: activeDiscountCode(refreshedQuote)
+    };
+    setSubmitStage('creating-order');
+    const prepared = await prepareGuestCheckoutRecoveryAction({
+      acceptedQuote: refreshedQuote,
+      acceptedQuoteHash: submitInput.acceptedQuoteHash,
+      contactEmail: submitInput.contactEmail,
+      paymentIntent: submitInput.paymentIntent
+    });
+    const result =
+      prepared.status === 'ready'
+        ? await submitCheckoutAction(submitInput)
+        : ({ status: 'invalid', code: prepared.code } as const);
+    setSubmitResult(result);
+    if (result.status === 'success') {
+      const completedLines = refreshedQuote.lines
+        .filter(
+          (line) =>
+            (line.status === 'ready' || line.status === 'quantity_capped') && line.quantity > 0
+        )
+        .map((line) => ({
+          productId: line.productId,
+          variantId: line.variantId,
+          quantity: line.quantity
+        }));
+      const snapshotLines = completedLines.flatMap((completed) => {
+        const intentLine = cart?.lines.find(
+          (candidate) =>
+            candidate.productId === completed.productId &&
+            (candidate.variantId ?? null) === completed.variantId
+        );
+        return intentLine ? [{ ...intentLine, quantity: completed.quantity }] : [];
       });
-      const result =
-        prepared.status === 'ready'
-          ? await submitCheckoutAction(submitInput)
-          : ({ status: 'invalid', code: prepared.code } as const);
-      setSubmitResult(result);
-      if (result.status === 'success') {
-        const completedLines = refreshedQuote.lines
-          .filter(
-            (line) =>
-              (line.status === 'ready' || line.status === 'quantity_capped') && line.quantity > 0
-          )
-          .map((line) => ({
-            productId: line.productId,
-            variantId: line.variantId,
-            quantity: line.quantity
-          }));
-        const snapshotLines = completedLines.flatMap((completed) => {
-          const intentLine = cart?.lines.find(
-            (candidate) =>
-              candidate.productId === completed.productId &&
-              (candidate.variantId ?? null) === completed.variantId
-          );
-          return intentLine ? [{ ...intentLine, quantity: completed.quantity }] : [];
-        });
-        if (snapshotLines.length > 0) {
-          writeOrderSnapshot({ orderNumber: result.orderNumber, lines: snapshotLines });
-        }
-        // The key has done its job. Leaving it behind would make a future
-        // cart that happens to hash identically dedupe back onto this order.
-        clearEditableDraft(checkoutSessionStorage());
-        clearStoredIdempotency(checkoutSessionStorage());
-        idempotencyRef.current = null;
-        if (isSignedIn && saveAddress && physicalCount > 0) {
-          try {
-            const saveResult = await saveCheckoutShippingAddressAction({
-              locale,
-              address: {
-                label: shippingAddress.recipientName.trim().slice(0, 80),
-                ...shippingAddress,
-                isDefault: false
-              }
-            });
-            setAddressSaveWarning(saveResult.status !== 'saved');
-          } catch {
-            setAddressSaveWarning(true);
-          }
-        }
-        completeOrder(completedLines);
-        router.push(result.orderPath);
-      } else {
-        const focusTarget = presentSubmitError(result).focusTarget;
-        if (focusTarget) {
-          focusFirstIncompleteField(focusTarget);
+      if (snapshotLines.length > 0) {
+        writeOrderSnapshot({ orderNumber: result.orderNumber, lines: snapshotLines });
+      }
+      // The key has done its job. Leaving it behind would make a future
+      // cart that happens to hash identically dedupe back onto this order.
+      clearEditableDraft(checkoutSessionStorage());
+      clearStoredIdempotency(checkoutSessionStorage());
+      idempotencyRef.current = null;
+      if (isSignedIn && saveAddress && physicalLines > 0) {
+        try {
+          const saveResult = await saveCheckoutShippingAddressAction({
+            locale,
+            address: {
+              label: shippingAddress.recipientName.trim().slice(0, 80),
+              ...shippingAddress,
+              isDefault: false
+            }
+          });
+          setAddressSaveWarning(saveResult.status !== 'saved');
+        } catch {
+          setAddressSaveWarning(true);
         }
       }
+      completeOrder(completedLines);
+      router.push(result.orderPath);
+    } else {
+      const focusTarget = presentSubmitError(result).focusTarget;
+      if (focusTarget) {
+        focusFirstIncompleteField(focusTarget);
+      }
+    }
+  }
+
+  /**
+   * Resumes a pay attempt that the review dialog interrupted. The quote here is
+   * the one the customer explicitly accepted seconds ago, so it is submitted
+   * directly; the server still re-verifies the hash and rejects a stale one.
+   */
+  async function continueSubmitWithReviewedQuote(reviewed: CheckoutQuoteLifecycleState) {
+    const quote = reviewed.acceptedQuote;
+    if (!quote || submitInFlightRef.current) return;
+
+    const physicalLines = physicalLineCount(quote);
+    const reviewedPaymentIntent = checkoutPaymentIntentForQuote(quote);
+    if (
+      !contactReady ||
+      !reviewedPaymentIntent ||
+      (physicalLines > 0 && quote.shipping.status !== 'ready') ||
+      !canSubmitAcceptedQuote(reviewed, physicalLines > 0 ? shippingAddress : null)
+    ) {
+      focusFirstIncompleteField();
+      return;
+    }
+
+    submitInFlightRef.current = true;
+    setSubmitResult(null);
+    try {
+      await placeOrderForQuote(quote, reviewedPaymentIntent, physicalLines);
     } catch {
       setSubmitResult({ status: 'error', code: 'checkout_submit_failed' });
     } finally {
@@ -933,6 +972,21 @@ export function CheckoutPage({
                     />
                   ) : null}
                 </div>
+                {/* Returning customers already have their address on file, but
+                    guest checkout gave them no way to reach it — they retyped
+                    it every time. `next` brings them straight back here; the
+                    cart and the tab draft both survive the round trip. */}
+                {!isSignedIn ? (
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-5 text-[var(--muted-foreground)]">
+                    <span>{t.signInPrompt}</span>
+                    <Link
+                      href={`${getLocalizedPath('/sign-in', locale)}?next=${encodeURIComponent(getCheckoutPath(locale))}`}
+                      className="inline-flex min-h-11 items-center font-semibold text-[var(--accent)] underline-offset-4 hover:underline"
+                    >
+                      {t.signInAction}
+                    </Link>
+                  </p>
+                ) : null}
                 <ContactForm
                   key={draftHydrated ? 'draft-hydrated' : 'draft-pending'}
                   locale={locale}
@@ -1038,6 +1092,19 @@ export function CheckoutPage({
                         />
                       </div>
                     )}
+                    {/* What the review dialog used to interrupt to say. Stated
+                        once, where the customer just acted, without taking the
+                        page away from them. */}
+                    {shippingNoticeText ? (
+                      <p
+                        role="status"
+                        data-testid="checkout-shipping-notice"
+                        className="flex items-start gap-2 rounded-[var(--radius-control)] bg-[var(--success-surface)] px-3 py-2 text-sm font-medium leading-5 text-[var(--foreground)]"
+                      >
+                        <Truck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[var(--success)]" />
+                        <span className="min-w-0 break-words">{shippingNoticeText}</span>
+                      </p>
+                    ) : null}
                     {isSignedIn ? (
                       <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-[var(--radius-control)] px-1 py-2 text-sm font-semibold">
                         <Checkbox

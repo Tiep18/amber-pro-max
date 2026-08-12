@@ -10,9 +10,10 @@ type ReservationCountdownRefresherProps = {
     remaining: string;
     expired: string;
   };
+  emphasis?: 'inline' | 'hero';
 };
 
-export function ReservationCountdownRefresher({expiresAt, labels}: ReservationCountdownRefresherProps) {
+export function ReservationCountdownRefresher({expiresAt, labels, emphasis}: ReservationCountdownRefresherProps) {
   const router = useRouter();
   const refreshedRef = useRef(false);
 
@@ -38,5 +39,5 @@ export function ReservationCountdownRefresher({expiresAt, labels}: ReservationCo
     document.addEventListener('visibilitychange', onVisible);
   }, [router]);
 
-  return <ReservationCountdown expiresAt={expiresAt} labels={labels} onExpire={handleExpire} />;
+  return <ReservationCountdown expiresAt={expiresAt} labels={labels} emphasis={emphasis} onExpire={handleExpire} />;
 }

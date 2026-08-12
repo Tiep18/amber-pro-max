@@ -132,7 +132,9 @@ test.afterEach(async () => {
   }
 });
 
-test('destination changes require a blocking material-change confirmation', async ({ page }) => {
+test('market and currency drift is confirmed while a shipping-only change settles inline', async ({
+  page
+}) => {
   const productId = await createPublishedPhysicalProduct();
   const now = new Date().toISOString();
   await page.context().addCookies([
@@ -171,8 +173,10 @@ test('destination changes require a blocking material-change confirmation', asyn
   await page.goto('/vi/thanh-toan');
   await expect(page.getByRole('heading', { name: 'Thanh toán' })).toBeVisible();
   const shippingCountry = page.getByRole('combobox', { name: 'Quốc gia giao hàng' });
-  const review = page.getByRole('dialog', { name: 'Phí giao hàng và tổng tiền đã thay đổi' });
+  const review = page.getByRole('dialog', { name: 'Đơn hàng của bạn vừa thay đổi' });
 
+  // Vietnam to the US switches market and currency underneath the customer, so
+  // the new total still has to be confirmed before it can be used.
   await shippingCountry.click();
   await page.getByRole('option', { name: 'Hoa Kỳ', exact: true }).click();
   await expect(review).toBeVisible();
@@ -188,14 +192,20 @@ test('destination changes require a blocking material-change confirmation', asyn
   await page.getByRole('option', { name: 'Hoa Kỳ', exact: true }).click();
   await expect(review).toBeVisible();
   await review.getByRole('button', { name: 'Dùng báo giá mới' }).click();
+  await expect(review).toHaveCount(0);
 
-  // Narrowing the destination to a region re-quotes against a new shipping
-  // basis, so the confirmation gate is raised again before it is accepted.
+  // Narrowing to a region inside the accepted country re-quotes on a new
+  // shipping basis but moves nothing the customer did not ask for, so it
+  // settles without taking the page away from them.
+  const regionRequote = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' && response.url().includes('/vi/thanh-toan')
+  );
   await page.getByRole('combobox', { name: 'Bang hoặc vùng lãnh thổ' }).click();
   await page.getByRole('option', { name: 'California (CA)', exact: true }).click();
-  await expect(review).toBeVisible();
-  await review.getByRole('button', { name: 'Dùng báo giá mới' }).click();
+  await regionRequote;
   await expect(review).toHaveCount(0);
+  await expect(page.getByTestId('checkout-total')).toHaveText('$25.50');
 
   // Scoped to the destination section: "Địa chỉ" also matches the section
   // landmark itself and the footer newsletter field.
@@ -257,7 +267,7 @@ test('Vietnam destination overrides international browsing and requires the VND 
   await shippingCountry.click();
   await page.getByRole('option', { name: 'Vietnam', exact: true }).click();
 
-  const review = page.getByRole('dialog', { name: 'Shipping and total changed' });
+  const review = page.getByRole('dialog', { name: 'Your order just changed' });
   await expect(review).toBeVisible();
   await expect(review).toContainText(/30[.,]000/);
   await review.getByRole('button', { name: 'Review destination' }).click();

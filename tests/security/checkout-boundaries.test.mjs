@@ -402,6 +402,24 @@ test('ASVS L1 checkout authority matrix keeps browser state as intent and server
   const persist = client.indexOf('await submitCheckoutAction(submitInput)', materialReview);
   assert.ok(submitStart >= 0 && requote > submitStart && materialReview > requote && persist > materialReview);
 
+  // A pay attempt interrupted by the material-change dialog resumes after the
+  // customer accepts, so that second path must not become a way around the
+  // gate: the order is still persisted from exactly one place, the interrupted
+  // attempt returns without persisting anything, and the resume runs only from
+  // an explicit acceptance and only after re-checking the submit preconditions.
+  assert.equal(client.split('await submitCheckoutAction(submitInput)').length - 1, 1);
+  assert.equal(client.split('await placeOrderForQuote(').length - 1, 2);
+  assert.match(client, /resumeSubmitAfterReviewRef\.current = true;[\s\S]{0,240}?return;/);
+  assert.match(
+    client,
+    /acceptQuoteProposal\(lifecycleRef\.current\)[\s\S]{0,600}?resumeSubmitAfterReviewRef\.current = false;[\s\S]{0,400}?continueSubmitWithReviewedQuote\(accepted\)/
+  );
+  assert.match(client, /!canSubmitAcceptedQuote\(reviewed,/);
+  assert.match(
+    client,
+    /function reviewProposedDestination\(\) \{\s*resumeSubmitAfterReviewRef\.current = false;/
+  );
+
   assert.match(authoritativeSubmit, /private\.checkout_commercial_quote_is_current/);
   assert.match(authoritativeSubmit, /for update/);
   assert.match(authoritativeSubmit, /insert into public\.checkout_order_shipping_allocations/);
