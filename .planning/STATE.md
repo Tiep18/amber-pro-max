@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: verifying
 stopped_at: Phase 10 verified and security-reviewed; milestone verification debt remains in Phases 4, 7, and 9
-last_updated: "2026-08-12T14:35:00.000Z"
+last_updated: "2026-08-12T23:48:54+07:00"
 last_activity: 2026-08-12
 progress:
   total_phases: 10
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 Phase: 10
 Plan: 7 of 7
 Status: Complete — verification passed and security review closed
-Last activity: 2026-08-12 - Completed quick task 260812-thj: Review, reconcile, verify, and commit current checkout UX changes
+Last activity: 2026-08-12 - Completed quick task 260812-uwo: Stabilize transactional-email bearer links and Resend payloads across retries
 
 Progress: All 93 plans are executed. Phase 04 provider/manual UAT, Phase 07 launch verification, and Phase 09 deployment geo/SEO UAT remain milestone-level verification debt.
 
@@ -260,6 +260,7 @@ None yet.
 
 | #                                                     | Description                                                                                                                      | Date       | Commit      | Status                                                                                                                                                    | Directory                                                                  |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 260812-uwo                                            | Stabilize transactional-email bearer links and Resend payloads across retries                                                    | 2026-08-12 | 9b87a39     | Verified                                                                                                                                                  | [260812-uwo](./quick/260812-uwo-n-nh-token-v-payload-transactional-email/) |
 | 260812-thj                                            | Review, reconcile, verify, and commit current checkout UX changes                                                                | 2026-08-12 | 2db709a     | Complete                                                                                                                                                  | [260812-thj](./quick/260812-thj-review-reconcile-verify-and-commit-curre/) |
 | 260803-jzl                                            | Push and reconcile the 13 pending Supabase migrations on the linked remote                                                      | 2026-08-03 | 70b0a037    | Complete                                                                                                                                                  | [260803-jzl](./quick/260803-jzl-ki-m-tra-v-push-c-c-supabase-migration-l/) |
 | 260803-0k2                                            | Harden PayPal post-approval uncertainty, persist reconciliation mismatches, and prevent unsafe duplicate payment attempts         | 2026-08-03 | this commit | Complete                                                                                                                                                  | [260803-0k2](./quick/260803-0k2-harden-paypal-capture-uncertainty-and-re/) |
