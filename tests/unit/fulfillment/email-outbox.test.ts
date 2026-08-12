@@ -400,6 +400,118 @@ describe('transactional email outbox worker', () => {
     );
   });
 
+  test('maps every guest and newsletter event to its exact bearer capability and fixed lifetime', async () => {
+    const createdAt = '2026-06-19T09:00:00.000Z';
+    const rows = [
+      {
+        ...digitalRow,
+        id: '30000000-0000-4000-8000-000000000001',
+        createdAt,
+        eventType: 'guest_order_reopen' as const,
+        entitlementId: null,
+        payload: {orderNumber: 'ATB-20260619-0001'}
+      },
+      {
+        ...digitalRow,
+        id: '30000000-0000-4000-8000-000000000002',
+        createdAt,
+        eventType: 'guest_order_claim' as const,
+        entitlementId: null,
+        payload: {orderNumber: 'ATB-20260619-0001'}
+      },
+      {
+        ...digitalRow,
+        id: '30000000-0000-4000-8000-000000000003',
+        createdAt,
+        eventType: 'order_created' as const,
+        entitlementId: null,
+        payload: {
+          orderNumber: 'ATB-20260619-0001',
+          totalMinor: 2500,
+          currencyCode: 'USD',
+          paymentIntent: 'paypal_intent',
+          isGuest: true
+        }
+      },
+      {
+        ...digitalRow,
+        id: '30000000-0000-4000-8000-000000000004',
+        createdAt,
+        eventType: 'payment_received' as const,
+        entitlementId: null,
+        payload: {
+          orderNumber: 'ATB-20260619-0001',
+          totalMinor: 2500,
+          currencyCode: 'USD',
+          hasDigitalLines: false,
+          hasPhysicalLines: true,
+          isGuest: true
+        }
+      },
+      {
+        ...digitalRow,
+        id: '30000000-0000-4000-8000-000000000005',
+        createdAt,
+        eventType: 'newsletter_subscribed' as const,
+        orderId: null,
+        entitlementId: null,
+        payload: {}
+      }
+    ];
+    const repository = {
+      claimDueRows: vi.fn().mockResolvedValue(rows),
+      issueDownloadToken: vi.fn(),
+      issueGuestToken: vi.fn(async (_row, _purpose, preparation) => ({
+        expiresAt: preparation.expiresAt
+      })),
+      issueNewsletterToken: vi.fn(async (_row, preparation) => ({
+        expiresAt: preparation.expiresAt
+      })),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markRetry: vi.fn(),
+      markFailed: vi.fn()
+    };
+    const sender = {
+      send: vi.fn().mockResolvedValue({status: 'sent', providerMessageId: 'resend-capability'})
+    };
+
+    const result = await processTransactionalEmailBatch({
+      repository: repository as never,
+      sender,
+      config: {
+        siteUrl: 'https://shop.example.test',
+        fromEmail: 'orders@example.test',
+        tokenSecret: transactionalEmailTokenSecret
+      },
+      now: () => now
+    });
+
+    const guestExpectations = [
+      ['reopen_order', 'guest_reopen_order'],
+      ['claim_order', 'guest_claim_order'],
+      ['reopen_order', 'guest_reopen_order'],
+      ['reopen_order', 'guest_reopen_order']
+    ] as const;
+    for (const [index, [databasePurpose, tokenPurpose]] of guestExpectations.entries()) {
+      expect(repository.issueGuestToken).toHaveBeenNthCalledWith(index + 1, rows[index], databasePurpose, {
+        rawToken: deriveTransactionalEmailToken(transactionalEmailTokenSecret, rows[index].id, tokenPurpose),
+        expiresAt: '2026-06-20T09:00:00.000Z',
+        sourceEmailOutboxId: rows[index].id
+      });
+    }
+    expect(repository.issueNewsletterToken).toHaveBeenCalledWith(rows[4], {
+      rawToken: deriveTransactionalEmailToken(
+        transactionalEmailTokenSecret,
+        rows[4].id,
+        'newsletter_unsubscribe'
+      ),
+      expiresAt: '2026-07-19T09:00:00.000Z',
+      sourceEmailOutboxId: rows[4].id
+    });
+    expect(result).toEqual({status: 'processed', claimed: 5, sent: 5, retry: 0, failed: 0});
+    expect(sender.send).toHaveBeenCalledTimes(5);
+  });
+
   test('claims due rows, sends with idempotency keys, retries transient failures, and marks permanent failures', async () => {
     const repository = {
       claimDueRows: vi
