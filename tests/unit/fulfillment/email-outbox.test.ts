@@ -346,6 +346,7 @@ describe('transactional email outbox worker', () => {
     const repository = {
       claimDueRows: vi.fn().mockResolvedValueOnce([firstClaim]).mockResolvedValueOnce([retryClaim]),
       issueDownloadToken: vi.fn(async (_row, preparation) => ({
+        status: 'issued' as const,
         expiresAt: preparation.expiresAt
       })),
       issueGuestToken: vi.fn(),
@@ -523,7 +524,7 @@ describe('transactional email outbox worker', () => {
       issueDownloadToken: vi
         .fn()
         .mockResolvedValue({
-          rawToken: 'raw-download-token',
+          status: 'issued',
           expiresAt: new Date(now.getTime() + 86_400_000).toISOString()
         }),
       issueGuestToken: vi.fn(),
@@ -601,11 +602,11 @@ describe('transactional email outbox worker', () => {
       issueDownloadToken: vi
         .fn()
         .mockResolvedValueOnce({
-          rawToken: 'retry-token',
+          status: 'issued',
           expiresAt: new Date(now.getTime() + 86_400_000).toISOString()
         })
         .mockResolvedValueOnce({
-          rawToken: 'failed-token',
+          status: 'issued',
           expiresAt: new Date(now.getTime() + 86_400_000).toISOString()
         })
         .mockRejectedValueOnce(new Error('token issue failed for boom@example.test')),
@@ -753,13 +754,49 @@ describe('transactional email outbox worker', () => {
     expect(repository.markRetry).not.toHaveBeenCalled();
   });
 
+  test('fails a superseded digital outbox after one issuance attempt without scheduling retry', async () => {
+    const sender = {send: vi.fn()};
+    const repository = {
+      claimDueRows: vi.fn().mockResolvedValue([
+        {...digitalRow, id: 'email-superseded', orderId: 'order-superseded', attemptCount: 1}
+      ]),
+      issueDownloadToken: vi.fn().mockResolvedValue({status: 'superseded'}),
+      issueGuestToken: vi.fn(),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markRetry: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined)
+    };
+
+    const result = await processTransactionalEmailBatch({
+      repository: repository as never,
+      sender,
+      now: () => now,
+      config: {
+        siteUrl: 'https://shop.example.test',
+        fromEmail: 'orders@example.test',
+        tokenSecret: transactionalEmailTokenSecret,
+        batchSize: 5
+      }
+    });
+
+    expect(result).toMatchObject({claimed: 1, sent: 0, retry: 0, failed: 1});
+    expect(repository.issueDownloadToken).toHaveBeenCalledOnce();
+    expect(sender.send).not.toHaveBeenCalled();
+    expect(repository.markFailed).toHaveBeenCalledWith(
+      {id: 'email-superseded', claimToken: digitalRow.claimToken},
+      'digital_access_superseded',
+      now
+    );
+    expect(repository.markRetry).not.toHaveBeenCalled();
+  });
+
   test('marks a provider-declared retry as failed when the attempt budget is exhausted', async () => {
     const repository = {
       claimDueRows: vi
         .fn()
         .mockResolvedValue([{ ...digitalRow, id: 'email-provider-exhausted', attemptCount: 5 }]),
       issueDownloadToken: vi.fn().mockResolvedValue({
-        rawToken: 'retry-token',
+        status: 'issued',
         expiresAt: new Date(now.getTime() + 86_400_000).toISOString()
       }),
       issueGuestToken: vi.fn(),
@@ -797,7 +834,7 @@ describe('transactional email outbox worker', () => {
       issueDownloadToken: vi
         .fn()
         .mockResolvedValue({
-          rawToken: 'retry-token',
+          status: 'issued',
           expiresAt: new Date(now.getTime() + 86_400_000).toISOString()
         }),
       issueGuestToken: vi.fn(),
@@ -960,7 +997,7 @@ describe('Supabase transactional email outbox repository', () => {
         expiresAt: '2026-06-20T09:00:00.000Z',
         sourceEmailOutboxId: row.id
       })
-    ).resolves.toEqual({ expiresAt: '2026-06-20T09:00:00.000Z' });
+    ).resolves.toEqual({status: 'issued', expiresAt: '2026-06-20T09:00:00.000Z'});
 
     expect(rpc).toHaveBeenCalledWith('issue_digital_access_token_for_outbox', {
       p_source_email_outbox_id: row.id,
@@ -992,7 +1029,7 @@ describe('Supabase transactional email outbox repository', () => {
     expect(rpc.mock.calls[0]).toEqual(rpc.mock.calls[1]);
   });
 
-  test('fails token preparation when the database rejects a superseded outbox', async () => {
+  test('classifies a database-rejected outbox as permanently superseded', async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
     const from = vi.fn();
     const repository = createSupabaseEmailOutboxRepository({ rpc, from } as never);
@@ -1008,7 +1045,7 @@ describe('Supabase transactional email outbox repository', () => {
         expiresAt: '2026-06-20T09:00:00.000Z',
         sourceEmailOutboxId: row.id
       })
-    ).resolves.toBeNull();
+    ).resolves.toEqual({status: 'superseded'});
     expect(from).not.toHaveBeenCalledWith('digital_access_tokens');
   });
 });

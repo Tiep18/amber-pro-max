@@ -70,12 +70,17 @@ export type TransactionalEmailTokenPreparation = {
 
 type PreparedTransactionalEmailToken = Pick<TransactionalEmailTokenPreparation, 'expiresAt'>;
 
+export type DownloadTokenIssuanceResult =
+  | ({status: 'issued'} & PreparedTransactionalEmailToken)
+  | {status: 'superseded'}
+  | {status: 'error'};
+
 export type TransactionalEmailRepository = {
   claimDueRows: (limit: number, now: Date) => Promise<ClaimedTransactionalEmailRow[]>;
   issueDownloadToken: (
     row: ClaimedTransactionalEmailRow,
     preparation: TransactionalEmailTokenPreparation
-  ) => Promise<PreparedTransactionalEmailToken | null>;
+  ) => Promise<DownloadTokenIssuanceResult>;
   issueGuestToken: (
     row: ClaimedTransactionalEmailRow,
     purpose: 'reopen_order' | 'claim_order',
@@ -144,6 +149,7 @@ function stringPayloadValue(row: TransactionalEmailRow, key: string) {
 }
 
 class TokenPreparationError extends Error {}
+class SupersededDigitalAccessError extends Error {}
 
 function tokenExpiryFromOutbox(row: ClaimedTransactionalEmailRow, lifetimeMs: number) {
   const createdAt = new Date(row.createdAt);
@@ -191,6 +197,32 @@ async function prepareToken(
   }
 }
 
+async function prepareDownloadToken(
+  row: ClaimedTransactionalEmailRow,
+  repository: TransactionalEmailRepository,
+  config: TransactionalEmailConfig
+) {
+  const preparation = tokenPreparation(row, config, 'digital_download', DAY_MS);
+  try {
+    const result = await repository.issueDownloadToken(row, preparation);
+    if (result.status === 'superseded') {
+      throw new SupersededDigitalAccessError();
+    }
+    if (
+      result.status !== 'issued' ||
+      result.expiresAt !== preparation.expiresAt
+    ) {
+      throw new TokenPreparationError();
+    }
+    return {rawToken: preparation.rawToken, expiresAt: result.expiresAt};
+  } catch (error) {
+    if (error instanceof SupersededDigitalAccessError) {
+      throw error;
+    }
+    throw new TokenPreparationError();
+  }
+}
+
 async function renderContextForRow(
   row: ClaimedTransactionalEmailRow,
   repository: TransactionalEmailRepository,
@@ -198,9 +230,7 @@ async function renderContextForRow(
 ) {
   const siteUrl = config.siteUrl;
   if (row.eventType === 'digital_access_granted' || row.eventType === 'digital_access_reissued') {
-    const token = await prepareToken(row, config, 'digital_download', DAY_MS, (preparation) =>
-      repository.issueDownloadToken(row, preparation)
-    );
+    const token = await prepareDownloadToken(row, repository, config);
     return { siteUrl, downloadToken: token.rawToken, expiresAt: token.expiresAt };
   }
   if (row.eventType === 'guest_order_reopen' || row.eventType === 'guest_order_claim') {
@@ -355,6 +385,16 @@ export async function processTransactionalEmailBatch(input: ProcessInput) {
         });
       }
     } catch (error) {
+      if (error instanceof SupersededDigitalAccessError) {
+        failed += 1;
+        await input.repository.markFailed(claim, 'digital_access_superseded', now);
+        await recordEmailFailure(input.operationalFailureRecorder, row, {
+          severity: 'warning',
+          errorCode: 'digital_access_superseded',
+          summary: 'Superseded digital access email was cancelled'
+        });
+        continue;
+      }
       // An exception here is a dropped connection, a provider timeout or a
       // token-minting hiccup — all transient by nature. Burning the row to
       // `failed` on the first one means the customer never receives an email

@@ -192,7 +192,7 @@ export function createSupabaseEmailOutboxRepository(
     },
     async issueDownloadToken(row, preparation) {
       if (!row.entitlementId) {
-        return null;
+        return { status: 'error' };
       }
       const tokenHash = hashFulfillmentAccessToken(preparation.rawToken);
       const { data, error } = await client.rpc('issue_digital_access_token_for_outbox', {
@@ -200,8 +200,14 @@ export function createSupabaseEmailOutboxRepository(
         p_token_hash: tokenHash,
         p_expires_at: preparation.expiresAt
       });
-      if (error || typeof data !== 'string') {
-        return null;
+      if (error) {
+        return { status: 'error' };
+      }
+      if (data === null) {
+        return { status: 'superseded' };
+      }
+      if (typeof data !== 'string') {
+        return { status: 'error' };
       }
       const acceptedExpiry = new Date(data).getTime();
       const expectedExpiry = new Date(preparation.expiresAt).getTime();
@@ -210,9 +216,9 @@ export function createSupabaseEmailOutboxRepository(
         !Number.isFinite(expectedExpiry) ||
         acceptedExpiry !== expectedExpiry
       ) {
-        return null;
+        return { status: 'error' };
       }
-      return { expiresAt: preparation.expiresAt };
+      return { status: 'issued', expiresAt: preparation.expiresAt };
     },
     async issueGuestToken(row, purpose, preparation) {
       if (!row.orderId) {
