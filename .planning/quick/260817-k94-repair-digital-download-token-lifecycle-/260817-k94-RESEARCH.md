@@ -1,7 +1,7 @@
 # Quick Task 260817-k94: Digital Download Token Lifecycle - Research
 
-**Researched:** 2026-08-17  
-**Domain:** Supabase/Postgres capability issuance, entitlement authorization, private Storage  
+**Researched:** 2026-08-17
+**Domain:** Supabase/Postgres capability issuance, entitlement authorization, private Storage
 **Confidence:** HIGH for repository behavior; MEDIUM for externally documented platform behavior
 
 <user_constraints>

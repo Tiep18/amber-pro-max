@@ -12,8 +12,8 @@ human_verification: []
 
 **Goal:** Repair the paid digital entitlement, token issuance/reissue, and private-download authorization lifecycle without orphan capabilities, stale-worker resurrection, table fan-out, or customer-visible diagnostics.
 
-**Verified:** 2026-08-17T11:20:24Z  
-**Status:** PASSED  
+**Verified:** 2026-08-17T11:20:24Z
+**Status:** PASSED
 **Mode:** Initial goal-backward verification; no previous verification file existed.
 
 ## Goal Achievement
@@ -111,5 +111,5 @@ No blocker, warning, orphaned artifact, broken key link, secret leak, or deferre
 
 ---
 
-_Verified: 2026-08-17T11:20:24Z_  
+_Verified: 2026-08-17T11:20:24Z_
 _Verifier: the agent (gsd-verifier)_
