@@ -10,6 +10,10 @@ function genericDenied() {
   return NextResponse.json({status: 'not_found'}, {status: 404});
 }
 
+function safeLogReference(value: string | null) {
+  return value && /^[A-Za-z0-9-]{1,64}$/.test(value) ? value : null;
+}
+
 async function currentUserId() {
   const supabase = await createSupabaseServerClient();
   const {data} = await supabase.auth.getUser();
@@ -17,30 +21,40 @@ async function currentUserId() {
 }
 
 async function handleDownload(request: NextRequest) {
-  const url = new URL(request.url);
-  const orderNumber = url.searchParams.get('orderNumber') ?? '';
-  const productId = url.searchParams.get('productId');
-  const rawDownloadToken = url.searchParams.get('token');
-  const downloadTokenHash =
-    rawDownloadToken && rawDownloadToken.length <= 512
-      ? hashFulfillmentAccessToken(rawDownloadToken)
-      : null;
-  const cookieHash = orderNumber ? await getGuestOrderAccessHashFromServer(orderNumber) : null;
-  const ownerUserId = await currentUserId();
+  let orderNumber = '';
+  let productId: string | null = null;
+  try {
+    const url = new URL(request.url);
+    orderNumber = url.searchParams.get('orderNumber') ?? '';
+    productId = url.searchParams.get('productId');
+    const rawDownloadToken = url.searchParams.get('token');
+    const downloadTokenHash =
+      rawDownloadToken && rawDownloadToken.length <= 512
+        ? hashFulfillmentAccessToken(rawDownloadToken)
+        : null;
+    const cookieHash = orderNumber ? await getGuestOrderAccessHashFromServer(orderNumber) : null;
+    const ownerUserId = await currentUserId();
 
-  const result = await authorizeDownloadWithSupabase({
-    orderNumber,
-    productId: productId ?? null,
-    ownerUserId,
-    downloadTokenHash,
-    guestSecretHash: cookieHash
-  });
+    const result = await authorizeDownloadWithSupabase({
+      orderNumber,
+      productId,
+      ownerUserId,
+      downloadTokenHash,
+      guestSecretHash: cookieHash
+    });
 
-  if (result.status !== 'authorized') {
+    if (result.status !== 'authorized') {
+      return genericDenied();
+    }
+
+    return NextResponse.redirect(result.url, {status: 303});
+  } catch {
+    console.error('Download authorization failed', {
+      orderNumber: safeLogReference(orderNumber),
+      productId: safeLogReference(productId)
+    });
     return genericDenied();
   }
-
-  return NextResponse.redirect(result.url, {status: 303});
 }
 
 export async function GET(request: NextRequest) {

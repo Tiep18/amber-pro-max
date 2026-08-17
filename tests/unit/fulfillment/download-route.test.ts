@@ -92,4 +92,34 @@ describe('/api/downloads', () => {
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({status: 'not_found'});
   });
+
+  test.each([
+    [
+      'guest-cookie lookup',
+      () => mocks.getGuestOrderAccessHashFromServer.mockRejectedValueOnce(new Error('guest cookie secret'))
+    ],
+    [
+      'authenticated client construction',
+      () => mocks.createSupabaseServerClient.mockRejectedValueOnce(new Error('server key detail'))
+    ],
+    ['authenticated user lookup', () => mocks.getUser.mockRejectedValueOnce(new Error('auth token detail'))],
+    [
+      'download authorization adapter',
+      () => mocks.authorizeDownloadWithSupabase.mockRejectedValueOnce(new Error('storage path detail'))
+    ]
+  ])('returns the same generic 404 when %s throws', async (_dependency, rejectDependency) => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    rejectDependency();
+
+    const response = await request(
+      `orderNumber=${ORDER_NUMBER}&productId=${PRODUCT_ID}&token=email-download-token`
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({status: 'not_found'});
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toMatch(
+      /guest cookie secret|server key detail|auth token detail|storage path detail|email-download-token/i
+    );
+    errorSpy.mockRestore();
+  });
 });
