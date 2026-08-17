@@ -3512,6 +3512,22 @@ export type Database = {
         Returns: string
       }
       apply_payment_transition: { Args: { p_payload: Json }; Returns: Json }
+      authorize_digital_download: {
+        Args: {
+          p_download_token_hash: string
+          p_guest_secret_hash: string
+          p_order_number: string
+          p_owner_user_id: string
+          p_product_id: string
+        }
+        Returns: {
+          bucket_id: string
+          entitlement_id: string
+          file_name: string
+          object_path: string
+          product_id: string
+        }[]
+      }
       blog_publish_issues: {
         Args: { target_post_id: string }
         Returns: {
@@ -3831,6 +3847,14 @@ export type Database = {
           title: string
         }[]
       }
+      issue_digital_access_token_for_outbox: {
+        Args: {
+          p_expires_at: string
+          p_source_email_outbox_id: string
+          p_token_hash: string
+        }
+        Returns: string
+      }
       late_settlement_window: { Args: never; Returns: string }
       list_catalog_facets: {
         Args: { p_locale: string; p_market: string }
@@ -3955,11 +3979,7 @@ export type Database = {
         Returns: Json
       }
       reissue_digital_access_token: {
-        Args: {
-          p_entitlement_id: string
-          p_expected_version: number
-          p_new_token_hash: string
-        }
+        Args: { p_entitlement_id: string; p_expected_version: number }
         Returns: Json
       }
       remove_review_admin_reply: {
