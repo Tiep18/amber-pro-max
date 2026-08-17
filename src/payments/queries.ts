@@ -93,6 +93,7 @@ export type AdminFailedEmailQueueItem = {
   orderId: string | null;
   orderNumber: string;
   entitlementId: string | null;
+  entitlementVersion: number | null;
   eventType: string;
   status: string;
   locale: 'en' | 'vi';
@@ -445,6 +446,12 @@ function mapFailedEmailRow(row: Record<string, unknown>, fallbackOrderNumber: st
     orderId: typeof row.order_id === 'string' ? row.order_id : null,
     orderNumber: typeof payload.orderNumber === 'string' ? payload.orderNumber : fallbackOrderNumber,
     entitlementId: typeof row.entitlement_id === 'string' ? row.entitlement_id : null,
+    entitlementVersion:
+      typeof payload.entitlementVersion === 'number' &&
+      Number.isInteger(payload.entitlementVersion) &&
+      payload.entitlementVersion > 0
+        ? payload.entitlementVersion
+        : null,
     eventType: row.event_type,
     status: typeof row.status === 'string' ? row.status : 'failed',
     locale: row.locale === 'vi' ? 'vi' : 'en',

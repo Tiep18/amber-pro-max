@@ -1,6 +1,4 @@
-﻿import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
-import {hashFulfillmentAccessToken} from '@/fulfillment/downloads';
 import {runMonitoredAction} from '@/operations/monitoring';
 
 const entitlementActionSchema = z.object({
@@ -32,15 +30,14 @@ type OperationalFailureRecorder = (input: {
   facts?: unknown;
 }) => Promise<unknown>;
 
-function newSecretMaterial() {
-  return `${randomUUID().replaceAll('-', '')}${randomUUID().replaceAll('-', '')}`;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function mapRpcResult(data: unknown, successStatus: 'revoked' | 'reissued'): EntitlementActionResult {
+function mapRpcResult(
+  data: unknown,
+  successStatus: 'revoked' | 'reissued'
+): EntitlementActionResult {
   if (!isRecord(data) || typeof data.status !== 'string') {
     return {status: 'error', code: 'entitlement_action_failed'};
   }
@@ -121,7 +118,6 @@ export async function revokeDigitalEntitlement(
 export async function reissueDigitalEntitlement(
   input: EntitlementActionInput,
   client: RpcClient,
-  createSecret: () => string = newSecretMaterial,
   recordOperationalFailure?: OperationalFailureRecorder
 ): Promise<EntitlementActionResult> {
   const parsed = entitlementActionSchema.safeParse(input);
@@ -129,11 +125,9 @@ export async function reissueDigitalEntitlement(
     return {status: 'invalid', code: 'invalid_entitlement_action'};
   }
 
-  const secret = createSecret();
   const {data, error} = await client.rpc('reissue_digital_access_token', {
     p_entitlement_id: parsed.data.entitlementId,
-    p_expected_version: parsed.data.expectedVersion,
-    p_new_token_hash: hashFulfillmentAccessToken(secret)
+    p_expected_version: parsed.data.expectedVersion
   });
   if (error) {
     await recordEntitlementFailure(recordOperationalFailure, {

@@ -32,7 +32,7 @@ export function FailedEmailQueue({ emails }: { emails: AdminFailedEmailQueueItem
                     </p>
                     <p className="font-semibold">{email.maskedRecipient}</p>
                   </div>
-                  <dl className="grid gap-2 text-sm sm:grid-cols-3">
+                  <dl className="grid gap-2 text-sm sm:grid-cols-4">
                     <div>
                       <dt className="font-semibold">Status</dt>
                       <dd>{statusLabel(email.status)}</dd>
@@ -45,6 +45,10 @@ export function FailedEmailQueue({ emails }: { emails: AdminFailedEmailQueueItem
                       <dt className="font-semibold">Error</dt>
                       <dd>{email.sanitizedError}</dd>
                     </div>
+                    <div>
+                      <dt className="font-semibold">Entitlement version</dt>
+                      <dd>{email.entitlementVersion ?? 'Unavailable'}</dd>
+                    </div>
                   </dl>
                 </div>
                 <EmailRecoveryActions
@@ -52,7 +56,7 @@ export function FailedEmailQueue({ emails }: { emails: AdminFailedEmailQueueItem
                   orderId={email.orderId}
                   orderNumber={email.orderNumber}
                   entitlementId={email.entitlementId}
-                  locale={email.locale}
+                  entitlementVersion={email.entitlementVersion}
                 />
               </div>
             ))}

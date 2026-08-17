@@ -1,5 +1,6 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { reissueDigitalEntitlement } from '@/fulfillment/entitlements';
 import { runMonitoredAction } from '@/operations/monitoring';
 
 const retryInputSchema = z.object({
@@ -10,8 +11,7 @@ const resendInputSchema = z.object({
   orderId: z.string().trim().min(1).max(120),
   orderNumber: z.string().trim().min(1).max(80),
   entitlementId: z.string().trim().min(1).max(120),
-  recipientEmail: z.email().optional(),
-  locale: z.enum(['en', 'vi']).default('en')
+  expectedVersion: z.coerce.number().int().min(1)
 });
 
 export type AdminEmailActionResult =
@@ -96,40 +96,6 @@ export function validateRetryCandidate(row: RetryCandidate, now = new Date()) {
   return { status: 'stale' as const, code: 'email_retry_not_available' as const };
 }
 
-export function buildDownloadResendIntent(input: {
-  orderId: string;
-  orderNumber: string;
-  entitlementId: string;
-  recipientEmail: string;
-  locale: 'en' | 'vi';
-  adminId: string;
-}) {
-  return {
-    outbox: {
-      order_id: input.orderId,
-      entitlement_id: input.entitlementId,
-      event_type: 'digital_access_reissued',
-      recipient_email: input.recipientEmail,
-      locale: input.locale,
-      payload: {
-        orderNumber: input.orderNumber,
-        expiresInHours: 24
-      }
-    },
-    audit: {
-      event_key: `digital_access_resend_requested:${input.entitlementId}:${Date.now()}`,
-      order_id: input.orderId,
-      entitlement_id: input.entitlementId,
-      event_type: 'digital_access_resend_requested',
-      actor_type: 'admin',
-      actor_id: input.adminId,
-      metadata: {
-        orderNumber: input.orderNumber
-      }
-    }
-  };
-}
-
 export async function retryTransactionalEmailAction(
   formData: FormData
 ): Promise<AdminEmailActionResult> {
@@ -212,82 +178,37 @@ export async function resendDownloadEmailAction(
   'use server';
 
   const { requireAdmin } = await import('@/auth/guards');
-  const admin = await requireAdmin();
+  await requireAdmin();
   const parsed = resendInputSchema.safeParse({
     orderId: getFormString(formData, 'orderId'),
     orderNumber: getFormString(formData, 'orderNumber'),
     entitlementId: getFormString(formData, 'entitlementId'),
-    recipientEmail: getFormString(formData, 'recipientEmail'),
-    locale: getFormString(formData, 'locale') ?? 'en'
+    expectedVersion: getFormString(formData, 'expectedVersion')
   });
-  if (
-    !parsed.success ||
-    typeof admin !== 'object' ||
-    !admin ||
-    !('id' in admin) ||
-    typeof admin.id !== 'string'
-  ) {
+  if (!parsed.success) {
     return { status: 'invalid', code: 'invalid_email_action' };
   }
 
-  const { createSupabaseAdminClient } = await import('@/lib/supabase/admin');
-  const client = createSupabaseAdminClient() as unknown as {
-    from: (table: string) => {
-      select: (columns: string) => {
-        eq: (
-          column: string,
-          value: string
-        ) => { maybeSingle: () => Promise<{ data: unknown; error: unknown }> };
-      };
-      insert: (value: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
-    };
+  const { createSupabaseServerClient } = await import('@/lib/supabase/server');
+  const client = (await createSupabaseServerClient()) as unknown as {
+    rpc: (
+      fn: string,
+      args?: Record<string, unknown>
+    ) => Promise<{ data: unknown; error: unknown }>;
   };
-  let recipientEmail = parsed.data.recipientEmail;
-  if (!recipientEmail) {
-    const entitlement = await client
-      .from('digital_entitlements')
-      .select('contact_email')
-      .eq('id', parsed.data.entitlementId)
-      .maybeSingle();
-    if (
-      entitlement.error ||
-      !entitlement.data ||
-      typeof entitlement.data !== 'object' ||
-      Array.isArray(entitlement.data)
-    ) {
-      await recordAdminEmailFailure({
-        action: 'download_email_recipient_lookup',
-        errorCode: 'admin_download_resend_recipient_lookup_failed',
-        summary: 'Admin download email recipient lookup failed',
-        code: 'email_action_failed',
-        orderId: parsed.data.orderId,
-        orderNumber: parsed.data.orderNumber,
-        entitlementId: parsed.data.entitlementId,
-        emailType: 'digital_access_reissued'
-      });
-      return { status: 'error', code: 'email_action_failed' };
-    }
-    const row = entitlement.data as { contact_email?: unknown };
-    recipientEmail = typeof row.contact_email === 'string' ? row.contact_email : undefined;
+  const result = await reissueDigitalEntitlement(parsed.data, client);
+  if (result.status === 'reissued') {
+    revalidatePath('/admin/orders');
+    revalidatePath(`/admin/orders/${encodeURIComponent(parsed.data.orderNumber)}`);
+    return { status: 'queued' };
   }
-  if (!recipientEmail) {
-    await recordAdminEmailFailure({
-      action: 'download_email_recipient_missing',
-      errorCode: 'admin_download_resend_recipient_missing',
-      summary: 'Admin download email recipient missing',
-      code: 'email_action_failed',
-      orderId: parsed.data.orderId,
-      orderNumber: parsed.data.orderNumber,
-      entitlementId: parsed.data.entitlementId,
-      emailType: 'digital_access_reissued'
-    });
-    return { status: 'error', code: 'email_action_failed' };
+  if (result.status === 'stale' || result.status === 'not_found') {
+    return { status: 'stale', code: 'email_retry_not_available' };
   }
-
-  const intent = buildDownloadResendIntent({ ...parsed.data, recipientEmail, adminId: admin.id });
-  const outbox = await client.from('transactional_email_outbox').insert(intent.outbox);
-  const audit = await client.from('fulfillment_audit_events').insert(intent.audit);
-  if (outbox.error || audit.error) {
+  if (result.status === 'invalid') {
+    return { status: 'invalid', code: 'invalid_email_action' };
+  }
+  if (result.status === 'error') {
     await recordAdminEmailFailure({
       action: 'download_email_resend',
       errorCode: 'admin_download_resend_failed',
@@ -300,7 +221,5 @@ export async function resendDownloadEmailAction(
     });
     return { status: 'error', code: 'email_action_failed' };
   }
-  revalidatePath('/admin/orders');
-  revalidatePath(`/admin/orders/${encodeURIComponent(parsed.data.orderNumber)}`);
-  return { status: 'queued' };
+  return { status: 'stale', code: 'email_retry_not_available' };
 }

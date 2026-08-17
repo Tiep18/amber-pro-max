@@ -54,12 +54,12 @@ function ResendDownloadButton({
   orderId,
   orderNumber,
   entitlementId,
-  locale
+  expectedVersion
 }: {
   orderId: string;
   orderNumber: string;
   entitlementId: string;
-  locale: string;
+  expectedVersion: number;
 }) {
   const [, formAction, pending] = useActionState(resendAction, initialState);
   return (
@@ -67,7 +67,7 @@ function ResendDownloadButton({
       <input type="hidden" name="orderId" value={orderId} />
       <input type="hidden" name="orderNumber" value={orderNumber} />
       <input type="hidden" name="entitlementId" value={entitlementId} />
-      <input type="hidden" name="locale" value={locale} />
+      <input type="hidden" name="expectedVersion" value={expectedVersion} />
       <Button type="submit" className="gap-2" disabled={pending}>
         <Send aria-hidden="true" className="size-4" />
         {pending ? 'Queuing email…' : 'Resend download email'}
@@ -81,23 +81,23 @@ export function EmailRecoveryActions({
   orderId,
   orderNumber,
   entitlementId,
-  locale
+  entitlementVersion
 }: {
   emailId: string;
   orderId: string | null;
   orderNumber: string;
   entitlementId: string | null;
-  locale: string;
+  entitlementVersion: number | null;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <RetryEmailButton emailId={emailId} />
-      {entitlementId ? (
+      {orderId && entitlementId && entitlementVersion !== null ? (
         <ResendDownloadButton
-          orderId={orderId ?? ''}
+          orderId={orderId}
           orderNumber={orderNumber}
           entitlementId={entitlementId}
-          locale={locale}
+          expectedVersion={entitlementVersion}
         />
       ) : null}
     </div>

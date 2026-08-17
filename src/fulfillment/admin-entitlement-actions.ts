@@ -34,8 +34,8 @@ function sanitizeReason(value: string | undefined) {
 async function getAdminRpcClient() {
   const { requireAdmin } = await import('@/auth/guards');
   await requireAdmin();
-  const { createSupabaseAdminClient } = await import('@/lib/supabase/admin');
-  return createSupabaseAdminClient() as unknown as {
+  const { createSupabaseServerClient } = await import('@/lib/supabase/server');
+  return (await createSupabaseServerClient()) as unknown as {
     rpc: (fn: string, args?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
   };
 }
@@ -81,7 +81,6 @@ export async function reissueDigitalEntitlementAction(
   const result = await reissueDigitalEntitlement(
     parsed.data,
     client,
-    undefined,
     recordOperationalFailure
   );
   revalidateAdminOrder(parsed.data.orderNumber);

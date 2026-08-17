@@ -194,26 +194,25 @@ export function createSupabaseEmailOutboxRepository(
       if (!row.entitlementId) {
         return null;
       }
-      const table = client.from('digital_access_tokens') as SourceLinkedTokenTable;
       const tokenHash = hashFulfillmentAccessToken(preparation.rawToken);
-      return prepareSourceLinkedToken({
-        table,
-        preparation,
-        expected: {
-          entitlement_id: row.entitlementId,
-          token_hash: tokenHash,
-          purpose: 'download',
-          status: 'active'
-        },
-        insert: {
-          entitlement_id: row.entitlementId,
-          token_hash: tokenHash,
-          purpose: 'download',
-          status: 'active',
-          expires_at: preparation.expiresAt,
-          source_email_outbox_id: preparation.sourceEmailOutboxId
-        }
+      const { data, error } = await client.rpc('issue_digital_access_token_for_outbox', {
+        p_source_email_outbox_id: preparation.sourceEmailOutboxId,
+        p_token_hash: tokenHash,
+        p_expires_at: preparation.expiresAt
       });
+      if (error || typeof data !== 'string') {
+        return null;
+      }
+      const acceptedExpiry = new Date(data).getTime();
+      const expectedExpiry = new Date(preparation.expiresAt).getTime();
+      if (
+        !Number.isFinite(acceptedExpiry) ||
+        !Number.isFinite(expectedExpiry) ||
+        acceptedExpiry !== expectedExpiry
+      ) {
+        return null;
+      }
+      return { expiresAt: preparation.expiresAt };
     },
     async issueGuestToken(row, purpose, preparation) {
       if (!row.orderId) {
