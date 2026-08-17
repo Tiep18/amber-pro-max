@@ -1,4 +1,5 @@
 import {NextRequest, NextResponse} from 'next/server';
+import {hashFulfillmentAccessToken} from '@/fulfillment/downloads';
 import {authorizeDownloadWithSupabase} from '@/fulfillment/downloads.server';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
@@ -19,16 +20,20 @@ async function handleDownload(request: NextRequest) {
   const url = new URL(request.url);
   const orderNumber = url.searchParams.get('orderNumber') ?? '';
   const productId = url.searchParams.get('productId');
-  const rawGuestToken = url.searchParams.get('token');
+  const rawDownloadToken = url.searchParams.get('token');
+  const downloadTokenHash =
+    rawDownloadToken && rawDownloadToken.length <= 512
+      ? hashFulfillmentAccessToken(rawDownloadToken)
+      : null;
   const cookieHash = orderNumber ? await getGuestOrderAccessHashFromServer(orderNumber) : null;
-  const userId = await currentUserId();
+  const ownerUserId = await currentUserId();
 
   const result = await authorizeDownloadWithSupabase({
     orderNumber,
     productId: productId ?? null,
-    userId,
-    rawGuestToken: rawGuestToken ?? null,
-    guestTokenHash: cookieHash
+    ownerUserId,
+    downloadTokenHash,
+    guestSecretHash: cookieHash
   });
 
   if (result.status !== 'authorized') {

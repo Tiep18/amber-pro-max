@@ -2,87 +2,84 @@ import 'server-only';
 
 import {
   authorizeDownloadRequest,
+  type AuthorizedDigitalAsset,
+  type DownloadAuthorizationInput,
   type DownloadRepository,
-  type DownloadRequestInput,
   type DownloadStorage
 } from '@/fulfillment/downloads';
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
 import {recordOperationalFailure} from '@/operations/errors';
 
-type MaybeSingleResult<T> = Promise<{data: T | null; error: unknown}>;
-type ManyResult<T> = Promise<{data: T[] | null; error: unknown}>;
+type AuthorizationRow = {
+  entitlement_id: unknown;
+  product_id: unknown;
+  bucket_id: unknown;
+  object_path: unknown;
+  file_name: unknown;
+};
 
 type SupabaseLike = {
-  from: (table: string) => unknown;
+  rpc: (
+    fn: string,
+    args?: Record<string, string | null>
+  ) => Promise<{data: unknown; error: unknown}>;
   storage: {
-    from: (bucket: string) => {createSignedUrl: (path: string, expiresIn: number) => Promise<{data: {signedUrl: string} | null; error: unknown}>};
+    from: (bucket: string) => {
+      createSignedUrl: (
+        path: string,
+        expiresIn: number
+      ) => Promise<{data: {signedUrl: string} | null; error: unknown}>;
+    };
   };
 };
 
-type OrderRow = {id: string; order_number: string; owner_user_id: string | null; paid_gate_status: string};
-type EntitlementRow = {id: string; order_id: string; owner_user_id: string | null; status: string; product_id: string};
-type TokenRow = {token_hash: string; status: string; expires_at: string};
-type AssetRow = {bucket_id: string; object_path: string; file_name: string};
-
-function maybeSingle<T>(query: unknown): MaybeSingleResult<T> {
-  return (query as {maybeSingle: () => MaybeSingleResult<T>}).maybeSingle();
-}
-
-function many<T>(query: unknown): ManyResult<T> {
-  return query as ManyResult<T>;
+function mapAuthorizationRow(row: unknown): AuthorizedDigitalAsset | null {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) {
+    return null;
+  }
+  const value = row as AuthorizationRow;
+  if (
+    typeof value.entitlement_id !== 'string' ||
+    typeof value.product_id !== 'string' ||
+    typeof value.bucket_id !== 'string' ||
+    typeof value.object_path !== 'string' ||
+    typeof value.file_name !== 'string'
+  ) {
+    return null;
+  }
+  return {
+    entitlementId: value.entitlement_id,
+    productId: value.product_id,
+    bucketId: value.bucket_id,
+    objectPath: value.object_path,
+    fileName: value.file_name
+  };
 }
 
 export function createSupabaseDownloadRepository(client: SupabaseLike): DownloadRepository {
   return {
-    async findActiveEntitlementsForOrder(orderNumber) {
-      const orderQuery = (client.from('checkout_orders') as {select: (columns: string) => unknown})
-        .select('id,order_number,owner_user_id,paid_gate_status') as {eq: (column: string, value: string) => unknown};
-      const {data: order, error: orderError} = await maybeSingle<OrderRow>(orderQuery.eq('order_number', orderNumber));
-      if (orderError || !order || order.paid_gate_status !== 'open') {
-        return [];
+    async authorizeDigitalAsset(input) {
+      const {data, error} = await client.rpc('authorize_digital_download', {
+        p_order_number: input.orderNumber,
+        p_product_id: input.productId,
+        p_owner_user_id: input.ownerUserId,
+        p_download_token_hash: input.downloadTokenHash,
+        p_guest_secret_hash: input.guestSecretHash
+      });
+      if (error) {
+        throw new Error('download_authorization_rpc_failed');
       }
-
-      const entitlementQuery = (client.from('digital_entitlements') as {select: (columns: string) => unknown})
-        .select('id,order_id,owner_user_id,status,product_id') as {eq: (column: string, value: string) => unknown};
-      const entitlementByOrder = entitlementQuery.eq('order_id', order.id) as {eq: (column: string, value: string) => unknown};
-      const {data: entitlements, error: entitlementError} = await many<EntitlementRow>(entitlementByOrder.eq('status', 'active'));
-      if (entitlementError || !entitlements?.length) {
-        return [];
+      if (!Array.isArray(data) || data.length > 1) {
+        throw new Error('download_authorization_result_invalid');
       }
-
-      const records = await Promise.all(
-        entitlements.map(async (entitlement) => {
-          const tokenQuery = (client.from('digital_access_tokens') as {select: (columns: string) => unknown})
-            .select('token_hash,status,expires_at') as {eq: (column: string, value: string) => unknown};
-          const tokenByEntitlement = tokenQuery.eq('entitlement_id', entitlement.id) as {eq: (column: string, value: string) => unknown};
-          const {data: token} = await maybeSingle<TokenRow>(tokenByEntitlement.eq('status', 'active'));
-
-          const assetQuery = (client.from('product_digital_assets') as {select: (columns: string) => unknown})
-            .select('bucket_id,object_path,file_name') as {eq: (column: string, value: string) => unknown};
-          const {data: asset, error: assetError} = await maybeSingle<AssetRow>(assetQuery.eq('product_id', entitlement.product_id));
-          if (assetError || !asset) {
-            return null;
-          }
-
-          return {
-            entitlementId: entitlement.id,
-            orderNumber: order.order_number,
-            ownerUserId: entitlement.owner_user_id ?? order.owner_user_id,
-            status: entitlement.status,
-            productId: entitlement.product_id,
-            tokenHash: token?.token_hash ?? null,
-            tokenStatus: token?.status ?? null,
-            tokenExpiresAt: token?.expires_at ?? null,
-            asset: {
-              bucketId: asset.bucket_id,
-              objectPath: asset.object_path,
-              fileName: asset.file_name
-            }
-          };
-        })
-      );
-
-      return records.flatMap((record) => (record ? [record] : []));
+      if (data.length === 0) {
+        return null;
+      }
+      const asset = mapAuthorizationRow(data[0]);
+      if (!asset) {
+        throw new Error('download_authorization_result_invalid');
+      }
+      return asset;
     }
   };
 }
@@ -90,13 +87,15 @@ export function createSupabaseDownloadRepository(client: SupabaseLike): Download
 export function createSupabaseDownloadStorage(client: SupabaseLike): DownloadStorage {
   return {
     async createSignedUrl(bucketId, objectPath, expiresInSeconds) {
-      const {data, error} = await client.storage.from(bucketId).createSignedUrl(objectPath, expiresInSeconds);
+      const {data, error} = await client.storage
+        .from(bucketId)
+        .createSignedUrl(objectPath, expiresInSeconds);
       return error || !data?.signedUrl ? null : {url: data.signedUrl};
     }
   };
 }
 
-export async function authorizeDownloadWithSupabase(input: DownloadRequestInput) {
+export async function authorizeDownloadWithSupabase(input: DownloadAuthorizationInput) {
   const client = createSupabaseAdminClient() as unknown as SupabaseLike;
   return authorizeDownloadRequest(input, {
     repository: createSupabaseDownloadRepository(client),
