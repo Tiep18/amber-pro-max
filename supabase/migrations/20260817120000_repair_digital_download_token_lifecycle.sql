@@ -155,7 +155,7 @@ begin
   end if;
 
   if entitlement_row.status <> 'active'
-    or entitlement_row.version <> p_expected_version then
+    or entitlement_row.version is distinct from p_expected_version then
     return pg_catalog.jsonb_build_object(
       'status', 'stale',
       'version', entitlement_row.version

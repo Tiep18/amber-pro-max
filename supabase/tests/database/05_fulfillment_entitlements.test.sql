@@ -1,6 +1,6 @@
 begin;
 
-select plan(77);
+select plan(80);
 
 select has_table('public', 'digital_entitlements', 'paid digital entitlement table exists');
 select has_table('public', 'digital_access_tokens', 'download token table exists');
@@ -158,6 +158,15 @@ create temporary table lifecycle_stale_result as select pg_temp.test_reissue((se
 reset role;
 select is((select result->>'status' from lifecycle_stale_result),'stale','stale expected version is rejected');
 select is((select count(*)::integer from public.transactional_email_outbox o join public.digital_entitlements e on e.id=o.entitlement_id where e.order_line_id='05170000-0000-4000-8000-000000000030' and o.event_type='digital_access_reissued'),1,'stale reissue creates no second intent');
+
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','05170000-0000-4000-8000-000000000002',true);
+create temporary table lifecycle_null_version_result as select pg_temp.test_reissue((select id from public.digital_entitlements where order_line_id='05170000-0000-4000-8000-000000000030'),null) result;
+reset role;
+select is((select result->>'status' from lifecycle_null_version_result),'stale','null expected version is rejected');
+select is((select version from public.digital_entitlements where order_line_id='05170000-0000-4000-8000-000000000030'),2,'null expected version does not increment entitlement version');
+select is((select count(*)::integer from public.transactional_email_outbox o join public.digital_entitlements e on e.id=o.entitlement_id where e.order_line_id='05170000-0000-4000-8000-000000000030' and o.event_type='digital_access_reissued'),1,'null expected version creates no replacement intent');
 
 set local role service_role;
 create temporary table lifecycle_issue_result as select pg_temp.test_issue(o.id,repeat('c',64),o.created_at+interval '24 hours') expiry from public.transactional_email_outbox o join public.digital_entitlements e on e.id=o.entitlement_id where e.order_line_id='05170000-0000-4000-8000-000000000030' and o.event_type='digital_access_reissued';
