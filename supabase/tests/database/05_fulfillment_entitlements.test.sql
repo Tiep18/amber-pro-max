@@ -1,6 +1,6 @@
 begin;
 
-select plan(80);
+select plan(89);
 
 select has_table('public', 'digital_entitlements', 'paid digital entitlement table exists');
 select has_table('public', 'digital_access_tokens', 'download token table exists');
@@ -193,6 +193,62 @@ select is((select count(*)::integer from pg_temp.test_authorize('ATB-DIGITAL-LIF
 select is((select count(*)::integer from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','50000000-0000-0000-0000-000000000001',null,repeat('e',64),null)),0,'unmatched token as sole proof is denied');
 select is((select concat_ws('|',bucket_id,object_path,file_name) from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','50000000-0000-0000-0000-000000000001','05170000-0000-4000-8000-000000000001',repeat('e',64),null)),'pattern-pdfs|seed/private/vn-pattern.pdf|vn-pattern.pdf','valid owner proof remains sufficient when email token is invalid');
 reset role;
+
+insert into public.digital_access_tokens(entitlement_id,token_hash,status,expires_at,revoked_at)
+select id,repeat('6',64),'expired',now()-interval '1 minute',now()
+from public.digital_entitlements
+where order_line_id='05170000-0000-4000-8000-000000000031';
+insert into public.digital_access_tokens(entitlement_id,token_hash,status,expires_at,revoked_at)
+select id,repeat('7',64),'revoked',now()+interval '1 hour',now()
+from public.digital_entitlements
+where order_line_id='05170000-0000-4000-8000-000000000031';
+set local role service_role;
+select is((select count(*)::integer from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','05170000-0000-4000-8000-000000000010',null,repeat('6',64),null)),0,'expired token as sole proof is denied');
+select is((select count(*)::integer from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','05170000-0000-4000-8000-000000000010',null,repeat('7',64),null)),0,'revoked token as sole proof is denied');
+reset role;
+
+update public.checkout_orders set paid_gate_status='review_required' where id='05170000-0000-4000-8000-000000000020';
+set local role service_role;
+select is((select count(*)::integer from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','05170000-0000-4000-8000-000000000010','05170000-0000-4000-8000-000000000001',null,null)),0,'closed paid gate denies otherwise valid owner proof');
+reset role;
+update public.checkout_orders set paid_gate_status='open' where id='05170000-0000-4000-8000-000000000020';
+
+update public.digital_entitlements
+set status='revoked',revoked_at=now(),revoke_reason='authorization matrix test'
+where order_line_id='05170000-0000-4000-8000-000000000031';
+set local role service_role;
+select is((select count(*)::integer from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','05170000-0000-4000-8000-000000000010','05170000-0000-4000-8000-000000000001',null,null)),0,'inactive entitlement denies otherwise valid owner proof');
+reset role;
+update public.digital_entitlements
+set status='active',revoked_at=null,revoke_reason=null
+where order_line_id='05170000-0000-4000-8000-000000000031';
+
+insert into public.checkout_order_lines(id,order_id,product_id,line_id,product_title,fulfillment_type,market,currency_code,quantity,unit_price_minor,line_subtotal_minor,quote_line_snapshot)
+values('05170000-0000-4000-8000-000000000034','05170000-0000-4000-8000-000000000020','50000000-0000-0000-0000-000000000001','paid-a-duplicate','First pattern duplicate','digital','intl','USD',1,2500,2500,'{}');
+insert into public.digital_entitlements(id,order_id,order_line_id,owner_user_id,contact_email,product_id,status,version)
+values('05170000-0000-4000-8000-000000000035','05170000-0000-4000-8000-000000000020','05170000-0000-4000-8000-000000000034','05170000-0000-4000-8000-000000000001','download-owner@example.test','50000000-0000-0000-0000-000000000001','active',1);
+set local role service_role;
+select is(
+  (select entitlement_id from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','50000000-0000-0000-0000-000000000001','05170000-0000-4000-8000-000000000001',null,null)),
+  (select id from public.digital_entitlements where order_line_id='05170000-0000-4000-8000-000000000030'),
+  'same-product duplicate authorization deterministically selects the earliest order line'
+);
+reset role;
+
+set local role anon;
+select throws_ok(
+  $$select * from public.authorize_digital_download('ATB-DIGITAL-LIFECYCLE-PAID',null,null,null,null)$$,
+  '42501',null,'anon runtime invocation is denied'
+);
+reset role;
+set local role authenticated;
+select throws_ok(
+  $$select * from public.authorize_digital_download('ATB-DIGITAL-LIFECYCLE-PAID',null,null,null,null)$$,
+  '42501',null,'authenticated runtime invocation is denied'
+);
+reset role;
+select is((select count(*)::integer from public.digital_access_tokens where token_hash in(repeat('6',64),repeat('7',64)) and status in('expired','revoked')),2,'denied authorization attempts do not mutate token state');
+select is((select count(*)::integer from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','05170000-0000-4000-8000-000000000010',null,null,null)),0,'request without any proof returns no authorization row');
 
 select * from finish();
 rollback;
