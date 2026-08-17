@@ -254,6 +254,89 @@ describe('payment order projections', () => {
     });
   });
 
+  test('projects only numeric entitlement versions for failed digital email reissue', async () => {
+    const baseOrder = {
+      order_id: 'order-id',
+      order_number: 'ATB-20260817-0001',
+      contact_email: 'customer@example.com',
+      owner_user_id: null,
+      payment_id: 'payment-id',
+      customer_payment_status: 'paid',
+      payment_status: 'paid',
+      fulfillment_gate_status: 'open',
+      digital_fulfillment_status: 'eligible',
+      physical_fulfillment_status: 'not_required',
+      refund_status: 'not_refunded',
+      refunded_amount_minor: 0,
+      review_reason: null,
+      total_minor: 2500,
+      currency_code: 'USD',
+      provider: 'paypal',
+      reservation_expires_at: null,
+      shipping_address: null,
+      updated_at: '2026-08-17T10:00:00.000Z'
+    };
+    const from = vi.fn((table: string) => ({
+      select: vi.fn(() => {
+        if (table === 'order_payment_statuses') {
+          return { eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: baseOrder, error: null })) })) };
+        }
+        if (table === 'transactional_email_outbox') {
+          return {
+            eq: vi.fn(() => ({
+              in: vi.fn(() => ({
+                order: vi.fn(async () => ({
+                  data: [
+                    {
+                      id: 'email-versioned', order_id: 'order-id', entitlement_id: 'entitlement-1',
+                      event_type: 'digital_access_reissued', recipient_email: 'customer@example.com',
+                      locale: 'en', status: 'failed',
+                      payload: { orderNumber: 'ATB-20260817-0001', entitlementVersion: 4 },
+                      available_at: null, created_at: '2026-08-17T10:00:00.000Z'
+                    },
+                    {
+                      id: 'email-malformed', order_id: 'order-id', entitlement_id: 'entitlement-2',
+                      event_type: 'digital_access_granted', recipient_email: 'customer@example.com',
+                      locale: 'en', status: 'failed',
+                      payload: { orderNumber: 'ATB-20260817-0001', entitlementVersion: '4' },
+                      available_at: null, created_at: '2026-08-17T09:00:00.000Z'
+                    }
+                  ],
+                  error: null
+                }))
+              }))
+            }))
+          };
+        }
+        if (table === 'physical_fulfillments') {
+          return { eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) };
+        }
+        return {
+          eq: vi.fn(() => ({
+            in: vi.fn(() => ({ order: vi.fn(async () => ({ data: [], error: null })) })),
+            order: vi.fn(async () => ({ data: [], error: null }))
+          }))
+        };
+      })
+    }));
+
+    const result = await getAdminOrderDetail({
+      orderId: 'order-id',
+      client: { from, rpc: vi.fn(async () => ({ data: [], error: null })) } as never,
+      requireAdmin: vi.fn(async () => ({ id: 'admin-user' }))
+    });
+
+    expect(result).toMatchObject({
+      status: 'success',
+      order: {
+        failedEmails: [
+          { id: 'email-versioned', entitlementVersion: 4 },
+          { id: 'email-malformed', entitlementVersion: null }
+        ]
+      }
+    });
+  });
+
   test('records admin order queue and detail query failures without exposing customer PII', async () => {
     vi.mocked(recordOperationalFailure).mockClear();
     const requireAdmin = vi.fn().mockResolvedValue({id: 'admin-user'});

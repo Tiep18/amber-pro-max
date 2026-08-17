@@ -280,6 +280,34 @@ test('admin entitlement actions keep revoke and reissue behind safe RPC and UI b
   );
 });
 
+test('download capability issuance and manual resend have one versioned database authority', () => {
+  const worker = readFileSync('src/fulfillment/email-outbox.server.ts', 'utf8');
+  const entitlements = readFileSync('src/fulfillment/entitlements.ts', 'utf8');
+  const adminEntitlements = readFileSync(
+    'src/fulfillment/admin-entitlement-actions.ts',
+    'utf8'
+  );
+  const adminEmails = readFileSync('src/fulfillment/admin-email-actions.ts', 'utf8');
+  const resendOnly = adminEmails.slice(adminEmails.indexOf('export async function resendDownloadEmailAction'));
+  const recoveryUi = readFileSync(
+    'src/components/admin/fulfillment/email-recovery-actions.tsx',
+    'utf8'
+  );
+
+  assert.match(worker, /issue_digital_access_token_for_outbox/);
+  assert.doesNotMatch(worker, /from\(['"]digital_access_tokens['"]\)/);
+  assert.doesNotMatch(entitlements, /p_new_token_hash|randomUUID|newSecretMaterial/);
+  assert.match(adminEntitlements, /createSupabaseServerClient/);
+  assert.doesNotMatch(adminEntitlements, /createSupabaseAdminClient/);
+  assert.match(resendOnly, /reissueDigitalEntitlement/);
+  assert.match(resendOnly, /createSupabaseServerClient/);
+  assert.doesNotMatch(
+    resendOnly,
+    /from\(['"](?:transactional_email_outbox|fulfillment_audit_events)['"]\)/
+  );
+  assert.match(recoveryUi, /name=['"]expectedVersion['"]/);
+});
+
 test('fulfillment audit and outbox payloads reject unsafe secrets', () => {
   const migration = readFileSync(
     'supabase/migrations/20260619085118_fulfillment_purchase_access.sql',

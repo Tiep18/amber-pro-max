@@ -4,7 +4,6 @@ vi.mock('server-only', () => ({}));
 
 import { POST } from '@/app/api/fulfillment/email-outbox/route';
 import {
-  buildDownloadResendIntent,
   maskEmailForAdmin,
   sanitizeEmailFailureCode,
   validateRetryCandidate
@@ -942,22 +941,13 @@ describe('Supabase transactional email outbox repository', () => {
     ).rejects.toThrow('transactional email claim ownership was lost');
   });
 
-  test('reuses an exact source-linked download token without inserting a replacement', async () => {
-    const maybeSingle = vi.fn().mockResolvedValue({
-      data: {
-        entitlement_id: 'entitlement-1',
-        token_hash: 'fc93c8c89a9169c6946642b2190685cc057e96c2d7e38923208a2acdab821bcb',
-        purpose: 'download',
-        status: 'active',
-        expires_at: '2026-06-20T09:00:00.000Z'
-      },
+  test('issues a download capability through one hash-only version-fenced RPC', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: '2026-06-20T09:00:00.000Z',
       error: null
     });
-    const eq = vi.fn(() => ({ maybeSingle }));
-    const select = vi.fn(() => ({ eq }));
-    const insert = vi.fn();
-    const from = vi.fn(() => ({ select, insert }));
-    const repository = createSupabaseEmailOutboxRepository({ rpc: vi.fn(), from } as never);
+    const from = vi.fn();
+    const repository = createSupabaseEmailOutboxRepository({ rpc, from } as never);
     const row = {
       ...digitalRow,
       id: '20000000-0000-4000-8000-000000000001',
@@ -972,19 +962,18 @@ describe('Supabase transactional email outbox repository', () => {
       })
     ).resolves.toEqual({ expiresAt: '2026-06-20T09:00:00.000Z' });
 
-    expect(from).toHaveBeenCalledWith('digital_access_tokens');
-    expect(eq).toHaveBeenCalledWith('source_email_outbox_id', row.id);
-    expect(insert).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith('issue_digital_access_token_for_outbox', {
+      p_source_email_outbox_id: row.id,
+      p_token_hash: 'fc93c8c89a9169c6946642b2190685cc057e96c2d7e38923208a2acdab821bcb',
+      p_expires_at: '2026-06-20T09:00:00.000Z'
+    });
+    expect(from).not.toHaveBeenCalledWith('digital_access_tokens');
+    expect(JSON.stringify(rpc.mock.calls)).not.toContain('krMVmeILCZGckZNphm9WMoTRMo3dHnoe4wNDZvpyICs');
   });
 
-  test('stores only the token hash and outbox source on first issuance', async () => {
-    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-    const insert = vi.fn().mockResolvedValue({ data: null, error: null });
-    const from = vi.fn(() => ({
-      select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle })) })),
-      insert
-    }));
-    const repository = createSupabaseEmailOutboxRepository({ rpc: vi.fn(), from } as never);
+  test('reuses the exact deterministic expiry for same-row provider retry', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: '2026-06-20T09:00:00.000Z', error: null });
+    const repository = createSupabaseEmailOutboxRepository({ rpc, from: vi.fn() } as never);
     const row = {
       ...digitalRow,
       id: '20000000-0000-4000-8000-000000000001',
@@ -996,38 +985,17 @@ describe('Supabase transactional email outbox repository', () => {
       sourceEmailOutboxId: row.id
     };
 
-    await expect(repository.issueDownloadToken(row, preparation)).resolves.toEqual({
-      expiresAt: preparation.expiresAt
-    });
+    await repository.issueDownloadToken(row, preparation);
+    await repository.issueDownloadToken(row, preparation);
 
-    expect(insert).toHaveBeenCalledWith({
-      entitlement_id: row.entitlementId,
-      token_hash: 'fc93c8c89a9169c6946642b2190685cc057e96c2d7e38923208a2acdab821bcb',
-      purpose: 'download',
-      status: 'active',
-      expires_at: preparation.expiresAt,
-      source_email_outbox_id: row.id
-    });
-    expect(JSON.stringify(insert.mock.calls)).not.toContain(preparation.rawToken);
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc.mock.calls[0]).toEqual(rpc.mock.calls[1]);
   });
 
-  test('rejects a source-linked token whose persisted capability no longer matches', async () => {
-    const maybeSingle = vi.fn().mockResolvedValue({
-      data: {
-        entitlement_id: 'different-entitlement',
-        token_hash: 'fc93c8c89a9169c6946642b2190685cc057e96c2d7e38923208a2acdab821bcb',
-        purpose: 'download',
-        status: 'active',
-        expires_at: '2026-06-20T09:00:00.000Z'
-      },
-      error: null
-    });
-    const insert = vi.fn();
-    const from = vi.fn(() => ({
-      select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle })) })),
-      insert
-    }));
-    const repository = createSupabaseEmailOutboxRepository({ rpc: vi.fn(), from } as never);
+  test('fails token preparation when the database rejects a superseded outbox', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
+    const from = vi.fn();
+    const repository = createSupabaseEmailOutboxRepository({ rpc, from } as never);
     const row = {
       ...digitalRow,
       id: '20000000-0000-4000-8000-000000000001',
@@ -1041,7 +1009,7 @@ describe('Supabase transactional email outbox repository', () => {
         sourceEmailOutboxId: row.id
       })
     ).resolves.toBeNull();
-    expect(insert).not.toHaveBeenCalled();
+    expect(from).not.toHaveBeenCalledWith('digital_access_tokens');
   });
 });
 
@@ -1091,27 +1059,33 @@ describe('admin transactional email recovery helpers', () => {
     });
   });
 
-  test('builds download resend outbox and audit intent without reusing a stale link', () => {
-    const intent = buildDownloadResendIntent({
-      orderId: 'order-1',
-      orderNumber: 'ATB-20260619-0001',
-      entitlementId: 'entitlement-1',
-      recipientEmail: 'buyer@example.test',
-      locale: 'en',
-      adminId: 'admin-1'
-    });
+  test('routes download resend through canonical versioned reissue without direct inserts', async () => {
+    vi.resetModules();
+    const requireAdmin = vi.fn(async () => ({ id: 'admin-1' }));
+    const rpc = vi.fn(async () => ({ data: { status: 'reissued', version: 4 }, error: null }));
+    const from = vi.fn();
+    vi.doMock('next/cache', () => ({ revalidatePath: vi.fn() }));
+    vi.doMock('@/auth/guards', () => ({ requireAdmin }));
+    vi.doMock('@/lib/supabase/server', () => ({
+      createSupabaseServerClient: vi.fn(async () => ({ rpc, from }))
+    }));
+    vi.doMock('@/lib/supabase/admin', () => ({
+      createSupabaseAdminClient: vi.fn(() => ({ from }))
+    }));
+    const { resendDownloadEmailAction } = await import('@/fulfillment/admin-email-actions');
+    const formData = new FormData();
+    formData.set('orderId', 'order-1');
+    formData.set('orderNumber', 'ATB-20260619-0001');
+    formData.set('entitlementId', '22222222-2222-4222-8222-222222222222');
+    formData.set('expectedVersion', '3');
 
-    expect(intent.outbox).toMatchObject({
-      event_type: 'digital_access_reissued',
-      recipient_email: 'buyer@example.test',
-      locale: 'en'
+    await expect(resendDownloadEmailAction(formData)).resolves.toEqual({ status: 'queued' });
+    expect(rpc).toHaveBeenCalledWith('reissue_digital_access_token', {
+      p_entitlement_id: '22222222-2222-4222-8222-222222222222',
+      p_expected_version: 3
     });
-    expect(intent.audit).toMatchObject({
-      event_type: 'digital_access_resend_requested',
-      actor_type: 'admin',
-      actor_id: 'admin-1'
-    });
-    expect(JSON.stringify(intent)).not.toMatch(/raw_token|signed_url|pattern-pdfs|object_path/i);
+    expect(from).not.toHaveBeenCalledWith('transactional_email_outbox');
+    expect(from).not.toHaveBeenCalledWith('fulfillment_audit_events');
   });
 
   test('records retry update failures instead of reporting queued success', async () => {
@@ -1200,37 +1174,26 @@ describe('admin transactional email recovery helpers', () => {
     });
   });
 
-  test('records download resend insert failures without exposing recipient email or payload', async () => {
+  test('records canonical download reissue failures without exposing recipient or token material', async () => {
     vi.resetModules();
     const requireAdmin = vi.fn(async () => ({ id: 'admin-1', email: 'admin@example.test' }));
     const recordOperationalFailure = vi.fn(async () => ({
       status: 'recorded',
       errorId: '76000000-0000-4000-8000-000000000001'
     }));
-    const outboxInsert = vi.fn(async () => ({
-      data: null,
-      error: { message: 'private outbox insert for buyer@example.test' }
-    }));
-    const auditInsert = vi.fn(async () => ({ data: null, error: null }));
-    const from = vi.fn((table: string) => {
-      if (table === 'transactional_email_outbox') {
-        return { insert: outboxInsert };
-      }
-      return { insert: auditInsert };
-    });
+    const rpc = vi.fn(async () => ({ data: null, error: { message: 'private rpc detail' } }));
     vi.doMock('next/cache', () => ({ revalidatePath: vi.fn() }));
     vi.doMock('@/auth/guards', () => ({ requireAdmin }));
-    vi.doMock('@/lib/supabase/admin', () => ({
-      createSupabaseAdminClient: vi.fn(() => ({ from }))
+    vi.doMock('@/lib/supabase/server', () => ({
+      createSupabaseServerClient: vi.fn(async () => ({ rpc }))
     }));
     vi.doMock('@/operations/errors', () => ({ recordOperationalFailure }));
     const { resendDownloadEmailAction } = await import('@/fulfillment/admin-email-actions');
     const formData = new FormData();
     formData.set('orderId', 'order-1');
     formData.set('orderNumber', 'ATB-20260708-0001');
-    formData.set('entitlementId', 'entitlement-1');
-    formData.set('recipientEmail', 'buyer@example.test');
-    formData.set('locale', 'en');
+    formData.set('entitlementId', '22222222-2222-4222-8222-222222222222');
+    formData.set('expectedVersion', '3');
 
     await expect(resendDownloadEmailAction(formData)).resolves.toEqual({
       status: 'error',
@@ -1248,46 +1211,35 @@ describe('admin transactional email recovery helpers', () => {
           emailType: 'digital_access_reissued',
           orderId: 'order-1',
           orderNumber: 'ATB-20260708-0001',
-          entitlementId: 'entitlement-1',
+          entitlementId: '22222222-2222-4222-8222-222222222222',
           code: 'email_action_failed'
         })
       })
     );
     expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(
-      /buyer@example|admin@example|private outbox|recipient_email|expiresInHours|raw_token|signed_url|token/i
+      /buyer@example|admin@example|private rpc|recipient_email|expiresInHours|raw_token|signed_url|token_hash/i
     );
   });
 
-  test('keeps download resend failure result stable when operational recording fails', async () => {
+  test('keeps canonical download reissue error stable when operational recording fails', async () => {
     vi.resetModules();
     const requireAdmin = vi.fn(async () => ({ id: 'admin-1', email: 'admin@example.test' }));
     const recordOperationalFailure = vi.fn(async () => {
       throw new Error('operational table unavailable');
     });
-    const outboxInsert = vi.fn(async () => ({
-      data: null,
-      error: { message: 'private outbox insert for buyer@example.test' }
-    }));
-    const auditInsert = vi.fn(async () => ({ data: null, error: null }));
-    const from = vi.fn((table: string) => {
-      if (table === 'transactional_email_outbox') {
-        return { insert: outboxInsert };
-      }
-      return { insert: auditInsert };
-    });
+    const rpc = vi.fn(async () => ({ data: null, error: { message: 'private rpc detail' } }));
     vi.doMock('next/cache', () => ({ revalidatePath: vi.fn() }));
     vi.doMock('@/auth/guards', () => ({ requireAdmin }));
-    vi.doMock('@/lib/supabase/admin', () => ({
-      createSupabaseAdminClient: vi.fn(() => ({ from }))
+    vi.doMock('@/lib/supabase/server', () => ({
+      createSupabaseServerClient: vi.fn(async () => ({ rpc }))
     }));
     vi.doMock('@/operations/errors', () => ({ recordOperationalFailure }));
     const { resendDownloadEmailAction } = await import('@/fulfillment/admin-email-actions');
     const formData = new FormData();
     formData.set('orderId', 'order-1');
     formData.set('orderNumber', 'ATB-20260708-0001');
-    formData.set('entitlementId', 'entitlement-1');
-    formData.set('recipientEmail', 'buyer@example.test');
-    formData.set('locale', 'en');
+    formData.set('entitlementId', '22222222-2222-4222-8222-222222222222');
+    formData.set('expectedVersion', '3');
 
     await expect(resendDownloadEmailAction(formData)).resolves.toEqual({
       status: 'error',

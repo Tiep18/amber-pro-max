@@ -246,20 +246,19 @@ describe('admin entitlement revoke and reissue wrappers', () => {
     });
   });
 
-  test('reissue passes a fresh token hash to the database RPC and never returns the raw token', async () => {
+  test('reissue sends only entitlement identity and expected version to the database RPC', async () => {
     const client = {
       rpc: vi.fn().mockResolvedValue({data: {status: 'reissued', version: 4}, error: null})
     };
 
-    const result = await reissueDigitalEntitlement({entitlementId: '22222222-2222-4222-8222-222222222222', expectedVersion: 3}, client, () => 'fresh-raw-token');
+    const result = await reissueDigitalEntitlement({entitlementId: '22222222-2222-4222-8222-222222222222', expectedVersion: 3}, client);
 
     expect(result).toEqual({status: 'reissued', version: 4});
     expect(client.rpc).toHaveBeenCalledWith('reissue_digital_access_token', {
       p_entitlement_id: '22222222-2222-4222-8222-222222222222',
-      p_expected_version: 3,
-      p_new_token_hash: hashFulfillmentAccessToken('fresh-raw-token')
+      p_expected_version: 3
     });
-    expect(JSON.stringify(result)).not.toContain('fresh-raw-token');
+    expect(JSON.stringify(client.rpc.mock.calls)).not.toMatch(/raw|token_hash|secret/i);
   });
 
   test('invalid input and forbidden RPC responses fail safely', async () => {
@@ -268,7 +267,7 @@ describe('admin entitlement revoke and reissue wrappers', () => {
     };
 
     await expect(revokeDigitalEntitlement({entitlementId: 'not-a-uuid', expectedVersion: 1}, client)).resolves.toEqual({status: 'invalid', code: 'invalid_entitlement_action'});
-    await expect(reissueDigitalEntitlement({entitlementId: '33333333-3333-4333-8333-333333333333', expectedVersion: 1}, client, () => 'fresh-raw-token')).resolves.toEqual({
+    await expect(reissueDigitalEntitlement({entitlementId: '33333333-3333-4333-8333-333333333333', expectedVersion: 1}, client)).resolves.toEqual({
       status: 'forbidden',
       code: 'admin_required'
     });
@@ -287,7 +286,6 @@ describe('admin entitlement revoke and reissue wrappers', () => {
       reissueDigitalEntitlement(
         {entitlementId: '44444444-4444-4444-8444-444444444444', expectedVersion: 1},
         client,
-        () => 'fresh-raw-token',
         recordOperationalFailure
       )
     ).resolves.toEqual({status: 'error', code: 'entitlement_action_failed'});
@@ -305,7 +303,7 @@ describe('admin entitlement revoke and reissue wrappers', () => {
         })
       })
     );
-    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/fresh-raw-token|token_hash|rpc down|password|secret/i);
+    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/token_hash|rpc down|password|secret/i);
   });
 
   test('keeps entitlement action error result stable when operational recording fails', async () => {
@@ -320,7 +318,6 @@ describe('admin entitlement revoke and reissue wrappers', () => {
       reissueDigitalEntitlement(
         {entitlementId: '44444444-4444-4444-8444-444444444444', expectedVersion: 1},
         client,
-        () => 'fresh-raw-token',
         recordOperationalFailure
       )
     ).resolves.toEqual({status: 'error', code: 'entitlement_action_failed'});
