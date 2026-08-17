@@ -98,11 +98,22 @@ export async function revokeDigitalEntitlement(
     return {status: 'invalid', code: 'invalid_entitlement_action'};
   }
 
-  const {data, error} = await client.rpc('revoke_digital_entitlement', {
-    p_entitlement_id: parsed.data.entitlementId,
-    p_expected_version: parsed.data.expectedVersion,
-    p_reason: parsed.data.reason ?? null
-  });
+  let response: {data: unknown; error: unknown};
+  try {
+    response = await client.rpc('revoke_digital_entitlement', {
+      p_entitlement_id: parsed.data.entitlementId,
+      p_expected_version: parsed.data.expectedVersion,
+      p_reason: parsed.data.reason ?? null
+    });
+  } catch {
+    await recordEntitlementFailure(recordOperationalFailure, {
+      action: 'revoke',
+      entitlementId: parsed.data.entitlementId,
+      summary: 'Digital entitlement revoke RPC failed'
+    });
+    return {status: 'error', code: 'entitlement_action_failed'};
+  }
+  const {data, error} = response;
   if (error) {
     await recordEntitlementFailure(recordOperationalFailure, {
       action: 'revoke',
@@ -132,10 +143,21 @@ export async function reissueDigitalEntitlement(
     return {status: 'invalid', code: 'invalid_entitlement_action'};
   }
 
-  const {data, error} = await client.rpc('reissue_digital_access_token', {
-    p_entitlement_id: parsed.data.entitlementId,
-    p_expected_version: parsed.data.expectedVersion
-  });
+  let response: {data: unknown; error: unknown};
+  try {
+    response = await client.rpc('reissue_digital_access_token', {
+      p_entitlement_id: parsed.data.entitlementId,
+      p_expected_version: parsed.data.expectedVersion
+    });
+  } catch {
+    await recordEntitlementFailure(recordOperationalFailure, {
+      action: 'reissue',
+      entitlementId: parsed.data.entitlementId,
+      summary: 'Digital entitlement reissue RPC failed'
+    });
+    return {status: 'error', code: 'entitlement_action_failed'};
+  }
+  const {data, error} = response;
   if (error) {
     await recordEntitlementFailure(recordOperationalFailure, {
       action: 'reissue',

@@ -120,4 +120,42 @@ describe('admin entitlement server actions', () => {
       );
     }
   );
+
+  test.each([
+    ['reissueDigitalEntitlement', 'reissue'],
+    ['revokeDigitalEntitlement', 'revoke']
+  ] as const)(
+    'records rejected %s RPC promises and returns a stable action error',
+    async (actionName, expectedAction) => {
+      const recordOperationalFailure = vi.fn(async () => ({status: 'recorded'}));
+      const rpc = vi.fn(async () => {
+        throw new Error('transport buyer@example.test raw-token');
+      });
+      const actions = await import('@/fulfillment/entitlements');
+
+      await expect(
+        actions[actionName](
+          {
+            entitlementId: '22222222-2222-4222-8222-222222222222',
+            expectedVersion: 3
+          },
+          {rpc},
+          recordOperationalFailure
+        )
+      ).resolves.toEqual({status: 'error', code: 'entitlement_action_failed'});
+      expect(recordOperationalFailure).toHaveBeenCalledWith(
+        expect.objectContaining({
+          area: 'fulfillment',
+          errorCode: 'entitlement_action_failed',
+          facts: expect.objectContaining({
+            action: expectedAction,
+            entitlementId: '22222222-2222-4222-8222-222222222222'
+          })
+        })
+      );
+      expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(
+        /buyer@example|raw-token|transport/i
+      );
+    }
+  );
 });
