@@ -69,6 +69,9 @@ const fulfillmentEmailFiles = [
   'src/components/admin/fulfillment/failed-email-queue.tsx'
 ];
 
+const digitalLifecycleMigration =
+  'supabase/migrations/20260817120000_repair_digital_download_token_lifecycle.sql';
+
 function readExisting(files) {
   return files
     .filter((file) => existsSync(file))
@@ -90,6 +93,57 @@ test('fulfillment surfaces store hashes and never raw download token material', 
   assert.match(source, /expires_at/);
   assert.match(source, /interval '24 hours'/);
   assert.doesNotMatch(source, /rawDownloadToken|downloadToken\s*[:=]|plainToken|token_secret/i);
+});
+
+test('digital download lifecycle migration revokes orphan capabilities and hardens its RPC boundary', () => {
+  assert.ok(
+    existsSync(digitalLifecycleMigration),
+    'forward-only digital lifecycle repair migration must exist'
+  );
+
+  const migration = readFileSync(digitalLifecycleMigration, 'utf8');
+
+  assert.match(
+    migration,
+    /update\s+public\.digital_access_tokens[\s\S]*status\s*=\s*'revoked'[\s\S]*revoked_at\s*=[\s\S]*where[\s\S]*status\s*=\s*'active'[\s\S]*source_email_outbox_id\s+is\s+null/i
+  );
+  assert.match(
+    migration,
+    /drop\s+function\s+public\.reissue_digital_access_token\s*\(\s*uuid\s*,\s*integer\s*,\s*text\s*\)/i
+  );
+  assert.match(
+    migration,
+    /create(?:\s+or\s+replace)?\s+function\s+public\.reissue_digital_access_token\s*\(\s*p_entitlement_id\s+uuid\s*,\s*p_expected_version\s+integer\s*\)/i
+  );
+  assert.match(
+    migration,
+    /create(?:\s+or\s+replace)?\s+function\s+public\.issue_digital_access_token_for_outbox\s*\([\s\S]*security\s+definer\s+set\s+search_path\s*=\s*''/i
+  );
+  assert.match(
+    migration,
+    /create(?:\s+or\s+replace)?\s+function\s+public\.authorize_digital_download\s*\([\s\S]*security\s+definer\s+set\s+search_path\s*=\s*''/i
+  );
+  assert.match(
+    migration,
+    /grant\s+execute\s+on\s+function\s+public\.issue_digital_access_token_for_outbox\s*\([^;]+\)\s+to\s+service_role/i
+  );
+  assert.match(
+    migration,
+    /grant\s+execute\s+on\s+function\s+public\.authorize_digital_download\s*\([^;]+\)\s+to\s+service_role/i
+  );
+  assert.doesNotMatch(
+    migration,
+    /grant\s+execute\s+on\s+function\s+public\.(?:issue_digital_access_token_for_outbox|authorize_digital_download)\s*\([^;]+\)\s+to\s+(?:public|anon|authenticated)/i
+  );
+  assert.match(migration, /public\.checkout_orders/);
+  assert.match(migration, /public\.digital_entitlements/);
+  assert.match(migration, /public\.digital_access_tokens/);
+  assert.match(migration, /public\.product_digital_assets/);
+  assert.match(migration, /['"]entitlementVersion['"]/);
+  assert.doesNotMatch(
+    migration,
+    /jsonb_build_object\s*\([^;]*(?:token_hash|guest_secret_hash|object_path|signed_url|service_role|provider_payload)/i
+  );
 });
 
 test('fulfillment implementation does not expose public PDF storage or browser signed URL creation', () => {
