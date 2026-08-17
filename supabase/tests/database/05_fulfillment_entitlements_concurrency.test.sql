@@ -1,6 +1,6 @@
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
-select plan(6);
+select plan(9);
 
 begin;
 insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
@@ -29,6 +29,7 @@ begin
   return result;
 end;
 $$;
+revoke all on function public.test_reissue_race_call(uuid,integer) from public,anon,authenticated,service_role;
 commit;
 
 select extensions.dblink_connect('reissue_race_a','host=db port=5432 dbname=postgres user=postgres password=postgres');
@@ -48,5 +49,27 @@ select is((select version from public.digital_entitlements where id='05170100-00
 select is((select count(*)::integer from public.transactional_email_outbox where entitlement_id='05170100-0000-4000-8000-000000000020' and event_type='digital_access_reissued'),1,'concurrent reissue creates one replacement intent');
 select is((select count(*)::integer from public.fulfillment_audit_events where entitlement_id='05170100-0000-4000-8000-000000000020' and event_type='digital_access_reissued'),1,'concurrent reissue creates one audit event');
 select is((select count(*)::integer from public.digital_access_tokens where entitlement_id='05170100-0000-4000-8000-000000000020'),0,'concurrent reissue creates no token without a deliverable raw capability');
+
+begin;
+set local session_replication_role='replica';
+drop function public.test_reissue_race_call(uuid,integer);
+delete from public.digital_access_tokens where entitlement_id='05170100-0000-4000-8000-000000000020';
+delete from public.transactional_email_outbox where order_id='05170100-0000-4000-8000-000000000010';
+delete from public.fulfillment_audit_events where order_id='05170100-0000-4000-8000-000000000010';
+delete from public.digital_entitlements where order_id='05170100-0000-4000-8000-000000000010';
+delete from public.payment_events where payment_id in(select id from public.payments where order_id='05170100-0000-4000-8000-000000000010');
+delete from public.payment_transitions where payment_id in(select id from public.payments where order_id='05170100-0000-4000-8000-000000000010');
+delete from public.commerce_audit_events where order_id='05170100-0000-4000-8000-000000000010';
+delete from public.payments where order_id='05170100-0000-4000-8000-000000000010';
+delete from public.checkout_order_lines where order_id='05170100-0000-4000-8000-000000000010';
+delete from public.checkout_orders where id='05170100-0000-4000-8000-000000000010';
+delete from public.user_roles where user_id='05170100-0000-4000-8000-000000000001';
+delete from public.profiles where id='05170100-0000-4000-8000-000000000001';
+delete from auth.users where id='05170100-0000-4000-8000-000000000001';
+commit;
+
+select is(to_regprocedure('public.test_reissue_race_call(uuid,integer)'),null::regprocedure,'race helper is removed after concurrent assertions');
+select is((select count(*)::integer from public.checkout_orders where id='05170100-0000-4000-8000-000000000010'),0,'race order fixture is removed after concurrent assertions');
+select is((select count(*)::integer from auth.users where id='05170100-0000-4000-8000-000000000001'),0,'race admin fixture is removed after concurrent assertions');
 
 select * from finish();
