@@ -42,7 +42,14 @@ function mapRpcResult(
     return {status: 'error', code: 'entitlement_action_failed'};
   }
   if (data.status === successStatus) {
-    return {status: successStatus, version: typeof data.version === 'number' ? data.version : 0};
+    if (
+      typeof data.version !== 'number' ||
+      !Number.isInteger(data.version) ||
+      data.version <= 0
+    ) {
+      return {status: 'error', code: 'entitlement_action_failed'};
+    }
+    return {status: successStatus, version: data.version};
   }
   if (data.status === 'stale') {
     return {status: 'stale', version: typeof data.version === 'number' ? data.version : null};

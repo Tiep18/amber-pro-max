@@ -88,4 +88,36 @@ describe('admin entitlement server actions', () => {
       /buyer@example|raw-token|private failure/i
     );
   });
+
+  test.each([
+    ['reissueDigitalEntitlement', 'reissued'],
+    ['revokeDigitalEntitlement', 'revoked']
+  ] as const)(
+    'rejects malformed %s success results without inventing version zero',
+    async (actionName, rpcStatus) => {
+      const recordOperationalFailure = vi.fn(async () => ({status: 'recorded'}));
+      const rpc = vi.fn(async () => ({data: {status: rpcStatus, version: 0}, error: null}));
+      const actions = await import('@/fulfillment/entitlements');
+
+      await expect(
+        actions[actionName](
+          {
+            entitlementId: '22222222-2222-4222-8222-222222222222',
+            expectedVersion: 3
+          },
+          {rpc},
+          recordOperationalFailure
+        )
+      ).resolves.toEqual({status: 'error', code: 'entitlement_action_failed'});
+      expect(recordOperationalFailure).toHaveBeenCalledWith(
+        expect.objectContaining({
+          area: 'fulfillment',
+          errorCode: 'entitlement_action_failed',
+          facts: expect.objectContaining({
+            entitlementId: '22222222-2222-4222-8222-222222222222'
+          })
+        })
+      );
+    }
+  );
 });
