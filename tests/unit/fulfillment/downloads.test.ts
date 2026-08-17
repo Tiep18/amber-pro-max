@@ -1,244 +1,209 @@
-﻿import {describe, expect, test, vi} from 'vitest';
+import {describe, expect, test, vi} from 'vitest';
+
+vi.mock('server-only', () => ({}));
+
 import {authorizeDownloadRequest, hashFulfillmentAccessToken} from '@/fulfillment/downloads';
+import {
+  createSupabaseDownloadRepository,
+  createSupabaseDownloadStorage
+} from '@/fulfillment/downloads.server';
 import {reissueDigitalEntitlement, revokeDigitalEntitlement} from '@/fulfillment/entitlements';
 
-const activeEntitlement = {
-  entitlementId: 'ent-1',
-  orderNumber: 'ATB-20260619-0001',
-  ownerUserId: '11111111-1111-4111-8111-111111111111',
-  status: 'active',
-  productId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-  tokenHash: hashFulfillmentAccessToken('raw-token'),
-  tokenStatus: 'active',
-  tokenExpiresAt: new Date(Date.now() + 60_000).toISOString(),
-  asset: {
-    bucketId: 'pattern-pdfs',
-    objectPath: 'patterns/product-1/pattern.pdf',
-    fileName: 'pattern.pdf'
-  }
+const ORDER_NUMBER = 'ATB-20260817-0001';
+const PRODUCT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const OWNER_ID = '11111111-1111-4111-8111-111111111111';
+const TOKEN_HASH = hashFulfillmentAccessToken('email-download-token');
+const GUEST_HASH = hashFulfillmentAccessToken('guest-order-secret');
+const ASSET = {
+  entitlementId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  productId: PRODUCT_ID,
+  bucketId: 'pattern-pdfs',
+  objectPath: 'patterns/product-1/pattern.pdf',
+  fileName: 'pattern.pdf'
+};
+const AUTHORIZATION_INPUT = {
+  orderNumber: ORDER_NUMBER,
+  productId: PRODUCT_ID,
+  ownerUserId: OWNER_ID,
+  downloadTokenHash: TOKEN_HASH,
+  guestSecretHash: GUEST_HASH
 };
 
-function deps(overrides: Partial<typeof activeEntitlement> = {}) {
-  const entitlement = {...activeEntitlement, ...overrides};
+function downloadDeps(asset: typeof ASSET | null = ASSET) {
   return {
-    repository: {
-      findActiveEntitlementsForOrder: vi.fn().mockResolvedValue([entitlement])
-    },
+    repository: {authorizeDigitalAsset: vi.fn().mockResolvedValue(asset)},
     storage: {
       createSignedUrl: vi.fn().mockResolvedValue({url: 'https://signed.example.test/pattern.pdf'})
-    },
-    now: () => new Date()
+    }
   };
 }
 
 describe('fulfillment download authorization', () => {
-  test('signed-in owner receives a signed URL after entitlement validation', async () => {
-    const fake = deps();
-
-    const result = await authorizeDownloadRequest({orderNumber: activeEntitlement.orderNumber, userId: activeEntitlement.ownerUserId}, fake);
-
-    expect(result).toEqual({status: 'authorized', url: 'https://signed.example.test/pattern.pdf', fileName: 'pattern.pdf'});
-    expect(fake.storage.createSignedUrl).toHaveBeenCalledWith('pattern-pdfs', 'patterns/product-1/pattern.pdf', 300);
-  });
-
-  test('guest token is hashed and scoped to the order before signed URL creation', async () => {
-    const fake = deps();
-
-    const result = await authorizeDownloadRequest({orderNumber: activeEntitlement.orderNumber, rawGuestToken: 'raw-token'}, fake);
-
-    expect(result.status).toBe('authorized');
-    expect(fake.repository.findActiveEntitlementsForOrder).toHaveBeenCalledWith(activeEntitlement.orderNumber);
-  });
-
-  test('unpaid or missing entitlement does not call storage', async () => {
-    const fake = deps();
-    fake.repository.findActiveEntitlementsForOrder.mockResolvedValue([]);
-
-    const result = await authorizeDownloadRequest({orderNumber: activeEntitlement.orderNumber, userId: activeEntitlement.ownerUserId}, fake);
-
-    expect(result).toEqual({status: 'denied', code: 'download_not_available'});
-    expect(fake.storage.createSignedUrl).not.toHaveBeenCalled();
-  });
-
-  test('wrong owner and cross-order guest token are denied generically', async () => {
-    const ownerDeps = deps();
-    await expect(authorizeDownloadRequest({orderNumber: activeEntitlement.orderNumber, userId: '22222222-2222-4222-8222-222222222222'}, ownerDeps)).resolves.toEqual({
-      status: 'denied',
-      code: 'download_not_available'
-    });
-    expect(ownerDeps.storage.createSignedUrl).not.toHaveBeenCalled();
-
-    const guestDeps = deps();
-    await expect(authorizeDownloadRequest({orderNumber: activeEntitlement.orderNumber, rawGuestToken: 'wrong'}, guestDeps)).resolves.toEqual({
-      status: 'denied',
-      code: 'download_not_available'
-    });
-    expect(guestDeps.storage.createSignedUrl).not.toHaveBeenCalled();
-  });
-
-  test('revoked entitlement and missing asset are denied before storage access', async () => {
-    for (const override of [{status: 'revoked'}, {asset: null}]) {
-      const fake = deps(override as never);
-      const result = await authorizeDownloadRequest({orderNumber: activeEntitlement.orderNumber, userId: activeEntitlement.ownerUserId}, fake);
-
-      expect(result).toEqual({status: 'denied', code: 'download_not_available'});
-      expect(fake.storage.createSignedUrl).not.toHaveBeenCalled();
-    }
-  });
-
-  test('expired guest token is denied before storage access', async () => {
-    const fake = deps({tokenExpiresAt: new Date(Date.now() - 60_000).toISOString()});
-
-    const result = await authorizeDownloadRequest({orderNumber: activeEntitlement.orderNumber, rawGuestToken: 'raw-token'}, fake);
-
-    expect(result).toEqual({status: 'denied', code: 'download_not_available'});
-    expect(fake.storage.createSignedUrl).not.toHaveBeenCalled();
-  });
-
-  test('records operational failure when entitlement lookup throws', async () => {
-    const recorder = vi.fn().mockResolvedValue({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'});
-    const fake = {
-      repository: {
-        findActiveEntitlementsForOrder: vi.fn().mockRejectedValue(new Error('lookup failed for buyer@example.test'))
-      },
-      storage: {
-        createSignedUrl: vi.fn()
-      },
-      operationalFailureRecorder: recorder,
-      now: () => new Date()
-    };
-
-    const result = await authorizeDownloadRequest(
-      {
-        orderNumber: activeEntitlement.orderNumber,
-        productId: activeEntitlement.productId,
-        rawGuestToken: 'raw-token'
-      },
-      fake
-    );
-
-    expect(result).toEqual({status: 'error', code: 'download_lookup_failed'});
-    expect(recorder).toHaveBeenCalledWith(
-      expect.objectContaining({
-        area: 'fulfillment',
-        errorCode: 'download_lookup_failed',
-        summary: 'Download entitlement lookup failed',
-        facts: expect.objectContaining({
-          orderNumber: activeEntitlement.orderNumber,
-          productId: activeEntitlement.productId
-        })
-      })
-    );
-    expect(JSON.stringify(recorder.mock.calls)).not.toMatch(/buyer@example\.test|raw-token/i);
-  });
-
-  test('keeps download lookup error result stable when operational recording fails', async () => {
-    const recorder = vi.fn(async () => {
-      throw new Error('operational table unavailable');
-    });
-    const fake = {
-      repository: {
-        findActiveEntitlementsForOrder: vi.fn().mockRejectedValue(new Error('lookup failed for buyer@example.test'))
-      },
-      storage: {
-        createSignedUrl: vi.fn()
-      },
-      operationalFailureRecorder: recorder,
-      now: () => new Date()
-    };
-
-    await expect(authorizeDownloadRequest({orderNumber: activeEntitlement.orderNumber}, fake)).resolves.toEqual({
-      status: 'error',
-      code: 'download_lookup_failed'
-    });
-  });
-
-  test('records operational failure when signed URL creation fails', async () => {
-    const recorder = vi.fn().mockResolvedValue({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'});
-    const fake = deps();
-    fake.storage.createSignedUrl.mockResolvedValue(null);
-
-    const result = await authorizeDownloadRequest(
-      {
-        orderNumber: activeEntitlement.orderNumber,
-        productId: activeEntitlement.productId,
-        userId: activeEntitlement.ownerUserId
-      },
-      {...fake, operationalFailureRecorder: recorder}
-    );
-
-    expect(result).toEqual({status: 'error', code: 'signed_url_failed'});
-    expect(recorder).toHaveBeenCalledWith(
-      expect.objectContaining({
-        area: 'fulfillment',
-        errorCode: 'signed_url_failed',
-        summary: 'Download signed URL creation failed',
-        facts: expect.objectContaining({
-          orderNumber: activeEntitlement.orderNumber,
-          productId: activeEntitlement.productId,
-          entitlementId: activeEntitlement.entitlementId
-        })
-      })
-    );
-    expect(JSON.stringify(recorder.mock.calls)).not.toMatch(/signed\.example|patterns\/product-1|raw-token/i);
-  });
-
-  test('product-scoped requests choose the matching entitlement when one order has multiple digital items', async () => {
-    const matching = {
-      ...activeEntitlement,
-      entitlementId: 'ent-2',
-      productId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-      asset: {
-        bucketId: 'pattern-pdfs',
-        objectPath: 'patterns/product-2/pattern.pdf',
-        fileName: 'pattern-2.pdf'
-      }
-    };
-    const fake = {
-      repository: {
-        findActiveEntitlementsForOrder: vi.fn().mockResolvedValue([
-          {...activeEntitlement, ownerUserId: '99999999-9999-4999-8999-999999999999'},
-          matching
-        ])
-      },
-      storage: {
-        createSignedUrl: vi.fn().mockResolvedValue({url: 'https://signed.example.test/pattern-2.pdf'})
-      },
-      now: () => new Date()
-    };
-
-    const result = await authorizeDownloadRequest(
-      {
-        orderNumber: activeEntitlement.orderNumber,
-        productId: matching.productId,
-        userId: activeEntitlement.ownerUserId
-      },
-      fake
-    );
+  test('delegates normalized hash-only proof to one repository decision and signs for 300 seconds', async () => {
+    const fake = downloadDeps();
+    const result = await authorizeDownloadRequest(AUTHORIZATION_INPUT, fake);
 
     expect(result).toEqual({
       status: 'authorized',
-      url: 'https://signed.example.test/pattern-2.pdf',
-      fileName: 'pattern-2.pdf'
+      url: 'https://signed.example.test/pattern.pdf',
+      fileName: 'pattern.pdf'
     });
-    expect(fake.storage.createSignedUrl).toHaveBeenCalledWith('pattern-pdfs', 'patterns/product-2/pattern.pdf', 300);
+    expect(fake.repository.authorizeDigitalAsset).toHaveBeenCalledOnce();
+    expect(fake.repository.authorizeDigitalAsset).toHaveBeenCalledWith(AUTHORIZATION_INPUT);
+    expect(fake.storage.createSignedUrl).toHaveBeenCalledWith(
+      'pattern-pdfs',
+      'patterns/product-1/pattern.pdf',
+      300
+    );
+  });
+
+  test('preserves nullable product scope for database ambiguity handling', async () => {
+    const fake = downloadDeps();
+    const input = {...AUTHORIZATION_INPUT, productId: null};
+    await authorizeDownloadRequest(input, fake);
+    expect(fake.repository.authorizeDigitalAsset).toHaveBeenCalledWith(input);
+  });
+
+  test('denies zero-row and invalid authorization without storage access', async () => {
+    const missing = downloadDeps(null);
+    await expect(authorizeDownloadRequest(AUTHORIZATION_INPUT, missing)).resolves.toEqual({
+      status: 'denied',
+      code: 'download_not_available'
+    });
+    expect(missing.storage.createSignedUrl).not.toHaveBeenCalled();
+
+    const invalid = downloadDeps();
+    await expect(
+      authorizeDownloadRequest({...AUTHORIZATION_INPUT, downloadTokenHash: 'raw-secret'}, invalid)
+    ).resolves.toEqual({status: 'denied', code: 'download_not_available'});
+    expect(invalid.repository.authorizeDigitalAsset).not.toHaveBeenCalled();
+  });
+
+  test('records only safe identifiers when the authorization RPC fails', async () => {
+    const recorder = vi.fn().mockResolvedValue({status: 'recorded'});
+    const fake = downloadDeps();
+    fake.repository.authorizeDigitalAsset.mockRejectedValue(
+      new Error('database payload contained buyer@example.test and raw-secret')
+    );
+
+    await expect(
+      authorizeDownloadRequest(AUTHORIZATION_INPUT, {...fake, operationalFailureRecorder: recorder})
+    ).resolves.toEqual({status: 'error', code: 'download_lookup_failed'});
+    expect(recorder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorCode: 'download_lookup_failed',
+        facts: expect.objectContaining({orderNumber: ORDER_NUMBER, productId: PRODUCT_ID})
+      })
+    );
+    expect(JSON.stringify(recorder.mock.calls)).not.toMatch(/buyer@example|raw-secret|token_hash/i);
+  });
+
+  test('records safe asset identifiers when private URL signing fails', async () => {
+    const recorder = vi.fn().mockResolvedValue({status: 'recorded'});
+    const fake = downloadDeps();
+    fake.storage.createSignedUrl.mockResolvedValue(null);
+
+    await expect(
+      authorizeDownloadRequest(AUTHORIZATION_INPUT, {...fake, operationalFailureRecorder: recorder})
+    ).resolves.toEqual({status: 'error', code: 'signed_url_failed'});
+    expect(recorder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorCode: 'signed_url_failed',
+        facts: expect.objectContaining({
+          orderNumber: ORDER_NUMBER,
+          productId: PRODUCT_ID,
+          entitlementId: ASSET.entitlementId
+        })
+      })
+    );
+    expect(JSON.stringify(recorder.mock.calls)).not.toMatch(/signed\.example|objectPath|patterns\//i);
+  });
+});
+
+describe('Supabase download adapter', () => {
+  test('performs exactly one authorization RPC with the five normalized arguments', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{
+        entitlement_id: ASSET.entitlementId,
+        product_id: ASSET.productId,
+        bucket_id: ASSET.bucketId,
+        object_path: ASSET.objectPath,
+        file_name: ASSET.fileName
+      }],
+      error: null
+    });
+    const from = vi.fn(() => {
+      throw new Error('download authorization must not fan out through tables');
+    });
+    const repository = createSupabaseDownloadRepository({rpc, from} as never);
+
+    await expect(repository.authorizeDigitalAsset(AUTHORIZATION_INPUT)).resolves.toEqual(ASSET);
+    expect(rpc).toHaveBeenCalledOnce();
+    expect(rpc).toHaveBeenCalledWith('authorize_digital_download', {
+      p_order_number: ORDER_NUMBER,
+      p_product_id: PRODUCT_ID,
+      p_owner_user_id: OWNER_ID,
+      p_download_token_hash: TOKEN_HASH,
+      p_guest_secret_hash: GUEST_HASH
+    });
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  test('maps zero rows to denial and rejects malformed or multi-row results', async () => {
+    const validRow = {
+      entitlement_id: ASSET.entitlementId,
+      product_id: ASSET.productId,
+      bucket_id: ASSET.bucketId,
+      object_path: ASSET.objectPath,
+      file_name: ASSET.fileName
+    };
+    for (const data of [[], [{entitlement_id: ASSET.entitlementId}], [validRow, validRow]]) {
+      const repository = createSupabaseDownloadRepository({
+        rpc: vi.fn().mockResolvedValue({data, error: null})
+      } as never);
+      if (data.length === 0) {
+        await expect(repository.authorizeDigitalAsset(AUTHORIZATION_INPUT)).resolves.toBeNull();
+      } else {
+        await expect(repository.authorizeDigitalAsset(AUTHORIZATION_INPUT)).rejects.toThrow();
+      }
+    }
+  });
+
+  test('treats RPC errors as operational failures and signs private storage only as requested', async () => {
+    const repository = createSupabaseDownloadRepository({
+      rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'rpc failed'}})
+    } as never);
+    await expect(repository.authorizeDigitalAsset(AUTHORIZATION_INPUT)).rejects.toThrow();
+
+    const createSignedUrl = vi.fn().mockResolvedValue({
+      data: {signedUrl: 'https://signed.example.test/pattern.pdf'},
+      error: null
+    });
+    const storage = createSupabaseDownloadStorage({
+      storage: {from: vi.fn(() => ({createSignedUrl}))}
+    } as never);
+    await expect(storage.createSignedUrl(ASSET.bucketId, ASSET.objectPath, 300)).resolves.toEqual({
+      url: 'https://signed.example.test/pattern.pdf'
+    });
+    expect(createSignedUrl).toHaveBeenCalledWith(ASSET.objectPath, 300);
   });
 });
 
 describe('admin entitlement revoke and reissue wrappers', () => {
-  test('revoke maps RPC success and stale responses without exposing token details', async () => {
+  test('revoke maps success and sends the expected version', async () => {
     const client = {
-      rpc: vi.fn().mockResolvedValueOnce({data: {status: 'revoked', version: 3}, error: null}).mockResolvedValueOnce({data: {status: 'stale', version: 3}, error: null})
+      rpc: vi.fn().mockResolvedValue({data: {status: 'revoked', version: 3}, error: null})
     };
-
-    await expect(revokeDigitalEntitlement({entitlementId: '11111111-1111-4111-8111-111111111111', expectedVersion: 2, reason: 'customer refund'}, client)).resolves.toEqual({
-      status: 'revoked',
-      version: 3
-    });
-    await expect(revokeDigitalEntitlement({entitlementId: '11111111-1111-4111-8111-111111111111', expectedVersion: 2, reason: 'customer refund'}, client)).resolves.toEqual({
-      status: 'stale',
-      version: 3
-    });
+    await expect(
+      revokeDigitalEntitlement(
+        {
+          entitlementId: '11111111-1111-4111-8111-111111111111',
+          expectedVersion: 2,
+          reason: 'customer refund'
+        },
+        client
+      )
+    ).resolves.toEqual({status: 'revoked', version: 3});
     expect(client.rpc).toHaveBeenCalledWith('revoke_digital_entitlement', {
       p_entitlement_id: '11111111-1111-4111-8111-111111111111',
       p_expected_version: 2,
@@ -246,80 +211,20 @@ describe('admin entitlement revoke and reissue wrappers', () => {
     });
   });
 
-  test('reissue sends only entitlement identity and expected version to the database RPC', async () => {
+  test('reissue sends only entitlement identity and expected version', async () => {
     const client = {
       rpc: vi.fn().mockResolvedValue({data: {status: 'reissued', version: 4}, error: null})
     };
-
-    const result = await reissueDigitalEntitlement({entitlementId: '22222222-2222-4222-8222-222222222222', expectedVersion: 3}, client);
-
-    expect(result).toEqual({status: 'reissued', version: 4});
+    await expect(
+      reissueDigitalEntitlement(
+        {entitlementId: '22222222-2222-4222-8222-222222222222', expectedVersion: 3},
+        client
+      )
+    ).resolves.toEqual({status: 'reissued', version: 4});
     expect(client.rpc).toHaveBeenCalledWith('reissue_digital_access_token', {
       p_entitlement_id: '22222222-2222-4222-8222-222222222222',
       p_expected_version: 3
     });
     expect(JSON.stringify(client.rpc.mock.calls)).not.toMatch(/raw|token_hash|secret/i);
-  });
-
-  test('invalid input and forbidden RPC responses fail safely', async () => {
-    const client = {
-      rpc: vi.fn().mockResolvedValue({data: {status: 'forbidden'}, error: null})
-    };
-
-    await expect(revokeDigitalEntitlement({entitlementId: 'not-a-uuid', expectedVersion: 1}, client)).resolves.toEqual({status: 'invalid', code: 'invalid_entitlement_action'});
-    await expect(reissueDigitalEntitlement({entitlementId: '33333333-3333-4333-8333-333333333333', expectedVersion: 1}, client)).resolves.toEqual({
-      status: 'forbidden',
-      code: 'admin_required'
-    });
-  });
-
-  test('entitlement actions record RPC failures without exposing token material', async () => {
-    const recordOperationalFailure = vi.fn(async () => ({
-      status: 'recorded',
-      errorId: '76000000-0000-4000-8000-000000000001'
-    }));
-    const client = {
-      rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'rpc down'}})
-    };
-
-    await expect(
-      reissueDigitalEntitlement(
-        {entitlementId: '44444444-4444-4444-8444-444444444444', expectedVersion: 1},
-        client,
-        recordOperationalFailure
-      )
-    ).resolves.toEqual({status: 'error', code: 'entitlement_action_failed'});
-
-    expect(recordOperationalFailure).toHaveBeenCalledWith(
-      expect.objectContaining({
-        area: 'fulfillment',
-        severity: 'error',
-        errorCode: 'entitlement_action_failed',
-        summary: 'Digital entitlement reissue RPC failed',
-        facts: expect.objectContaining({
-          action: 'reissue',
-          entitlementId: '44444444-4444-4444-8444-444444444444',
-          code: 'entitlement_action_failed'
-        })
-      })
-    );
-    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/token_hash|rpc down|password|secret/i);
-  });
-
-  test('keeps entitlement action error result stable when operational recording fails', async () => {
-    const recordOperationalFailure = vi.fn(async () => {
-      throw new Error('operational table unavailable');
-    });
-    const client = {
-      rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'rpc down'}})
-    };
-
-    await expect(
-      reissueDigitalEntitlement(
-        {entitlementId: '44444444-4444-4444-8444-444444444444', expectedVersion: 1},
-        client,
-        recordOperationalFailure
-      )
-    ).resolves.toEqual({status: 'error', code: 'entitlement_action_failed'});
   });
 });

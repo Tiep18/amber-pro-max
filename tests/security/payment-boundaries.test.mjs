@@ -325,8 +325,17 @@ test('ASVS L1 payment authority matrix preserves verified transitions, inventory
   assert.match(entitlementMigration, /token_hash/);
   assert.match(entitlementMigration, /revoke all on table public\.digital_entitlements from public, anon, authenticated/);
   assert.match(download, /SIGNED_URL_TTL_SECONDS = 300/);
-  assert.match(download, /isOwner\([\s\S]*isTokenUsable/);
-  assert.match(downloadServer, /client\.storage\.from\(bucketId\)\.createSignedUrl\(objectPath, expiresInSeconds\)/);
+  assert.match(download, /authorizeDigitalAsset/);
+  assert.doesNotMatch(download, /rawGuestToken|findActiveEntitlementsForOrder|isTokenUsable|isOwner/);
+  assert.match(downloadServer, /rpc\(['"]authorize_digital_download['"]/);
+  assert.doesNotMatch(
+    downloadServer,
+    /from\(['"](?:checkout_orders|digital_entitlements|digital_access_tokens|product_digital_assets)['"]\)|maybeSingle/
+  );
+  assert.match(
+    downloadServer,
+    /client\.storage[\s\S]{0,80}\.from\(bucketId\)[\s\S]{0,80}\.createSignedUrl\(objectPath, expiresInSeconds\)/
+  );
   assert.match(guestTokens, /hashGuestOrderAccessToken\(rawToken\)/);
 
   assert.match(qrRoute, /getAuthorizedOrderPayment/);

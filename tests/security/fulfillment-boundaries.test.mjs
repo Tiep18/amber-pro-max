@@ -160,9 +160,22 @@ test('download signed URL creation is isolated behind entitlement authorization'
   const route = readFileSync('src/app/api/downloads/route.ts', 'utf8');
 
   assert.match(pureService, /authorizeDownloadRequest/);
+  assert.match(pureService, /authorizeDigitalAsset/);
+  assert.match(pureService, /SIGNED_URL_TTL_SECONDS = 300/);
+  assert.doesNotMatch(pureService, /rawGuestToken|findActiveEntitlementsForOrder|isTokenUsable|isOwner/);
+  assert.match(serverAdapter, /rpc\(['"]authorize_digital_download['"]/);
   assert.match(serverAdapter, /createSignedUrl/);
   assert.match(serverAdapter, /authorizeDownloadRequest/);
+  assert.doesNotMatch(
+    serverAdapter,
+    /from\(['"](?:checkout_orders|digital_entitlements|digital_access_tokens|product_digital_assets)['"]\)|maybeSingle/
+  );
   assert.match(route, /authorizeDownloadWithSupabase/);
+  assert.match(route, /hashFulfillmentAccessToken/);
+  assert.match(route, /auth\.getUser\(\)/);
+  assert.match(route, /downloadTokenHash/);
+  assert.match(route, /guestSecretHash/);
+  assert.doesNotMatch(route, /rawGuestToken|guestTokenHash/);
   assert.doesNotMatch(route, /bucket_id|object_path|signed_url|pattern-pdfs/i);
 });
 
