@@ -269,7 +269,7 @@ describe('transactional email outbox worker', () => {
     ).toThrow('transactional email token signing is unavailable');
   });
 
-  test('fails closed before persistence or send when a tokenized email has no signing secret', async () => {
+  test('rejects an unavailable signing secret before claiming any email row', async () => {
     const repository = {
       claimDueRows: vi.fn().mockResolvedValue([digitalRow]),
       issueDownloadToken: vi.fn(),
@@ -287,17 +287,17 @@ describe('transactional email outbox worker', () => {
       now: () => now
     });
 
-    expect(result).toEqual({ status: 'processed', claimed: 1, sent: 0, retry: 1, failed: 0 });
+    expect(result).toEqual({
+      status: 'unconfigured',
+      code: 'invalid_transactional_email_token_secret'
+    });
+    expect(repository.claimDueRows).not.toHaveBeenCalled();
     expect(repository.issueDownloadToken).not.toHaveBeenCalled();
     expect(sender.send).not.toHaveBeenCalled();
-    expect(repository.markRetry).toHaveBeenCalledWith(
-      { id: digitalRow.id, claimToken: digitalRow.claimToken },
-      'email_token_preparation_failed',
-      new Date('2026-06-19T10:15:00.000Z')
-    );
+    expect(repository.markRetry).not.toHaveBeenCalled();
   });
 
-  test('sends non-tokenized email without requiring the token signing secret', async () => {
+  test('requires signing readiness even when the next email is not tokenized', async () => {
     const row = {
       ...digitalRow,
       id: 'email-physical-shipped',
@@ -324,8 +324,12 @@ describe('transactional email outbox worker', () => {
       now: () => now
     });
 
-    expect(result).toEqual({ status: 'processed', claimed: 1, sent: 1, retry: 0, failed: 0 });
-    expect(sender.send).toHaveBeenCalledOnce();
+    expect(result).toEqual({
+      status: 'unconfigured',
+      code: 'invalid_transactional_email_token_secret'
+    });
+    expect(repository.claimDueRows).not.toHaveBeenCalled();
+    expect(sender.send).not.toHaveBeenCalled();
     expect(repository.issueDownloadToken).not.toHaveBeenCalled();
     expect(repository.issueGuestToken).not.toHaveBeenCalled();
   });
@@ -757,6 +761,68 @@ describe('transactional email outbox worker', () => {
     expect(repository.markRetry).not.toHaveBeenCalled();
   });
 
+  test.each([
+    ['guest_order_reopen', 'guest_reopen_order', 'reopen_order', 86_400_000],
+    ['newsletter_subscribed', 'newsletter_unsubscribe', null, 30 * 86_400_000]
+  ] as const)(
+    'reuses the same %s capability link after provider failure',
+    async (eventType, tokenPurpose, databasePurpose, lifetimeMs) => {
+      const outboxId =
+        eventType === 'newsletter_subscribed'
+          ? '30000000-0000-4000-8000-000000000005'
+          : '30000000-0000-4000-8000-000000000001';
+      const createdAt = '2026-06-19T09:00:00.000Z';
+      const firstClaim = {
+        ...digitalRow,
+        id: outboxId,
+        eventType,
+        orderId: eventType === 'newsletter_subscribed' ? null : digitalRow.orderId,
+        entitlementId: null,
+        createdAt,
+        payload: eventType === 'newsletter_subscribed' ? {} : {orderNumber: 'ATB-20260619-0001'}
+      };
+      const retryClaim = {...firstClaim, attemptCount: 2};
+      const canonicalExpiry = new Date(new Date(createdAt).getTime() + lifetimeMs).toISOString();
+      const issueGuestToken = vi.fn(async () => ({expiresAt: canonicalExpiry}));
+      const issueNewsletterToken = vi.fn(async () => ({expiresAt: canonicalExpiry}));
+      const repository = {
+        claimDueRows: vi.fn().mockResolvedValueOnce([firstClaim]).mockResolvedValueOnce([retryClaim]),
+        issueDownloadToken: vi.fn(),
+        issueGuestToken,
+        issueNewsletterToken,
+        markSent: vi.fn().mockResolvedValue(undefined),
+        markRetry: vi.fn().mockResolvedValue(undefined),
+        markFailed: vi.fn().mockResolvedValue(undefined)
+      };
+      const sender = {
+        send: vi
+          .fn()
+          .mockResolvedValueOnce({status: 'retry', code: 'provider_timeout'})
+          .mockResolvedValueOnce({status: 'sent', providerMessageId: 'resend-retry'})
+      };
+      const config = {
+        siteUrl: 'https://shop.example.test',
+        fromEmail: 'orders@example.test',
+        tokenSecret: transactionalEmailTokenSecret
+      };
+
+      await processTransactionalEmailBatch({repository: repository as never, sender, config});
+      await processTransactionalEmailBatch({repository: repository as never, sender, config});
+
+      const expectedRawToken = deriveTransactionalEmailToken(
+        transactionalEmailTokenSecret,
+        outboxId,
+        tokenPurpose
+      );
+      const issue = databasePurpose ? issueGuestToken : issueNewsletterToken;
+      expect(issue).toHaveBeenCalledTimes(2);
+      expect(issue.mock.calls[0].slice(1)).toEqual(issue.mock.calls[1].slice(1));
+      expect(sender.send).toHaveBeenCalledTimes(2);
+      expect(sender.send.mock.calls[0][0]).toEqual(sender.send.mock.calls[1][0]);
+      expect(sender.send.mock.calls[0][0].html).toContain(`token=${expectedRawToken}`);
+    }
+  );
+
   test('fails a superseded digital outbox after one issuance attempt without scheduling retry', async () => {
     const sender = {send: vi.fn()};
     const repository = {
@@ -883,22 +949,40 @@ describe('transactional email outbox worker', () => {
       code: 'missing_transactional_email_config'
     });
   });
+
+  test.each([undefined, 'too-short', ` ${transactionalEmailTokenSecret}`])(
+    'immediate trigger rejects token secret %s before creating a repository',
+    async (tokenSecret) => {
+      vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://shop.example.test');
+      vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://supabase.example.test');
+      vi.stubEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'publishable-key');
+      vi.stubEnv('RESEND_API_KEY', 're_test_key');
+      vi.stubEnv('RESEND_FROM_EMAIL', 'orders@example.test');
+      vi.stubEnv('TRANSACTIONAL_EMAIL_TOKEN_SECRET', tokenSecret);
+
+      await expect(
+        triggerTransactionalEmailOutboxNow({reason: 'paypal_webhook_paid'})
+      ).resolves.toEqual({
+        status: 'unconfigured',
+        code: 'invalid_transactional_email_token_secret'
+      });
+    }
+  );
 });
 
 describe('Supabase transactional email outbox repository', () => {
-  test('persists a valid derived newsletter token as source-linked hash-only metadata', async () => {
+  test('issues newsletter capability through one hash-only RPC and accepts canonical timestamp text', async () => {
     const rawToken = deriveTransactionalEmailToken(
       transactionalEmailTokenSecret,
       '30000000-0000-4000-8000-000000000005',
       'newsletter_unsubscribe'
     );
-    const maybeSingle = vi.fn().mockResolvedValue({data: null, error: null});
-    const eq = vi.fn(() => ({maybeSingle}));
-    const select = vi.fn(() => ({eq}));
-    const insert = vi.fn().mockResolvedValue({data: null, error: null});
-    const table = {select, insert};
-    const from = vi.fn(() => table);
-    const repository = createSupabaseEmailOutboxRepository({rpc: vi.fn(), from} as never);
+    const rpc = vi.fn().mockResolvedValue({
+      data: '2026-07-19 09:00:00+00',
+      error: null
+    });
+    const from = vi.fn();
+    const repository = createSupabaseEmailOutboxRepository({rpc, from} as never);
     const row = {
       ...digitalRow,
       id: '30000000-0000-4000-8000-000000000005',
@@ -917,22 +1001,47 @@ describe('Supabase transactional email outbox repository', () => {
       expiresAt: preparation.expiresAt
     });
 
-    expect(from).toHaveBeenCalledWith('newsletter_unsubscribe_tokens');
-    expect(select).toHaveBeenCalledWith('*');
-    expect(eq).toHaveBeenCalledWith('source_email_outbox_id', row.id);
-    expect(insert).toHaveBeenCalledWith({
-      normalized_email: 'subscriber@example.test',
-      token_hash: createHash('sha256').update(rawToken, 'utf8').digest('hex'),
-      expires_at: preparation.expiresAt,
-      source_email_outbox_id: row.id
+    expect(rpc).toHaveBeenCalledOnce();
+    expect(rpc).toHaveBeenCalledWith('issue_transactional_email_capability_for_outbox', {
+      p_source_email_outbox_id: row.id,
+      p_token_hash: createHash('sha256').update(rawToken, 'utf8').digest('hex')
     });
-    expect(JSON.stringify({
-      from: from.mock.calls,
-      select: select.mock.calls,
-      eq: eq.mock.calls,
-      insert: insert.mock.calls
-    })).not.toContain(rawToken);
+    expect(from).not.toHaveBeenCalled();
+    expect(JSON.stringify(rpc.mock.calls)).not.toContain(rawToken);
     expect(JSON.stringify(row.payload)).not.toContain(rawToken);
+  });
+
+  test('issues a guest capability through the same one-round-trip RPC', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: '2026-06-20T09:00:00+00:00',
+      error: null
+    });
+    const from = vi.fn();
+    const repository = createSupabaseEmailOutboxRepository({rpc, from} as never);
+    const row = {
+      ...digitalRow,
+      id: '30000000-0000-4000-8000-000000000001',
+      eventType: 'guest_order_reopen' as const,
+      entitlementId: null
+    };
+    const preparation = {
+      rawToken: deriveTransactionalEmailToken(
+        transactionalEmailTokenSecret,
+        row.id,
+        'guest_reopen_order'
+      ),
+      expiresAt: '2026-06-20T09:00:00.000Z',
+      sourceEmailOutboxId: row.id
+    };
+
+    await expect(repository.issueGuestToken(row, 'reopen_order', preparation)).resolves.toEqual({
+      expiresAt: preparation.expiresAt
+    });
+    expect(rpc).toHaveBeenCalledWith('issue_transactional_email_capability_for_outbox', {
+      p_source_email_outbox_id: row.id,
+      p_token_hash: createHash('sha256').update(preparation.rawToken, 'utf8').digest('hex')
+    });
+    expect(from).not.toHaveBeenCalled();
   });
 
   test('maps claim ownership and passes it to the fenced transition RPC', async () => {
@@ -1121,6 +1230,29 @@ describe('transactional email worker route', () => {
 
     expect(missing.status).toBe(401);
     expect(wrong.status).toBe(401);
+  });
+
+  test('rejects weak signing readiness before importing or claiming worker dependencies', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://shop.example.test');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://supabase.example.test');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'publishable-key');
+    vi.stubEnv('TRANSACTIONAL_EMAIL_WORKER_SECRET', 'correct-secret');
+    vi.stubEnv('RESEND_API_KEY', 're_test_key');
+    vi.stubEnv('RESEND_FROM_EMAIL', 'orders@example.test');
+    vi.stubEnv('TRANSACTIONAL_EMAIL_TOKEN_SECRET', 'too-short');
+
+    const response = await POST(
+      new Request('https://shop.example.test/api/fulfillment/email-outbox', {
+        method: 'POST',
+        headers: {authorization: 'Bearer correct-secret'}
+      })
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      status: 'unconfigured',
+      code: 'invalid_transactional_email_token_secret'
+    });
   });
 });
 

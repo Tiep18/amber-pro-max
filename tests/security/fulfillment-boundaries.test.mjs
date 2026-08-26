@@ -71,6 +71,8 @@ const fulfillmentEmailFiles = [
 
 const digitalLifecycleMigration =
   'supabase/migrations/20260817120000_repair_digital_download_token_lifecycle.sql';
+const transactionalEmailCapabilityMigration =
+  'supabase/migrations/20260826120000_atomic_transactional_email_capability_issuance.sql';
 
 function readExisting(files) {
   return files
@@ -291,6 +293,34 @@ test('admin entitlement actions keep revoke and reissue behind safe RPC and UI b
     source,
     /createSignedUrl|signedUrl|rawToken|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
   );
+});
+
+test('transactional email capability issuance is one locked service-role-only RPC', () => {
+  assert.ok(
+    existsSync(transactionalEmailCapabilityMigration),
+    'forward-only transactional email capability migration must exist'
+  );
+  const migration = readFileSync(transactionalEmailCapabilityMigration, 'utf8');
+  const worker = readFileSync('src/fulfillment/email-outbox.server.ts', 'utf8');
+
+  assert.match(
+    migration,
+    /create(?:\s+or\s+replace)?\s+function\s+public\.issue_transactional_email_capability_for_outbox\s*\([\s\S]*security\s+definer\s+set\s+search_path\s*=\s*''/i
+  );
+  assert.match(
+    migration,
+    /grant\s+execute\s+on\s+function\s+public\.issue_transactional_email_capability_for_outbox\s*\([^;]+\)\s+to\s+service_role/i
+  );
+  assert.doesNotMatch(
+    migration,
+    /grant\s+execute\s+on\s+function\s+public\.issue_transactional_email_capability_for_outbox\s*\([^;]+\)\s+to\s+(?:public|anon|authenticated)/i
+  );
+  assert.match(worker, /rpc\(['"]issue_transactional_email_capability_for_outbox['"]/);
+  assert.doesNotMatch(
+    worker,
+    /from\(['"](?:guest_order_access_tokens|newsletter_unsubscribe_tokens)['"]\)/
+  );
+  assert.doesNotMatch(migration, /raw_token|plain_token|token_secret/i);
 });
 
 test('download capability issuance and manual resend have one versioned database authority', () => {
