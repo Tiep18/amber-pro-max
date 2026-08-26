@@ -6,17 +6,30 @@ vi.mock('server-only', () => ({}));
 
 import {
   normalizeNewsletterEmail,
-  hashNewsletterUnsubscribeToken,
   shapeConsentMetadata,
   subscribeNewsletter,
   unsubscribeNewsletter
 } from '@/newsletter/consent';
 import {deriveTransactionalEmailToken} from '@/fulfillment/email-outbox';
 import {renderTransactionalEmail} from '@/emails/transactional';
+import {
+  hashNewsletterUnsubscribeToken,
+  normalizeNewsletterUnsubscribeToken,
+  type NewsletterUnsubscribeToken
+} from '@/newsletter/unsubscribe-token';
 
 const transactionalEmailTokenSecret = '0123456789abcdef0123456789abcdef';
 const newsletterOutboxId = '30000000-0000-4000-8000-000000000005';
-const validNewsletterToken = 'A'.repeat(43);
+
+function validToken(value: string): NewsletterUnsubscribeToken {
+  const token = normalizeNewsletterUnsubscribeToken(value);
+  if (!token) {
+    throw new Error('invalid newsletter token test fixture');
+  }
+  return token;
+}
+
+const validNewsletterToken = validToken('A'.repeat(43));
 
 describe('newsletter consent contracts (NEWS-01, NEWS-02, D-13, D-16)', () => {
   test('normalizes email as the subscriber identity', () => {
@@ -210,7 +223,7 @@ describe('newsletter unsubscribe contracts (NEWS-02, D-14, D-16)', () => {
       status: 'recorded',
       errorId: '76000000-0000-4000-8000-000000000001'
     }));
-    const rawToken = 'c'.repeat(43);
+    const rawToken = validToken('c'.repeat(43));
     const client = {rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'private token detail'}})};
 
     await expect(unsubscribeNewsletter({rawToken}, client, recordOperationalFailure)).resolves.toEqual({status: 'error'});

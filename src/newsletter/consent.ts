@@ -8,8 +8,6 @@ import {
   normalizeNewsletterUnsubscribeToken
 } from '@/newsletter/unsubscribe-token';
 
-export {hashNewsletterUnsubscribeToken} from '@/newsletter/unsubscribe-token';
-
 type RpcClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
 };

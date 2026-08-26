@@ -1,6 +1,9 @@
 import {formatMoney} from '@/catalog/money';
 import type {TransactionalEmailEventType} from '@/fulfillment/schemas';
-import {normalizeNewsletterUnsubscribeToken} from '@/newsletter/unsubscribe-token';
+import {
+  normalizeNewsletterUnsubscribeToken,
+  type NewsletterUnsubscribeToken
+} from '@/newsletter/unsubscribe-token';
 import {formatPaymentDateTime} from '@/payments/format';
 
 type Locale = 'en' | 'vi';
@@ -85,7 +88,7 @@ function downloadPath(order: string, token?: string | null) {
   return `/api/downloads?${params.toString()}`;
 }
 
-function newsletterUnsubscribePath(locale: Locale, token: string) {
+function newsletterUnsubscribePath(locale: Locale, token: NewsletterUnsubscribeToken) {
   const path = locale === 'vi' ? '/vi/ban-tin/huy-dang-ky' : '/en/newsletter/unsubscribe';
   return `${path}?token=${encodeURIComponent(token)}`;
 }
