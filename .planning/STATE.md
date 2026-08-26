@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: verifying
 stopped_at: Phase 10 verified and security-reviewed; milestone verification debt remains in Phases 4, 7, and 9
-last_updated: "2026-08-17T18:22:03+07:00"
-last_activity: 2026-08-17
+last_updated: "2026-08-26T17:33:14+07:00"
+last_activity: 2026-08-26
 progress:
   total_phases: 10
   completed_phases: 10
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 Phase: 10
 Plan: 7 of 7
 Status: Complete — verification passed and security review closed
-Last activity: 2026-08-17 - Completed and verified quick task 260817-k94: Repair digital download token lifecycle
+Last activity: 2026-08-26 - Completed and verified quick task 260826-ne8: Unify newsletter unsubscribe token contract
 
 Progress: All 93 plans are executed. Phase 04 provider/manual UAT, Phase 07 launch verification, and Phase 09 deployment geo/SEO UAT remain milestone-level verification debt.
 
@@ -260,6 +260,7 @@ None yet.
 
 | #                                                     | Description                                                                                                                      | Date       | Commit      | Status                                                                                                                                                    | Directory                                                                  |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 260826-ne8                                            | Unify newsletter unsubscribe tokens on the transactional-email HMAC base64url-43 contract                                       | 2026-08-26 | d9b37daa    | Verified                                                                                                                                                  | [260826-ne8](./quick/260826-ne8-unify-the-newsletter-unsubscribe-token-c/) |
 | 260817-k94                                            | Repair digital download token lifecycle with version-fenced issuance and one-RPC authorization                                  | 2026-08-17 | 8e27dde3    | Verified                                                                                                                                                  | [260817-k94](./quick/260817-k94-repair-digital-download-token-lifecycle-/)  |
 | 260813-07j                                            | Make physical fulfillment state, event, and shipped-email enqueue one atomic Supabase transaction                               | 2026-08-13 | c63a8d6     | Verified                                                                                                                                                  | [260813-07j](./quick/260813-07j-atomic-physical-shipment-email/)            |
 | 260812-uwo                                            | Stabilize transactional-email bearer links and Resend payloads across retries                                                    | 2026-08-12 | 9b87a39     | Verified                                                                                                                                                  | [260812-uwo](./quick/260812-uwo-n-nh-token-v-payload-transactional-email/) |
