@@ -92,14 +92,37 @@ warnings and resume the project before relying on launch-readiness results.
 
 Transactional email token-secret rotation:
 
-1. Pause the Supabase Cron `transactional-email-outbox` job and stop manual or
-   immediate worker triggers.
-2. Under the current secret, drain all tokenized `pending`/retry rows and wait
-   for active `sending` leases to finish or return to `pending`. Do not rotate
-   while such rows may retry: the secret deterministically reproduces the
-   original bearer link.
+1. Enter a short maintenance window that prevents new checkout, payment,
+   newsletter, and admin-resend events, then pause the Supabase Cron
+   `transactional-email-outbox` job. This also prevents immediate triggers from
+   introducing or claiming new tokenized work during rotation.
+2. Under the current secret, invoke the authenticated worker endpoint until all
+   tokenized `pending` rows are drained and any `sending` lease has completed or
+   returned to `pending`. Confirm zero rows with:
+
+   ```sql
+   select status, count(*)
+   from public.transactional_email_outbox
+   where status in ('pending', 'sending')
+     and (
+       event_type in (
+         'digital_access_granted', 'digital_access_reissued',
+         'guest_order_reopen', 'guest_order_claim', 'newsletter_subscribed'
+       )
+       or (
+         event_type in ('order_created', 'payment_received')
+         and payload ->> 'isGuest' = 'true'
+       )
+     )
+   group by status;
+   ```
+
+   Do not rotate while this query returns rows: the current secret
+   deterministically reproduces their original bearer links.
+
 3. Replace `TRANSACTIONAL_EMAIL_TOKEN_SECRET` in every Vercel environment that
-   processes that queue, deploy the new value, then resume the Cron job.
+   processes that queue and deploy the new value. Resume the Cron job and end
+   the maintenance window only after the deployment is active.
 
 Already-delivered links remain valid after rotation. Redemption hashes the raw
 token held by the customer and compares it with the capability hash stored in
