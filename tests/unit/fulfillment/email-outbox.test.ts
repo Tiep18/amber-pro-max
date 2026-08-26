@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
+import {createHash} from 'node:crypto';
 
 vi.mock('server-only', () => ({}));
 
@@ -245,6 +246,8 @@ describe('transactional email outbox worker', () => {
 
     expect(derivedTokens[0]).toBe('jQpPiXJbwNfY2C3g0L5JLVcoVHjSNh1pD-5DC97QWVU');
     expect(new Set(derivedTokens).size).toBe(capabilities.length);
+    expect(derivedTokens[3]).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(derivedTokens[3]).not.toContain('=');
     expect(
       deriveTransactionalEmailToken(transactionalEmailTokenSecret, outboxId, 'digital_download')
     ).toBe('jQpPiXJbwNfY2C3g0L5JLVcoVHjSNh1pD-5DC97QWVU');
@@ -883,6 +886,55 @@ describe('transactional email outbox worker', () => {
 });
 
 describe('Supabase transactional email outbox repository', () => {
+  test('persists a valid derived newsletter token as source-linked hash-only metadata', async () => {
+    const rawToken = deriveTransactionalEmailToken(
+      transactionalEmailTokenSecret,
+      '30000000-0000-4000-8000-000000000005',
+      'newsletter_unsubscribe'
+    );
+    const maybeSingle = vi.fn().mockResolvedValue({data: null, error: null});
+    const eq = vi.fn(() => ({maybeSingle}));
+    const select = vi.fn(() => ({eq}));
+    const insert = vi.fn().mockResolvedValue({data: null, error: null});
+    const table = {select, insert};
+    const from = vi.fn(() => table);
+    const repository = createSupabaseEmailOutboxRepository({rpc: vi.fn(), from} as never);
+    const row = {
+      ...digitalRow,
+      id: '30000000-0000-4000-8000-000000000005',
+      orderId: null,
+      entitlementId: null,
+      eventType: 'newsletter_subscribed' as const,
+      recipientEmail: ' Subscriber@Example.Test '
+    };
+    const preparation = {
+      rawToken,
+      expiresAt: '2026-07-19T09:00:00.000Z',
+      sourceEmailOutboxId: row.id
+    };
+
+    await expect(repository.issueNewsletterToken?.(row, preparation)).resolves.toEqual({
+      expiresAt: preparation.expiresAt
+    });
+
+    expect(from).toHaveBeenCalledWith('newsletter_unsubscribe_tokens');
+    expect(select).toHaveBeenCalledWith('*');
+    expect(eq).toHaveBeenCalledWith('source_email_outbox_id', row.id);
+    expect(insert).toHaveBeenCalledWith({
+      normalized_email: 'subscriber@example.test',
+      token_hash: createHash('sha256').update(rawToken, 'utf8').digest('hex'),
+      expires_at: preparation.expiresAt,
+      source_email_outbox_id: row.id
+    });
+    expect(JSON.stringify({
+      from: from.mock.calls,
+      select: select.mock.calls,
+      eq: eq.mock.calls,
+      insert: insert.mock.calls
+    })).not.toContain(rawToken);
+    expect(JSON.stringify(row.payload)).not.toContain(rawToken);
+  });
+
   test('maps claim ownership and passes it to the fenced transition RPC', async () => {
     const rpc = vi
       .fn()
