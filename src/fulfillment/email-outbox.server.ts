@@ -13,7 +13,10 @@ import {
 import { getServerEnv } from '@/lib/env/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { recordOperationalFailure } from '@/operations/errors';
-import { hashNewsletterUnsubscribeToken } from '@/newsletter/consent';
+import {
+  hashNewsletterUnsubscribeToken,
+  normalizeNewsletterUnsubscribeToken
+} from '@/newsletter/unsubscribe-token';
 
 type SupabaseLike = {
   from: (table: string) => unknown;
@@ -249,9 +252,13 @@ export function createSupabaseEmailOutboxRepository(
       });
     },
     async issueNewsletterToken(row, preparation) {
+      const newsletterToken = normalizeNewsletterUnsubscribeToken(preparation.rawToken);
+      if (!newsletterToken) {
+        return null;
+      }
       const table = client.from('newsletter_unsubscribe_tokens') as SourceLinkedTokenTable;
       const normalizedEmail = row.recipientEmail.trim().toLowerCase();
-      const tokenHash = hashNewsletterUnsubscribeToken(preparation.rawToken);
+      const tokenHash = hashNewsletterUnsubscribeToken(newsletterToken);
       return prepareSourceLinkedToken({
         table,
         preparation,

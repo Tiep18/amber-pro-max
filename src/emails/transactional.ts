@@ -1,5 +1,6 @@
 import {formatMoney} from '@/catalog/money';
 import type {TransactionalEmailEventType} from '@/fulfillment/schemas';
+import {normalizeNewsletterUnsubscribeToken} from '@/newsletter/unsubscribe-token';
 import {formatPaymentDateTime} from '@/payments/format';
 
 type Locale = 'en' | 'vi';
@@ -84,9 +85,9 @@ function downloadPath(order: string, token?: string | null) {
   return `/api/downloads?${params.toString()}`;
 }
 
-function newsletterUnsubscribePath(locale: Locale, token?: string | null) {
+function newsletterUnsubscribePath(locale: Locale, token: string) {
   const path = locale === 'vi' ? '/vi/ban-tin/huy-dang-ky' : '/en/newsletter/unsubscribe';
-  return token ? `${path}?token=${encodeURIComponent(token)}` : path;
+  return `${path}?token=${encodeURIComponent(token)}`;
 }
 
 function hoursCopy(locale: Locale, hours: unknown) {
@@ -148,7 +149,11 @@ export function renderTransactionalEmail(row: TransactionalEmailRow, context: Tr
   const expires = hoursCopy(locale, row.payload.expiresInHours);
 
   if (row.eventType === 'newsletter_subscribed') {
-    const link = absoluteUrl(siteUrl, newsletterUnsubscribePath(locale, context.newsletterToken));
+    const newsletterToken = normalizeNewsletterUnsubscribeToken(context.newsletterToken);
+    if (!newsletterToken) {
+      throw new Error('newsletter unsubscribe token is invalid');
+    }
+    const link = absoluteUrl(siteUrl, newsletterUnsubscribePath(locale, newsletterToken));
     const subject = locale === 'vi' ? 'Bạn đã đăng ký bản tin' : 'You subscribed to the newsletter';
     const intro = locale === 'vi'
       ? 'Đăng ký bản tin của bạn đã được ghi nhận.'

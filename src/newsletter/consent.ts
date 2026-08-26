@@ -1,8 +1,14 @@
 import 'server-only';
 
-import {createHash, randomBytes} from 'node:crypto';
+import {createHash} from 'node:crypto';
 import {z} from 'zod';
 import {runMonitoredAction} from '@/operations/monitoring';
+import {
+  hashNewsletterUnsubscribeToken,
+  normalizeNewsletterUnsubscribeToken
+} from '@/newsletter/unsubscribe-token';
+
+export {hashNewsletterUnsubscribeToken} from '@/newsletter/unsubscribe-token';
 
 type RpcClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
@@ -51,14 +57,6 @@ export function shapeConsentMetadata({ip, userAgent}: {ip?: string | null; userA
 export type NewsletterSubscribeResult = {status: 'idle' | 'subscribed' | 'invalid' | 'error'};
 
 export type NewsletterUnsubscribeResult = {status: 'unsubscribed' | 'unavailable' | 'invalid' | 'error'};
-
-export function createNewsletterUnsubscribeToken() {
-  return randomBytes(32).toString('hex');
-}
-
-export function hashNewsletterUnsubscribeToken(rawToken: string) {
-  return createHash('sha256').update(rawToken, 'utf8').digest('hex');
-}
 
 async function recordNewsletterFailure(
   recorder: OperationalFailureRecorder | undefined,
@@ -135,12 +133,13 @@ export async function unsubscribeNewsletter(
   client: RpcClient,
   recordOperationalFailure?: OperationalFailureRecorder
 ): Promise<NewsletterUnsubscribeResult> {
-  if (typeof rawToken !== 'string' || !/^[a-f0-9]{64}$/.test(rawToken)) {
+  const newsletterToken = normalizeNewsletterUnsubscribeToken(rawToken);
+  if (!newsletterToken) {
     return {status: 'invalid'};
   }
 
   const {data, error} = await client.rpc('unsubscribe_newsletter', {
-    p_token_hash: hashNewsletterUnsubscribeToken(rawToken)
+    p_token_hash: hashNewsletterUnsubscribeToken(newsletterToken)
   });
   if (error || !isRecord(data)) {
     await recordNewsletterFailure(recordOperationalFailure, {

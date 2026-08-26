@@ -2,6 +2,7 @@ import 'server-only';
 
 import { createHmac } from 'node:crypto';
 import { renderTransactionalEmail, type TransactionalEmailRow } from '@/emails/transactional';
+import {normalizeNewsletterUnsubscribeToken} from '@/newsletter/unsubscribe-token';
 import { runMonitoredAction } from '@/operations/monitoring';
 import { buildQuickLinkUrl, maskAccountNo } from '@/payments/vietqr/instructions';
 
@@ -35,9 +36,17 @@ export function deriveTransactionalEmailToken(
   ) {
     throw new Error('transactional email token signing is unavailable');
   }
-  return createHmac('sha256', secret)
+  const rawToken = createHmac('sha256', secret)
     .update(`${TRANSACTIONAL_EMAIL_TOKEN_DOMAIN}:${outboxId}:${purpose}`, 'utf8')
     .digest('base64url');
+  if (purpose === 'newsletter_unsubscribe') {
+    const newsletterToken = normalizeNewsletterUnsubscribeToken(rawToken);
+    if (!newsletterToken) {
+      throw new Error('transactional email token signing is unavailable');
+    }
+    return newsletterToken;
+  }
+  return rawToken;
 }
 
 export type ClaimedTransactionalEmailRow = TransactionalEmailRow & {
