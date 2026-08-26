@@ -3855,6 +3855,10 @@ export type Database = {
         }
         Returns: string
       }
+      issue_transactional_email_capability_for_outbox: {
+        Args: { p_source_email_outbox_id: string; p_token_hash: string }
+        Returns: string
+      }
       late_settlement_window: { Args: never; Returns: string }
       list_catalog_facets: {
         Args: { p_locale: string; p_market: string }

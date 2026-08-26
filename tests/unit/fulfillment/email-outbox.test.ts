@@ -1,4 +1,4 @@
-import {createHash} from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
@@ -416,7 +416,7 @@ describe('transactional email outbox worker', () => {
         createdAt,
         eventType: 'guest_order_reopen' as const,
         entitlementId: null,
-        payload: {orderNumber: 'ATB-20260619-0001'}
+        payload: { orderNumber: 'ATB-20260619-0001' }
       },
       {
         ...digitalRow,
@@ -424,7 +424,7 @@ describe('transactional email outbox worker', () => {
         createdAt,
         eventType: 'guest_order_claim' as const,
         entitlementId: null,
-        payload: {orderNumber: 'ATB-20260619-0001'}
+        payload: { orderNumber: 'ATB-20260619-0001' }
       },
       {
         ...digitalRow,
@@ -479,7 +479,7 @@ describe('transactional email outbox worker', () => {
       markFailed: vi.fn()
     };
     const sender = {
-      send: vi.fn().mockResolvedValue({status: 'sent', providerMessageId: 'resend-capability'})
+      send: vi.fn().mockResolvedValue({ status: 'sent', providerMessageId: 'resend-capability' })
     };
 
     const result = await processTransactionalEmailBatch({
@@ -500,11 +500,20 @@ describe('transactional email outbox worker', () => {
       ['reopen_order', 'guest_reopen_order']
     ] as const;
     for (const [index, [databasePurpose, tokenPurpose]] of guestExpectations.entries()) {
-      expect(repository.issueGuestToken).toHaveBeenNthCalledWith(index + 1, rows[index], databasePurpose, {
-        rawToken: deriveTransactionalEmailToken(transactionalEmailTokenSecret, rows[index].id, tokenPurpose),
-        expiresAt: '2026-06-20T09:00:00.000Z',
-        sourceEmailOutboxId: rows[index].id
-      });
+      expect(repository.issueGuestToken).toHaveBeenNthCalledWith(
+        index + 1,
+        rows[index],
+        databasePurpose,
+        {
+          rawToken: deriveTransactionalEmailToken(
+            transactionalEmailTokenSecret,
+            rows[index].id,
+            tokenPurpose
+          ),
+          expiresAt: '2026-06-20T09:00:00.000Z',
+          sourceEmailOutboxId: rows[index].id
+        }
+      );
     }
     expect(repository.issueNewsletterToken).toHaveBeenCalledWith(rows[4], {
       rawToken: deriveTransactionalEmailToken(
@@ -515,7 +524,7 @@ describe('transactional email outbox worker', () => {
       expiresAt: '2026-07-19T09:00:00.000Z',
       sourceEmailOutboxId: rows[4].id
     });
-    expect(result).toEqual({status: 'processed', claimed: 5, sent: 5, retry: 0, failed: 0});
+    expect(result).toEqual({ status: 'processed', claimed: 5, sent: 5, retry: 0, failed: 0 });
     expect(sender.send).toHaveBeenCalledTimes(5);
   });
 
@@ -528,12 +537,10 @@ describe('transactional email outbox worker', () => {
           { ...digitalRow, id: 'email-2', recipientEmail: 'retry@example.test' },
           { ...digitalRow, id: 'email-3', recipientEmail: 'bad@example.test' }
         ]),
-      issueDownloadToken: vi
-        .fn()
-        .mockResolvedValue({
-          status: 'issued',
-          expiresAt: new Date(now.getTime() + 86_400_000).toISOString()
-        }),
+      issueDownloadToken: vi.fn().mockResolvedValue({
+        status: 'issued',
+        expiresAt: new Date(now.getTime() + 86_400_000).toISOString()
+      }),
       issueGuestToken: vi.fn(),
       markSent: vi.fn().mockResolvedValue(undefined),
       markRetry: vi.fn().mockResolvedValue(undefined),
@@ -779,14 +786,17 @@ describe('transactional email outbox worker', () => {
         orderId: eventType === 'newsletter_subscribed' ? null : digitalRow.orderId,
         entitlementId: null,
         createdAt,
-        payload: eventType === 'newsletter_subscribed' ? {} : {orderNumber: 'ATB-20260619-0001'}
+        payload: eventType === 'newsletter_subscribed' ? {} : { orderNumber: 'ATB-20260619-0001' }
       };
-      const retryClaim = {...firstClaim, attemptCount: 2};
+      const retryClaim = { ...firstClaim, attemptCount: 2 };
       const canonicalExpiry = new Date(new Date(createdAt).getTime() + lifetimeMs).toISOString();
-      const issueGuestToken = vi.fn(async () => ({expiresAt: canonicalExpiry}));
-      const issueNewsletterToken = vi.fn(async () => ({expiresAt: canonicalExpiry}));
+      const issueGuestToken = vi.fn(async () => ({ expiresAt: canonicalExpiry }));
+      const issueNewsletterToken = vi.fn(async () => ({ expiresAt: canonicalExpiry }));
       const repository = {
-        claimDueRows: vi.fn().mockResolvedValueOnce([firstClaim]).mockResolvedValueOnce([retryClaim]),
+        claimDueRows: vi
+          .fn()
+          .mockResolvedValueOnce([firstClaim])
+          .mockResolvedValueOnce([retryClaim]),
         issueDownloadToken: vi.fn(),
         issueGuestToken,
         issueNewsletterToken,
@@ -797,8 +807,8 @@ describe('transactional email outbox worker', () => {
       const sender = {
         send: vi
           .fn()
-          .mockResolvedValueOnce({status: 'retry', code: 'provider_timeout'})
-          .mockResolvedValueOnce({status: 'sent', providerMessageId: 'resend-retry'})
+          .mockResolvedValueOnce({ status: 'retry', code: 'provider_timeout' })
+          .mockResolvedValueOnce({ status: 'sent', providerMessageId: 'resend-retry' })
       };
       const config = {
         siteUrl: 'https://shop.example.test',
@@ -806,8 +816,8 @@ describe('transactional email outbox worker', () => {
         tokenSecret: transactionalEmailTokenSecret
       };
 
-      await processTransactionalEmailBatch({repository: repository as never, sender, config});
-      await processTransactionalEmailBatch({repository: repository as never, sender, config});
+      await processTransactionalEmailBatch({ repository: repository as never, sender, config });
+      await processTransactionalEmailBatch({ repository: repository as never, sender, config });
 
       const expectedRawToken = deriveTransactionalEmailToken(
         transactionalEmailTokenSecret,
@@ -824,12 +834,14 @@ describe('transactional email outbox worker', () => {
   );
 
   test('fails a superseded digital outbox after one issuance attempt without scheduling retry', async () => {
-    const sender = {send: vi.fn()};
+    const sender = { send: vi.fn() };
     const repository = {
-      claimDueRows: vi.fn().mockResolvedValue([
-        {...digitalRow, id: 'email-superseded', orderId: 'order-superseded', attemptCount: 1}
-      ]),
-      issueDownloadToken: vi.fn().mockResolvedValue({status: 'superseded'}),
+      claimDueRows: vi
+        .fn()
+        .mockResolvedValue([
+          { ...digitalRow, id: 'email-superseded', orderId: 'order-superseded', attemptCount: 1 }
+        ]),
+      issueDownloadToken: vi.fn().mockResolvedValue({ status: 'superseded' }),
       issueGuestToken: vi.fn(),
       markSent: vi.fn().mockResolvedValue(undefined),
       markRetry: vi.fn().mockResolvedValue(undefined),
@@ -848,11 +860,11 @@ describe('transactional email outbox worker', () => {
       }
     });
 
-    expect(result).toMatchObject({claimed: 1, sent: 0, retry: 0, failed: 1});
+    expect(result).toMatchObject({ claimed: 1, sent: 0, retry: 0, failed: 1 });
     expect(repository.issueDownloadToken).toHaveBeenCalledOnce();
     expect(sender.send).not.toHaveBeenCalled();
     expect(repository.markFailed).toHaveBeenCalledWith(
-      {id: 'email-superseded', claimToken: digitalRow.claimToken},
+      { id: 'email-superseded', claimToken: digitalRow.claimToken },
       'digital_access_superseded',
       now
     );
@@ -900,12 +912,10 @@ describe('transactional email outbox worker', () => {
       claimDueRows: vi
         .fn()
         .mockResolvedValue([{ ...digitalRow, id: 'email-retry', orderId: 'order-retry' }]),
-      issueDownloadToken: vi
-        .fn()
-        .mockResolvedValue({
-          status: 'issued',
-          expiresAt: new Date(now.getTime() + 86_400_000).toISOString()
-        }),
+      issueDownloadToken: vi.fn().mockResolvedValue({
+        status: 'issued',
+        expiresAt: new Date(now.getTime() + 86_400_000).toISOString()
+      }),
       issueGuestToken: vi.fn(),
       markSent: vi.fn().mockResolvedValue(undefined),
       markRetry: vi.fn().mockResolvedValue(undefined),
@@ -961,7 +971,7 @@ describe('transactional email outbox worker', () => {
       vi.stubEnv('TRANSACTIONAL_EMAIL_TOKEN_SECRET', tokenSecret);
 
       await expect(
-        triggerTransactionalEmailOutboxNow({reason: 'paypal_webhook_paid'})
+        triggerTransactionalEmailOutboxNow({ reason: 'paypal_webhook_paid' })
       ).resolves.toEqual({
         status: 'unconfigured',
         code: 'invalid_transactional_email_token_secret'
@@ -982,7 +992,7 @@ describe('Supabase transactional email outbox repository', () => {
       error: null
     });
     const from = vi.fn();
-    const repository = createSupabaseEmailOutboxRepository({rpc, from} as never);
+    const repository = createSupabaseEmailOutboxRepository({ rpc, from } as never);
     const row = {
       ...digitalRow,
       id: '30000000-0000-4000-8000-000000000005',
@@ -1017,7 +1027,7 @@ describe('Supabase transactional email outbox repository', () => {
       error: null
     });
     const from = vi.fn();
-    const repository = createSupabaseEmailOutboxRepository({rpc, from} as never);
+    const repository = createSupabaseEmailOutboxRepository({ rpc, from } as never);
     const row = {
       ...digitalRow,
       id: '30000000-0000-4000-8000-000000000001',
@@ -1158,7 +1168,7 @@ describe('Supabase transactional email outbox repository', () => {
         expiresAt: '2026-06-20T09:00:00.000Z',
         sourceEmailOutboxId: row.id
       })
-    ).resolves.toEqual({status: 'issued', expiresAt: '2026-06-20T09:00:00.000Z'});
+    ).resolves.toEqual({ status: 'issued', expiresAt: '2026-06-20T09:00:00.000Z' });
 
     expect(rpc).toHaveBeenCalledWith('issue_digital_access_token_for_outbox', {
       p_source_email_outbox_id: row.id,
@@ -1166,7 +1176,9 @@ describe('Supabase transactional email outbox repository', () => {
       p_expires_at: '2026-06-20T09:00:00.000Z'
     });
     expect(from).not.toHaveBeenCalledWith('digital_access_tokens');
-    expect(JSON.stringify(rpc.mock.calls)).not.toContain('krMVmeILCZGckZNphm9WMoTRMo3dHnoe4wNDZvpyICs');
+    expect(JSON.stringify(rpc.mock.calls)).not.toContain(
+      'krMVmeILCZGckZNphm9WMoTRMo3dHnoe4wNDZvpyICs'
+    );
   });
 
   test('reuses the exact deterministic expiry for same-row provider retry', async () => {
@@ -1206,7 +1218,7 @@ describe('Supabase transactional email outbox repository', () => {
         expiresAt: '2026-06-20T09:00:00.000Z',
         sourceEmailOutboxId: row.id
       })
-    ).resolves.toEqual({status: 'superseded'});
+    ).resolves.toEqual({ status: 'superseded' });
     expect(from).not.toHaveBeenCalledWith('digital_access_tokens');
   });
 });
@@ -1244,7 +1256,7 @@ describe('transactional email worker route', () => {
     const response = await POST(
       new Request('https://shop.example.test/api/fulfillment/email-outbox', {
         method: 'POST',
-        headers: {authorization: 'Bearer correct-secret'}
+        headers: { authorization: 'Bearer correct-secret' }
       })
     );
 

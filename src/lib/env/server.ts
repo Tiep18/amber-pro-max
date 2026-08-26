@@ -1,5 +1,6 @@
 import { getClientEnv } from './client';
 import { z } from 'zod';
+import { isTransactionalEmailTokenSecretReady } from '@/fulfillment/email-token-secret';
 
 const optionalSecretSchema = z.string().trim().min(1).optional();
 
@@ -90,10 +91,13 @@ export function getServerEnv(source: NodeJS.ProcessEnv = process.env) {
     'VIETQR_ACCOUNT_NO',
     'VIETQR_ACCOUNT_NAME'
   ]);
-  const transactionalEmailConfigured = configured(serverEnv, [
+  const transactionalEmailProviderConfigured = configured(serverEnv, [
     'RESEND_API_KEY',
     'RESEND_FROM_EMAIL'
   ]);
+  const transactionalEmailTokenReady = isTransactionalEmailTokenSecretReady(
+    serverEnv.TRANSACTIONAL_EMAIL_TOKEN_SECRET
+  );
 
   return {
     ...getClientEnv(source),
@@ -129,16 +133,21 @@ export function getServerEnv(source: NodeJS.ProcessEnv = process.env) {
           code: 'missing_vietqr_server_config' as const,
           template: serverEnv.VIETQR_TEMPLATE
         },
-    transactionalEmail: transactionalEmailConfigured
+    transactionalEmail: !transactionalEmailProviderConfigured
       ? {
-          status: 'configured' as const,
-          resendApiKey: serverEnv.RESEND_API_KEY,
-          fromEmail: serverEnv.RESEND_FROM_EMAIL
-        }
-      : {
           status: 'unconfigured' as const,
           code: 'missing_transactional_email_config' as const
-        },
+        }
+      : !transactionalEmailTokenReady
+        ? {
+            status: 'unconfigured' as const,
+            code: 'invalid_transactional_email_token_secret' as const
+          }
+        : {
+            status: 'configured' as const,
+            resendApiKey: serverEnv.RESEND_API_KEY,
+            fromEmail: serverEnv.RESEND_FROM_EMAIL
+          },
     transactionalEmailTokenSecret: serverEnv.TRANSACTIONAL_EMAIL_TOKEN_SECRET ?? null,
     transactionalEmailWorkerSecret: serverEnv.TRANSACTIONAL_EMAIL_WORKER_SECRET ?? null,
     cronSecret: serverEnv.CRON_SECRET ?? null,

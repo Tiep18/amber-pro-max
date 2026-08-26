@@ -19,7 +19,6 @@ import {
 } from '@/newsletter/unsubscribe-token';
 
 type SupabaseLike = {
-  from: (table: string) => unknown;
   rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
 };
 
@@ -69,71 +68,23 @@ function mapRow(row: Record<string, unknown>): ClaimedTransactionalEmailRow {
   };
 }
 
-type SourceLinkedTokenRow = Record<string, unknown> & {
-  token_hash?: unknown;
-  expires_at?: unknown;
-};
-
-type SourceLinkedTokenTable = {
-  select: (columns: string) => {
-    eq: (
-      column: string,
-      value: string
-    ) => {
-      maybeSingle: () => Promise<{ data: SourceLinkedTokenRow | null; error: unknown }>;
-    };
-  };
-  insert: (value: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
-};
-
-async function findSourceLinkedToken(table: SourceLinkedTokenTable, sourceEmailOutboxId: string) {
-  return table.select('*').eq('source_email_outbox_id', sourceEmailOutboxId).maybeSingle();
-}
-
-function matchesPreparedToken(
-  row: SourceLinkedTokenRow,
+async function issueTransactionalEmailCapability(
+  client: SupabaseLike,
   preparation: TransactionalEmailTokenPreparation,
-  expected: Record<string, string>
+  tokenHash: string
 ) {
-  return (
-    row.token_hash === expected.token_hash &&
-    row.expires_at === preparation.expiresAt &&
-    Object.entries(expected).every(([key, value]) => row[key] === value)
-  );
-}
-
-async function prepareSourceLinkedToken(input: {
-  table: SourceLinkedTokenTable;
-  preparation: TransactionalEmailTokenPreparation;
-  insert: Record<string, unknown>;
-  expected: Record<string, string>;
-}) {
-  const existing = await findSourceLinkedToken(input.table, input.preparation.sourceEmailOutboxId);
-  if (existing.error) {
+  const { data, error } = await client.rpc('issue_transactional_email_capability_for_outbox', {
+    p_source_email_outbox_id: preparation.sourceEmailOutboxId,
+    p_token_hash: tokenHash
+  });
+  if (error || typeof data !== 'string') {
     return null;
   }
-  if (existing.data) {
-    return matchesPreparedToken(existing.data, input.preparation, input.expected)
-      ? { expiresAt: input.preparation.expiresAt }
-      : null;
-  }
-
-  const inserted = await input.table.insert(input.insert);
-  if (!inserted.error) {
-    return { expiresAt: input.preparation.expiresAt };
-  }
-
-  // A concurrent claimant may have won the partial unique index race. Read
-  // that row and accept it only when it is byte-for-byte the same issuance.
-  const raced = await findSourceLinkedToken(input.table, input.preparation.sourceEmailOutboxId);
-  if (
-    raced.error ||
-    !raced.data ||
-    !matchesPreparedToken(raced.data, input.preparation, input.expected)
-  ) {
+  const acceptedExpiry = new Date(data).getTime();
+  if (!Number.isFinite(acceptedExpiry)) {
     return null;
   }
-  return { expiresAt: input.preparation.expiresAt };
+  return { expiresAt: new Date(acceptedExpiry).toISOString() };
 }
 
 // Long enough that a slow provider call cannot lose its own claim, short
@@ -221,58 +172,22 @@ export function createSupabaseEmailOutboxRepository(
       ) {
         return { status: 'error' };
       }
-      return { status: 'issued', expiresAt: preparation.expiresAt };
+      return { status: 'issued', expiresAt: new Date(acceptedExpiry).toISOString() };
     },
-    async issueGuestToken(row, purpose, preparation) {
+    async issueGuestToken(row, _purpose, preparation) {
       if (!row.orderId) {
         return null;
       }
-      const table = client.from('guest_order_access_tokens') as SourceLinkedTokenTable;
-      const contactEmail = row.recipientEmail.trim().toLowerCase();
       const tokenHash = hashFulfillmentAccessToken(preparation.rawToken);
-      return prepareSourceLinkedToken({
-        table,
-        preparation,
-        expected: {
-          order_id: row.orderId,
-          contact_email: contactEmail,
-          token_hash: tokenHash,
-          purpose,
-          status: 'active'
-        },
-        insert: {
-          order_id: row.orderId,
-          contact_email: contactEmail,
-          token_hash: tokenHash,
-          purpose,
-          status: 'active',
-          expires_at: preparation.expiresAt,
-          source_email_outbox_id: preparation.sourceEmailOutboxId
-        }
-      });
+      return issueTransactionalEmailCapability(client, preparation, tokenHash);
     },
     async issueNewsletterToken(row, preparation) {
       const newsletterToken = normalizeNewsletterUnsubscribeToken(preparation.rawToken);
       if (!newsletterToken) {
         return null;
       }
-      const table = client.from('newsletter_unsubscribe_tokens') as SourceLinkedTokenTable;
-      const normalizedEmail = row.recipientEmail.trim().toLowerCase();
       const tokenHash = hashNewsletterUnsubscribeToken(newsletterToken);
-      return prepareSourceLinkedToken({
-        table,
-        preparation,
-        expected: {
-          normalized_email: normalizedEmail,
-          token_hash: tokenHash
-        },
-        insert: {
-          normalized_email: normalizedEmail,
-          token_hash: tokenHash,
-          expires_at: preparation.expiresAt,
-          source_email_outbox_id: preparation.sourceEmailOutboxId
-        }
-      });
+      return issueTransactionalEmailCapability(client, preparation, tokenHash);
     },
     async markSent(claim, providerMessageId, now) {
       await transitionClaim(client, {

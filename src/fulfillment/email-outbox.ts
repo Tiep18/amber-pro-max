@@ -2,7 +2,8 @@ import 'server-only';
 
 import { createHmac } from 'node:crypto';
 import { renderTransactionalEmail, type TransactionalEmailRow } from '@/emails/transactional';
-import {normalizeNewsletterUnsubscribeToken} from '@/newsletter/unsubscribe-token';
+import { isTransactionalEmailTokenSecretReady } from '@/fulfillment/email-token-secret';
+import { normalizeNewsletterUnsubscribeToken } from '@/newsletter/unsubscribe-token';
 import { runMonitoredAction } from '@/operations/monitoring';
 import { buildQuickLinkUrl, maskAccountNo } from '@/payments/vietqr/instructions';
 
@@ -13,7 +14,6 @@ const RETRY_BACKOFF_MS = 15 * 60 * 1000;
 // times a transiently-failing row is re-sent before it is parked as failed.
 const MAX_TRANSIENT_ATTEMPTS = 5;
 const TRANSACTIONAL_EMAIL_TOKEN_DOMAIN = 'transactional-email-link:v1';
-const MIN_TRANSACTIONAL_EMAIL_TOKEN_SECRET_LENGTH = 32;
 const TOKEN_PREPARATION_ERROR_CODE = 'email_token_preparation_failed';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -28,12 +28,7 @@ export function deriveTransactionalEmailToken(
   outboxId: string,
   purpose: TransactionalEmailTokenPurpose
 ) {
-  if (
-    typeof secret !== 'string' ||
-    secret.length < MIN_TRANSACTIONAL_EMAIL_TOKEN_SECRET_LENGTH ||
-    secret !== secret.trim() ||
-    !outboxId
-  ) {
+  if (!isTransactionalEmailTokenSecretReady(secret) || !outboxId) {
     throw new Error('transactional email token signing is unavailable');
   }
   const rawToken = createHmac('sha256', secret)
@@ -80,9 +75,9 @@ export type TransactionalEmailTokenPreparation = {
 type PreparedTransactionalEmailToken = Pick<TransactionalEmailTokenPreparation, 'expiresAt'>;
 
 export type DownloadTokenIssuanceResult =
-  | ({status: 'issued'} & PreparedTransactionalEmailToken)
-  | {status: 'superseded'}
-  | {status: 'error'};
+  | ({ status: 'issued' } & PreparedTransactionalEmailToken)
+  | { status: 'superseded' }
+  | { status: 'error' };
 
 export type TransactionalEmailRepository = {
   claimDueRows: (limit: number, now: Date) => Promise<ClaimedTransactionalEmailRow[]>;
@@ -197,10 +192,11 @@ async function prepareToken(
   const preparation = tokenPreparation(row, config, purpose, lifetimeMs);
   try {
     const prepared = await issue(preparation);
-    if (!prepared || prepared.expiresAt !== preparation.expiresAt) {
+    const acceptedExpiry = prepared ? new Date(prepared.expiresAt).getTime() : Number.NaN;
+    if (!Number.isFinite(acceptedExpiry)) {
       throw new TokenPreparationError();
     }
-    return { rawToken: preparation.rawToken, expiresAt: prepared.expiresAt };
+    return { rawToken: preparation.rawToken, expiresAt: new Date(acceptedExpiry).toISOString() };
   } catch {
     throw new TokenPreparationError();
   }
@@ -217,13 +213,17 @@ async function prepareDownloadToken(
     if (result.status === 'superseded') {
       throw new SupersededDigitalAccessError();
     }
+    const acceptedExpiry =
+      result.status === 'issued' ? new Date(result.expiresAt).getTime() : Number.NaN;
+    const expectedExpiry = new Date(preparation.expiresAt).getTime();
     if (
       result.status !== 'issued' ||
-      result.expiresAt !== preparation.expiresAt
+      !Number.isFinite(acceptedExpiry) ||
+      acceptedExpiry !== expectedExpiry
     ) {
       throw new TokenPreparationError();
     }
-    return {rawToken: preparation.rawToken, expiresAt: result.expiresAt};
+    return { rawToken: preparation.rawToken, expiresAt: new Date(acceptedExpiry).toISOString() };
   } catch (error) {
     if (error instanceof SupersededDigitalAccessError) {
       throw error;
@@ -338,6 +338,12 @@ async function recordEmailFailure(
 export async function processTransactionalEmailBatch(input: ProcessInput) {
   if (!input.config.fromEmail) {
     return { status: 'unconfigured' as const, code: 'missing_transactional_email_config' as const };
+  }
+  if (!isTransactionalEmailTokenSecretReady(input.config.tokenSecret)) {
+    return {
+      status: 'unconfigured' as const,
+      code: 'invalid_transactional_email_token_secret' as const
+    };
   }
 
   const now = input.now?.() ?? new Date();

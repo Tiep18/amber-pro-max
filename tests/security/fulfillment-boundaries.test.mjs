@@ -164,7 +164,10 @@ test('download signed URL creation is isolated behind entitlement authorization'
   assert.match(pureService, /authorizeDownloadRequest/);
   assert.match(pureService, /authorizeDigitalAsset/);
   assert.match(pureService, /SIGNED_URL_TTL_SECONDS = 300/);
-  assert.doesNotMatch(pureService, /rawGuestToken|findActiveEntitlementsForOrder|isTokenUsable|isOwner/);
+  assert.doesNotMatch(
+    pureService,
+    /rawGuestToken|findActiveEntitlementsForOrder|isTokenUsable|isOwner/
+  );
   assert.match(serverAdapter, /rpc\(['"]authorize_digital_download['"]/);
   assert.match(serverAdapter, /createSignedUrl/);
   assert.match(serverAdapter, /authorizeDownloadRequest/);
@@ -251,7 +254,10 @@ test('admin physical fulfillment keeps tracking customer-safe and admin-only not
   assert.match(migration, /auth\.uid\(\)/);
   assert.match(migration, /insert into public\.physical_fulfillment_events/);
   assert.match(migration, /insert into public\.transactional_email_outbox/);
-  assert.match(migration, /grant execute on function public\.update_physical_fulfillment\(jsonb\) to authenticated/);
+  assert.match(
+    migration,
+    /grant execute on function public\.update_physical_fulfillment\(jsonb\) to authenticated/
+  );
   assert.doesNotMatch(migration, /grant execute[^;]+\bto\s+(?:anon|public)\b/i);
   assert.match(source, /trackingUrl|tracking_url/);
   assert.doesNotMatch(source, /name=['"](?:recipientEmail|locale)['"]/);
@@ -326,12 +332,11 @@ test('transactional email capability issuance is one locked service-role-only RP
 test('download capability issuance and manual resend have one versioned database authority', () => {
   const worker = readFileSync('src/fulfillment/email-outbox.server.ts', 'utf8');
   const entitlements = readFileSync('src/fulfillment/entitlements.ts', 'utf8');
-  const adminEntitlements = readFileSync(
-    'src/fulfillment/admin-entitlement-actions.ts',
-    'utf8'
-  );
+  const adminEntitlements = readFileSync('src/fulfillment/admin-entitlement-actions.ts', 'utf8');
   const adminEmails = readFileSync('src/fulfillment/admin-email-actions.ts', 'utf8');
-  const resendOnly = adminEmails.slice(adminEmails.indexOf('export async function resendDownloadEmailAction'));
+  const resendOnly = adminEmails.slice(
+    adminEmails.indexOf('export async function resendDownloadEmailAction')
+  );
   const recoveryUi = readFileSync(
     'src/components/admin/fulfillment/email-recovery-actions.tsx',
     'utf8'
