@@ -61,7 +61,9 @@ Vercel:
 - Configure `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and a stable
   `TRANSACTIONAL_EMAIL_TOKEN_SECRET` of at least 32 random characters for
   transactional email. Store the token secret only as an encrypted Vercel
-  environment variable; it does not require Supabase Vault or a paid service.
+  environment variable, with no leading or trailing whitespace. The email
+  worker remains unconfigured and claims no outbox rows if this secret is
+  missing or weak. It does not require Supabase Vault or a paid service.
 - Run the CI gate before promoting a preview.
 
 Scheduled work setup (in this order):
@@ -75,8 +77,7 @@ Scheduled work setup (in this order):
    in source control.
 3. Configure `TRANSACTIONAL_EMAIL_WORKER_SECRET` on Vercel with exactly the same
    worker-secret value from step 2. Keep `TRANSACTIONAL_EMAIL_TOKEN_SECRET`
-   stable across deployments and environments with pending outbox rows; rotating
-   it changes the derived bearer link and must be coordinated after the queue drains.
+   stable across deployments and environments with pending outbox rows.
 4. Apply migrations. If the extensions were enabled or repaired after migrations were
    applied, run `select private.repair_scheduled_jobs();` from the Supabase SQL editor.
    The repair is idempotent: it leaves one `trusted-payment-expiry` job running every
@@ -88,6 +89,22 @@ Scheduled work setup (in this order):
 Free Plan Supabase projects can auto-pause after a week of low activity. Scheduled work
 and the storefront are unavailable while a project is paused, so monitor Supabase pause
 warnings and resume the project before relying on launch-readiness results.
+
+Transactional email token-secret rotation:
+
+1. Pause the Supabase Cron `transactional-email-outbox` job and stop manual or
+   immediate worker triggers.
+2. Under the current secret, drain all tokenized `pending`/retry rows and wait
+   for active `sending` leases to finish or return to `pending`. Do not rotate
+   while such rows may retry: the secret deterministically reproduces the
+   original bearer link.
+3. Replace `TRANSACTIONAL_EMAIL_TOKEN_SECRET` in every Vercel environment that
+   processes that queue, deploy the new value, then resume the Cron job.
+
+Already-delivered links remain valid after rotation. Redemption hashes the raw
+token held by the customer and compares it with the capability hash stored in
+Supabase; it does not re-derive the link with the current secret. This procedure
+needs no dual-secret store, paid queue, or additional infrastructure.
 
 ## Verification
 
