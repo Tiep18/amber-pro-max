@@ -5,13 +5,20 @@ describe('admin order detail revalidation', () => {
   test.each([
     'src/payments/admin-actions.ts',
     'src/fulfillment/physical.ts',
-    'src/fulfillment/admin-email-actions.ts',
     'src/fulfillment/admin-entitlement-actions.ts'
   ])('%s keeps list and exact order-number paths fresh', (sourcePath) => {
     const source = readFileSync(sourcePath, 'utf8');
 
     expect(source).toContain("revalidatePath('/admin/orders')");
     expect(source).toContain('/admin/orders/${encodeURIComponent(');
+  });
+
+  test('admin email recovery invalidates the order list and dynamic detail route without trusting an order number', () => {
+    const source = readFileSync('src/fulfillment/admin-email-actions.ts', 'utf8');
+
+    expect(source).toContain("revalidatePath('/admin/orders')");
+    expect(source).toContain("revalidatePath('/admin/orders/[orderNumber]', 'page')");
+    expect(source).not.toContain("orderNumber: getFormString(formData, 'orderNumber')");
   });
 
   test('entitlement forms submit the public order number, never substitute the database id', () => {

@@ -311,7 +311,7 @@ begin
     return pg_catalog.jsonb_build_object('status', 'forbidden');
   end if;
 
-  if p_entitlement_id is null or p_expected_version is null or p_expected_version < 1 then
+  if p_entitlement_id is null or p_expected_version < 1 then
     return pg_catalog.jsonb_build_object('status', 'invalid');
   end if;
 
