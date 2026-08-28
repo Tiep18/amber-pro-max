@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: verifying
 stopped_at: Phase 10 verified and security-reviewed; milestone verification debt remains in Phases 4, 7, and 9
-last_updated: '2026-08-28T14:43:39+07:00'
+last_updated: '2026-08-28T17:17:26+07:00'
 last_activity: 2026-08-28
 progress:
   total_phases: 10
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 Phase: 10
 Plan: 7 of 7
 Status: Complete — verification passed and security review closed
-Last activity: 2026-08-28 - Completed and verified quick task 260828-is9: Protect public transactional-email free-tier quota
+Last activity: 2026-08-28 - Completed and verified quick task 260828-nie: Restore authenticated customer order history
 
 Progress: All 93 plans are executed. Phase 04 provider/manual UAT, Phase 07 launch verification, and Phase 09 deployment geo/SEO UAT remain milestone-level verification debt.
 
@@ -260,6 +260,7 @@ None yet.
 
 | #                                                     | Description                                                                                                                      | Date       | Commit      | Status                                                                                                                                                    | Directory                                                                  |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 260828-nie                                            | Restore authenticated customer order history without exposing private database helpers                                           | 2026-08-28 | d791853e    | Verified                                                                                                                                                  | [260828-nie](./quick/260828-nie-restore-authenticated-customer-order-his/) |
 | 260828-is9                                            | Protect public transactional-email quota with atomic PostgreSQL limits and business-priority claims                              | 2026-08-28 | b932cd52    | Verified                                                                                                                                                  | [260828-is9](./quick/260828-is9-protect-the-transactional-email-free-tie/) |
 | 260828-gok                                            | Make admin transactional-email retry and digital resend authoritative, atomic, and version-fenced                               | 2026-08-28 | 47a6e665    | Verified                                                                                                                                                  | [260828-gok](./quick/260828-gok-replace-admin-transactional-email-retry-/) |
 | 260826-olg                                            | Make guest and newsletter transactional-email capability preparation atomic, retry-safe, and readiness-gated                     | 2026-08-26 | d9eb5847    | Verified                                                                                                                                                  | [260826-olg](./quick/260826-olg-make-remaining-transactional-email-capab/) |
@@ -408,6 +409,7 @@ None yet.
 
 | #                                   | Description                                                                                                 | Date       | Directory                                                                             |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------- |
+| account-order-history-helper-permission | Restore authenticated order history without granting private schema access                              | 2026-08-28 | [account-order-history-helper-permission](./debug/account-order-history-helper-permission.md) |
 | catalog-filter-double-render        | Replace stale catalog filter results with a stable skeleton until the final private projection settles      | 2026-07-27 | [catalog-filter-double-render](./debug/resolved/catalog-filter-double-render.md)      |
 | header-overlays                     | Fix header dropdown outside-click behavior and modal sheet/cart background interaction after header upgrade | 2026-06-27 | [header-overlays](./debug/header-overlays.md)                                         |
 | catalog-lcp-and-repeated-requests   | Verify catalog request behavior and remove the first product image LCP warning                              | 2026-07-06 | [catalog-lcp-and-repeated-requests](./debug/catalog-lcp-and-repeated-requests.md)     |
