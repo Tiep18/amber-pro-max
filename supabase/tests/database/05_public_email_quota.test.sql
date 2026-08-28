@@ -1,6 +1,6 @@
 begin;
 
-select plan(41);
+select plan(42);
 
 select has_table('private', 'public_email_rate_limits', 'private public-email rate state exists');
 select has_column('private', 'public_email_rate_limits', 'identity_hash', 'rate state stores a one-way identity');
@@ -200,18 +200,21 @@ insert into public.transactional_email_outbox (
 ) values
   ('85900000-0000-4000-8000-000000000101', 'newsletter_subscribed', 'priority@example.test', 'en', '{}'::jsonb, now() - interval '4 minutes', now() - interval '4 minutes'),
   ('85900000-0000-4000-8000-000000000102', 'physical_shipped', 'priority@example.test', 'en', '{}'::jsonb, now() - interval '3 minutes', now() - interval '3 minutes'),
-  ('85900000-0000-4000-8000-000000000103', 'digital_access_granted', 'priority@example.test', 'en', '{}'::jsonb, now() - interval '2 minutes', now() - interval '2 minutes'),
-  ('85900000-0000-4000-8000-000000000104', 'payment_received', 'priority@example.test', 'en', '{}'::jsonb, now() - interval '1 minute', now() - interval '1 minute');
+  ('85900000-0000-4000-8000-000000000103', 'digital_access_reissued', 'priority@example.test', 'en', '{}'::jsonb, now() - interval '2 minutes 30 seconds', now() - interval '2 minutes 30 seconds'),
+  ('85900000-0000-4000-8000-000000000104', 'digital_access_granted', 'priority@example.test', 'en', '{}'::jsonb, now() - interval '2 minutes', now() - interval '2 minutes'),
+  ('85900000-0000-4000-8000-000000000107', 'payment_received', 'priority@example.test', 'en', '{}'::jsonb, now() - interval '1 minute', now() - interval '1 minute');
 
 create temporary table priority_claim_1 as select * from public.claim_transactional_emails(1, 300);
 create temporary table priority_claim_2 as select * from public.claim_transactional_emails(1, 300);
 create temporary table priority_claim_3 as select * from public.claim_transactional_emails(1, 300);
 create temporary table priority_claim_4 as select * from public.claim_transactional_emails(1, 300);
+create temporary table priority_claim_5 as select * from public.claim_transactional_emails(1, 300);
 
 select is((select event_type from priority_claim_1), 'payment_received', 'payment confirmation claims first despite later availability');
-select is((select event_type from priority_claim_2), 'digital_access_granted', 'digital access claims before other transactional email');
-select is((select event_type from priority_claim_3), 'physical_shipped', 'other transactional email claims before newsletter');
-select is((select event_type from priority_claim_4), 'newsletter_subscribed', 'newsletter consumes remaining claim capacity last');
+select is((select event_type from priority_claim_2), 'digital_access_reissued', 'reissued digital access shares the critical download tier');
+select is((select event_type from priority_claim_3), 'digital_access_granted', 'granted digital access claims before other transactional email');
+select is((select event_type from priority_claim_4), 'physical_shipped', 'other transactional email claims before newsletter');
+select is((select event_type from priority_claim_5), 'newsletter_subscribed', 'newsletter consumes remaining claim capacity last');
 
 insert into public.transactional_email_outbox (
   id, event_type, recipient_email, locale, payload, available_at, created_at

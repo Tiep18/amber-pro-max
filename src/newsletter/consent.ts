@@ -1,6 +1,5 @@
 import 'server-only';
 
-import {createHash} from 'node:crypto';
 import {z} from 'zod';
 import {runMonitoredAction} from '@/operations/monitoring';
 import {
@@ -27,7 +26,8 @@ const subscribeInputSchema = z.object({
   locale: z.enum(['vi', 'en']),
   market: z.enum(['vn', 'intl']),
   source: z.literal('footer'),
-  ipHash: hashSchema,
+  targetHash: z.string().regex(/^[a-f0-9]{64}$/),
+  ipHash: z.string().regex(/^[a-f0-9]{64}$/),
   userAgentHash: hashSchema
 });
 
@@ -35,24 +35,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function hashEvidence(value: string | null | undefined) {
-  const normalized = value?.trim();
-  return normalized ? createHash('sha256').update(normalized, 'utf8').digest('hex') : null;
-}
-
 export function normalizeNewsletterEmail(value: string) {
   const parsed = emailSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }
 
-export function shapeConsentMetadata({ip, userAgent}: {ip?: string | null; userAgent?: string | null}) {
-  return {
-    ipHash: hashEvidence(ip),
-    userAgentHash: hashEvidence(userAgent)
-  };
-}
-
 export type NewsletterSubscribeResult = {status: 'idle' | 'subscribed' | 'invalid' | 'error'};
+export type NewsletterSubscribeOutcome = {
+  result: NewsletterSubscribeResult;
+  emailQueued: boolean;
+};
 
 export type NewsletterUnsubscribeResult = {status: 'unsubscribed' | 'unavailable' | 'invalid' | 'error'};
 
@@ -83,14 +75,14 @@ async function recordNewsletterFailure(
   });
 }
 
-export async function subscribeNewsletter(
+export async function subscribeNewsletterWithOutcome(
   input: unknown,
   client: RpcClient,
   recordOperationalFailure?: OperationalFailureRecorder
-): Promise<NewsletterSubscribeResult> {
+): Promise<NewsletterSubscribeOutcome> {
   const parsed = subscribeInputSchema.safeParse(input);
   if (!parsed.success) {
-    return {status: 'invalid'};
+    return {result: {status: 'invalid'}, emailQueued: false};
   }
 
   const {data, error} = await client.rpc('subscribe_newsletter', {
@@ -98,7 +90,8 @@ export async function subscribeNewsletter(
     p_locale: parsed.data.locale,
     p_market: parsed.data.market,
     p_source: parsed.data.source,
-    p_ip_hash: parsed.data.ipHash ?? null,
+    p_target_hash: parsed.data.targetHash,
+    p_ip_hash: parsed.data.ipHash,
     p_user_agent_hash: parsed.data.userAgentHash ?? null
   });
 
@@ -109,13 +102,13 @@ export async function subscribeNewsletter(
       summary: 'Newsletter subscribe failed',
       market: parsed.data.market
     });
-    return {status: 'error'};
+    return {result: {status: 'error'}, emailQueued: false};
   }
   if (data.status === 'subscribed' || data.status === 'resubscribed') {
-    return {status: 'subscribed'};
+    return {result: {status: 'subscribed'}, emailQueued: data.emailQueued === true};
   }
   if (data.status === 'invalid') {
-    return {status: 'invalid'};
+    return {result: {status: 'invalid'}, emailQueued: false};
   }
   await recordNewsletterFailure(recordOperationalFailure, {
     action: 'newsletter_subscribe',
@@ -123,7 +116,15 @@ export async function subscribeNewsletter(
     summary: 'Newsletter subscribe returned an unexpected result',
     market: parsed.data.market
   });
-  return {status: 'error'};
+  return {result: {status: 'error'}, emailQueued: false};
+}
+
+export async function subscribeNewsletter(
+  input: unknown,
+  client: RpcClient,
+  recordOperationalFailure?: OperationalFailureRecorder
+): Promise<NewsletterSubscribeResult> {
+  return (await subscribeNewsletterWithOutcome(input, client, recordOperationalFailure)).result;
 }
 
 export async function unsubscribeNewsletter(

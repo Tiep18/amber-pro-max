@@ -704,11 +704,11 @@ select has_column('public', 'newsletter_consent_events', 'ip_hash', 'admin conse
 select has_function(
   'public',
   'subscribe_newsletter',
-  array['text', 'text', 'text', 'text', 'text', 'text'],
-  'public subscribe RPC exists'
+  array['text', 'text', 'text', 'text', 'text', 'text', 'text'],
+  'trusted quota-aware subscribe RPC exists'
 );
 
-set local role anon;
+set local role service_role;
 
 select is(
   (public.subscribe_newsletter(
@@ -716,11 +716,12 @@ select is(
     'en',
     'intl',
     'footer',
+    repeat('c', 64),
     repeat('a', 64),
     repeat('b', 64)
   )->>'status'),
   'subscribed',
-  'anonymous visitor can explicitly subscribe'
+  'trusted public boundary can explicitly subscribe'
 );
 
 reset role;
@@ -745,7 +746,7 @@ update public.newsletter_subscribers
 set status = 'unsubscribed', unsubscribed_at = now(), updated_at = now()
 where normalized_email = 'newsletter@example.test';
 
-set local role anon;
+set local role service_role;
 
 select is(
   (public.subscribe_newsletter(
@@ -753,7 +754,8 @@ select is(
     'vi',
     'vn',
     'footer',
-    null,
+    repeat('d', 64),
+    repeat('e', 64),
     null
   )->>'status'),
   'resubscribed',

@@ -289,18 +289,21 @@ test('public email requests use trusted HMAC identities and service-role-only at
   const evidence = readFileSync('src/operations/public-request-evidence.ts', 'utf8');
   const newsletterAction = readFileSync('src/newsletter/actions.ts', 'utf8');
   const guestActions = readFileSync('src/fulfillment/guest-order-actions.ts', 'utf8');
-  const guestRequests = readFileSync('src/fulfillment/order-claim.ts', 'utf8').slice(
-    readFileSync('src/fulfillment/order-claim.ts', 'utf8').indexOf('export async function requestGuestOrderReopen'),
-    readFileSync('src/fulfillment/order-claim.ts', 'utf8').indexOf('export async function claimGuestOrder')
+  const orderClaim = readFileSync('src/fulfillment/order-claim.ts', 'utf8');
+  const guestRequests = orderClaim.slice(
+    orderClaim.indexOf('async function requestGuestOrderEmail'),
+    orderClaim.indexOf('export async function claimGuestOrder')
   );
 
   assert.match(evidence, /createHmac\(['"]sha256['"],\s*secret\)/);
   assert.match(evidence, /public-email-rate-limit:v1:/);
   assert.doesNotMatch(evidence, /createHash\(|NEXT_PUBLIC_/);
   assert.match(newsletterAction, /createSupabaseAdminClient/);
-  assert.match(guestActions, /createSupabaseAdminClient/);
+  assert.match(guestActions + orderClaim, /createSupabaseAdminClient/);
   assert.match(newsletterAction + guestActions, /derivePublicEmailRequestEvidence/);
   assert.match(newsletterAction + guestActions, /x-forwarded-for|x-real-ip/i);
+  assert.match(newsletterAction, /if\s*\(outcome\.emailQueued\)[\s\S]*triggerTransactionalEmailOutboxNow/);
+  assert.doesNotMatch(newsletterAction, /if\s*\(result\.status\s*===\s*['"]subscribed['"]\)/);
   assert.match(guestRequests, /rpc\(['"]request_guest_order_email['"]/);
   assert.doesNotMatch(
     guestRequests,
@@ -315,7 +318,7 @@ test('public email requests use trusted HMAC identities and service-role-only at
       migration.indexOf('create table private.public_email_rate_limits'),
       migration.indexOf(';', migration.indexOf('create table private.public_email_rate_limits'))
     ),
-    /raw_ip|ip_address|email|order_number/i
+    /raw_ip|ip_address|raw_email|normalized_email|recipient_email|order_number/i
   );
   for (const fn of ['subscribe_newsletter', 'request_guest_order_email']) {
     assert.match(

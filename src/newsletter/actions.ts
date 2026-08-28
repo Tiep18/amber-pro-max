@@ -2,14 +2,16 @@
 
 import {headers} from 'next/headers';
 import {getRequestMarket} from '@/catalog/page-context';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {createSupabaseAdminClient} from '@/lib/supabase/admin';
+import {getServerEnv} from '@/lib/env/server';
 import {
-  shapeConsentMetadata,
-  subscribeNewsletter,
+  normalizeNewsletterEmail,
+  subscribeNewsletterWithOutcome,
   type NewsletterSubscribeResult
 } from '@/newsletter/consent';
 import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.server';
 import {recordOperationalFailure} from '@/operations/errors';
+import {derivePublicEmailRequestEvidence} from '@/operations/public-request-evidence';
 
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -20,24 +22,36 @@ export async function subscribeNewsletterAction(
   _previousState: NewsletterSubscribeResult,
   formData: FormData
 ): Promise<NewsletterSubscribeResult> {
+  const email = formString(formData, 'email');
+  const normalizedEmail = email ? normalizeNewsletterEmail(email) : null;
+  if (!normalizedEmail) {
+    return {status: 'invalid'};
+  }
+
   const requestHeaders = await headers();
   const forwardedIp = requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim();
-  const evidence = shapeConsentMetadata({
+  const evidence = derivePublicEmailRequestEvidence({
+    purpose: 'newsletter_subscribe',
+    subject: normalizedEmail,
     ip: forwardedIp ?? requestHeaders.get('x-real-ip'),
     userAgent: requestHeaders.get('user-agent')
-  });
-  const market = await getRequestMarket();
-  const client = await createSupabaseServerClient();
+  }, getServerEnv().transactionalEmailTokenSecret);
+  if (!evidence) {
+    return {status: 'error'};
+  }
 
-  const result = await subscribeNewsletter({
-    email: formString(formData, 'email'),
+  const market = await getRequestMarket();
+  const client = createSupabaseAdminClient();
+
+  const outcome = await subscribeNewsletterWithOutcome({
+    email: normalizedEmail,
     locale: formString(formData, 'locale'),
     market,
     source: 'footer',
     ...evidence
   }, client as never, recordOperationalFailure);
-  if (result.status === 'subscribed') {
+  if (outcome.emailQueued) {
     await triggerTransactionalEmailOutboxNow({reason: 'newsletter_subscribed'});
   }
-  return result;
+  return outcome.result;
 }

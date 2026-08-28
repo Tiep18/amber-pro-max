@@ -283,7 +283,8 @@ select is(
 
 select is(
   public.subscribe_newsletter(
-    'newsletter-capability@example.test', 'en', 'intl', 'footer', null, null
+    'newsletter-capability@example.test', 'en', 'intl', 'footer',
+    repeat('1', 64), repeat('2', 64), null
   )->>'status',
   'subscribed',
   'newsletter fixture creates authoritative subscriber state'

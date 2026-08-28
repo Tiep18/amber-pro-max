@@ -6,8 +6,10 @@ import {findGuestOrderToken, isGuestOrderTokenUsable} from '@/fulfillment/guest-
 
 const reopenSchema = z.object({
   orderNumber: z.string().trim().min(1).max(80),
-  email: z.email(),
-  locale: z.enum(['en', 'vi'])
+  email: z.string().trim().toLowerCase().pipe(z.email()),
+  locale: z.enum(['en', 'vi']),
+  targetHash: z.string().regex(/^[a-f0-9]{64}$/),
+  ipHash: z.string().regex(/^[a-f0-9]{64}$/)
 });
 
 const claimSchema = z.object({
@@ -18,6 +20,10 @@ const claimSchema = z.object({
 
 type QueryClient = {
   from: (table: string) => unknown;
+};
+
+type RpcClient = {
+  rpc: (fn: string, args: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
 };
 
 type OrderRow = {
@@ -54,21 +60,6 @@ function asOrderRow(value: unknown): OrderRow | null {
     locale: value.locale === 'vi' ? 'vi' : 'en',
     owner_user_id: typeof value.owner_user_id === 'string' ? value.owner_user_id : null
   };
-}
-
-async function findOrderByNumberAndEmail(client: QueryClient, orderNumber: string, email: string) {
-  const query = client.from('checkout_orders') as {
-    select: (columns: string) => {
-      eq: (column: string, value: string) => {
-        eq: (column: string, value: string) => {maybeSingle: () => Promise<{data: unknown; error: unknown}>};
-      };
-    };
-  };
-  const {data, error} = await query.select('id,order_number,contact_email,locale,owner_user_id').eq('order_number', orderNumber).eq('contact_email', email).maybeSingle();
-  if (error) {
-    return null;
-  }
-  return asOrderRow(data);
 }
 
 async function findOrderByNumber(client: QueryClient, orderNumber: string) {
@@ -115,70 +106,46 @@ async function recordGuestOrderFailure({
   });
 }
 
-export async function requestGuestOrderReopen(input: z.input<typeof reopenSchema>, client: QueryClient): Promise<GuestReopenResult> {
+async function requestGuestOrderEmail(
+  input: z.input<typeof reopenSchema>,
+  purpose: 'reopen_order' | 'claim_order',
+  client: RpcClient
+): Promise<GuestReopenResult> {
   const parsed = reopenSchema.safeParse(input);
   if (!parsed.success) {
     return {status: 'sent'};
   }
 
-  const order = await findOrderByNumberAndEmail(client, parsed.data.orderNumber, parsed.data.email);
-  if (!order) {
-    return {status: 'sent'};
-  }
-
-  const outbox = client.from('transactional_email_outbox') as {
-    insert: (value: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
-  };
-  const {error} = await outbox.insert({
-    order_id: order.id,
-    event_type: 'guest_order_reopen',
-    recipient_email: order.contact_email,
-    locale: order.locale ?? parsed.data.locale,
-    payload: {orderNumber: order.order_number, expiresInHours: 24}
+  const action = purpose === 'claim_order' ? 'guest_order_claim_email' : 'guest_order_reopen';
+  const {data, error} = await client.rpc('request_guest_order_email', {
+    p_order_number: parsed.data.orderNumber.trim().toUpperCase(),
+    p_email: parsed.data.email,
+    p_locale: parsed.data.locale,
+    p_purpose: purpose,
+    p_target_hash: parsed.data.targetHash,
+    p_ip_hash: parsed.data.ipHash
   });
-  if (error) {
+  if (error || !isRecord(data) || data.status !== 'sent') {
     await recordGuestOrderFailure({
-      action: 'guest_order_reopen',
-      orderNumber: order.order_number,
-      referenceId: order.id,
-      errorCode: 'guest_order.reopen_email_enqueue_failed',
-      summary: 'Guest order reopen email enqueue failed'
+      action,
+      orderNumber: parsed.data.orderNumber,
+      errorCode: purpose === 'claim_order'
+        ? 'guest_order.claim_email_request_failed'
+        : 'guest_order.reopen_email_request_failed',
+      summary: purpose === 'claim_order'
+        ? 'Guest order claim email request failed'
+        : 'Guest order reopen email request failed'
     });
   }
   return {status: 'sent'};
 }
 
-export async function requestGuestOrderClaimEmail(input: z.input<typeof reopenSchema>, client: QueryClient): Promise<GuestReopenResult> {
-  const parsed = reopenSchema.safeParse(input);
-  if (!parsed.success) {
-    return {status: 'sent'};
-  }
+export async function requestGuestOrderReopen(input: z.input<typeof reopenSchema>, client: RpcClient): Promise<GuestReopenResult> {
+  return requestGuestOrderEmail(input, 'reopen_order', client);
+}
 
-  const order = await findOrderByNumberAndEmail(client, parsed.data.orderNumber, parsed.data.email);
-  if (!order || order.owner_user_id) {
-    return {status: 'sent'};
-  }
-
-  const outbox = client.from('transactional_email_outbox') as {
-    insert: (value: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
-  };
-  const {error} = await outbox.insert({
-    order_id: order.id,
-    event_type: 'guest_order_claim',
-    recipient_email: order.contact_email,
-    locale: order.locale ?? parsed.data.locale,
-    payload: {orderNumber: order.order_number, expiresInHours: 24}
-  });
-  if (error) {
-    await recordGuestOrderFailure({
-      action: 'guest_order_claim_email',
-      orderNumber: order.order_number,
-      referenceId: order.id,
-      errorCode: 'guest_order.claim_email_enqueue_failed',
-      summary: 'Guest order claim email enqueue failed'
-    });
-  }
-  return {status: 'sent'};
+export async function requestGuestOrderClaimEmail(input: z.input<typeof reopenSchema>, client: RpcClient): Promise<GuestReopenResult> {
+  return requestGuestOrderEmail(input, 'claim_order', client);
 }
 
 export async function claimGuestOrder(input: z.input<typeof claimSchema>, client: QueryClient): Promise<ClaimGuestOrderResult> {
@@ -275,12 +242,12 @@ export async function claimGuestOrder(input: z.input<typeof claimSchema>, client
 
 export async function requestGuestOrderReopenWithAdminClient(input: z.input<typeof reopenSchema>) {
   const {createSupabaseAdminClient} = await import('@/lib/supabase/admin');
-  return requestGuestOrderReopen(input, createSupabaseAdminClient() as unknown as QueryClient);
+  return requestGuestOrderReopen(input, createSupabaseAdminClient() as unknown as RpcClient);
 }
 
 export async function requestGuestOrderClaimEmailWithAdminClient(input: z.input<typeof reopenSchema>) {
   const {createSupabaseAdminClient} = await import('@/lib/supabase/admin');
-  return requestGuestOrderClaimEmail(input, createSupabaseAdminClient() as unknown as QueryClient);
+  return requestGuestOrderClaimEmail(input, createSupabaseAdminClient() as unknown as RpcClient);
 }
 
 export async function claimGuestOrderWithAdminClient(input: {orderNumber: string; rawToken: string; user: AuthUser}) {
@@ -291,26 +258,6 @@ export async function claimGuestOrderWithAdminClient(input: {orderNumber: string
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === 'string' ? value : '';
-}
-
-export async function requestGuestOrderReopenAction(formData: FormData): Promise<GuestReopenResult> {
-  'use server';
-
-  return requestGuestOrderReopenWithAdminClient({
-    orderNumber: formString(formData, 'orderNumber'),
-    email: formString(formData, 'email'),
-    locale: formString(formData, 'locale') === 'vi' ? 'vi' : 'en'
-  });
-}
-
-export async function requestGuestOrderClaimEmailAction(formData: FormData): Promise<GuestReopenResult> {
-  'use server';
-
-  return requestGuestOrderClaimEmailWithAdminClient({
-    orderNumber: formString(formData, 'orderNumber'),
-    email: formString(formData, 'email'),
-    locale: formString(formData, 'locale') === 'vi' ? 'vi' : 'en'
-  });
 }
 
 export async function claimGuestOrderAction(formData: FormData): Promise<ClaimGuestOrderResult> {

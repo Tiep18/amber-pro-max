@@ -4003,6 +4003,17 @@ export type Database = {
         }
         Returns: Json
       }
+      request_guest_order_email: {
+        Args: {
+          p_email: string
+          p_ip_hash: string
+          p_locale: string
+          p_order_number: string
+          p_purpose: string
+          p_target_hash: string
+        }
+        Returns: Json
+      }
       revoke_digital_entitlement: {
         Args: {
           p_entitlement_id: string
@@ -4049,6 +4060,7 @@ export type Database = {
           p_locale: string
           p_market: string
           p_source: string
+          p_target_hash: string
           p_user_agent_hash: string
         }
         Returns: Json
