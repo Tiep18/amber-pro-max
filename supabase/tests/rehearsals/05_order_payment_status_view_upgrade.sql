@@ -87,6 +87,10 @@ grant select on table public.order_payment_statuses to service_role;
 -- with SQLSTATE 42P16 at its CREATE OR REPLACE VIEW statement.
 \ir ../../migrations/20260801160000_vietqr_customer_declaration.sql
 
+-- Exercise the customer order-history permission repair against the linked
+-- project's historical view column order rather than only the fresh layout.
+\ir ../../migrations/20260828163000_restore_authenticated_payment_projection_access.sql
+
 do $$
 declare
   actual_columns text[];
@@ -145,9 +149,21 @@ begin
   if actual_columns is distinct from expected_columns then
     raise exception 'VietQR declaration migration changed the historical view prefix';
   end if;
+
+  if position('private.' in pg_get_viewdef('public.order_payment_statuses'::regclass, true)) <> 0 then
+    raise exception 'customer order projection still depends on private helpers';
+  end if;
+
+  if not has_table_privilege('authenticated', 'public.order_payment_statuses', 'SELECT') then
+    raise exception 'authenticated customers cannot select the order projection';
+  end if;
+
+  if has_schema_privilege('authenticated', 'private', 'USAGE') then
+    raise exception 'customer projection repair exposed the private schema';
+  end if;
 end;
 $$;
 
-\echo 'VIETQR_VIEW_UPGRADE_REHEARSAL_OK'
+\echo 'ORDER_PAYMENT_STATUS_HISTORICAL_LAYOUT_REHEARSAL_OK'
 
 rollback;

@@ -1,6 +1,6 @@
 begin;
 
-select plan(43);
+select plan(52);
 
 select policies_are(
   'public',
@@ -121,6 +121,73 @@ select function_privs_are(
   array['EXECUTE'],
   'service role may execute customer-safe payment status mapper used by admin order projection'
 );
+
+select results_eq(
+  $$select has_schema_privilege('authenticated', 'private', 'USAGE')$$,
+  $$values (false)$$,
+  'authenticated customers cannot resolve the private schema directly'
+);
+
+select function_privs_are(
+  'private',
+  'payment_effective_status',
+  array['text', 'text', 'text'],
+  'authenticated',
+  array[]::text[],
+  'authenticated customers cannot execute the private effective payment status mapper'
+);
+
+select function_privs_are(
+  'private',
+  'payment_customer_status',
+  array['text'],
+  'authenticated',
+  array[]::text[],
+  'authenticated customers cannot execute the private customer payment status mapper'
+);
+
+select results_eq(
+  $$select has_table_privilege('authenticated', 'public.order_payment_statuses', 'SELECT')$$,
+  $$values (true)$$,
+  'authenticated customers may select the owner-scoped order payment projection'
+);
+
+select results_eq(
+  $$select position('private.' in pg_get_viewdef('public.order_payment_statuses'::regclass, true))$$,
+  $$values (0)$$,
+  'customer order projection does not require private schema access'
+);
+
+select results_eq(
+  $$select has_schema_privilege('anon', 'private', 'USAGE')$$,
+  $$values (false)$$,
+  'anonymous callers cannot resolve private payment helpers'
+);
+
+select function_privs_are(
+  'private',
+  'payment_effective_status',
+  array['text', 'text', 'text'],
+  'anon',
+  array[]::text[],
+  'anonymous callers cannot execute the effective payment status mapper'
+);
+
+select function_privs_are(
+  'private',
+  'payment_customer_status',
+  array['text'],
+  'anon',
+  array[]::text[],
+  'anonymous callers cannot execute the customer payment status mapper'
+);
+
+set local role authenticated;
+select lives_ok(
+  $$select order_id, order_number, customer_payment_status from public.order_payment_statuses limit 1$$,
+  'authenticated customer can load the owner-scoped order projection through PostgREST-equivalent privileges'
+);
+reset role;
 
 set local role service_role;
 select lives_ok(
