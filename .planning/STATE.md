@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: verifying
 stopped_at: Phase 10 verified and security-reviewed; milestone verification debt remains in Phases 4, 7, and 9
-last_updated: '2026-08-26T18:03:01+07:00'
-last_activity: 2026-08-26
+last_updated: '2026-08-28T12:30:00+07:00'
+last_activity: 2026-08-28
 progress:
   total_phases: 10
   completed_phases: 10
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 Phase: 10
 Plan: 7 of 7
 Status: Complete — verification passed and security review closed
-Last activity: 2026-08-26 - Completed and verified quick task 260826-olg: Atomic transactional email capability preparation and readiness
+Last activity: 2026-08-28 - Completed and verified quick task 260828-gok: Atomic admin transactional-email retry and digital resend
 
 Progress: All 93 plans are executed. Phase 04 provider/manual UAT, Phase 07 launch verification, and Phase 09 deployment geo/SEO UAT remain milestone-level verification debt.
 
@@ -260,6 +260,7 @@ None yet.
 
 | #                                                     | Description                                                                                                                      | Date       | Commit      | Status                                                                                                                                                    | Directory                                                                  |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 260828-gok                                            | Make admin transactional-email retry and digital resend authoritative, atomic, and version-fenced                               | 2026-08-28 | 47a6e665    | Verified                                                                                                                                                  | [260828-gok](./quick/260828-gok-replace-admin-transactional-email-retry-/) |
 | 260826-olg                                            | Make guest and newsletter transactional-email capability preparation atomic, retry-safe, and readiness-gated                     | 2026-08-26 | d9eb5847    | Verified                                                                                                                                                  | [260826-olg](./quick/260826-olg-make-remaining-transactional-email-capab/) |
 | 260826-ne8                                            | Unify newsletter unsubscribe tokens on the transactional-email HMAC base64url-43 contract                                        | 2026-08-26 | d9b37daa    | Verified                                                                                                                                                  | [260826-ne8](./quick/260826-ne8-unify-the-newsletter-unsubscribe-token-c/) |
 | 260817-k94                                            | Repair digital download token lifecycle with version-fenced issuance and one-RPC authorization                                   | 2026-08-17 | 8e27dde3    | Verified                                                                                                                                                  | [260817-k94](./quick/260817-k94-repair-digital-download-token-lifecycle-/) |
