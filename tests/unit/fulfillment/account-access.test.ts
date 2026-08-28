@@ -2,7 +2,11 @@
 vi.mock('@/operations/errors', () => ({recordOperationalFailure: vi.fn()}));
 
 import {getCustomerOrderHistory, getCustomerPatternLibrary} from '@/fulfillment/account-queries';
-import {claimGuestOrder, requestGuestOrderReopen} from '@/fulfillment/order-claim';
+import {
+  claimGuestOrder,
+  requestGuestOrderClaimEmail,
+  requestGuestOrderReopen
+} from '@/fulfillment/order-claim';
 import {recordOperationalFailure} from '@/operations/errors';
 
 const ownerId = '11111111-1111-4111-8111-111111111111';
@@ -163,113 +167,69 @@ describe('customer fulfillment account access', () => {
 
 
 describe('guest reopen and same-email order claim', () => {
-  test('guest reopen returns generic success and enqueues email only for matching order email', async () => {
-    const outboxRows: unknown[] = [];
-    const client = {
-      from: vi.fn((table: string) => {
-        if (table === 'checkout_orders') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'order-1', order_number: 'ATB-1', contact_email: 'buyer@example.test', locale: 'en'}, error: null}))
-                }))
-              }))
-            }))
-          };
-        }
-        return {
-          insert: vi.fn((row: unknown) => {
-            outboxRows.push(row);
-            return Promise.resolve({data: null, error: null});
-          })
-        };
-      })
-    };
+  const evidence = {targetHash: 'c'.repeat(64), ipHash: 'd'.repeat(64)};
 
-    await expect(requestGuestOrderReopen({orderNumber: 'ATB-1', email: 'buyer@example.test', locale: 'en'}, client as never)).resolves.toEqual({status: 'sent'});
+  test('guest reopen delegates authoritative lookup, quota consumption, and enqueue to one RPC', async () => {
+    const client = {rpc: vi.fn().mockResolvedValue({data: {status: 'sent'}, error: null})};
 
-    expect(outboxRows).toEqual([
-      expect.objectContaining({event_type: 'guest_order_reopen', recipient_email: 'buyer@example.test', order_id: 'order-1'})
-    ]);
+    await expect(requestGuestOrderReopen({
+      orderNumber: 'ATB-1', email: 'buyer@example.test', locale: 'en', ...evidence
+    }, client as never)).resolves.toEqual({status: 'sent'});
+
+    expect(client.rpc).toHaveBeenCalledWith('request_guest_order_email', {
+      p_order_number: 'ATB-1',
+      p_email: 'buyer@example.test',
+      p_locale: 'en',
+      p_purpose: 'reopen_order',
+      p_target_hash: evidence.targetHash,
+      p_ip_hash: evidence.ipHash
+    });
+    expect(client).not.toHaveProperty('from');
   });
 
-  test('guest reopen does not enumerate missing order/email pairs', async () => {
+  test('guest reopen and claim-email keep missing, throttled, and matched results indistinguishable', async () => {
     const client = {
-      from: vi.fn((table: string) => {
-        if (table !== 'checkout_orders') {
-          return {insert: vi.fn(() => Promise.resolve({data: null, error: null}))};
-        }
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn(() => ({maybeSingle: vi.fn(() => Promise.resolve({data: null, error: null}))}))
-            }))
-          }))
-        };
-      })
+      rpc: vi.fn()
+        .mockResolvedValueOnce({data: {status: 'sent', emailQueued: false}, error: null})
+        .mockResolvedValueOnce({data: {status: 'sent', emailQueued: true}, error: null})
     };
 
-    await expect(requestGuestOrderReopen({orderNumber: 'ATB-404', email: 'nobody@example.test', locale: 'en'}, client as never)).resolves.toEqual({status: 'sent'});
-    expect(client.from).toHaveBeenCalledWith('checkout_orders');
-    expect(client.from).not.toHaveBeenCalledWith('transactional_email_outbox');
+    await expect(requestGuestOrderReopen({
+      orderNumber: 'ATB-404', email: 'nobody@example.test', locale: 'en', ...evidence
+    }, client as never)).resolves.toEqual({status: 'sent'});
+    await expect(requestGuestOrderClaimEmail({
+      orderNumber: 'ATB-1', email: 'buyer@example.test', locale: 'en', ...evidence
+    }, client as never)).resolves.toEqual({status: 'sent'});
+    expect(client.rpc).toHaveBeenNthCalledWith(2, 'request_guest_order_email', expect.objectContaining({
+      p_purpose: 'claim_order'
+    }));
   });
 
-  test('records sanitized operational failures when guest reopen email enqueue fails', async () => {
+  test('records sanitized operational failures when the authoritative guest email RPC fails', async () => {
     vi.mocked(recordOperationalFailure).mockClear();
-    const client = {
-      from: vi.fn((table: string) => {
-        if (table === 'checkout_orders') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'order-1', order_number: 'ATB-1', contact_email: 'buyer@example.test', locale: 'en'}, error: null}))
-                }))
-              }))
-            }))
-          };
-        }
-        return {
-          insert: vi.fn(() => Promise.resolve({data: null, error: {message: 'outbox unavailable'}}))
-        };
-      })
-    };
+    const client = {rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'private quota detail'}})};
 
-    await expect(requestGuestOrderReopen({orderNumber: 'ATB-1', email: 'buyer@example.test', locale: 'en'}, client as never)).resolves.toEqual({status: 'sent'});
+    await expect(requestGuestOrderReopen({
+      orderNumber: 'ATB-1', email: 'buyer@example.test', locale: 'en', ...evidence
+    }, client as never)).resolves.toEqual({status: 'sent'});
 
     expect(recordOperationalFailure).toHaveBeenCalledWith(
       expect.objectContaining({
         area: 'fulfillment',
-        errorCode: 'guest_order.reopen_email_enqueue_failed',
+        errorCode: 'guest_order.reopen_email_request_failed',
         facts: expect.objectContaining({action: 'guest_order_reopen', orderNumber: 'ATB-1'})
       })
     );
-    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/buyer@example|claim-token|rawToken/i);
+    expect(JSON.stringify(vi.mocked(recordOperationalFailure).mock.calls)).not.toMatch(/buyer@example|private quota|cccccccc|dddddddd|rawToken/i);
   });
 
-  test('keeps guest reopen response stable when operational recording fails', async () => {
+  test('keeps guest reopen response stable when RPC and operational recording fail', async () => {
     vi.mocked(recordOperationalFailure).mockRejectedValueOnce(new Error('operational table unavailable'));
-    const client = {
-      from: vi.fn((table: string) => {
-        if (table === 'checkout_orders') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn(() => Promise.resolve({data: {id: 'order-1', order_number: 'ATB-1', contact_email: 'buyer@example.test', locale: 'en'}, error: null}))
-                }))
-              }))
-            }))
-          };
-        }
-        return {
-          insert: vi.fn(() => Promise.resolve({data: null, error: {message: 'outbox unavailable'}}))
-        };
-      })
-    };
+    const client = {rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'quota unavailable'}})};
 
-    await expect(requestGuestOrderReopen({orderNumber: 'ATB-1', email: 'buyer@example.test', locale: 'en'}, client as never)).resolves.toEqual({status: 'sent'});
+    await expect(requestGuestOrderReopen({
+      orderNumber: 'ATB-1', email: 'buyer@example.test', locale: 'en', ...evidence
+    }, client as never)).resolves.toEqual({status: 'sent'});
   });
 
   test('claim requires same-email token proof and revokes old guest tokens', async () => {

@@ -75,6 +75,8 @@ const transactionalEmailCapabilityMigration =
   'supabase/migrations/20260826120000_atomic_transactional_email_capability_issuance.sql';
 const adminEmailRecoveryMigration =
   'supabase/migrations/20260828130000_atomic_admin_email_recovery.sql';
+const publicEmailQuotaMigration =
+  'supabase/migrations/20260828160000_public_email_quota_guards.sql';
 
 function readExisting(files) {
   return files
@@ -278,6 +280,56 @@ test('guest reopen and order claim keep token material out of UI and durable pay
   assert.doesNotMatch(
     source,
     /console\.(log|error|warn)|rawToken.*payload|token_hash.*payload|signedUrl|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
+  );
+});
+
+test('public email requests use trusted HMAC identities and service-role-only atomic quota RPCs', () => {
+  assert.ok(existsSync(publicEmailQuotaMigration), 'public email quota migration must exist');
+  const migration = readFileSync(publicEmailQuotaMigration, 'utf8');
+  const evidence = readFileSync('src/operations/public-request-evidence.ts', 'utf8');
+  const newsletterAction = readFileSync('src/newsletter/actions.ts', 'utf8');
+  const guestActions = readFileSync('src/fulfillment/guest-order-actions.ts', 'utf8');
+  const guestRequests = readFileSync('src/fulfillment/order-claim.ts', 'utf8').slice(
+    readFileSync('src/fulfillment/order-claim.ts', 'utf8').indexOf('export async function requestGuestOrderReopen'),
+    readFileSync('src/fulfillment/order-claim.ts', 'utf8').indexOf('export async function claimGuestOrder')
+  );
+
+  assert.match(evidence, /createHmac\(['"]sha256['"],\s*secret\)/);
+  assert.match(evidence, /public-email-rate-limit:v1:/);
+  assert.doesNotMatch(evidence, /createHash\(|NEXT_PUBLIC_/);
+  assert.match(newsletterAction, /createSupabaseAdminClient/);
+  assert.match(guestActions, /createSupabaseAdminClient/);
+  assert.match(newsletterAction + guestActions, /derivePublicEmailRequestEvidence/);
+  assert.match(newsletterAction + guestActions, /x-forwarded-for|x-real-ip/i);
+  assert.match(guestRequests, /rpc\(['"]request_guest_order_email['"]/);
+  assert.doesNotMatch(
+    guestRequests,
+    /\.from\(['"](?:checkout_orders|transactional_email_outbox)['"]\)/
+  );
+  assert.match(
+    migration,
+    /create\s+table\s+private\.public_email_rate_limits[\s\S]*identity_hash[\s\S]*accepted_at/i
+  );
+  assert.doesNotMatch(
+    migration.slice(
+      migration.indexOf('create table private.public_email_rate_limits'),
+      migration.indexOf(';', migration.indexOf('create table private.public_email_rate_limits'))
+    ),
+    /raw_ip|ip_address|email|order_number/i
+  );
+  for (const fn of ['subscribe_newsletter', 'request_guest_order_email']) {
+    assert.match(
+      migration,
+      new RegExp(`create(?:\\s+or\\s+replace)?\\s+function\\s+public\\.${fn}[\\s\\S]*?security\\s+definer\\s+set\\s+search_path\\s*=\\s*''`, 'i')
+    );
+    assert.match(
+      migration,
+      new RegExp(`grant\\s+execute\\s+on\\s+function\\s+public\\.${fn}\\s*\\([^;]+\\)\\s+to\\s+service_role`, 'i')
+    );
+  }
+  assert.doesNotMatch(
+    migration,
+    /grant\s+execute\s+on\s+function\s+public\.(?:subscribe_newsletter|request_guest_order_email)\s*\([^;]+\)\s+to\s+(?:public|anon|authenticated)/i
   );
 });
 

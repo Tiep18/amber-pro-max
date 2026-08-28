@@ -6,8 +6,8 @@ vi.mock('server-only', () => ({}));
 
 import {
   normalizeNewsletterEmail,
-  shapeConsentMetadata,
   subscribeNewsletter,
+  subscribeNewsletterWithOutcome,
   unsubscribeNewsletter
 } from '@/newsletter/consent';
 import {deriveTransactionalEmailToken} from '@/fulfillment/email-outbox';
@@ -37,32 +37,25 @@ describe('newsletter consent contracts (NEWS-01, NEWS-02, D-13, D-16)', () => {
     expect(normalizeNewsletterEmail('not-an-email')).toBeNull();
   });
 
-  test('shapes request evidence as hashes without retaining raw IP or user-agent', () => {
-    const metadata = shapeConsentMetadata({ip: '203.0.113.10', userAgent: 'Example Browser/1.0'});
+  test('subscribes through one quota-aware RPC and returns internal enqueue state separately', async () => {
+    const client = {rpc: vi.fn().mockResolvedValue({data: {status: 'subscribed', emailQueued: true}, error: null})};
 
-    expect(metadata.ipHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(metadata.userAgentHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(JSON.stringify(metadata)).not.toContain('203.0.113.10');
-    expect(JSON.stringify(metadata)).not.toContain('Example Browser');
-  });
-
-  test('subscribes without account state and sends normalized locale/market/source evidence', async () => {
-    const client = {rpc: vi.fn().mockResolvedValue({data: {status: 'subscribed'}, error: null})};
-
-    await expect(subscribeNewsletter({
+    await expect(subscribeNewsletterWithOutcome({
       email: ' Taylor@Example.com ',
       locale: 'en',
       market: 'intl',
       source: 'footer',
+      targetHash: 'c'.repeat(64),
       ipHash: 'a'.repeat(64),
       userAgentHash: 'b'.repeat(64)
-    }, client)).resolves.toEqual({status: 'subscribed'});
+    }, client)).resolves.toEqual({result: {status: 'subscribed'}, emailQueued: true});
 
     expect(client.rpc).toHaveBeenCalledWith('subscribe_newsletter', {
       p_email: 'taylor@example.com',
       p_locale: 'en',
       p_market: 'intl',
       p_source: 'footer',
+      p_target_hash: 'c'.repeat(64),
       p_ip_hash: 'a'.repeat(64),
       p_user_agent_hash: 'b'.repeat(64)
     });
@@ -74,7 +67,10 @@ describe('newsletter consent contracts (NEWS-01, NEWS-02, D-13, D-16)', () => {
         .mockResolvedValueOnce({data: {status: 'subscribed'}, error: null})
         .mockResolvedValueOnce({data: {status: 'resubscribed'}, error: null})
     };
-    const input = {email: 'taylor@example.com', locale: 'vi', market: 'vn', source: 'footer'} as const;
+    const input = {
+      email: 'taylor@example.com', locale: 'vi', market: 'vn', source: 'footer',
+      targetHash: 'c'.repeat(64), ipHash: 'a'.repeat(64)
+    } as const;
 
     await expect(subscribeNewsletter(input, client)).resolves.toEqual({status: 'subscribed'});
     await expect(subscribeNewsletter(input, client)).resolves.toEqual({status: 'subscribed'});
@@ -83,10 +79,10 @@ describe('newsletter consent contracts (NEWS-01, NEWS-02, D-13, D-16)', () => {
   test('maps invalid input and database errors to generic safe states', async () => {
     const client = {rpc: vi.fn().mockResolvedValue({data: null, error: {message: 'private'}})};
 
-    await expect(subscribeNewsletter({email: 'bad', locale: 'en', market: 'intl', source: 'footer'}, client)).resolves.toEqual({
+    await expect(subscribeNewsletter({email: 'bad', locale: 'en', market: 'intl', source: 'footer', targetHash: 'c'.repeat(64), ipHash: 'a'.repeat(64)}, client)).resolves.toEqual({
       status: 'invalid'
     });
-    await expect(subscribeNewsletter({email: 'valid@example.com', locale: 'en', market: 'intl', source: 'footer'}, client)).resolves.toEqual({
+    await expect(subscribeNewsletter({email: 'valid@example.com', locale: 'en', market: 'intl', source: 'footer', targetHash: 'c'.repeat(64), ipHash: 'a'.repeat(64)}, client)).resolves.toEqual({
       status: 'error'
     });
   });
@@ -103,6 +99,7 @@ describe('newsletter consent contracts (NEWS-01, NEWS-02, D-13, D-16)', () => {
       locale: 'en',
       market: 'intl',
       source: 'footer',
+      targetHash: 'c'.repeat(64),
       ipHash: 'a'.repeat(64),
       userAgentHash: 'b'.repeat(64)
     }, client, recordOperationalFailure)).resolves.toEqual({status: 'error'});
@@ -133,7 +130,9 @@ describe('newsletter consent contracts (NEWS-01, NEWS-02, D-13, D-16)', () => {
       email: ' Taylor@Example.com ',
       locale: 'en',
       market: 'intl',
-      source: 'footer'
+      source: 'footer',
+      targetHash: 'c'.repeat(64),
+      ipHash: 'a'.repeat(64)
     }, client, recordOperationalFailure)).resolves.toEqual({status: 'error'});
   });
 });
