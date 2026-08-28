@@ -1,6 +1,6 @@
 begin;
 
-select plan(48);
+select plan(67);
 
 select has_table('public', 'transactional_email_outbox', 'transactional email outbox exists');
 select col_not_null('public', 'transactional_email_outbox', 'event_type', 'outbox event type is required');
@@ -382,6 +382,289 @@ select function_privs_are(
   'service_role',
   array[]::text[],
   'service workers cannot invoke the human admin retry action'
+);
+
+insert into auth.users (
+  id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  '85000000-0000-4000-8000-000000000099',
+  'authenticated', 'authenticated', 'email-recovery-admin@example.test', 'x', now(),
+  '{}'::jsonb, '{}'::jsonb, now(), now()
+);
+insert into public.profiles (id, email, preferred_locale)
+values (
+  '85000000-0000-4000-8000-000000000099',
+  'email-recovery-admin@example.test',
+  'en'
+);
+insert into public.user_roles (user_id, role, assigned_by, note)
+values (
+  '85000000-0000-4000-8000-000000000099',
+  'admin',
+  '85000000-0000-4000-8000-000000000099',
+  'atomic email recovery test'
+);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '85000000-0000-4000-8000-000000000099', true);
+
+update public.checkout_orders
+set paid_gate_status = 'open'
+where id = '85000000-0000-4000-8000-000000000010';
+
+insert into public.transactional_email_outbox (
+  id, order_id, event_type, recipient_email, locale, status, payload,
+  available_at, attempt_count, version
+) values
+(
+  '85000000-0000-4000-8000-000000000030',
+  '85000000-0000-4000-8000-000000000010',
+  'physical_shipped', 'guest-capability@example.test', 'en', 'failed',
+  jsonb_build_object('orderNumber', 'ATB-EMAIL-CAPABILITY'),
+  now() - interval '1 minute', 4, 2
+),
+(
+  '85000000-0000-4000-8000-000000000031',
+  '85000000-0000-4000-8000-000000000010',
+  'physical_shipped', 'guest-capability@example.test', 'en', 'sent',
+  jsonb_build_object('orderNumber', 'ATB-EMAIL-CAPABILITY'),
+  now() - interval '1 minute', 1, 1
+),
+(
+  '85000000-0000-4000-8000-000000000032',
+  '85000000-0000-4000-8000-000000000010',
+  'physical_shipped', 'forged-recipient@example.test', 'en', 'failed',
+  jsonb_build_object('orderNumber', 'ATB-EMAIL-CAPABILITY'),
+  now() - interval '1 minute', 1, 1
+);
+
+select is(
+  public.admin_retry_transactional_email(
+    '85000000-0000-4000-8000-000000000030', 1
+  )->>'status',
+  'stale',
+  'stale admin form cannot retry a newer outbox version'
+);
+select is(
+  (select status from public.transactional_email_outbox where id = '85000000-0000-4000-8000-000000000030'),
+  'failed',
+  'stale admin retry leaves the failed row unchanged'
+);
+
+update public.transactional_email_outbox
+set status = 'sending', claimed_at = now(), claim_token = gen_random_uuid()
+where id = '85000000-0000-4000-8000-000000000030';
+select is(
+  public.admin_retry_transactional_email(
+    '85000000-0000-4000-8000-000000000030', 2
+  )->>'status',
+  'stale',
+  'admin retry rejects an actively leased row'
+);
+
+update public.transactional_email_outbox
+set claimed_at = now() - interval '6 minutes'
+where id = '85000000-0000-4000-8000-000000000030';
+select is(
+  public.admin_retry_transactional_email(
+    '85000000-0000-4000-8000-000000000030', 2
+  )->>'status',
+  'queued',
+  'admin retry may recover an expired worker lease'
+);
+select is(
+  (select status from public.transactional_email_outbox where id = '85000000-0000-4000-8000-000000000030'),
+  'pending',
+  'expired lease recovery queues the same outbox row'
+);
+select is(
+  (select version from public.transactional_email_outbox where id = '85000000-0000-4000-8000-000000000030'),
+  3,
+  'successful admin retry advances the outbox version'
+);
+select is(
+  (select attempt_count from public.transactional_email_outbox where id = '85000000-0000-4000-8000-000000000030'),
+  4,
+  'manual retry preserves historical provider attempt count'
+);
+select is(
+  (select count(*)::integer from public.fulfillment_audit_events where event_key = 'transactional_email_retry_queued:85000000-0000-4000-8000-000000000030:3'),
+  1,
+  'retry state and admin audit event commit together'
+);
+select is(
+  public.admin_retry_transactional_email(
+    '85000000-0000-4000-8000-000000000030', 2
+  )->>'status',
+  'stale',
+  'a second stale click cannot queue the same retry twice'
+);
+select is(
+  public.admin_retry_transactional_email(
+    '85000000-0000-4000-8000-000000000031', 1
+  )->>'status',
+  'stale',
+  'sent email can never be reset to pending'
+);
+select is(
+  public.admin_retry_transactional_email(
+    '85000000-0000-4000-8000-000000000032', 1
+  )->>'status',
+  'stale',
+  'forged recipient relationship fails closed'
+);
+
+insert into public.checkout_order_lines (
+  id, order_id, product_id, line_id, product_title, fulfillment_type,
+  market, currency_code, quantity, unit_price_minor, line_subtotal_minor,
+  quote_line_snapshot
+) values
+(
+  '85000000-0000-4000-8000-000000000040',
+  '85000000-0000-4000-8000-000000000010',
+  '50000000-0000-0000-0000-000000000001', 'email-expired-line',
+  'Expired capability pattern', 'digital', 'intl', 'USD', 1, 1000, 1000, '{}'::jsonb
+),
+(
+  '85000000-0000-4000-8000-000000000041',
+  '85000000-0000-4000-8000-000000000010',
+  '50000000-0000-0000-0000-000000000001', 'email-resend-line',
+  'Resend pattern', 'digital', 'intl', 'USD', 1, 1000, 1000, '{}'::jsonb
+),
+(
+  '85000000-0000-4000-8000-000000000042',
+  '85000000-0000-4000-8000-000000000010',
+  '50000000-0000-0000-0000-000000000001', 'email-rollback-line',
+  'Rollback pattern', 'digital', 'intl', 'USD', 1, 1000, 1000, '{}'::jsonb
+);
+
+insert into public.digital_entitlements (
+  id, order_id, order_line_id, contact_email, product_id, status, version
+) values
+(
+  '85000000-0000-4000-8000-000000000050',
+  '85000000-0000-4000-8000-000000000010',
+  '85000000-0000-4000-8000-000000000040',
+  'guest-capability@example.test', '50000000-0000-0000-0000-000000000001', 'active', 1
+),
+(
+  '85000000-0000-4000-8000-000000000051',
+  '85000000-0000-4000-8000-000000000010',
+  '85000000-0000-4000-8000-000000000041',
+  'guest-capability@example.test', '50000000-0000-0000-0000-000000000001', 'active', 1
+),
+(
+  '85000000-0000-4000-8000-000000000052',
+  '85000000-0000-4000-8000-000000000010',
+  '85000000-0000-4000-8000-000000000042',
+  'guest-capability@example.test', '50000000-0000-0000-0000-000000000001', 'active', 1
+);
+
+insert into public.transactional_email_outbox (
+  id, order_id, entitlement_id, event_type, recipient_email, locale, status,
+  payload, available_at
+) values (
+  '85000000-0000-4000-8000-000000000060',
+  '85000000-0000-4000-8000-000000000010',
+  '85000000-0000-4000-8000-000000000050',
+  'digital_access_granted', 'guest-capability@example.test', 'en', 'failed',
+  jsonb_build_object('orderNumber', 'ATB-EMAIL-CAPABILITY', 'entitlementVersion', 1),
+  now() - interval '1 minute'
+);
+insert into public.digital_access_tokens (
+  entitlement_id, token_hash, purpose, status, expires_at, source_email_outbox_id
+) values (
+  '85000000-0000-4000-8000-000000000050', repeat('f', 64), 'download', 'active',
+  now() - interval '1 minute', '85000000-0000-4000-8000-000000000060'
+);
+select is(
+  public.admin_retry_transactional_email(
+    '85000000-0000-4000-8000-000000000060', 1
+  )->>'status',
+  'stale',
+  'expired digital capability requires an explicit fresh resend'
+);
+
+select is(
+  public.reissue_digital_access_token(
+    '85000000-0000-4000-8000-000000000051', 1
+  )->>'status',
+  'reissued',
+  'digital resend succeeds from entitlement identity and expected version only'
+);
+select is(
+  (
+    select recipient_email || '|' || locale || '|' || (payload ->> 'orderNumber')
+    from public.transactional_email_outbox
+    where entitlement_id = '85000000-0000-4000-8000-000000000051'
+      and event_type = 'digital_access_reissued'
+  ),
+  'guest-capability@example.test|en|ATB-EMAIL-CAPABILITY',
+  'digital resend derives recipient locale and order number from database records'
+);
+select is(
+  (
+    select count(*)::integer
+    from public.fulfillment_audit_events
+    where entitlement_id = '85000000-0000-4000-8000-000000000051'
+      and event_type = 'digital_access_reissued'
+  ),
+  1,
+  'digital resend creates exactly one matching audit event'
+);
+
+insert into public.digital_access_tokens (
+  entitlement_id, token_hash, purpose, status, expires_at
+) values (
+  '85000000-0000-4000-8000-000000000052', repeat('e', 64), 'download', 'active',
+  now() + interval '1 hour'
+);
+insert into public.fulfillment_audit_events (
+  event_key, order_id, entitlement_id, event_type, actor_type, actor_id, metadata
+) values (
+  'digital_access_reissued:85000000-0000-4000-8000-000000000052:2',
+  '85000000-0000-4000-8000-000000000010',
+  '85000000-0000-4000-8000-000000000052',
+  'digital_access_reissued', 'admin',
+  '85000000-0000-4000-8000-000000000099', '{}'::jsonb
+);
+create function pg_temp.reissue_with_unique_violation_caught()
+returns text
+language plpgsql
+as $$
+begin
+  perform public.reissue_digital_access_token(
+    '85000000-0000-4000-8000-000000000052', 1
+  );
+  return 'unexpected_success';
+exception when unique_violation then
+  return 'unique_violation';
+end;
+$$;
+select is(
+  pg_temp.reissue_with_unique_violation_caught(),
+  'unique_violation',
+  'audit insertion failure aborts the resend transaction'
+);
+select is(
+  (select version from public.digital_entitlements where id = '85000000-0000-4000-8000-000000000052'),
+  1,
+  'failed audit insertion rolls entitlement version back'
+);
+select is(
+  (select status from public.digital_access_tokens where entitlement_id = '85000000-0000-4000-8000-000000000052'),
+  'active',
+  'failed audit insertion rolls token revocation back'
+);
+select is(
+  (
+    select count(*)::integer
+    from public.transactional_email_outbox
+    where entitlement_id = '85000000-0000-4000-8000-000000000052'
+      and event_type = 'digital_access_reissued'
+  ),
+  0,
+  'failed audit insertion rolls replacement outbox creation back'
 );
 
 select * from finish();

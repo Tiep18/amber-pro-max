@@ -1335,27 +1335,20 @@ describe('admin transactional email recovery helpers', () => {
       status: 'recorded',
       errorId: '76000000-0000-4000-8000-000000000001'
     }));
-    const maybeSingle = vi.fn(async () => ({
-      data: { id: 'email-1', status: 'failed', available_at: null },
-      error: null
-    }));
-    const updateEq = vi.fn(async () => ({
+    const rpc = vi.fn(async () => ({
       data: null,
       error: { message: 'private retry update for buyer@example.test' }
     }));
-    const from = vi.fn(() => ({
-      select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle })) })),
-      update: vi.fn(() => ({ eq: updateEq }))
-    }));
     vi.doMock('next/cache', () => ({ revalidatePath: vi.fn() }));
     vi.doMock('@/auth/guards', () => ({ requireAdmin }));
-    vi.doMock('@/lib/supabase/admin', () => ({
-      createSupabaseAdminClient: vi.fn(() => ({ from }))
+    vi.doMock('@/lib/supabase/server', () => ({
+      createSupabaseServerClient: vi.fn(async () => ({ rpc }))
     }));
     vi.doMock('@/operations/errors', () => ({ recordOperationalFailure }));
     const { retryTransactionalEmailAction } = await import('@/fulfillment/admin-email-actions');
     const formData = new FormData();
-    formData.set('emailId', 'email-1');
+    formData.set('emailId', '11111111-1111-4111-8111-111111111111');
+    formData.set('expectedVersion', '7');
 
     await expect(retryTransactionalEmailAction(formData)).resolves.toEqual({
       status: 'error',
@@ -1370,7 +1363,7 @@ describe('admin transactional email recovery helpers', () => {
         summary: 'Admin transactional email retry failed',
         facts: expect.objectContaining({
           action: 'email_retry',
-          referenceId: 'email-1',
+          referenceId: '11111111-1111-4111-8111-111111111111',
           code: 'email_action_failed'
         })
       })
@@ -1386,27 +1379,20 @@ describe('admin transactional email recovery helpers', () => {
     const recordOperationalFailure = vi.fn(async () => {
       throw new Error('operational table unavailable');
     });
-    const maybeSingle = vi.fn(async () => ({
-      data: { id: 'email-1', status: 'failed', available_at: null },
-      error: null
-    }));
-    const updateEq = vi.fn(async () => ({
+    const rpc = vi.fn(async () => ({
       data: null,
       error: { message: 'private retry update for buyer@example.test' }
     }));
-    const from = vi.fn(() => ({
-      select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle })) })),
-      update: vi.fn(() => ({ eq: updateEq }))
-    }));
     vi.doMock('next/cache', () => ({ revalidatePath: vi.fn() }));
     vi.doMock('@/auth/guards', () => ({ requireAdmin }));
-    vi.doMock('@/lib/supabase/admin', () => ({
-      createSupabaseAdminClient: vi.fn(() => ({ from }))
+    vi.doMock('@/lib/supabase/server', () => ({
+      createSupabaseServerClient: vi.fn(async () => ({ rpc }))
     }));
     vi.doMock('@/operations/errors', () => ({ recordOperationalFailure }));
     const { retryTransactionalEmailAction } = await import('@/fulfillment/admin-email-actions');
     const formData = new FormData();
-    formData.set('emailId', 'email-1');
+    formData.set('emailId', '11111111-1111-4111-8111-111111111111');
+    formData.set('expectedVersion', '7');
 
     await expect(retryTransactionalEmailAction(formData)).resolves.toEqual({
       status: 'error',
@@ -1430,8 +1416,6 @@ describe('admin transactional email recovery helpers', () => {
     vi.doMock('@/operations/errors', () => ({ recordOperationalFailure }));
     const { resendDownloadEmailAction } = await import('@/fulfillment/admin-email-actions');
     const formData = new FormData();
-    formData.set('orderId', 'order-1');
-    formData.set('orderNumber', 'ATB-20260708-0001');
     formData.set('entitlementId', '22222222-2222-4222-8222-222222222222');
     formData.set('expectedVersion', '3');
 
@@ -1449,8 +1433,6 @@ describe('admin transactional email recovery helpers', () => {
         facts: expect.objectContaining({
           action: 'download_email_resend',
           emailType: 'digital_access_reissued',
-          orderId: 'order-1',
-          orderNumber: 'ATB-20260708-0001',
           entitlementId: '22222222-2222-4222-8222-222222222222',
           code: 'email_action_failed'
         })

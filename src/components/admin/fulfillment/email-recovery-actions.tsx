@@ -37,11 +37,12 @@ async function resendAction(_: EmailState, formData: FormData): Promise<EmailSta
   return result;
 }
 
-function RetryEmailButton({ emailId }: { emailId: string }) {
+function RetryEmailButton({ emailId, expectedVersion }: { emailId: string; expectedVersion: number }) {
   const [, formAction, pending] = useActionState(retryAction, initialState);
   return (
     <form action={formAction}>
       <input type="hidden" name="emailId" value={emailId} />
+      <input type="hidden" name="expectedVersion" value={expectedVersion} />
       <Button type="submit" variant="secondary" className="gap-2" disabled={pending}>
         <RefreshCcw aria-hidden="true" className="size-4" />
         {pending ? 'Queuing retry…' : 'Retry email'}
@@ -51,21 +52,15 @@ function RetryEmailButton({ emailId }: { emailId: string }) {
 }
 
 function ResendDownloadButton({
-  orderId,
-  orderNumber,
   entitlementId,
   expectedVersion
 }: {
-  orderId: string;
-  orderNumber: string;
   entitlementId: string;
   expectedVersion: number;
 }) {
   const [, formAction, pending] = useActionState(resendAction, initialState);
   return (
     <form action={formAction}>
-      <input type="hidden" name="orderId" value={orderId} />
-      <input type="hidden" name="orderNumber" value={orderNumber} />
       <input type="hidden" name="entitlementId" value={entitlementId} />
       <input type="hidden" name="expectedVersion" value={expectedVersion} />
       <Button type="submit" className="gap-2" disabled={pending}>
@@ -78,24 +73,20 @@ function ResendDownloadButton({
 
 export function EmailRecoveryActions({
   emailId,
-  orderId,
-  orderNumber,
+  emailVersion,
   entitlementId,
   entitlementVersion
 }: {
   emailId: string;
-  orderId: string | null;
-  orderNumber: string;
+  emailVersion: number;
   entitlementId: string | null;
   entitlementVersion: number | null;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <RetryEmailButton emailId={emailId} />
-      {orderId && entitlementId && entitlementVersion !== null ? (
+      <RetryEmailButton emailId={emailId} expectedVersion={emailVersion} />
+      {entitlementId && entitlementVersion !== null ? (
         <ResendDownloadButton
-          orderId={orderId}
-          orderNumber={orderNumber}
           entitlementId={entitlementId}
           expectedVersion={entitlementVersion}
         />

@@ -90,6 +90,7 @@ export type AdminOrderQueueItem = {
 
 export type AdminFailedEmailQueueItem = {
   id: string;
+  version: number;
   orderId: string | null;
   orderNumber: string;
   entitlementId: string | null;
@@ -437,12 +438,20 @@ function mapQueueItem(row: Record<string, unknown>): AdminOrderQueueItem | null 
 }
 
 function mapFailedEmailRow(row: Record<string, unknown>, fallbackOrderNumber: string): AdminFailedEmailQueueItem | null {
-  if (typeof row.id !== 'string' || typeof row.event_type !== 'string' || typeof row.recipient_email !== 'string') {
+  if (
+    typeof row.id !== 'string' ||
+    typeof row.event_type !== 'string' ||
+    typeof row.recipient_email !== 'string' ||
+    typeof row.version !== 'number' ||
+    !Number.isInteger(row.version) ||
+    row.version < 1
+  ) {
     return null;
   }
   const payload = isRecord(row.payload) ? row.payload : {};
   return {
     id: row.id,
+    version: row.version,
     orderId: typeof row.order_id === 'string' ? row.order_id : null,
     orderNumber: typeof payload.orderNumber === 'string' ? payload.orderNumber : fallbackOrderNumber,
     entitlementId: typeof row.entitlement_id === 'string' ? row.entitlement_id : null,
@@ -465,7 +474,7 @@ function mapFailedEmailRow(row: Record<string, unknown>, fallbackOrderNumber: st
 
 async function getFailedEmailsForOrder(client: QueryClient, orderId: string, orderNumber: string) {
   const query = client.from('transactional_email_outbox').select(
-    'id,order_id,entitlement_id,event_type,recipient_email,locale,status,payload,available_at,created_at'
+    'id,version,order_id,entitlement_id,event_type,recipient_email,locale,status,payload,available_at,created_at'
   ) as {
     eq: (column: string, value: string) => {
       in: (column: string, values: string[]) => {

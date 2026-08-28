@@ -288,18 +288,24 @@ describe('payment order projections', () => {
                 order: vi.fn(async () => ({
                   data: [
                     {
-                      id: 'email-versioned', order_id: 'order-id', entitlement_id: 'entitlement-1',
+                      id: 'email-versioned', version: 7, order_id: 'order-id', entitlement_id: 'entitlement-1',
                       event_type: 'digital_access_reissued', recipient_email: 'customer@example.com',
                       locale: 'en', status: 'failed',
                       payload: { orderNumber: 'ATB-20260817-0001', entitlementVersion: 4 },
                       available_at: null, created_at: '2026-08-17T10:00:00.000Z'
                     },
                     {
-                      id: 'email-malformed', order_id: 'order-id', entitlement_id: 'entitlement-2',
+                      id: 'email-malformed', version: 8, order_id: 'order-id', entitlement_id: 'entitlement-2',
                       event_type: 'digital_access_granted', recipient_email: 'customer@example.com',
                       locale: 'en', status: 'failed',
                       payload: { orderNumber: 'ATB-20260817-0001', entitlementVersion: '4' },
                       available_at: null, created_at: '2026-08-17T09:00:00.000Z'
+                    },
+                    {
+                      id: 'email-without-version-fence', version: 0, order_id: 'order-id', entitlement_id: null,
+                      event_type: 'physical_shipped', recipient_email: 'customer@example.com',
+                      locale: 'en', status: 'failed', payload: { orderNumber: 'ATB-20260817-0001' },
+                      available_at: null, created_at: '2026-08-17T08:00:00.000Z'
                     }
                   ],
                   error: null
@@ -330,8 +336,8 @@ describe('payment order projections', () => {
       status: 'success',
       order: {
         failedEmails: [
-          { id: 'email-versioned', entitlementVersion: 4 },
-          { id: 'email-malformed', entitlementVersion: null }
+          { id: 'email-versioned', version: 7, entitlementVersion: 4 },
+          { id: 'email-malformed', version: 8, entitlementVersion: null }
         ]
       }
     });

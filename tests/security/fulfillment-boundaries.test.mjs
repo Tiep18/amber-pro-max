@@ -204,10 +204,10 @@ test('transactional email worker keeps tokens and provider secrets out of durabl
   assert.match(tokenMigration, /source_email_outbox_id/);
   assert.match(tokenMigration, /unique index/);
   const sanitizerPattern =
-    /export function sanitizeEmailFailureCode[\s\S]*?export function validateRetryCandidate/;
+    /export function sanitizeEmailFailureCode[\s\S]*?(?=function isRecord)/;
   const sourceWithoutSanitizer = source.replace(
     sanitizerPattern,
-    'export function validateRetryCandidate'
+    ''
   );
 
   assert.doesNotMatch(
@@ -374,7 +374,10 @@ test('admin email recovery uses versioned atomic RPCs and trusts no browser comm
   assert.match(migration, /p_expected_version\s+integer/i);
   assert.match(retryOnly, /rpc\(['"]admin_retry_transactional_email['"]/);
   assert.doesNotMatch(retryOnly, /\.from\(['"]transactional_email_outbox['"]\)/);
-  assert.doesNotMatch(resendOnly, /orderId|orderNumber|recipientEmail/);
+  assert.doesNotMatch(
+    resendOnly,
+    /getFormString\(formData,\s*['"](?:orderId|orderNumber|recipientEmail)['"]\)/
+  );
   assert.match(migration, /checkout\.paid_gate_status\s*=\s*'open'/i);
   assert.match(migration, /insert\s+into\s+public\.fulfillment_audit_events/i);
 });

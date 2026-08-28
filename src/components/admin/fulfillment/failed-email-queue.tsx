@@ -53,8 +53,7 @@ export function FailedEmailQueue({ emails }: { emails: AdminFailedEmailQueueItem
                 </div>
                 <EmailRecoveryActions
                   emailId={email.id}
-                  orderId={email.orderId}
-                  orderNumber={email.orderNumber}
+                  emailVersion={email.version}
                   entitlementId={email.entitlementId}
                   entitlementVersion={email.entitlementVersion}
                 />

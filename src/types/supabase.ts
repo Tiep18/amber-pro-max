@@ -3195,6 +3195,7 @@ export type Database = {
           sent_at: string | null
           status: string
           updated_at: string
+          version: number
         }
         Insert: {
           attempt_count?: number
@@ -3214,6 +3215,7 @@ export type Database = {
           sent_at?: string | null
           status?: string
           updated_at?: string
+          version?: number
         }
         Update: {
           attempt_count?: number
@@ -3233,6 +3235,7 @@ export type Database = {
           sent_at?: string | null
           status?: string
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -3505,6 +3508,10 @@ export type Database = {
         Args: { p_media_ids: string[]; p_product_id: string }
         Returns: undefined
       }
+      admin_retry_transactional_email: {
+        Args: { p_expected_version: number; p_outbox_id: string }
+        Returns: Json
+      }
       admin_save_catalog_product: { Args: { p_payload: Json }; Returns: string }
       admin_save_catalog_variant: { Args: { p_payload: Json }; Returns: string }
       admin_set_shipping_store_default: {
@@ -3580,6 +3587,7 @@ export type Database = {
           sent_at: string | null
           status: string
           updated_at: string
+          version: number
         }[]
         SetofOptions: {
           from: "*"
