@@ -73,6 +73,8 @@ const digitalLifecycleMigration =
   'supabase/migrations/20260817120000_repair_digital_download_token_lifecycle.sql';
 const transactionalEmailCapabilityMigration =
   'supabase/migrations/20260826120000_atomic_transactional_email_capability_issuance.sql';
+const adminEmailRecoveryMigration =
+  'supabase/migrations/20260828130000_atomic_admin_email_recovery.sql';
 
 function readExisting(files) {
   return files
@@ -354,6 +356,27 @@ test('download capability issuance and manual resend have one versioned database
     /from\(['"](?:transactional_email_outbox|fulfillment_audit_events)['"]\)/
   );
   assert.match(recoveryUi, /name=['"]expectedVersion['"]/);
+});
+
+test('admin email recovery uses versioned atomic RPCs and trusts no browser commerce identity', () => {
+  assert.ok(existsSync(adminEmailRecoveryMigration), 'atomic admin recovery migration must exist');
+  const migration = readFileSync(adminEmailRecoveryMigration, 'utf8');
+  const actions = readFileSync('src/fulfillment/admin-email-actions.ts', 'utf8');
+  const retryOnly = actions.slice(
+    actions.indexOf('export async function retryTransactionalEmailAction'),
+    actions.indexOf('export async function resendDownloadEmailAction')
+  );
+  const resendOnly = actions.slice(
+    actions.indexOf('export async function resendDownloadEmailAction')
+  );
+
+  assert.match(migration, /create\s+function\s+public\.admin_retry_transactional_email[\s\S]*for\s+update/i);
+  assert.match(migration, /p_expected_version\s+integer/i);
+  assert.match(retryOnly, /rpc\(['"]admin_retry_transactional_email['"]/);
+  assert.doesNotMatch(retryOnly, /\.from\(['"]transactional_email_outbox['"]\)/);
+  assert.doesNotMatch(resendOnly, /orderId|orderNumber|recipientEmail/);
+  assert.match(migration, /checkout\.paid_gate_status\s*=\s*'open'/i);
+  assert.match(migration, /insert\s+into\s+public\.fulfillment_audit_events/i);
 });
 
 test('fulfillment audit and outbox payloads reject unsafe secrets', () => {

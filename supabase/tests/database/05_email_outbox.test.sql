@@ -1,6 +1,6 @@
 begin;
 
-select plan(43);
+select plan(48);
 
 select has_table('public', 'transactional_email_outbox', 'transactional email outbox exists');
 select col_not_null('public', 'transactional_email_outbox', 'event_type', 'outbox event type is required');
@@ -345,6 +345,43 @@ select is(
   ),
   null::timestamptz,
   'unsupported outbox events cannot mint guest or newsletter capabilities'
+);
+
+select has_column(
+  'public',
+  'transactional_email_outbox',
+  'version',
+  'admin retry has an integer stale-form fence'
+);
+select has_function(
+  'public',
+  'admin_retry_transactional_email',
+  array['uuid', 'integer'],
+  'atomic admin transactional email retry RPC exists'
+);
+select function_privs_are(
+  'public',
+  'admin_retry_transactional_email',
+  array['uuid', 'integer'],
+  'anon',
+  array[]::text[],
+  'anonymous clients cannot retry transactional emails'
+);
+select function_privs_are(
+  'public',
+  'admin_retry_transactional_email',
+  array['uuid', 'integer'],
+  'authenticated',
+  array['EXECUTE'],
+  'authenticated admins reach the retry RPC authorization boundary'
+);
+select function_privs_are(
+  'public',
+  'admin_retry_transactional_email',
+  array['uuid', 'integer'],
+  'service_role',
+  array[]::text[],
+  'service workers cannot invoke the human admin retry action'
 );
 
 select * from finish();

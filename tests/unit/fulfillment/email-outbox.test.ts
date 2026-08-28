@@ -6,8 +6,7 @@ vi.mock('server-only', () => ({}));
 import { POST } from '@/app/api/fulfillment/email-outbox/route';
 import {
   maskEmailForAdmin,
-  sanitizeEmailFailureCode,
-  validateRetryCandidate
+  sanitizeEmailFailureCode
 } from '@/fulfillment/admin-email-actions';
 import {
   deriveTransactionalEmailToken,
@@ -1276,20 +1275,30 @@ describe('admin transactional email recovery helpers', () => {
     ).toBe('provider_error');
   });
 
-  test('allows controlled retry only for failed or due pending rows', () => {
-    expect(validateRetryCandidate({ status: 'failed', availableAt: null }, now)).toEqual({
-      status: 'retryable'
+  test('queues retry through one authoritative versioned RPC', async () => {
+    vi.resetModules();
+    const requireAdmin = vi.fn(async () => ({ id: 'admin-1' }));
+    const rpc = vi.fn(async () => ({ data: { status: 'queued', version: 8 }, error: null }));
+    const from = vi.fn();
+    vi.doMock('next/cache', () => ({ revalidatePath: vi.fn() }));
+    vi.doMock('@/auth/guards', () => ({ requireAdmin }));
+    vi.doMock('@/lib/supabase/server', () => ({
+      createSupabaseServerClient: vi.fn(async () => ({ rpc, from }))
+    }));
+    vi.doMock('@/lib/supabase/admin', () => ({
+      createSupabaseAdminClient: vi.fn(() => ({ from }))
+    }));
+    const { retryTransactionalEmailAction } = await import('@/fulfillment/admin-email-actions');
+    const formData = new FormData();
+    formData.set('emailId', '11111111-1111-4111-8111-111111111111');
+    formData.set('expectedVersion', '7');
+
+    await expect(retryTransactionalEmailAction(formData)).resolves.toEqual({ status: 'queued' });
+    expect(rpc).toHaveBeenCalledWith('admin_retry_transactional_email', {
+      p_outbox_id: '11111111-1111-4111-8111-111111111111',
+      p_expected_version: 7
     });
-    expect(
-      validateRetryCandidate(
-        { status: 'pending', availableAt: new Date(now.getTime() - 1_000).toISOString() },
-        now
-      )
-    ).toEqual({ status: 'retryable' });
-    expect(validateRetryCandidate({ status: 'sent', availableAt: null }, now)).toEqual({
-      status: 'stale',
-      code: 'email_retry_not_available'
-    });
+    expect(from).not.toHaveBeenCalled();
   });
 
   test('routes download resend through canonical versioned reissue without direct inserts', async () => {
@@ -1307,8 +1316,6 @@ describe('admin transactional email recovery helpers', () => {
     }));
     const { resendDownloadEmailAction } = await import('@/fulfillment/admin-email-actions');
     const formData = new FormData();
-    formData.set('orderId', 'order-1');
-    formData.set('orderNumber', 'ATB-20260619-0001');
     formData.set('entitlementId', '22222222-2222-4222-8222-222222222222');
     formData.set('expectedVersion', '3');
 
