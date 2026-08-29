@@ -96,6 +96,21 @@ test('signed-in customer can enter account and sign out', async ({page}) => {
   await expect(page).toHaveURL(/\/vi$/);
 });
 
+test('signed-in customer can sign out from the header account menu', async ({page}) => {
+  const customer = await createConfirmedUser();
+
+  await page.goto('/vi/dang-nhap?next=/vi');
+  await page.getByLabel('Email').fill(customer.email);
+  await page.getByLabel('Mật khẩu').fill(customer.password);
+  await page.getByRole('button', {name: 'Đăng nhập'}).click();
+
+  await expect(page).toHaveURL(/\/vi$/);
+  await page.getByRole('button', {name: 'Tài khoản'}).click();
+  await page.getByRole('menuitem', {name: 'Đăng xuất'}).click();
+
+  await expect(page.getByRole('link', {name: 'Đăng nhập'})).toBeVisible();
+});
+
 test('signed-in customer is denied admin shell server-side', async ({page}) => {
   const customer = await createConfirmedUser();
 

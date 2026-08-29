@@ -252,7 +252,11 @@ export function AccountMenu({
         <DropdownMenuSeparator />
         <form action={signOutAction} onSubmit={() => notifyStorefrontContextChanged()}>
           <input type="hidden" name="locale" value={locale} />
-          <DropdownMenuItem asChild variant="destructive">
+          <DropdownMenuItem
+            asChild
+            variant="destructive"
+            onSelect={(event) => event.preventDefault()}
+          >
             <PendingSubmitButton
               pendingLabel={t.signingOut}
               variant="ghost"
