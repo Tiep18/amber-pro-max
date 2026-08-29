@@ -602,6 +602,20 @@
       "carrier": "Carrier",
       "trackingNumber": "Tracking number",
       "openTracking": "Open tracking"
+    },
+    "needHelp": {
+      "title": "Need help with this order?",
+      "body": "If you have questions about your handmade item, PDF pattern, or payment, our studio is here to help.",
+      "zalo": "Chat on Zalo",
+      "email": "Email studio support",
+      "contact": "Contact support page"
+    },
+    "printReceipt": "Print order",
+    "trackingProgress": {
+      "step1": "Order placed",
+      "step2": "Packing",
+      "step3": "Shipped",
+      "step4": "Delivered"
     }
   },
   "payments": {
@@ -625,6 +639,10 @@
     "vietqr": {
       "title": "Transfer the exact amount and reference",
       "body": "The order is confirmed only after the seller checks the bank account. Do not change the amount or transfer reference.",
+      "tabQr": "Scan QR Code",
+      "tabManual": "Manual Transfer",
+      "scanHelp": "Open your banking app and scan this QR code to automatically fill in all transfer details.",
+      "manualHelp": "Copy the bank details and transfer memo below into your banking app.",
       "amount": "Exact amount",
       "qrAlt": "VietQR code for order {orderNumber}",
       "bank": "Bank",
@@ -694,7 +712,24 @@
       "digital": "Digital",
       "physical": "Physical",
       "open": "Open order",
-      "error": "Order history could not be loaded."
+      "error": "Order history could not be loaded.",
+      "tabAll": "All",
+      "tabAwaitingPayment": "Awaiting payment",
+      "tabInProgress": "In progress",
+      "tabCompleted": "Completed",
+      "searchPlaceholder": "Search by order # or product…",
+      "noFilteredOrders": "No orders match your search or filter.",
+      "clearFilters": "Clear filters",
+      "payNow": "Pay now",
+      "viewDetails": "View order",
+      "moreItems": "+ {count} more items",
+      "itemCount": "{count, plural, =1 {1 item} other {# items}}",
+      "placedAt": "Placed on {date}",
+      "digitalReady": "PDF pattern ready",
+      "digitalPending": "PDF pattern (pending payment)",
+      "physicalShipping": "Shipping in progress",
+      "physicalDelivered": "Delivered",
+      "physicalPending": "Handmade item"
     },
     "patterns": {
       "title": "Pattern library",

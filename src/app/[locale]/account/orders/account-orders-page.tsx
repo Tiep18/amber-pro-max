@@ -33,7 +33,23 @@ export async function renderAccountOrdersPage({ params }: { params: Promise<{ lo
         payment: t('payment'),
         digital: t('digital'),
         physical: t('physical'),
-        open: t('open')
+        open: t('open'),
+        tabAll: t('tabAll'),
+        tabAwaitingPayment: t('tabAwaitingPayment'),
+        tabInProgress: t('tabInProgress'),
+        tabCompleted: t('tabCompleted'),
+        searchPlaceholder: t('searchPlaceholder'),
+        noFilteredOrders: t('noFilteredOrders'),
+        clearFilters: t('clearFilters'),
+        payNow: t('payNow'),
+        viewDetails: t('viewDetails'),
+        moreItems: t('moreItems', { count: '{count}' }),
+        placedAt: t('placedAt', { date: '{date}' }),
+        digitalReady: t('digitalReady'),
+        digitalPending: t('digitalPending'),
+        physicalShipping: t('physicalShipping'),
+        physicalDelivered: t('physicalDelivered'),
+        physicalPending: t('physicalPending')
       }}
     />
   ) : (

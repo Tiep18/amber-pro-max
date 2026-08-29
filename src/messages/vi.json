@@ -602,6 +602,20 @@
       "carrier": "Đơn vị vận chuyển",
       "trackingNumber": "Mã theo dõi",
       "openTracking": "Mở trang theo dõi"
+    },
+    "needHelp": {
+      "title": "Cần hỗ trợ về đơn hàng này?",
+      "body": "Nếu bạn có bất kỳ câu hỏi nào về sản phẩm handmade, mẫu PDF hoặc thanh toán, studio luôn sẵn sàng hỗ trợ bạn.",
+      "zalo": "Nhắn tin qua Zalo",
+      "email": "Gửi email cho studio",
+      "contact": "Gửi yêu cầu hỗ trợ"
+    },
+    "printReceipt": "In đơn hàng",
+    "trackingProgress": {
+      "step1": "Đã đặt hàng",
+      "step2": "Đang đóng gói",
+      "step3": "Đang vận chuyển",
+      "step4": "Đã giao hàng"
     }
   },
   "payments": {
@@ -625,6 +639,10 @@
     "vietqr": {
       "title": "Chuyển khoản đúng số tiền và nội dung",
       "body": "Đơn hàng chỉ được xác nhận sau khi người bán kiểm tra tài khoản ngân hàng. Không chỉnh sửa số tiền hoặc nội dung chuyển khoản.",
+      "tabQr": "Quét mã QR",
+      "tabManual": "Chuyển thủ công",
+      "scanHelp": "Mở ứng dụng ngân hàng và quét mã QR để điền tự động chính xác mọi thông tin.",
+      "manualHelp": "Sao chép số tài khoản và nội dung chuyển khoản bên dưới vào ứng dụng ngân hàng của bạn.",
       "amount": "Số tiền chính xác",
       "qrAlt": "Mã VietQR cho đơn hàng {orderNumber}",
       "bank": "Ngân hàng",
@@ -694,7 +712,24 @@
       "digital": "PDF",
       "physical": "Hàng giao",
       "open": "Mở đơn hàng",
-      "error": "Chưa tải được lịch sử đơn hàng."
+      "error": "Chưa tải được lịch sử đơn hàng.",
+      "tabAll": "Tất cả",
+      "tabAwaitingPayment": "Chờ thanh toán",
+      "tabInProgress": "Đang xử lý",
+      "tabCompleted": "Đã hoàn tất",
+      "searchPlaceholder": "Tìm theo mã đơn hoặc sản phẩm…",
+      "noFilteredOrders": "Không tìm thấy đơn hàng nào khớp với tìm kiếm hoặc bộ lọc.",
+      "clearFilters": "Xóa bộ lọc",
+      "payNow": "Thanh toán ngay",
+      "viewDetails": "Xem chi tiết",
+      "moreItems": "+ {count} sản phẩm khác",
+      "itemCount": "{count} sản phẩm",
+      "placedAt": "Đặt ngày {date}",
+      "digitalReady": "Mẫu PDF sẵn sàng tải",
+      "digitalPending": "Mẫu PDF (chờ thanh toán)",
+      "physicalShipping": "Đang giao hàng",
+      "physicalDelivered": "Đã giao thành công",
+      "physicalPending": "Đồ handmade"
     },
     "patterns": {
       "title": "Thư viện mẫu PDF",

@@ -1,16 +1,16 @@
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
-import { CircleCheck, Mail } from 'lucide-react';
+import { ArrowLeft, CircleCheck, HelpCircle, Mail, MapPin, MessageCircle, Package, Receipt } from 'lucide-react';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMoney } from '@/catalog/money';
-import { formatShippingAddressLines } from '@/checkout/shipping-address';
 import { getRequestUser } from '@/auth/request-user';
 import { CheckoutStepper } from '@/components/checkout/checkout-stepper';
 import { SupportLinks } from '@/components/support/support-links';
 import { DownloadPanel } from '@/components/fulfillment/download-panel';
 import { FulfillmentTrackSummary } from '@/components/fulfillment/fulfillment-track-summary';
 import { PhysicalTrackingPanel } from '@/components/fulfillment/physical-tracking-panel';
+import { PrintOrderButton } from '@/components/fulfillment/print-order-button';
 import type { Locale } from '@/i18n/routing';
 import {
   getAccountOrdersPath,
@@ -164,7 +164,10 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
     >
       <div className="flex items-start gap-3">
         <CircleCheck aria-hidden="true" className="mt-0.5 size-7 shrink-0 text-[var(--success)]" />
-        <p className="text-base text-[var(--foreground)]">{t('status.paid.body')}</p>
+        <div className="grid gap-1">
+          <h2 className="text-xl font-bold leading-tight text-[var(--foreground)]">{t('status.paid.heading')}</h2>
+          <p className="text-base text-[var(--foreground)]">{t('status.paid.body')}</p>
+        </div>
       </div>
       <dl className="grid gap-1 rounded-[var(--radius-control)] bg-[var(--surface)] p-4">
         <dt className="text-sm font-semibold text-[var(--muted-foreground)]">
@@ -174,9 +177,14 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
       </dl>
       {result.order.contactEmailMasked ? (
         <p className="text-sm text-[var(--muted-foreground)]">
-          {t('status.paid.email', {email: result.order.contactEmailMasked})}
+          {t('status.paid.email', { email: result.order.contactEmailMasked })}
         </p>
       ) : null}
+      <SupportLinks
+        locale={locale}
+        config={publicSupportConfig}
+        contactHref={getContactPath(locale)}
+      />
     </section>
   ) : null;
 
@@ -186,20 +194,18 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
 
   return (
     <main className="container grid gap-6 py-8 lg:py-10">
-      {/* The h1 used to be the order reference and the panel below repeated the
-          status as a second 28px heading, so the page opened with two titles and
-          the reference number three times. The heading now answers the only
-          question a customer arrives with — what is happening to my order — and
-          the reference drops to a meta chip beside it. */}
       <header className="grid max-w-[68ch] gap-4">
         <CheckoutStepper current={status.isPaid ? 'done' : 'payment'} locale={locale} />
         <h1 className="text-[30px] font-semibold leading-[1.15] tracking-[-0.02em] sm:text-[36px]">
           {showPaidSuccess ? t('status.paid.heading') : t(`status.${status.status}.heading`)}
         </h1>
-        <p className="inline-flex w-fit items-center gap-2 rounded-full bg-[var(--surface-muted)]/70 px-3 py-1.5 text-sm font-semibold tabular-nums ring-1 ring-[var(--border)]/60">
-          <span className="font-medium text-[var(--muted-foreground)]">{t('labels.order')}</span>
-          {result.order.orderNumber}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="inline-flex w-fit items-center gap-2 rounded-full bg-[var(--surface-muted)]/70 px-3 py-1.5 text-sm font-semibold tabular-nums ring-1 ring-[var(--border)]/60">
+            <span className="font-medium text-[var(--muted-foreground)]">{t('labels.order')}</span>
+            {result.order.orderNumber}
+          </p>
+          <PrintOrderButton label={t('printReceipt')} />
+        </div>
       </header>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <GuestOrderSessionSync orderNumber={result.order.orderNumber} paid={status.isPaid} />
@@ -313,7 +319,11 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
                   selectManually: vietqrT('selectManually'),
                   declareNotEligible: vietqrT('declareNotEligible'),
                   declareForbidden: vietqrT('declareForbidden'),
-                  declareFailed: vietqrT('declareFailed')
+                  declareFailed: vietqrT('declareFailed'),
+                  tabQr: vietqrT('tabQr'),
+                  tabManual: vietqrT('tabManual'),
+                  scanHelp: vietqrT('scanHelp'),
+                  manualHelp: vietqrT('manualHelp')
                 }}
               />
             </PaymentRecheckScope>
@@ -324,10 +334,8 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
           ) : null}
 
           {showPayPal ? (
-            // No CardTitle: PayPalButtons already leads with the same string, so
-            // the section used to render "Thanh toán bằng PayPal" twice in a row.
             <Card>
-              <CardContent>
+              <CardContent className="p-6">
                 {paypalClientId ? (
                   <PayPalButtons
                     orderNumber={result.order.orderNumber}
@@ -381,7 +389,13 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
                 delivered: t('tracking.delivered'),
                 carrier: t('tracking.carrier'),
                 trackingNumber: t('tracking.trackingNumber'),
-                openTracking: t('tracking.openTracking')
+                openTracking: t('tracking.openTracking'),
+                trackingProgress: {
+                  step1: t('trackingProgress.step1'),
+                  step2: t('trackingProgress.step2'),
+                  step3: t('trackingProgress.step3'),
+                  step4: t('trackingProgress.step4')
+                }
               }}
             />
           ) : null}
@@ -418,33 +432,76 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
                   delivered: t('tracking.delivered'),
                   carrier: t('tracking.carrier'),
                   trackingNumber: t('tracking.trackingNumber'),
-                  openTracking: t('tracking.openTracking')
+                  openTracking: t('tracking.openTracking'),
+                  trackingProgress: {
+                    step1: t('trackingProgress.step1'),
+                    step2: t('trackingProgress.step2'),
+                    step3: t('trackingProgress.step3'),
+                    step4: t('trackingProgress.step4')
+                  }
                 }}
               />
             </>
           ) : null}
 
+          {/* Direct Support / Need Help Widget */}
+          <Card className="border-[var(--border)] bg-[var(--surface-paper)] shadow-xs">
+            <CardContent className="grid gap-3 p-4 sm:p-5">
+              <div className="flex items-start gap-3">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">
+                  <HelpCircle className="size-4" aria-hidden="true" />
+                </span>
+                <div className="grid gap-1">
+                  <h3 className="text-sm font-bold text-[var(--foreground)]">{t('needHelp.title')}</h3>
+                  <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
+                    {t('needHelp.body')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-1 sm:pl-11">
+                {locale === 'vi' ? (
+                  <a
+                    href="https://zalo.me"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--surface-muted)]"
+                  >
+                    <MessageCircle className="size-3.5 text-[var(--accent)]" aria-hidden="true" />
+                    {t('needHelp.zalo')}
+                  </a>
+                ) : null}
+                <Link
+                  href={getContactPath(locale)}
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--surface-muted)]"
+                >
+                  <Mail className="size-3.5 text-[var(--accent)]" aria-hidden="true" />
+                  {t('needHelp.contact')}
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
           {!showTerminalRecovery && presentation.nextAction !== 'support' ? (
-            <div className="flex flex-wrap items-center gap-4 pt-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)]/50 pt-5">
               <Link
                 href={getCatalogPath(locale)}
-                className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] px-4 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-muted)]"
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-semibold text-[var(--foreground)] shadow-xs transition-colors hover:bg-[var(--surface-muted)]"
               >
-                {t('actions.continueShopping')}
+                <ArrowLeft className="size-3.5 text-[var(--accent)]" aria-hidden="true" />
+                <span>{t('actions.continueShopping')}</span>
               </Link>
               {isSignedIn ? (
                 <Link
                   href={getAccountOrdersPath(locale)}
-                  className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] px-4 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-muted)]"
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-semibold text-[var(--foreground)] shadow-xs transition-colors hover:bg-[var(--surface-muted)]"
                 >
-                  {t('actions.myOrders')}
+                  <Package className="size-3.5 text-[var(--muted-foreground)]" aria-hidden="true" />
+                  <span>{t('actions.myOrders')}</span>
                 </Link>
               ) : null}
             </div>
           ) : null}
 
-          {/* For a guest this is the only way back to the order, so it stops
-              being the smallest grey line on the page. */}
           {!showPaidSuccess && !isSignedIn && result.order.contactEmailMasked ? (
             <p className="flex items-start gap-2.5 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/60 px-4 py-3 text-sm leading-6 ring-1 ring-[var(--border)]/60">
               <Mail aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[var(--accent)]" />
@@ -453,14 +510,21 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
           ) : null}
         </section>
 
-        <aside className="grid content-start gap-5 lg:sticky lg:top-24">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('summary.title')}</CardTitle>
+        <aside className="grid content-start gap-4 lg:sticky lg:top-24">
+          <Card className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_12px_36px_rgba(92,48,26,0.06)]">
+            {/* Header */}
+            <CardHeader className="flex flex-row items-center justify-between border-b border-[var(--border)]/50 bg-[var(--surface-paper)] px-5 py-3.5">
+              <div className="flex items-center gap-2">
+                <Receipt className="size-4 text-[var(--accent)]" aria-hidden="true" />
+                <CardTitle className="text-base font-bold text-[var(--foreground)]">{t('summary.title')}</CardTitle>
+              </div>
+              <span className="rounded-full bg-[var(--surface-muted)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--muted-foreground)] ring-1 ring-[var(--border)]/60">
+                {result.order.lines.length} {locale === 'vi' ? 'sản phẩm' : 'items'}
+              </span>
             </CardHeader>
-            {/* The order number lives in the page header now; repeating it here
-                made it the third copy on one screen. */}
-            <CardContent className="grid gap-4">
+
+            {/* Order Items & Financial Totals */}
+            <CardContent className="p-5">
               <OrderLineSummary
                 lines={result.order.lines}
                 money={result.order.money}
@@ -474,23 +538,47 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
                 }}
               />
             </CardContent>
-          </Card>
-          {result.order.shippingAddress ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('shippingAddress.title')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <address className="not-italic text-sm leading-6">
-                  {formatShippingAddressLines(result.order.shippingAddress).map((line) => (
-                    <span key={line} className="block">
-                      {line}
+
+            {/* Seamless Integrated Shipping Address Section (if physical items exist) */}
+            {result.order.shippingAddress ? (
+              <div className="border-t border-[var(--border)]/60 bg-[var(--surface-muted)]/30 px-5 py-4">
+                <div className="flex items-center justify-between pb-2 text-[11px] font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
+                  <span className="flex items-center gap-1.5 text-[var(--foreground)]">
+                    <MapPin className="size-3.5 text-[var(--accent)]" aria-hidden="true" />
+                    {t('shippingAddress.title')}
+                  </span>
+                  <span className="rounded bg-[var(--surface)] px-2 py-0.5 font-medium text-[var(--muted-foreground)] ring-1 ring-[var(--border)]/60">
+                    {result.order.shippingAddress.countryCode === 'VN'
+                      ? 'Việt Nam'
+                      : result.order.shippingAddress.countryCode === 'US'
+                        ? 'United States'
+                        : result.order.shippingAddress.countryCode}
+                  </span>
+                </div>
+
+                <div className="grid gap-1 pt-1 text-xs leading-relaxed text-[var(--foreground)]">
+                  <div className="flex flex-wrap items-center gap-x-2 font-semibold">
+                    <span>{result.order.shippingAddress.recipientName}</span>
+                    <span className="text-[var(--border)]">·</span>
+                    <span className="font-mono font-medium text-[var(--muted-foreground)]">
+                      {result.order.shippingAddress.phoneNumber}
                     </span>
-                  ))}
-                </address>
-              </CardContent>
-            </Card>
-          ) : null}
+                  </div>
+                  <p className="text-[var(--muted-foreground)]">
+                    {[
+                      result.order.shippingAddress.addressLine1,
+                      result.order.shippingAddress.addressLine2,
+                      result.order.shippingAddress.locality,
+                      result.order.shippingAddress.region,
+                      result.order.shippingAddress.postalCode
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </Card>
         </aside>
       </div>
     </main>

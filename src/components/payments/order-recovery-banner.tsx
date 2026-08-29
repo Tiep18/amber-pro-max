@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import {useEffect, useMemo, useState} from 'react';
 import {useRouter} from 'next/navigation';
+import {ArrowRight, ShoppingBag} from 'lucide-react';
 import {useCart} from '@/components/cart/cart-provider';
 import {clearOrderSnapshot, readOrderSnapshot} from '@/cart/order-snapshot';
 import {Alert} from '@/components/ui/alert';
@@ -74,13 +75,14 @@ export function OrderRecoveryBanner({
 
   if (action?.kind === 'browse_catalog') {
     return (
-      <Alert variant="warning" className="grid gap-3">
-        <p>{labels.unavailable}</p>
+      <Alert variant="warning" className="grid gap-3 p-4">
+        <p className="text-sm font-medium leading-relaxed text-[var(--foreground)]">{labels.unavailable}</p>
         <Link
           href={resolvedCatalogHref}
-          className="inline-flex min-h-11 w-fit items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 py-2 text-base font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+          className="inline-flex min-h-11 w-fit items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--accent)] px-5 py-2.5 text-sm font-bold !text-white shadow-sm transition-all hover:bg-[var(--accent-hover)] hover:shadow-md active:scale-95"
         >
-          {labels.browse ?? labels.unavailable}
+          <ShoppingBag className="size-4 text-white" aria-hidden="true" />
+          <span className="!text-white">{labels.browse ?? labels.unavailable}</span>
         </Link>
       </Alert>
     );
@@ -91,16 +93,17 @@ export function OrderRecoveryBanner({
   }
 
   return (
-    <Alert variant="warning" className="grid gap-3">
+    <Alert variant="warning" className="grid gap-3 p-4">
       <Button
         type="button"
         variant="primary"
-        className="w-fit"
+        className="min-h-11 w-fit gap-2 bg-[var(--accent)] px-5 text-sm font-bold !text-white hover:bg-[var(--accent-hover)]"
         disabled={restoring}
         aria-busy={restoring}
         onClick={() => void handleRestore()}
       >
-        {restoring ? labels.restoring : labels.restore}
+        <ArrowRight className="size-4 text-white" aria-hidden="true" />
+        <span className="!text-white">{restoring ? labels.restoring : labels.restore}</span>
       </Button>
     </Alert>
   );

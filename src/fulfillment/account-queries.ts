@@ -11,6 +11,15 @@ type QueryClient = {
   };
 };
 
+export type CustomerOrderHistoryLine = {
+  lineId: string;
+  title: string;
+  variantLabel: string | null;
+  imageUrl: string | null;
+  fulfillmentType: 'digital' | 'physical';
+  quantity: number;
+};
+
 export type CustomerOrderHistoryItem = {
   orderId: string;
   orderNumber: string;
@@ -22,6 +31,8 @@ export type CustomerOrderHistoryItem = {
   amountMinor: number;
   currencyCode: 'USD' | 'VND';
   updatedAt: string | null;
+  createdAt?: string | null;
+  items?: CustomerOrderHistoryLine[];
 };
 
 export type CustomerPatternLibraryItem = {
@@ -64,7 +75,9 @@ function mapOrderRow(row: Record<string, unknown>): CustomerOrderHistoryItem | n
     physicalFulfillmentStatus: typeof row.physical_fulfillment_status === 'string' ? row.physical_fulfillment_status : 'blocked',
     amountMinor: typeof row.total_minor === 'number' ? row.total_minor : 0,
     currencyCode: asCurrency(row.currency_code),
-    updatedAt: typeof row.updated_at === 'string' ? row.updated_at : null
+    updatedAt: typeof row.updated_at === 'string' ? row.updated_at : null,
+    createdAt: typeof row.created_at === 'string' ? row.created_at : null,
+    items: []
   };
 }
 
@@ -132,7 +145,7 @@ export async function getCustomerOrderHistory({
   authState?: string;
 }): Promise<CustomerOrderHistoryResult> {
   const query = client.from('order_payment_statuses').select(
-    'order_id,order_number,customer_payment_status,payment_status,fulfillment_gate_status,digital_fulfillment_status,physical_fulfillment_status,total_minor,currency_code,updated_at'
+    'order_id,order_number,customer_payment_status,payment_status,fulfillment_gate_status,digital_fulfillment_status,physical_fulfillment_status,total_minor,currency_code,created_at,updated_at'
   );
   const {data, error} = await query.eq('owner_user_id', userId).order('updated_at', {ascending: false});
   if (error || !Array.isArray(data)) {
@@ -147,7 +160,97 @@ export async function getCustomerOrderHistory({
     });
     return {status: 'error', code: 'account_orders_failed'};
   }
-  return {status: 'success', orders: data.filter(isRecord).map(mapOrderRow).filter((row): row is CustomerOrderHistoryItem => Boolean(row))};
+
+  const baseOrders = data.filter(isRecord).map(mapOrderRow).filter((row): row is CustomerOrderHistoryItem => Boolean(row));
+  if (baseOrders.length === 0) {
+    return {status: 'success', orders: []};
+  }
+
+  try {
+    const orderIds = baseOrders.map((o) => o.orderId);
+    const linesClient = client as unknown as {
+      from: (table: string) => {
+        select: (cols: string) => {
+          in: (col: string, vals: string[]) => Promise<{data: unknown[] | null; error: unknown}>;
+        };
+      };
+    };
+    if (typeof linesClient.from === 'function') {
+      const {data: linesData} = await linesClient
+        .from('checkout_order_lines')
+        .select('order_id,line_id,product_id,product_title,variant_label,fulfillment_type,quantity,quote_line_snapshot')
+        .in('order_id', orderIds);
+
+      if (Array.isArray(linesData)) {
+        const productIds = Array.from(
+          new Set(
+            linesData
+              .map((l) => (isRecord(l) && typeof l.product_id === 'string' ? l.product_id : null))
+              .filter((id): id is string => Boolean(id))
+          )
+        );
+
+        const mediaByProduct = new Map<string, string>();
+        if (productIds.length > 0) {
+          try {
+            const {data: mediaData} = await linesClient
+              .from('product_media')
+              .select('product_id,object_path,is_primary,display_order')
+              .in('product_id', productIds);
+
+            if (Array.isArray(mediaData)) {
+              const sortedMedia = [...mediaData].filter(isRecord).sort((a, b) => {
+                const aPrim = a.is_primary === true ? 0 : 1;
+                const bPrim = b.is_primary === true ? 0 : 1;
+                if (aPrim !== bPrim) return aPrim - bPrim;
+                const aOrder = typeof a.display_order === 'number' ? a.display_order : 999;
+                const bOrder = typeof b.display_order === 'number' ? b.display_order : 999;
+                return aOrder - bOrder;
+              });
+
+              for (const media of sortedMedia) {
+                if (typeof media.product_id === 'string' && typeof media.object_path === 'string') {
+                  if (!mediaByProduct.has(media.product_id)) {
+                    mediaByProduct.set(media.product_id, media.object_path);
+                  }
+                }
+              }
+            }
+          } catch {
+            // Non-blocking fallback if media query fails
+          }
+        }
+
+        const linesByOrder = new Map<string, CustomerOrderHistoryLine[]>();
+        for (const line of linesData) {
+          if (!isRecord(line) || typeof line.order_id !== 'string') continue;
+          const productId = typeof line.product_id === 'string' ? line.product_id : null;
+          const snap = isRecord(line.quote_line_snapshot) ? line.quote_line_snapshot : null;
+          const imageUrl =
+            (productId ? mediaByProduct.get(productId) : null) ??
+            (typeof snap?.imageUrl === 'string' ? snap.imageUrl : null);
+
+          const existing = linesByOrder.get(line.order_id) ?? [];
+          existing.push({
+            lineId: typeof line.line_id === 'string' ? line.line_id : String(existing.length),
+            title: typeof line.product_title === 'string' ? line.product_title : 'Product',
+            variantLabel: typeof line.variant_label === 'string' ? line.variant_label : null,
+            imageUrl: imageUrl ?? null,
+            fulfillmentType: line.fulfillment_type === 'digital' ? 'digital' : 'physical',
+            quantity: typeof line.quantity === 'number' ? line.quantity : 1
+          });
+          linesByOrder.set(line.order_id, existing);
+        }
+        for (const order of baseOrders) {
+          order.items = linesByOrder.get(order.orderId) ?? [];
+        }
+      }
+    }
+  } catch {
+    // Fallback gracefully without breaking
+  }
+
+  return {status: 'success', orders: baseOrders};
 }
 
 export async function getCustomerPatternLibrary({

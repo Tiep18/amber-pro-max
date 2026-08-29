@@ -20,9 +20,9 @@ function securityHeaders() {
     `form-action 'self' ${siteOrigin}`,
     "script-src 'self' 'unsafe-inline' https://www.paypal.com https://www.sandbox.paypal.com https://*.paypal.com",
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data: blob:${supabaseOrigin ? ` ${supabaseOrigin}` : ''} https://www.paypalobjects.com https://*.paypal.com`,
+    `img-src 'self' data: blob:${supabaseOrigin ? ` ${supabaseOrigin}` : ''} https://www.paypalobjects.com https://*.paypal.com https://img.vietqr.io`,
     "font-src 'self' data:",
-    `connect-src 'self'${supabaseOrigin ? ` ${supabaseOrigin}` : ''} https://www.paypal.com https://www.sandbox.paypal.com https://*.paypal.com`,
+    `connect-src 'self'${supabaseOrigin ? ` ${supabaseOrigin}` : ''} https://www.paypal.com https://www.sandbox.paypal.com https://*.paypal.com https://img.vietqr.io`,
     "frame-src https://www.paypal.com https://www.sandbox.paypal.com https://*.paypal.com",
     "upgrade-insecure-requests"
   ].join('; ');
