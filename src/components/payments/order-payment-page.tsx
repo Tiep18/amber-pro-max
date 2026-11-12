@@ -10,7 +10,6 @@ import { SupportLinks } from '@/components/support/support-links';
 import { DownloadPanel } from '@/components/fulfillment/download-panel';
 import { FulfillmentTrackSummary } from '@/components/fulfillment/fulfillment-track-summary';
 import { PhysicalTrackingPanel } from '@/components/fulfillment/physical-tracking-panel';
-import { PrintOrderButton } from '@/components/fulfillment/print-order-button';
 import type { Locale } from '@/i18n/routing';
 import {
   getAccountOrdersPath,
@@ -204,7 +203,6 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
             <span className="font-medium text-[var(--muted-foreground)]">{t('labels.order')}</span>
             {result.order.orderNumber}
           </p>
-          <PrintOrderButton label={t('printReceipt')} />
         </div>
       </header>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
