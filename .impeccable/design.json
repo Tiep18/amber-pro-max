@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-13T01:47:40Z",
+  "title": "Design System: Ambertinybear",
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "Cream Paper",
+        "tonalRamp": [
+          "oklch(15% 0.018 85)",
+          "oklch(27% 0.018 85)",
+          "oklch(38% 0.018 85)",
+          "oklch(49% 0.018 85)",
+          "oklch(60% 0.018 85)",
+          "oklch(72% 0.018 85)",
+          "oklch(84% 0.018 85)",
+          "oklch(95% 0.018 85)"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Ink Brown",
+        "tonalRamp": [
+          "oklch(15% 0.025 60)",
+          "oklch(27% 0.025 60)",
+          "oklch(38% 0.025 60)",
+          "oklch(49% 0.025 60)",
+          "oklch(60% 0.025 60)",
+          "oklch(72% 0.025 60)",
+          "oklch(84% 0.025 60)",
+          "oklch(95% 0.025 60)"
+        ]
+      },
+      "brand": {
+        "role": "primary",
+        "displayName": "Deep Clay",
+        "tonalRamp": [
+          "oklch(15% 0.09 45)",
+          "oklch(27% 0.09 45)",
+          "oklch(38% 0.09 45)",
+          "oklch(49% 0.09 45)",
+          "oklch(60% 0.09 45)",
+          "oklch(72% 0.09 45)",
+          "oklch(84% 0.09 45)",
+          "oklch(95% 0.09 45)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Warm Surface",
+        "tonalRamp": [
+          "oklch(15% 0.015 85)",
+          "oklch(27% 0.015 85)",
+          "oklch(38% 0.015 85)",
+          "oklch(49% 0.015 85)",
+          "oklch(60% 0.015 85)",
+          "oklch(72% 0.015 85)",
+          "oklch(84% 0.015 85)",
+          "oklch(95% 0.015 85)"
+        ]
+      },
+      "surface-paper": {
+        "role": "neutral",
+        "displayName": "Light Paper",
+        "tonalRamp": [
+          "oklch(15% 0.01 85)",
+          "oklch(27% 0.01 85)",
+          "oklch(38% 0.01 85)",
+          "oklch(49% 0.01 85)",
+          "oklch(60% 0.01 85)",
+          "oklch(72% 0.01 85)",
+          "oklch(84% 0.01 85)",
+          "oklch(95% 0.01 85)"
+        ]
+      },
+      "surface-muted": {
+        "role": "neutral",
+        "displayName": "Soft Oat",
+        "tonalRamp": [
+          "oklch(15% 0.025 80)",
+          "oklch(27% 0.025 80)",
+          "oklch(38% 0.025 80)",
+          "oklch(49% 0.025 80)",
+          "oklch(60% 0.025 80)",
+          "oklch(72% 0.025 80)",
+          "oklch(84% 0.025 80)",
+          "oklch(95% 0.025 80)"
+        ]
+      },
+      "surface-blush": {
+        "role": "neutral",
+        "displayName": "Blush Tint",
+        "tonalRamp": [
+          "oklch(15% 0.025 35)",
+          "oklch(27% 0.025 35)",
+          "oklch(38% 0.025 35)",
+          "oklch(49% 0.025 35)",
+          "oklch(60% 0.025 35)",
+          "oklch(72% 0.025 35)",
+          "oklch(84% 0.025 35)",
+          "oklch(95% 0.025 35)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Warm Terracotta",
+        "tonalRamp": [
+          "oklch(15% 0.13 35)",
+          "oklch(27% 0.13 35)",
+          "oklch(38% 0.13 35)",
+          "oklch(49% 0.13 35)",
+          "oklch(60% 0.13 35)",
+          "oklch(72% 0.13 35)",
+          "oklch(84% 0.13 35)",
+          "oklch(95% 0.13 35)"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Deep Terracotta",
+        "tonalRamp": [
+          "oklch(15% 0.13 35)",
+          "oklch(27% 0.13 35)",
+          "oklch(38% 0.13 35)",
+          "oklch(49% 0.13 35)",
+          "oklch(60% 0.13 35)",
+          "oklch(72% 0.13 35)",
+          "oklch(84% 0.13 35)",
+          "oklch(95% 0.13 35)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Muted Brown",
+        "tonalRamp": [
+          "oklch(15% 0.025 60)",
+          "oklch(27% 0.025 60)",
+          "oklch(38% 0.025 60)",
+          "oklch(49% 0.025 60)",
+          "oklch(60% 0.025 60)",
+          "oklch(72% 0.025 60)",
+          "oklch(84% 0.025 60)",
+          "oklch(95% 0.025 60)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Warm Border",
+        "tonalRamp": [
+          "oklch(15% 0.025 70)",
+          "oklch(27% 0.025 70)",
+          "oklch(38% 0.025 70)",
+          "oklch(49% 0.025 70)",
+          "oklch(60% 0.025 70)",
+          "oklch(72% 0.025 70)",
+          "oklch(84% 0.025 70)",
+          "oklch(95% 0.025 70)"
+        ]
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "Success Green",
+        "tonalRamp": [
+          "oklch(15% 0.09 155)",
+          "oklch(27% 0.09 155)",
+          "oklch(38% 0.09 155)",
+          "oklch(49% 0.09 155)",
+          "oklch(60% 0.09 155)",
+          "oklch(72% 0.09 155)",
+          "oklch(84% 0.09 155)",
+          "oklch(95% 0.09 155)"
+        ]
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "Warning Ochre",
+        "tonalRamp": [
+          "oklch(15% 0.1 75)",
+          "oklch(27% 0.1 75)",
+          "oklch(38% 0.1 75)",
+          "oklch(49% 0.1 75)",
+          "oklch(60% 0.1 75)",
+          "oklch(72% 0.1 75)",
+          "oklch(84% 0.1 75)",
+          "oklch(95% 0.1 75)"
+        ]
+      },
+      "destructive": {
+        "role": "tertiary",
+        "displayName": "Destructive Red",
+        "tonalRamp": [
+          "oklch(15% 0.17 25)",
+          "oklch(27% 0.17 25)",
+          "oklch(38% 0.17 25)",
+          "oklch(49% 0.17 25)",
+          "oklch(60% 0.17 25)",
+          "oklch(72% 0.17 25)",
+          "oklch(84% 0.17 25)",
+          "oklch(95% 0.17 25)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Short homepage hero title."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Customer-facing reading and controls."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Small uppercase section labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "soft",
+        "value": "0 24px 70px rgb(73 52 32 / 14%)",
+        "purpose": "Soft emphasis for featured or interactive surfaces."
+      },
+      {
+        "name": "lifted",
+        "value": "0 30px 90px rgb(78 45 30 / 20%)",
+        "purpose": "Stronger elevation when a featured surface is lifted."
+      }
+    ],
+    "motion": [
+      {
+        "name": "exit",
+        "value": "150ms",
+        "purpose": "View transition exit."
+      },
+      {
+        "name": "enter",
+        "value": "210ms",
+        "purpose": "View transition entry."
+      },
+      {
+        "name": "move",
+        "value": "400ms",
+        "purpose": "View transition motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Standard customer action; the homepage hero uses a separate brand-brown treatment.",
+      "html": "<button class=\"ds-btn-primary\">Continue</button>",
+      "css": ".ds-btn-primary{min-height:44px;padding:8px 16px;border:0;border-radius:var(--radius-control,8px);background:var(--accent,#a94734);color:#fff;font:600 16px Nunito,sans-serif;transition:background-color .2s}.ds-btn-primary:hover{background:var(--accent-hover,#873627)}.ds-btn-primary:focus-visible{outline:2px solid var(--accent,#a94734);outline-offset:2px}.ds-btn-primary:disabled{cursor:not-allowed;opacity:.6}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Quiet bordered action beside or below a primary action.",
+      "html": "<button class=\"ds-btn-secondary\">View details</button>",
+      "css": ".ds-btn-secondary{min-height:44px;padding:8px 16px;border:1px solid var(--border,#ded2c2);border-radius:var(--radius-control,8px);background:var(--surface,#fffaf2);color:var(--foreground,#3b332d);font:600 16px Nunito,sans-serif;transition:background-color .2s}.ds-btn-secondary:hover{background:var(--surface-muted,#ece3d4)}.ds-btn-secondary:focus-visible{outline:2px solid var(--accent,#a94734);outline-offset:2px}"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Warm form field with an accent focus treatment.",
+      "html": "<input class=\"ds-input\" placeholder=\"Email address\" aria-label=\"Email address\">",
+      "css": ".ds-input{box-sizing:border-box;min-height:44px;width:100%;padding:8px 12px;border:1px solid var(--border,#ded2c2);border-radius:var(--radius-control,8px);background:var(--surface,#fffaf2);color:var(--foreground,#3b332d);font:400 16px Nunito,sans-serif}.ds-input::placeholder{color:var(--muted-foreground,#786b61)}.ds-input:focus-visible{border-color:var(--accent,#a94734);outline:2px solid color-mix(in srgb,var(--accent,#a94734) 25%,transparent);outline-offset:0}.ds-input:disabled{opacity:.5}"
+    },
+    {
+      "name": "Basic Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat, bordered content surface for forms and task content.",
+      "html": "<section class=\"ds-card\"><h3>Order details</h3><p>Information appears here.</p></section>",
+      "css": ".ds-card{padding:24px;border:1px solid var(--border,#ded2c2);border-radius:var(--radius-card,8px);background:var(--surface,#fffaf2);color:var(--foreground,#3b332d);font-family:Nunito,sans-serif}.ds-card h3{margin:0 0 8px;font-size:20px;font-weight:600}.ds-card p{margin:0;color:var(--muted-foreground,#786b61);line-height:1.5}"
+    },
+    {
+      "name": "Product Card",
+      "kind": "card",
+      "description": "Image-led catalog tile with selective warm lift on hover.",
+      "html": "<article class=\"ds-product-card\"><div class=\"ds-product-image\">Crochet product image</div><div class=\"ds-product-body\"><span class=\"ds-product-badge\">Handmade</span><h3>Crochet companion</h3><p>Made with care</p><strong>Price</strong></div></article>",
+      "css": ".ds-product-card{overflow:hidden;border:1px solid var(--border,#ded2c2);border-radius:18px;background:var(--surface,#fffaf2);box-shadow:0 18px 55px rgb(73 52 32 / 8%);color:var(--foreground,#3b332d);font-family:Nunito,sans-serif;transition:transform .3s,box-shadow .3s}.ds-product-card:hover{transform:translateY(-4px);box-shadow:0 24px 70px rgb(73 52 32 / 14%)}.ds-product-card:focus-within{outline:2px solid var(--accent,#a94734);outline-offset:2px}.ds-product-image{display:grid;aspect-ratio:5/4;place-items:center;background:var(--surface-muted,#ece3d4);color:var(--muted-foreground,#786b61)}.ds-product-body{display:grid;gap:8px;padding:20px}.ds-product-body h3,.ds-product-body p{margin:0}.ds-product-badge{width:max-content;padding:4px 8px;border-radius:8px;background:var(--surface-blush,#f8ebe5);color:var(--accent,#a94734);font-size:11px;font-weight:600}.ds-product-body strong{padding-top:10px;border-top:1px solid var(--border,#ded2c2);color:var(--brand,#62220c)}"
+    },
+    {
+      "name": "Header Navigation",
+      "kind": "nav",
+      "description": "Quiet primary links with an accent underline for the active route.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Primary\"><a class=\"ds-nav-link ds-current\" href=\"#\">Home</a><a class=\"ds-nav-link\" href=\"#\">Shop</a></nav>",
+      "css": ".ds-nav{display:flex;gap:8px;font-family:Nunito,sans-serif}.ds-nav-link{position:relative;display:inline-flex;min-height:44px;align-items:center;padding:0 12px;border-radius:8px;color:var(--muted-foreground,#786b61);font-size:16px;font-weight:500;text-decoration:none}.ds-nav-link:hover,.ds-nav-link:focus-visible,.ds-nav-link.ds-current{color:var(--foreground,#3b332d)}.ds-nav-link:focus-visible{outline:2px solid var(--accent,#a94734);outline-offset:2px}.ds-nav-link.ds-current::after{position:absolute;right:12px;bottom:6px;left:12px;height:1px;background:var(--accent,#a94734);content:\"\"}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Cửa hàng thủ công tinh tế",
+    "overview": "The storefront feels refined and gentle. Warm cream surfaces and deep clay-brown accents make a quiet frame for the crochet work, which carries the strongest visual detail. The existing homepage uses a studio photograph, a readable cream overlay, and restrained typography to introduce the brand.\n\nThe visual system is mostly flat: paper-like surfaces, fine borders, and generous space establish structure. Soft shadows mark selected interactive or featured elements. Controls remain tidy, easy to use, and light in character. This document records the implemented storefront; the admin interface may use its existing denser, task-focused treatment.",
+    "keyCharacteristics": [
+      "Cream and clay-brown palette, with product and studio photography as the focal point.",
+      "Nunito throughout, from prominent headings to compact labels.",
+      "Flat default surfaces; selective soft elevation for emphasis and interaction.",
+      "Clear market and language controls without disturbing the shopping content."
+    ],
+    "rules": [
+      {
+        "name": "The Cream-and-Clay Rule",
+        "body": "Keep the warm cream and clay-brown relationship visible across customer-facing screens; product imagery provides the richer color variation.",
+        "section": "colors"
+      },
+      {
+        "name": "The Selective Elevation Rule",
+        "body": "A shadow signals emphasis or interaction; ordinary content and form surfaces remain visually quiet.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep crochet photography and product details as the visual focal point.",
+      "Do use cream surfaces, clay-brown typography, and terracotta interaction cues consistently.",
+      "Do retain clear focus, hover, disabled, and reduced-motion behavior."
+    ],
+    "donts": [
+      "Don't apply heavy shadows to every card or form surface.",
+      "Don't replace the warm page canvas with an all-white default.",
+      "Don't copy the marketing hero's scale into task-focused checkout or admin screens."
+    ]
+  }
+}
