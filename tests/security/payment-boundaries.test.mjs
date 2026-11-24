@@ -37,9 +37,9 @@ const paymentSurfaceFiles = [
   'src/payments/guest-access.ts',
   'src/lib/env/server.ts',
   'src/lib/supabase/admin.ts',
-  'src/payments/paypal/client.ts',
-  'src/payments/paypal/mapping.ts',
-  'src/payments/paypal/verification.ts',
+  'src/payments/paypal/processor.ts',
+  'src/payments/paypal/server.ts',
+  'src/payments/paypal/logging.ts',
   'src/payments/vietqr/instructions.ts',
   'src/payments/admin-actions.ts',
   'src/app/api/paypal/orders/route.ts',
@@ -289,7 +289,8 @@ test('paid downloads keep the existing entitlement-authorized private route unch
 });
 
 test('ASVS L1 payment authority matrix preserves verified transitions, inventory outcomes, and private access', () => {
-  const webhook = readFileSync('src/app/api/webhooks/paypal/route.ts', 'utf8');
+  const webhookRoute = readFileSync('src/app/api/webhooks/paypal/route.ts', 'utf8');
+  const paypalProcessor = readFileSync('src/payments/paypal/processor.ts', 'utf8');
   const transitions = readFileSync('src/payments/transitions.ts', 'utf8');
   const transitionMigration = readFileSync(
     'supabase/migrations/20260802170000_late_payment_settlement.sql',
@@ -304,10 +305,14 @@ test('ASVS L1 payment authority matrix preserves verified transitions, inventory
   const guestTokens = readFileSync('src/fulfillment/guest-order-tokens.ts', 'utf8');
   const qrRoute = readFileSync(vietQrDownloadRoute, 'utf8');
 
-  const verify = webhook.indexOf('await verifyPayPalWebhook(');
-  const transition = webhook.indexOf('await applyPaymentTransition(', verify);
+  assert.match(webhookRoute, /createSystemPayPalProcessor/);
+  assert.match(webhookRoute, /handlePayPalWebhook/);
+  assert.doesNotMatch(webhookRoute, /\.from\(|\.rpc\(|applyPaymentTransition\(/);
+
+  const verify = paypalProcessor.indexOf('await verifyPayPalWebhook(');
+  const transition = paypalProcessor.indexOf('applyPaymentTransition(', verify);
   assert.ok(verify >= 0 && transition > verify);
-  assert.match(webhook.slice(verify, transition), /verification\.status !== 'verified'/);
+  assert.match(paypalProcessor.slice(verify, transition), /verification\.status !== 'verified'/);
   assert.match(transitions, /client\.rpc\('apply_payment_transition'/);
   assert.doesNotMatch(transitions, /\.from\(['"](?:payments|checkout_orders|checkout_inventory_reservations)['"]\)/);
 

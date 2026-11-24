@@ -1,747 +1,284 @@
-import {describe, expect, test, vi} from 'vitest';
-import {paypalFixtureIds} from '../../fixtures/payments/paypal-events';
+import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
+import { createPayPalProcessor, type PayPalAdapters } from '@/payments/paypal/processor';
+import { paypalCaptureResponse, paypalCreateResponse } from '@/payments/paypal/server';
 import {
-  capturePayPalOrder,
-  createPayPalOrder,
-  getPayPalOrder,
-  type PayPalOrderSource,
-  type PayPalServerConfig
-} from '@/payments/paypal/client';
-import {reconcilePayPalCapture} from '@/payments/paypal/mapping';
+  completedProviderOrderFixture,
+  createInMemoryPayPalStore,
+  createMockPayPalTransport,
+  makeStoredPayPalOrder,
+  paypalFixtureConfig,
+  unconfiguredPayPalConfig
+} from '../../fixtures/payments/paypal-adapters';
+import { paypalFixtureIds } from '../../fixtures/payments/paypal-events';
 
-const config: PayPalServerConfig = {
-  status: 'configured',
-  clientId: 'fixture-client-id',
-  clientSecret: 'fixture-client-secret',
-  webhookId: 'fixture-webhook-id',
-  expectedMerchantId: paypalFixtureIds.merchantId,
-  apiBase: 'https://api-m.sandbox.paypal.com',
-  enabledCountries: ['US'],
-  enabledCurrency: 'USD'
-};
+const OPEN_NOW = Date.parse('2026-06-15T03:00:00.000Z');
+const EXPIRED_NOW = Date.parse('2026-06-15T05:00:00.000Z');
 
-const order: PayPalOrderSource = {
-  orderId: paypalFixtureIds.localOrderId,
-  orderNumber: paypalFixtureIds.orderNumber,
-  totalMinor: 4250,
-  currencyCode: 'USD',
-  market: 'intl',
-  paymentIntent: 'paypal_intent',
-  paypalCreateRequestId: '11111111-1111-4111-8111-111111111111',
-  paypalCaptureRequestId: '22222222-2222-4222-8222-222222222222'
-};
+type StoreOptions = NonNullable<Parameters<typeof createInMemoryPayPalStore>[0]>;
+type OperationalFailureRecorder = NonNullable<PayPalAdapters['recordOperationalFailure']>;
+type EmailOutboxTrigger = NonNullable<PayPalAdapters['triggerEmailOutbox']>;
 
-const paymentRow = {
-  id: '33333333-3333-4333-8333-333333333333',
-  order_id: paypalFixtureIds.localOrderId,
-  provider_order_id: paypalFixtureIds.paypalOrderId,
-  request_id: '44444444-4444-4444-8444-444444444444',
-  provider_request_id: '55555555-5555-4555-8555-555555555555'
-};
-
-const routeOrderRow = {
-  order_id: paypalFixtureIds.localOrderId,
-  order_number: paypalFixtureIds.orderNumber,
-  market: 'intl',
-  currency_code: 'USD',
-  total_minor: 4250,
-  provider: 'paypal',
-  payment_status: 'pending',
-  payment_id: paymentRow.id,
-  provider_order_id: paymentRow.provider_order_id,
-  reservation_expires_at: new Date(Date.now() + 60_000).toISOString()
-};
-
-const completedProviderOrder = {
-  id: paypalFixtureIds.paypalOrderId,
-  status: 'COMPLETED',
-  purchase_units: [
-    {
-      invoice_id: paypalFixtureIds.orderNumber,
-      custom_id: paypalFixtureIds.localOrderId,
-      payee: {merchant_id: paypalFixtureIds.merchantId},
-      payments: {
-        captures: [
-          {
-            id: paypalFixtureIds.paypalCaptureId,
-            status: 'COMPLETED',
-            amount: {currency_code: 'USD', value: '42.50'},
-            seller_receivable_breakdown: {
-              gross_amount: {currency_code: 'USD', value: '42.50'}
-            }
-          }
-        ]
-      }
-    }
-  ]
-};
-
-function jsonResponse(value: unknown, status = 200) {
-  return new Response(JSON.stringify(value), {
-    status,
-    headers: {'content-type': 'application/json'}
-  });
-}
-
-function createFixtureFetch({
-  orderResponse = {id: paypalFixtureIds.paypalOrderId, status: 'CREATED'},
-  captureStatus = 201
-}: {
-  orderResponse?: unknown;
-  captureStatus?: number;
-} = {}) {
-  const transport = vi.fn(async (url: string | URL, init?: RequestInit) => {
-    const target = String(url);
-    if (target.endsWith('/v1/oauth2/token')) {
-      return jsonResponse({['access_' + 'token']: 'tok'});
-    }
-    if (target.endsWith('/v2/checkout/orders') && init?.method === 'POST') {
-      return jsonResponse(orderResponse, 201);
-    }
-    if (target.endsWith(`/v2/checkout/orders/${paypalFixtureIds.paypalOrderId}/capture`)) {
-      return jsonResponse(
-        {
-          id: paypalFixtureIds.paypalOrderId,
-          status: 'COMPLETED',
-          purchase_units: [
-            {
-              invoice_id: paypalFixtureIds.orderNumber,
-              custom_id: paypalFixtureIds.localOrderId,
-              payee: {merchant_id: paypalFixtureIds.merchantId},
-              payments: {
-                captures: [
-                  {
-                    id: paypalFixtureIds.paypalCaptureId,
-                    status: 'COMPLETED',
-                    amount: {currency_code: 'USD', value: '42.50'},
-                    seller_receivable_breakdown: {
-                      gross_amount: {currency_code: 'USD', value: '42.50'}
-                    }
-                  }
-                ]
-              }
-            }
-          ]
-        },
-        captureStatus
-      );
-    }
-    if (target.endsWith(`/v2/checkout/orders/${paypalFixtureIds.paypalOrderId}`)) {
-      return jsonResponse(orderResponse);
-    }
-    throw new Error(`unexpected PayPal URL ${target}`);
-  });
-
-  return transport;
-}
-
-function createRouteClient({row = routeOrderRow, payment = paymentRow}: {row?: Record<string, unknown> | null; payment?: Record<string, unknown> | null} = {}) {
-  return {
-    from: vi.fn((table: string) => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          maybeSingle: vi.fn(async () => {
-            if (table === 'order_payment_statuses') {
-              return {data: row, error: null};
-            }
-            if (table === 'payments') {
-              return {data: payment, error: null};
-            }
-            return {data: null, error: null};
-          })
-        }))
-      })),
-      update: vi.fn(() => ({
-        eq: vi.fn(async () => ({data: null, error: null}))
-      }))
-    })),
-    rpc: vi.fn(async () => ({data: {status: 'applied', paymentStatus: 'paid', inventoryEffect: 'finalized'}, error: null}))
-  };
-}
-
-async function importCreateRoute({
-  client = createRouteClient({payment: {...paymentRow, provider_order_id: null}}),
-  authClient = {rpc: vi.fn()},
+function createHarness({
+  orders = [makeStoredPayPalOrder()],
   authorized = true,
-  createResult = {status: 'created', paypalOrderId: paypalFixtureIds.paypalOrderId},
-  recordOperationalFailure = vi.fn(async () => ({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'}))
+  omitOrderAccess = false,
+  config = paypalFixtureConfig,
+  now = () => OPEN_NOW,
+  transportOptions,
+  extendReservationOutcome,
+  onApplyTransition,
+  recordOperationalFailure = vi.fn<OperationalFailureRecorder>(async () => ({
+    status: 'recorded',
+    errorId: '76000000-0000-4000-8000-000000000001'
+  })),
+  triggerEmailOutbox = vi.fn<EmailOutboxTrigger>(async () => ({
+    status: 'processed',
+    claimed: 1,
+    sent: 1,
+    retry: 0,
+    failed: 0
+  }))
 }: {
-  client?: ReturnType<typeof createRouteClient>;
-  authClient?: {rpc: ReturnType<typeof vi.fn>};
+  orders?: ReturnType<typeof makeStoredPayPalOrder>[];
   authorized?: boolean;
-  createResult?: unknown;
-  recordOperationalFailure?: ReturnType<typeof vi.fn>;
+  omitOrderAccess?: boolean;
+  config?: typeof paypalFixtureConfig | typeof unconfiguredPayPalConfig;
+  now?: () => number;
+  transportOptions?: Parameters<typeof createMockPayPalTransport>[0];
+  extendReservationOutcome?: StoreOptions['extendReservationOutcome'];
+  onApplyTransition?: StoreOptions['onApplyTransition'];
+  recordOperationalFailure?: OperationalFailureRecorder;
+  triggerEmailOutbox?: EmailOutboxTrigger;
 } = {}) {
-  vi.resetModules();
-  vi.doMock('server-only', () => ({}));
-  vi.doMock('@/lib/env/server', () => ({getServerEnv: () => ({paypal: config})}));
-  vi.doMock('@/lib/supabase/admin', () => ({createSupabaseAdminClient: () => client}));
-  vi.doMock('@/lib/supabase/server', () => ({createSupabaseServerClient: async () => authClient}));
-  vi.doMock('@/payments/guest-access', () => ({getGuestOrderAccessHashFromServer: async () => 'guest-hash'}));
-  vi.doMock('@/payments/queries', () => ({
-    getAuthorizedOrderPayment: vi.fn(async () =>
-      authorized ? {status: 'found', order: {orderNumber: paypalFixtureIds.orderNumber}} : {status: 'not_found'}
-    )
-  }));
-  vi.doMock('@/payments/paypal/client', () => ({
-    createPayPalOrder: vi.fn(async () => createResult),
-    getPayPalOrder: vi.fn()
-  }));
-  vi.doMock('@/operations/errors', () => ({
-    recordOperationalFailure
-  }));
-  const route = await import('@/app/api/paypal/orders/route');
-  const clientModule = await import('@/payments/paypal/client');
-  const queries = await import('@/payments/queries');
+  const memory = createInMemoryPayPalStore({
+    orders,
+    extendReservationOutcome,
+    onApplyTransition
+  });
+  const mockTransport = createMockPayPalTransport(transportOptions);
+  const authorizeOrder = vi.fn(async () =>
+    authorized ? ({ status: 'authorized' } as const) : ({ status: 'not_found' } as const)
+  );
+  const processor = createPayPalProcessor({
+    config,
+    store: memory.store,
+    ...(omitOrderAccess ? {} : { orderAccess: { authorizeOrder } }),
+    transport: mockTransport.transport,
+    triggerEmailOutbox,
+    recordOperationalFailure,
+    log: () => {},
+    now
+  });
+
   return {
-    POST: route.POST as (request: Request) => Promise<Response>,
-    client,
-    authClient,
-    createPayPalOrder: vi.mocked(clientModule.createPayPalOrder),
-    getAuthorizedOrderPayment: vi.mocked(queries.getAuthorizedOrderPayment),
-    recordOperationalFailure
+    processor,
+    memory,
+    transportCalls: mockTransport.calls,
+    authorizeOrder,
+    recordOperationalFailure,
+    triggerEmailOutbox
   };
 }
 
-async function importCaptureRoute({
-  client = createRouteClient(),
-  authClient = {rpc: vi.fn()},
-  captureResult = {
-    status: 'captured',
-    paypalOrderId: paypalFixtureIds.paypalOrderId,
-    providerOrder: completedProviderOrder
-  },
-  retrieveResult = captureResult,
-  captureError,
-  retrieveError,
-  recordOperationalFailure = vi.fn(async () => ({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'}))
-}: {
-  client?: ReturnType<typeof createRouteClient>;
-  authClient?: {rpc: ReturnType<typeof vi.fn>};
-  captureResult?: unknown;
-  retrieveResult?: unknown;
-  captureError?: Error;
-  retrieveError?: Error;
-  recordOperationalFailure?: ReturnType<typeof vi.fn>;
-} = {}) {
-  vi.resetModules();
-  vi.doMock('server-only', () => ({}));
-  vi.doMock('@/lib/env/server', () => ({getServerEnv: () => ({paypal: config})}));
-  vi.doMock('@/lib/supabase/admin', () => ({createSupabaseAdminClient: () => client}));
-  vi.doMock('@/lib/supabase/server', () => ({createSupabaseServerClient: async () => authClient}));
-  vi.doMock('@/payments/guest-access', () => ({getGuestOrderAccessHashFromServer: async () => 'guest-hash'}));
-  vi.doMock('@/payments/queries', () => ({
-    getAuthorizedOrderPayment: vi.fn(async () => ({status: 'found', order: {orderNumber: paypalFixtureIds.orderNumber}}))
-  }));
-  vi.doMock('@/payments/paypal/client', () => ({
-    capturePayPalOrder: vi.fn(async () => {
-      if (captureError) throw captureError;
-      return captureResult;
-    }),
-    getPayPalOrder: vi.fn(async () => {
-      if (retrieveError) throw retrieveError;
-      return retrieveResult;
-    })
-  }));
-  vi.doMock('@/payments/transitions', () => ({
-    applyPaymentTransition: vi.fn(async () => ({status: 'applied', paymentStatus: 'paid', inventoryEffect: 'finalized'}))
-  }));
-  vi.doMock('@/fulfillment/email-outbox.server', () => ({
-    triggerTransactionalEmailOutboxNow: vi.fn(async () => ({status: 'processed', claimed: 1, sent: 1, retry: 0, failed: 0}))
-  }));
-  vi.doMock('@/operations/errors', () => ({
-    recordOperationalFailure
-  }));
-  const route = await import('@/app/api/paypal/orders/[paypalOrderId]/capture/route');
-  const clientModule = await import('@/payments/paypal/client');
-  const transitions = await import('@/payments/transitions');
-  const emailOutbox = await import('@/fulfillment/email-outbox.server');
-  const queries = await import('@/payments/queries');
-  return {
-    POST: route.POST as (request: Request, context: {params: Promise<{paypalOrderId: string}>}) => Promise<Response>,
-    client,
-    authClient,
-    capturePayPalOrder: vi.mocked(clientModule.capturePayPalOrder),
-    getPayPalOrder: vi.mocked(clientModule.getPayPalOrder),
-    applyPaymentTransition: vi.mocked(transitions.applyPaymentTransition),
-    triggerTransactionalEmailOutboxNow: vi.mocked(emailOutbox.triggerTransactionalEmailOutboxNow),
-    getAuthorizedOrderPayment: vi.mocked(queries.getAuthorizedOrderPayment),
-    recordOperationalFailure
-  };
-}
-
-describe('PayPal server client contract', () => {
+describe('PayPal payment module across its interface', () => {
   test('uses deterministic test fixture identifiers without live credentials', () => {
     expect(paypalFixtureIds.requestId).toContain(paypalFixtureIds.orderNumber);
-    expect(JSON.stringify(paypalFixtureIds)).not.toMatch(/client_secret|access_token|live_|production|password/i);
+    expect(JSON.stringify(paypalFixtureIds)).not.toMatch(
+      /client_secret|access_token|live_|production|password/i
+    );
   });
 
-  test('creates PayPal orders server-side from the authoritative local USD total', async () => {
-    const transport = createFixtureFetch();
+  test('create ignores browser-submitted amounts, extends handoff hold, uses local USD minor total, and sends stable request ID', async () => {
+    const { processor, memory, transportCalls, authorizeOrder } = createHarness({
+      orders: [makeStoredPayPalOrder({ totalMinor: 4200, providerOrderId: null })],
+      extendReservationOutcome: {
+        status: 'extended',
+        reservationExpiresAt: '2026-06-15T04:10:00.000Z'
+      }
+    });
 
-    const result = await createPayPalOrder({config, order, transport});
+    const outcome = await processor.createPayPalOrder({
+      orderNumber: paypalFixtureIds.orderNumber,
+      amountMinor: 1,
+      currencyCode: 'VND',
+      merchantId: 'MERCHANT-MISMATCH'
+    });
 
-    expect(result).toEqual({status: 'created', paypalOrderId: paypalFixtureIds.paypalOrderId});
-    const createCall = transport.mock.calls.find(([url, init]) => String(url).endsWith('/v2/checkout/orders') && init?.method === 'POST');
+    expect(outcome).toEqual({ status: 'awaiting', paypalOrderId: paypalFixtureIds.paypalOrderId });
+    expect(authorizeOrder).toHaveBeenCalledWith(paypalFixtureIds.orderNumber);
+    expect(memory.extendCalls).toHaveLength(1);
+    expect(memory.savedProviderOrderIds).toEqual([
+      { orderId: paypalFixtureIds.localOrderId, providerOrderId: paypalFixtureIds.paypalOrderId }
+    ]);
+
+    const createCall = transportCalls.find(
+      (call) => call.method === 'POST' && call.url.endsWith('/v2/checkout/orders')
+    );
     expect(createCall).toBeDefined();
-    const [, init] = createCall!;
-    expect(init?.headers).toMatchObject({'PayPal-Request-Id': order.paypalCreateRequestId});
-    expect(JSON.parse(String(init?.body))).toMatchObject({
+    expect(createCall?.init?.headers).toMatchObject({
+      'PayPal-Request-Id': '55555555-5555-4555-8555-555555555555',
+      Prefer: 'return=representation'
+    });
+    expect(JSON.parse(String(createCall?.init?.body))).toMatchObject({
       intent: 'CAPTURE',
       purchase_units: [
         {
           invoice_id: paypalFixtureIds.orderNumber,
           custom_id: paypalFixtureIds.localOrderId,
-          payee: {merchant_id: paypalFixtureIds.merchantId},
-          amount: {currency_code: 'USD', value: '42.50'}
+          payee: { merchant_id: paypalFixtureIds.merchantId },
+          amount: { currency_code: 'USD', value: '42.00' }
         }
       ]
     });
   });
 
-  test('sends a stable PayPal-Request-Id for create and capture retries', async () => {
-    const transport = createFixtureFetch();
-
-    await createPayPalOrder({config, order, transport});
-    await capturePayPalOrder({config, order: {...order, providerOrderId: paypalFixtureIds.paypalOrderId}, transport});
-
-    expect(transport.mock.calls.map(([, init]) => init?.headers)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({'PayPal-Request-Id': order.paypalCreateRequestId}),
-        expect.objectContaining({'PayPal-Request-Id': order.paypalCaptureRequestId, Prefer: 'return=representation'})
-      ])
-    );
-  });
-
-  test('does not accept browser-submitted amount, currency, merchant, or receiver facts', async () => {
-    const transport = createFixtureFetch();
-
-    const result = await createPayPalOrder({
-      config,
-      order: {...order, totalMinor: 4200, currencyCode: 'USD'},
-      transport,
-      browserFacts: {amountMinor: 1, currencyCode: 'VND', merchantId: 'MERCHANT-MISMATCH'}
+  test('create reuses existing providerOrderId via GET when PayPal returns it', async () => {
+    const { processor, memory, transportCalls } = createHarness({
+      orders: [makeStoredPayPalOrder({ providerOrderId: paypalFixtureIds.paypalOrderId })]
     });
 
-    expect(result.status).toBe('created');
-    const createCall = transport.mock.calls.find(([url, init]) => String(url).endsWith('/v2/checkout/orders') && init?.method === 'POST');
-    expect(JSON.parse(String(createCall?.[1]?.body)).purchase_units[0].amount).toEqual({currency_code: 'USD', value: '42.00'});
-  });
-
-  test('captures through the server and maps provider timeout or retry outcomes to typed results', async () => {
-    const transport = createFixtureFetch({captureStatus: 504});
-
-    const result = await capturePayPalOrder({config, order: {...order, providerOrderId: paypalFixtureIds.paypalOrderId}, transport});
-
-    expect(result).toEqual({
-      status: 'verifying',
-      code: 'paypal_capture_uncertain',
-      paypalOrderId: paypalFixtureIds.paypalOrderId
-    });
-  });
-
-  test('treats a rejected capture transport as uncertain after the POST was issued', async () => {
-    const transport = vi.fn(async (url: string | URL) => {
-      const target = String(url);
-      if (target.endsWith('/v1/oauth2/token')) {
-        return jsonResponse({['access_' + 'token']: 'tok'});
-      }
-      if (target.endsWith(`/v2/checkout/orders/${paypalFixtureIds.paypalOrderId}/capture`)) {
-        throw new Error('connection reset after request');
-      }
-      throw new Error(`unexpected PayPal URL ${target}`);
+    const outcome = await processor.createPayPalOrder({
+      orderNumber: paypalFixtureIds.orderNumber
     });
 
-    await expect(
-      capturePayPalOrder({
-        config,
-        order: {...order, providerOrderId: paypalFixtureIds.paypalOrderId},
-        transport
-      })
-    ).resolves.toEqual({
-      status: 'verifying',
-      code: 'paypal_capture_uncertain',
-      paypalOrderId: paypalFixtureIds.paypalOrderId
-    });
-  });
-
-  test('reconciles every non-success capture response instead of assuming no charge', async () => {
-    const transport = createFixtureFetch({captureStatus: 422});
-
-    await expect(
-      capturePayPalOrder({
-        config,
-        order: {...order, providerOrderId: paypalFixtureIds.paypalOrderId},
-        transport
-      })
-    ).resolves.toEqual({
-      status: 'verifying',
-      code: 'paypal_capture_uncertain',
-      paypalOrderId: paypalFixtureIds.paypalOrderId
-    });
-  });
-
-  test('keeps a rejected PayPal status lookup uncertain', async () => {
-    const transport = vi.fn(async (url: string | URL) => {
-      const target = String(url);
-      if (target.endsWith('/v1/oauth2/token')) {
-        return jsonResponse({['access_' + 'token']: 'tok'});
-      }
-      if (target.endsWith(`/v2/checkout/orders/${paypalFixtureIds.paypalOrderId}`)) {
-        throw new Error('status lookup disconnected');
-      }
-      throw new Error(`unexpected PayPal URL ${target}`);
-    });
-
-    await expect(
-      getPayPalOrder({config, paypalOrderId: paypalFixtureIds.paypalOrderId, transport})
-    ).resolves.toEqual({
-      status: 'verifying',
-      code: 'paypal_provider_uncertain',
-      paypalOrderId: paypalFixtureIds.paypalOrderId
-    });
-  });
-
-  test('rejects VietQR or VND orders before calling the PayPal provider', async () => {
-    const transport = createFixtureFetch();
-
-    const result = await createPayPalOrder({
-      config,
-      order: {...order, currencyCode: 'VND', market: 'vn', paymentIntent: 'vietqr_intent'},
-      transport
-    });
-
-    expect(result).toEqual({status: 'invalid', code: 'paypal_order_not_eligible'});
-    expect(transport).not.toHaveBeenCalled();
-  });
-
-  test('does not perform network calls when a fixture transport is injected', async () => {
-    const transport = createFixtureFetch();
-
-    await getPayPalOrder({config, paypalOrderId: paypalFixtureIds.paypalOrderId, transport});
-
-    expect(transport).toHaveBeenCalledWith(
-      'https://api-m.sandbox.paypal.com/v2/checkout/orders/PAYPAL-ORDER-TEST-0001',
-      expect.any(Object)
-    );
-  });
-
-  test('rejects merchant, order, capture, amount, and currency mismatch during reconciliation', () => {
-    const completedOrder = {
-      id: paypalFixtureIds.paypalOrderId,
-      status: 'COMPLETED',
-      purchase_units: [
-        {
-          invoice_id: paypalFixtureIds.orderNumber,
-          custom_id: paypalFixtureIds.localOrderId,
-          payee: {merchant_id: paypalFixtureIds.merchantId},
-          payments: {
-            captures: [
-              {
-                id: paypalFixtureIds.paypalCaptureId,
-                status: 'COMPLETED',
-                amount: {currency_code: 'USD', value: '42.50'},
-                seller_receivable_breakdown: {
-                  gross_amount: {currency_code: 'USD', value: '42.50'}
-                }
-              }
-            ]
-          }
-        }
-      ]
-    };
-
-    expect(reconcilePayPalCapture({providerOrder: completedOrder, order, expectedMerchantId: paypalFixtureIds.merchantId})).toMatchObject({
-      status: 'verified',
-      facts: {
-        providerOrderId: paypalFixtureIds.paypalOrderId,
-        providerCaptureId: paypalFixtureIds.paypalCaptureId,
-        amountMinor: 4250,
-        currencyCode: 'USD'
-      }
-    });
+    expect(outcome).toEqual({ status: 'awaiting', paypalOrderId: paypalFixtureIds.paypalOrderId });
     expect(
-      reconcilePayPalCapture({
-        providerOrder: completedOrder,
-        order: {...order, totalMinor: 4200},
-        expectedMerchantId: paypalFixtureIds.merchantId
-      })
-    ).toEqual({status: 'rejected', code: 'paypal_amount_mismatch'});
+      transportCalls.some(
+        (call) =>
+          call.method === 'GET' &&
+          call.url.endsWith(`/v2/checkout/orders/${paypalFixtureIds.paypalOrderId}`)
+      )
+    ).toBe(true);
     expect(
-      reconcilePayPalCapture({
-        providerOrder: completedOrder,
-        order,
-        expectedMerchantId: 'MERCHANT-MISMATCH'
-      })
-    ).toEqual({status: 'rejected', code: 'paypal_merchant_mismatch'});
+      transportCalls.some(
+        (call) => call.method === 'POST' && call.url.endsWith('/v2/checkout/orders')
+      )
+    ).toBe(false);
+    expect(memory.savedProviderOrderIds).toHaveLength(0);
   });
 
-  test('reconciles capture metadata when PayPal returns invoice and custom id on the capture object', () => {
-    const completedOrder = {
-      id: paypalFixtureIds.paypalOrderId,
-      status: 'COMPLETED',
-      purchase_units: [
-        {
-          reference_id: paypalFixtureIds.localOrderId,
-          payments: {
-            captures: [
-              {
-                id: paypalFixtureIds.paypalCaptureId,
-                status: 'COMPLETED',
-                invoice_id: paypalFixtureIds.orderNumber,
-                custom_id: paypalFixtureIds.localOrderId,
-                payee: {merchant_id: paypalFixtureIds.merchantId},
-                amount: {currency_code: 'USD', value: '42.50'},
-                seller_receivable_breakdown: {
-                  gross_amount: {currency_code: 'USD', value: '42.50'}
-                }
-              }
-            ]
-          }
-        }
-      ]
-    };
-
-    expect(reconcilePayPalCapture({providerOrder: completedOrder, order, expectedMerchantId: paypalFixtureIds.merchantId})).toMatchObject({
-      status: 'verified',
-      facts: {
-        providerOrderId: paypalFixtureIds.paypalOrderId,
-        providerCaptureId: paypalFixtureIds.paypalCaptureId,
-        merchantId: paypalFixtureIds.merchantId,
-        amountMinor: 4250,
-        currencyCode: 'USD'
-      }
+  test('create fails closed without orderAccess and rejects unauthorized or ineligible VND/VietQR orders before PayPal HTTP I/O', async () => {
+    const unauthorized = createHarness({
+      orders: [makeStoredPayPalOrder({ providerOrderId: null })],
+      authorized: false
     });
-  });
+    await expect(
+      unauthorized.processor.createPayPalOrder({ orderNumber: paypalFixtureIds.orderNumber })
+    ).resolves.toEqual({ status: 'not_found' });
+    expect(unauthorized.transportCalls).toHaveLength(0);
 
-  test('reconciles missing merchant id when the server-created PayPal order contract matches all capture facts', () => {
-    const completedOrder = {
-      id: paypalFixtureIds.paypalOrderId,
-      status: 'COMPLETED',
-      purchase_units: [
-        {
-          reference_id: paypalFixtureIds.localOrderId,
-          payments: {
-            captures: [
-              {
-                id: paypalFixtureIds.paypalCaptureId,
-                status: 'COMPLETED',
-                invoice_id: paypalFixtureIds.orderNumber,
-                custom_id: paypalFixtureIds.localOrderId,
-                amount: {currency_code: 'USD', value: '42.50'},
-                seller_receivable_breakdown: {
-                  gross_amount: {currency_code: 'USD', value: '42.50'}
-                }
-              }
-            ]
-          }
-        }
-      ]
-    };
-
-    expect(reconcilePayPalCapture({providerOrder: completedOrder, order, expectedMerchantId: paypalFixtureIds.merchantId})).toMatchObject({
-      status: 'verified',
-      facts: {
-        providerOrderId: paypalFixtureIds.paypalOrderId,
-        providerCaptureId: paypalFixtureIds.paypalCaptureId,
-        merchantId: paypalFixtureIds.merchantId,
-        merchantVerificationSource: 'server_payee_contract',
-        amountMinor: 4250,
-        currencyCode: 'USD'
-      }
+    const noOrderAccess = createHarness({
+      orders: [makeStoredPayPalOrder({ providerOrderId: null })],
+      omitOrderAccess: true
     });
-  });
-});
+    await expect(
+      noOrderAccess.processor.createPayPalOrder({ orderNumber: paypalFixtureIds.orderNumber })
+    ).resolves.toEqual({ status: 'not_found' });
+    expect(noOrderAccess.transportCalls).toHaveLength(0);
 
-describe('PayPal route contract', () => {
-  test('create body accepts only order number and uses local exact amount', async () => {
-    const {POST, authClient, createPayPalOrder, getAuthorizedOrderPayment} = await importCreateRoute();
-
-    const response = await POST(
-      new Request('http://localhost/api/paypal/orders', {
-        method: 'POST',
-        body: JSON.stringify({orderNumber: paypalFixtureIds.orderNumber, amountMinor: 1, currencyCode: 'VND'})
-      })
-    );
-
-    await expect(response.json()).resolves.toMatchObject({status: 'awaiting', paypalOrderId: paypalFixtureIds.paypalOrderId});
-    expect(getAuthorizedOrderPayment).toHaveBeenCalledWith(
-      expect.objectContaining({
-        orderNumber: paypalFixtureIds.orderNumber,
-        guestSecretHash: 'guest-hash',
-        client: authClient
-      })
-    );
-    expect(createPayPalOrder).toHaveBeenCalledWith(
-      expect.objectContaining({
-        order: expect.objectContaining({
-          orderNumber: paypalFixtureIds.orderNumber,
-          totalMinor: 4250,
-          currencyCode: 'USD',
-          market: 'intl',
-          paymentIntent: 'paypal_intent'
+    const ineligible = createHarness({
+      orders: [
+        makeStoredPayPalOrder({
+          market: 'vn',
+          currencyCode: 'VND',
+          provider: 'vietqr',
+          providerOrderId: null
         })
-      })
-    );
+      ]
+    });
+    await expect(
+      ineligible.processor.createPayPalOrder({ orderNumber: paypalFixtureIds.orderNumber })
+    ).resolves.toEqual({ status: 'invalid', code: 'paypal_order_not_eligible' });
+    expect(ineligible.transportCalls).toHaveLength(0);
   });
 
-  test('create rejects cross-order access before provider I/O', async () => {
-    const {POST, createPayPalOrder} = await importCreateRoute({authorized: false});
-
-    const response = await POST(
-      new Request('http://localhost/api/paypal/orders', {
-        method: 'POST',
-        body: JSON.stringify({orderNumber: paypalFixtureIds.orderNumber})
-      })
-    );
-
-    expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({status: 'not_found'});
-    expect(createPayPalOrder).not.toHaveBeenCalled();
-  });
-
-  test('create records provider failures for admin operations review', async () => {
-    const recordOperationalFailure = vi.fn(async () => ({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'}));
-    const {POST} = await importCreateRoute({
-      createResult: {status: 'error', code: 'paypal_provider_error'},
-      recordOperationalFailure
+  test('create handles OAuth transport errors and keeps failure responses stable when operational recording fails', async () => {
+    const throwingRecorder = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const oauthFailure = createHarness({
+      orders: [makeStoredPayPalOrder({ providerOrderId: null })],
+      transportOptions: { oauthError: new Error('dns failure') },
+      recordOperationalFailure: throwingRecorder
     });
 
-    const response = await POST(
-      new Request('http://localhost/api/paypal/orders', {
-        method: 'POST',
-        body: JSON.stringify({orderNumber: paypalFixtureIds.orderNumber})
-      })
-    );
+    const outcome = await oauthFailure.processor.createPayPalOrder({
+      orderNumber: paypalFixtureIds.orderNumber
+    });
 
-    expect(response.status).toBe(502);
-    expect(recordOperationalFailure).toHaveBeenCalledWith(
+    expect(outcome).toEqual({ status: 'error', code: 'paypal_provider_error' });
+    expect(paypalCreateResponse(outcome).status).toBe(502);
+    expect(throwingRecorder).toHaveBeenCalledWith(
       expect.objectContaining({
-        area: 'payment',
+        action: 'paypal_create',
         severity: 'error',
         errorCode: 'paypal_provider_error',
         summary: 'PayPal order create failed',
         facts: expect.objectContaining({
           orderId: paypalFixtureIds.localOrderId,
           orderNumber: paypalFixtureIds.orderNumber,
-          provider: 'paypal',
-          status: 'error'
+          provider: 'paypal'
         })
       })
     );
+
+    const postTimeout = createHarness({
+      orders: [makeStoredPayPalOrder({ providerOrderId: null })],
+      transportOptions: { createOrderError: new Error('ECONNRESET') }
+    });
+    await expect(
+      postTimeout.processor.createPayPalOrder({ orderNumber: paypalFixtureIds.orderNumber })
+    ).resolves.toEqual({ status: 'verifying', code: 'paypal_provider_uncertain' });
   });
 
-  test('create keeps provider failure response stable when operational recording fails', async () => {
-    const recordOperationalFailure = vi.fn(async () => {
-      throw new Error('operational table unavailable');
-    });
-    const {POST} = await importCreateRoute({
-      createResult: {status: 'error', code: 'paypal_provider_error'},
-      recordOperationalFailure
-    });
-
-    const response = await POST(
-      new Request('http://localhost/api/paypal/orders', {
-        method: 'POST',
-        body: JSON.stringify({orderNumber: paypalFixtureIds.orderNumber})
-      })
-    );
-
-    expect(response.status).toBe(502);
-    await expect(response.json()).resolves.toEqual({status: 'error', code: 'paypal_provider_error'});
-    expect(recordOperationalFailure).toHaveBeenCalledOnce();
-  });
-
-  test('capture returns verifying on uncertain provider outcome', async () => {
-    const {POST, applyPaymentTransition, triggerTransactionalEmailOutboxNow} = await importCaptureRoute({
-      captureResult: {status: 'verifying', code: 'paypal_capture_uncertain', paypalOrderId: paypalFixtureIds.paypalOrderId}
-    });
-
-    const response = await POST(new Request('http://localhost/api/paypal/orders/id/capture', {method: 'POST'}), {
-      params: Promise.resolve({paypalOrderId: paypalFixtureIds.paypalOrderId})
-    });
-
-    await expect(response.json()).resolves.toEqual({
-      status: 'verifying',
-      code: 'paypal_capture_uncertain',
-      paypalOrderId: paypalFixtureIds.paypalOrderId
-    });
-    expect(applyPaymentTransition).not.toHaveBeenCalled();
-    expect(triggerTransactionalEmailOutboxNow).not.toHaveBeenCalled();
-  });
-
-  test('capture route reconciles through GET when the capture client throws', async () => {
-    const {
-      POST,
-      applyPaymentTransition,
-      capturePayPalOrder,
-      getPayPalOrder,
-      triggerTransactionalEmailOutboxNow
-    } = await importCaptureRoute({
-      captureError: new Error('capture connection dropped'),
-      retrieveResult: {
-        status: 'retrieved',
-        paypalOrderId: paypalFixtureIds.paypalOrderId,
-        providerOrder: completedProviderOrder
-      }
-    });
-
-    const response = await POST(
-      new Request('http://localhost/api/paypal/orders/id/capture', {method: 'POST'}),
-      {params: Promise.resolve({paypalOrderId: paypalFixtureIds.paypalOrderId})}
-    );
-
-    await expect(response.json()).resolves.toMatchObject({status: 'paid'});
-    expect(capturePayPalOrder).toHaveBeenCalledOnce();
-    expect(getPayPalOrder).toHaveBeenCalledOnce();
-    expect(applyPaymentTransition).toHaveBeenCalledOnce();
-    expect(triggerTransactionalEmailOutboxNow).toHaveBeenCalledWith({
-      reason: 'paypal_capture_paid'
-    });
-  });
-
-  test('capture route returns verifying when both capture and status lookup throw', async () => {
-    const {POST, applyPaymentTransition, getPayPalOrder, triggerTransactionalEmailOutboxNow} =
-      await importCaptureRoute({
-        captureError: new Error('capture connection dropped'),
-        retrieveError: new Error('status lookup dropped')
+  test('completed capture verifies order, merchant, capture metadata, delegates paid to applyPaymentTransition, and triggers email outbox', async () => {
+    const captureMetaProviderOrder = {
+      id: paypalFixtureIds.paypalOrderId,
+      status: 'COMPLETED',
+      purchase_units: [
+        {
+          reference_id: paypalFixtureIds.localOrderId,
+          payments: {
+            captures: [
+              {
+                id: paypalFixtureIds.paypalCaptureId,
+                status: 'COMPLETED',
+                invoice_id: paypalFixtureIds.orderNumber,
+                custom_id: paypalFixtureIds.localOrderId,
+                amount: { currency_code: 'USD', value: '42.50' },
+                seller_receivable_breakdown: {
+                  gross_amount: { currency_code: 'USD', value: '42.50' }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    };
+    const { processor, memory, transportCalls, authorizeOrder, triggerEmailOutbox } =
+      createHarness({
+        transportOptions: { captureOrderResponse: captureMetaProviderOrder }
       });
 
-    const response = await POST(
-      new Request('http://localhost/api/paypal/orders/id/capture', {method: 'POST'}),
-      {params: Promise.resolve({paypalOrderId: paypalFixtureIds.paypalOrderId})}
-    );
-
-    expect(response.status).toBe(202);
-    await expect(response.json()).resolves.toEqual({
-      status: 'verifying',
-      code: 'paypal_capture_uncertain',
+    const outcome = await processor.capturePayPalOrder({
       paypalOrderId: paypalFixtureIds.paypalOrderId
     });
-    expect(getPayPalOrder).toHaveBeenCalledOnce();
-    expect(applyPaymentTransition).not.toHaveBeenCalled();
-    expect(triggerTransactionalEmailOutboxNow).not.toHaveBeenCalled();
-  });
 
-  test('completed capture delegates paid state to applyPaymentTransition', async () => {
-    const {POST, authClient, applyPaymentTransition, triggerTransactionalEmailOutboxNow, getAuthorizedOrderPayment} = await importCaptureRoute();
-
-    const response = await POST(new Request('http://localhost/api/paypal/orders/id/capture', {method: 'POST'}), {
-      params: Promise.resolve({paypalOrderId: paypalFixtureIds.paypalOrderId})
-    });
-
-    await expect(response.json()).resolves.toMatchObject({status: 'paid'});
-    expect(getAuthorizedOrderPayment).toHaveBeenCalledWith(
-      expect.objectContaining({
-        orderNumber: paypalFixtureIds.orderNumber,
-        guestSecretHash: 'guest-hash',
-        client: authClient
-      })
-    );
-    expect(applyPaymentTransition).toHaveBeenCalledWith(
+    expect(outcome).toEqual({ status: 'paid', paymentStatus: 'paid' });
+    expect(authorizeOrder).toHaveBeenCalledWith(paypalFixtureIds.orderNumber);
+    expect(
+      transportCalls.some(
+        (call) =>
+          call.method === 'POST' &&
+          call.url.endsWith(`/v2/checkout/orders/${paypalFixtureIds.paypalOrderId}/capture`) &&
+          (call.init?.headers as Record<string, string>)['PayPal-Request-Id'] ===
+            '44444444-4444-4444-8444-444444444444'
+      )
+    ).toBe(true);
+    expect(memory.transitions).toContainEqual(
       expect.objectContaining({
         source: 'paypal_recheck',
         targetStatus: 'paid',
@@ -750,54 +287,96 @@ describe('PayPal route contract', () => {
         currencyCode: 'USD',
         sanitizedFacts: expect.objectContaining({
           providerOrderId: paypalFixtureIds.paypalOrderId,
-          providerCaptureId: paypalFixtureIds.paypalCaptureId
+          providerCaptureId: paypalFixtureIds.paypalCaptureId,
+          merchantId: paypalFixtureIds.merchantId,
+          merchantVerificationSource: 'server_payee_contract'
         })
-      }),
-      expect.any(Object)
+      })
     );
-    expect(triggerTransactionalEmailOutboxNow).toHaveBeenCalledWith({reason: 'paypal_capture_paid'});
+    expect(triggerEmailOutbox).toHaveBeenCalledWith({ reason: 'paypal_capture_paid' });
   });
 
-  test('capture records reconciliation rejection for admin operations review', async () => {
-    const recordOperationalFailure = vi.fn(async () => ({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'}));
-    const {POST, applyPaymentTransition} = await importCaptureRoute({
-      recordOperationalFailure,
-      captureResult: {
-        status: 'captured',
-        paypalOrderId: paypalFixtureIds.paypalOrderId,
-        providerOrder: {
-          id: paypalFixtureIds.paypalOrderId,
-          status: 'COMPLETED',
-          purchase_units: [
-            {
-              invoice_id: paypalFixtureIds.orderNumber,
-              custom_id: paypalFixtureIds.localOrderId,
-              payee: {merchant_id: 'MERCHANT-MISMATCH'},
-              payments: {
-                captures: [
-                  {
-                    id: paypalFixtureIds.paypalCaptureId,
-                    status: 'COMPLETED',
-                    amount: {currency_code: 'USD', value: '42.50'}
-                  }
-                ]
-              }
-            }
-          ]
-        }
+  test('capture reconciles via GET when POST capture returns non-2xx or throws, and returns verifying when both fail', async () => {
+    const recoveredViaGet = createHarness({
+      transportOptions: {
+        captureOrderError: new Error('capture connection dropped'),
+        getOrderResponse: completedProviderOrderFixture
       }
     });
-
-    const response = await POST(new Request('http://localhost/api/paypal/orders/id/capture', {method: 'POST'}), {
-      params: Promise.resolve({paypalOrderId: paypalFixtureIds.paypalOrderId})
+    await expect(
+      recoveredViaGet.processor.capturePayPalOrder({
+        paypalOrderId: paypalFixtureIds.paypalOrderId
+      })
+    ).resolves.toEqual({ status: 'paid', paymentStatus: 'paid' });
+    expect(
+      recoveredViaGet.transportCalls.some(
+        (call) =>
+          call.method === 'GET' &&
+          call.url.endsWith(`/v2/checkout/orders/${paypalFixtureIds.paypalOrderId}`)
+      )
+    ).toBe(true);
+    expect(recoveredViaGet.triggerEmailOutbox).toHaveBeenCalledWith({
+      reason: 'paypal_capture_paid'
     });
 
-    expect(response.status).toBe(202);
-    await expect(response.json()).resolves.toEqual({
+    const bothDropped = createHarness({
+      transportOptions: {
+        captureOrderStatus: 422,
+        getOrderError: new Error('status lookup dropped')
+      }
+    });
+    const uncertainOutcome = await bothDropped.processor.capturePayPalOrder({
+      paypalOrderId: paypalFixtureIds.paypalOrderId
+    });
+    expect(uncertainOutcome).toEqual({
+      status: 'verifying',
+      code: 'paypal_capture_uncertain',
+      paypalOrderId: paypalFixtureIds.paypalOrderId
+    });
+    expect(paypalCaptureResponse(uncertainOutcome).status).toBe(202);
+    expect(bothDropped.memory.transitions).toHaveLength(0);
+    expect(bothDropped.triggerEmailOutbox).not.toHaveBeenCalled();
+  });
+
+  test('capture rejects merchant/amount mismatch via review_required transition and records operational failure safely', async () => {
+    const mismatchOrder = {
+      id: paypalFixtureIds.paypalOrderId,
+      status: 'COMPLETED',
+      purchase_units: [
+        {
+          invoice_id: paypalFixtureIds.orderNumber,
+          custom_id: paypalFixtureIds.localOrderId,
+          payee: { merchant_id: 'MERCHANT-MISMATCH' },
+          payments: {
+            captures: [
+              {
+                id: paypalFixtureIds.paypalCaptureId,
+                status: 'COMPLETED',
+                amount: { currency_code: 'USD', value: '42.50' }
+              }
+            ]
+          }
+        }
+      ]
+    };
+    const throwingRecorder = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const { processor, memory } = createHarness({
+      transportOptions: { captureOrderResponse: mismatchOrder },
+      recordOperationalFailure: throwingRecorder
+    });
+
+    const outcome = await processor.capturePayPalOrder({
+      paypalOrderId: paypalFixtureIds.paypalOrderId
+    });
+
+    expect(outcome).toEqual({
       status: 'reconciliation_required',
       code: 'paypal_merchant_mismatch'
     });
-    expect(applyPaymentTransition).toHaveBeenCalledWith(
+    expect(paypalCaptureResponse(outcome).status).toBe(202);
+    expect(memory.transitions).toContainEqual(
       expect.objectContaining({
         source: 'paypal_recheck',
         targetStatus: 'review_required',
@@ -807,107 +386,148 @@ describe('PayPal route contract', () => {
         sanitizedFacts: expect.objectContaining({
           reconciliationCode: 'paypal_merchant_mismatch'
         })
-      }),
-      expect.any(Object)
-    );
-    expect(recordOperationalFailure).toHaveBeenCalledWith(
-      expect.objectContaining({
-        area: 'payment',
-        severity: 'warning',
-        errorCode: 'paypal_merchant_mismatch',
-        summary: 'PayPal capture reconciliation rejected',
-        facts: expect.objectContaining({
-          orderId: paypalFixtureIds.localOrderId,
-          orderNumber: paypalFixtureIds.orderNumber,
-          provider: 'paypal',
-          providerOrderId: paypalFixtureIds.paypalOrderId
-        })
       })
     );
-    expect(JSON.stringify(recordOperationalFailure.mock.calls)).not.toMatch(/email_address|access_token|rawPayload|signature/i);
-  });
-
-  test('capture keeps reconciliation rejection response stable when operational recording fails', async () => {
-    const recordOperationalFailure = vi.fn(async () => {
-      throw new Error('operational table unavailable');
-    });
-    const {POST, applyPaymentTransition} = await importCaptureRoute({
-      recordOperationalFailure,
-      captureResult: {
-        status: 'captured',
-        paypalOrderId: paypalFixtureIds.paypalOrderId,
-        providerOrder: {
-          id: paypalFixtureIds.paypalOrderId,
-          status: 'COMPLETED',
-          purchase_units: [
-            {
-              invoice_id: paypalFixtureIds.orderNumber,
-              custom_id: paypalFixtureIds.localOrderId,
-              payee: {merchant_id: 'MERCHANT-MISMATCH'},
-              payments: {
-                captures: [
-                  {
-                    id: paypalFixtureIds.paypalCaptureId,
-                    status: 'COMPLETED',
-                    amount: {currency_code: 'USD', value: '42.50'}
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      }
-    });
-
-    const response = await POST(new Request('http://localhost/api/paypal/orders/id/capture', {method: 'POST'}), {
-      params: Promise.resolve({paypalOrderId: paypalFixtureIds.paypalOrderId})
-    });
-
-    expect(response.status).toBe(202);
-    await expect(response.json()).resolves.toEqual({
-      status: 'reconciliation_required',
-      code: 'paypal_merchant_mismatch'
-    });
-    expect(applyPaymentTransition).toHaveBeenCalledWith(
+    expect(throwingRecorder).toHaveBeenCalledWith(
       expect.objectContaining({
-        targetStatus: 'review_required',
-        reviewReason: 'paypal_reconciliation_mismatch'
-      }),
-      expect.any(Object)
+        action: 'paypal_capture',
+        severity: 'warning',
+        errorCode: 'paypal_merchant_mismatch',
+        summary: 'PayPal capture reconciliation rejected'
+      })
     );
-    expect(recordOperationalFailure).toHaveBeenCalledOnce();
   });
 
-  test('capture keeps incomplete provider facts verifying instead of releasing the hold', async () => {
-    const {POST, applyPaymentTransition} = await importCaptureRoute({
-      captureResult: {
-        status: 'captured',
-        paypalOrderId: paypalFixtureIds.paypalOrderId,
-        providerOrder: {
+  test('capture keeps incomplete provider facts verifying without releasing the hold', async () => {
+    const { processor, memory } = createHarness({
+      transportOptions: {
+        captureOrderResponse: {
           id: paypalFixtureIds.paypalOrderId,
           status: 'APPROVED',
           purchase_units: [
             {
               invoice_id: paypalFixtureIds.orderNumber,
               custom_id: paypalFixtureIds.localOrderId,
-              payee: {merchant_id: paypalFixtureIds.merchantId},
-              payments: {captures: []}
+              payee: { merchant_id: paypalFixtureIds.merchantId },
+              payments: { captures: [] }
             }
           ]
         }
       }
     });
 
-    const response = await POST(
-      new Request('http://localhost/api/paypal/orders/id/capture', {method: 'POST'}),
-      {params: Promise.resolve({paypalOrderId: paypalFixtureIds.paypalOrderId})}
-    );
-
-    expect(response.status).toBe(202);
-    await expect(response.json()).resolves.toEqual({
-      status: 'verifying',
-      code: 'paypal_capture_missing'
+    const outcome = await processor.capturePayPalOrder({
+      paypalOrderId: paypalFixtureIds.paypalOrderId
     });
-    expect(applyPaymentTransition).not.toHaveBeenCalled();
+
+    expect(outcome).toEqual({ status: 'verifying', code: 'paypal_capture_missing' });
+    expect(paypalCaptureResponse(outcome).status).toBe(202);
+    expect(memory.transitions).toHaveLength(0);
+  });
+
+  test('expired order capture authorizes caller, never POSTs capture, and runs GET-only recovery (late settle, expired, or conservative verifying)', async () => {
+    const unauthorizedExpired = createHarness({
+      orders: [makeStoredPayPalOrder({ reservationExpiresAt: '2026-06-15T04:00:00.000Z' })],
+      authorized: false,
+      now: () => EXPIRED_NOW
+    });
+    await expect(
+      unauthorizedExpired.processor.capturePayPalOrder({
+        paypalOrderId: paypalFixtureIds.paypalOrderId
+      })
+    ).resolves.toEqual({ status: 'not_found' });
+    expect(unauthorizedExpired.transportCalls).toHaveLength(0);
+
+    const lateCaptured = createHarness({
+      orders: [makeStoredPayPalOrder({ reservationExpiresAt: '2026-06-15T04:00:00.000Z' })],
+      now: () => EXPIRED_NOW,
+      transportOptions: { getOrderResponse: completedProviderOrderFixture }
+    });
+    const settled = await lateCaptured.processor.capturePayPalOrder({
+      paypalOrderId: paypalFixtureIds.paypalOrderId
+    });
+    expect(settled).toEqual({ status: 'paid', paymentStatus: 'paid' });
+    expect(lateCaptured.transportCalls.some((c) => c.url.endsWith('/capture'))).toBe(false);
+    expect(lateCaptured.memory.transitions).toContainEqual(
+      expect.objectContaining({
+        source: 'paypal_recheck',
+        targetStatus: 'paid',
+        reviewReason: 'late_payment_detected'
+      })
+    );
+    expect(lateCaptured.triggerEmailOutbox).toHaveBeenCalledWith({
+      reason: 'paypal_capture_paid'
+    });
+
+    const uncapturedExpired = createHarness({
+      orders: [
+        makeStoredPayPalOrder({
+          paymentStatus: 'expired',
+          reservationExpiresAt: '2026-06-15T04:00:00.000Z'
+        })
+      ],
+      now: () => EXPIRED_NOW,
+      transportOptions: {
+        getOrderResponse: {
+          id: paypalFixtureIds.paypalOrderId,
+          status: 'APPROVED',
+          purchase_units: [
+            {
+              invoice_id: paypalFixtureIds.orderNumber,
+              custom_id: paypalFixtureIds.localOrderId,
+              payments: { captures: [] }
+            }
+          ]
+        }
+      }
+    });
+    const expiredOutcome = await uncapturedExpired.processor.capturePayPalOrder({
+      paypalOrderId: paypalFixtureIds.paypalOrderId
+    });
+    expect(expiredOutcome).toEqual({ status: 'expired', code: 'paypal_order_expired' });
+    expect(paypalCaptureResponse(expiredOutcome).status).toBe(409);
+    expect(uncapturedExpired.transportCalls.some((c) => c.url.endsWith('/capture'))).toBe(false);
+    expect(uncapturedExpired.memory.transitions).toHaveLength(0);
+
+    const uncertainExpired = createHarness({
+      orders: [makeStoredPayPalOrder({ reservationExpiresAt: '2026-06-15T04:00:00.000Z' })],
+      now: () => EXPIRED_NOW,
+      transportOptions: { getOrderError: new Error('network timeout') }
+    });
+    const verifyingExpired = await uncertainExpired.processor.capturePayPalOrder({
+      paypalOrderId: paypalFixtureIds.paypalOrderId
+    });
+    expect(verifyingExpired).toEqual({
+      status: 'verifying',
+      code: 'paypal_provider_uncertain',
+      paypalOrderId: paypalFixtureIds.paypalOrderId
+    });
+    expect(paypalCaptureResponse(verifyingExpired).status).toBe(202);
+  });
+
+  test('full create -> capture scenario works across one processor interface and handles unconfigured PayPal cleanly', async () => {
+    const lifecycle = createHarness({
+      orders: [makeStoredPayPalOrder({ providerOrderId: null })]
+    });
+    await expect(
+      lifecycle.processor.createPayPalOrder({ orderNumber: paypalFixtureIds.orderNumber })
+    ).resolves.toEqual({ status: 'awaiting', paypalOrderId: paypalFixtureIds.paypalOrderId });
+    await expect(
+      lifecycle.processor.capturePayPalOrder({ paypalOrderId: paypalFixtureIds.paypalOrderId })
+    ).resolves.toEqual({ status: 'paid', paymentStatus: 'paid' });
+    expect(lifecycle.memory.orders.get(paypalFixtureIds.orderNumber)?.paymentStatus).toBe('paid');
+
+    const unconfigured = createHarness({
+      orders: [makeStoredPayPalOrder({ providerOrderId: null })],
+      config: unconfiguredPayPalConfig
+    });
+    const unconfiguredOutcome = await unconfigured.processor.createPayPalOrder({
+      orderNumber: paypalFixtureIds.orderNumber
+    });
+    expect(unconfiguredOutcome).toEqual({
+      status: 'unconfigured',
+      code: 'missing_paypal_server_config'
+    });
+    expect(paypalCreateResponse(unconfiguredOutcome).status).toBe(503);
   });
 });

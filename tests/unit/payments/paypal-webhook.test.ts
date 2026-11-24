@@ -1,4 +1,20 @@
-import {beforeEach, describe, expect, test, vi} from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock('server-only', () => ({}));
+
+import {
+  createPayPalProcessor,
+  PAYPAL_WEBHOOK_BODY_LIMIT_BYTES,
+  type PayPalAdapters
+} from '@/payments/paypal/processor';
+import { paypalWebhookResponse } from '@/payments/paypal/server';
+import {
+  createInMemoryPayPalStore,
+  createMockPayPalTransport,
+  makeStoredPayPalOrder,
+  paypalFixtureConfig,
+  unconfiguredPayPalConfig
+} from '../../fixtures/payments/paypal-adapters';
 import {
   paypalCompletedCaptureEvent,
   paypalDeclinedCaptureEvent,
@@ -12,218 +28,74 @@ import {
   paypalPartialRefundEvent,
   paypalPendingCaptureEvent
 } from '../../fixtures/payments/paypal-events';
-import {
-  PAYPAL_WEBHOOK_BODY_LIMIT_BYTES,
-  reconcilePayPalEvent,
-  verifyPayPalWebhook
-} from '@/payments/paypal/verification';
 
-vi.mock('server-only', () => ({}));
+const OPEN_NOW = Date.parse('2026-06-15T03:00:00.000Z');
+const EXPIRED_NOW = Date.parse('2026-06-15T05:00:00.000Z');
 
-const routeMocks = vi.hoisted(() => ({
-  adminClient: null as unknown,
-  paypalVerificationStatus: 'SUCCESS' as 'SUCCESS' | 'FAILURE',
-  triggerTransactionalEmailOutboxNow: vi.fn(async () => ({status: 'processed', claimed: 1, sent: 1, retry: 0, failed: 0})),
-  recordOperationalFailure: vi.fn(async () => ({status: 'recorded', errorId: '76000000-0000-4000-8000-000000000001'}))
-}));
-
-vi.mock('@/lib/env/server', () => ({
-  getServerEnv: () => ({
-    paypal: {
-      status: 'configured',
-      clientId: 'fixture-client-id',
-      clientSecret: 'fixture-client-secret',
-      webhookId: 'WEBHOOK-FIXTURE-ID',
-      expectedMerchantId: 'MERCHANT-TEST-ONLY',
-      apiBase: 'https://api-m.sandbox.paypal.com',
-      enabledCountries: ['US'],
-      enabledCurrency: 'USD'
-    }
-  })
-}));
-
-vi.mock('@/lib/supabase/admin', () => ({
-  createSupabaseAdminClient: () => routeMocks.adminClient
-}));
-
-vi.mock('@/fulfillment/email-outbox.server', () => ({
-  triggerTransactionalEmailOutboxNow: routeMocks.triggerTransactionalEmailOutboxNow
-}));
-
-vi.mock('@/operations/errors', () => ({
-  recordOperationalFailure: routeMocks.recordOperationalFailure
-}));
-
-const configuredPayPal = {
-  status: 'configured' as const,
-  clientId: 'fixture-client-id',
-  clientSecret: 'fixture-client-secret',
-  webhookId: 'WEBHOOK-FIXTURE-ID',
-  expectedMerchantId: paypalFixtureIds.merchantId,
-  apiBase: 'https://api-m.sandbox.paypal.com',
-  enabledCountries: ['US'],
-  enabledCurrency: 'USD' as const
-};
-
-const order = {
-  orderId: paypalFixtureIds.localOrderId,
-  orderNumber: paypalFixtureIds.orderNumber,
-  totalMinor: 4250,
-  currencyCode: 'USD' as const,
-  market: 'intl' as const,
-  paymentIntent: 'paypal_intent' as const,
-  providerOrderId: paypalFixtureIds.paypalOrderId,
-  paypalCreateRequestId: 'create-request-fixture',
-  paypalCaptureRequestId: 'capture-request-fixture'
-};
+type OperationalFailureRecorder = NonNullable<PayPalAdapters['recordOperationalFailure']>;
+type EmailOutboxTrigger = NonNullable<PayPalAdapters['triggerEmailOutbox']>;
 
 function rawBody(event: unknown) {
   return JSON.stringify(event);
 }
 
-function verificationTransport(status: 'SUCCESS' | 'FAILURE' = 'SUCCESS') {
-  const calls: Array<{url: string; init?: RequestInit}> = [];
-  return {
-    calls,
-    transport: async (url: string, init?: RequestInit) => {
-      calls.push({url, init});
-      if (url.endsWith('/v1/oauth2/token')) {
-        return Response.json({access_token: 'ok'}, {status: 200});
-      }
-      if (url.endsWith('/v1/notifications/verify-webhook-signature')) {
-        return Response.json({verification_status: status}, {status: 200});
-      }
-      throw new Error(`unexpected url ${url}`);
-    }
-  };
-}
-
-type TableRows = {
-  payments: Record<string, unknown>[];
-  order_payment_statuses: Record<string, unknown>[];
-  payment_events: Record<string, unknown>[];
-};
-
-function createRouteClient({existingEvent = false, orderPaymentStatus = 'pending'} = {}) {
-  const rows: TableRows = {
-    payments: [
-      {
-        id: '22222222-2222-4222-8222-222222222222',
-        order_id: paypalFixtureIds.localOrderId,
-        provider_order_id: paypalFixtureIds.paypalOrderId,
-        request_id: 'capture-request-fixture',
-        provider_request_id: 'create-request-fixture'
-      }
-    ],
-    order_payment_statuses: [
-      {
-        order_id: paypalFixtureIds.localOrderId,
-        order_number: paypalFixtureIds.orderNumber,
-        market: 'intl',
-        currency_code: 'USD',
-        total_minor: 4250,
-        provider: 'paypal',
-        payment_status: orderPaymentStatus,
-        reservation_expires_at: new Date(Date.now() + 900_000).toISOString()
-      }
-    ],
-    payment_events: existingEvent
-      ? [
-          {
-            id: '33333333-3333-4333-8333-333333333333',
-            payment_id: '22222222-2222-4222-8222-222222222222',
-            provider: 'paypal',
-            provider_event_id: paypalCompletedCaptureEvent.id,
-            delivery_count: 1
-          }
-        ]
-      : []
-  };
-  const inserts: Array<{table: string; value: Record<string, unknown>}> = [];
-  const updates: Array<{table: string; value: Record<string, unknown>; filters: Record<string, string>}> = [];
-  const rpc = vi.fn(async (_fn: string, args?: Record<string, unknown>) => ({
-    data: {status: 'applied', paymentStatus: 'paid', transitionId: '44444444-4444-4444-8444-444444444444'},
-    error: null,
-    args
-  }));
-
-  function filterRows(table: keyof TableRows, filters: Record<string, string>) {
-    return rows[table].filter((row) => Object.entries(filters).every(([key, value]) => row[key] === value));
-  }
-
-  const client = {
-    rpc,
-    from(table: keyof TableRows) {
-      return {
-        select: () => {
-          const filters: Record<string, string> = {};
-          const builder = {
-            eq(column: string, value: string) {
-              filters[column] = value;
-              return builder;
-            },
-            maybeSingle: async () => ({data: filterRows(table, filters)[0] ?? null, error: null})
-          };
-          return builder;
-        },
-        insert: (value: Record<string, unknown>) => {
-          inserts.push({table, value});
-          return Promise.resolve({data: null, error: null});
-        },
-        update: (value: Record<string, unknown>) => {
-          const filters: Record<string, string> = {};
-          const builder = {
-            eq(column: string, filterValue: string) {
-              filters[column] = filterValue;
-              return builder;
-            },
-            then(resolve: (value: {data: null; error: null}) => void) {
-              updates.push({table, value, filters});
-              resolve({data: null, error: null});
-            }
-          };
-          return builder;
-        }
-      };
-    }
-  };
-
-  return {client, rpc, inserts, updates};
-}
-
-function webhookRequest(event: unknown) {
-  const body = rawBody(event);
-  const text = vi.fn(async () => body);
-  return {
-    headers: new Headers(paypalFixtureHeaders),
-    text
-  } as unknown as Request & {text: typeof text};
-}
-
-async function loadWebhookRoute() {
-  return import('@/app/api/webhooks/paypal/route');
-}
-
-beforeEach(() => {
-  routeMocks.paypalVerificationStatus = 'SUCCESS';
-  routeMocks.triggerTransactionalEmailOutboxNow.mockClear();
-  routeMocks.recordOperationalFailure.mockClear();
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (url: string) => {
-      if (url.endsWith('/v1/oauth2/token')) {
-        return Response.json({access_token: 'ok'}, {status: 200});
-      }
-      if (url.endsWith('/v1/notifications/verify-webhook-signature')) {
-        return Response.json({verification_status: routeMocks.paypalVerificationStatus}, {status: 200});
-      }
-      throw new Error(`unexpected route fetch ${url}`);
-    })
+function createWebhookHarness({
+  orders = [makeStoredPayPalOrder()],
+  existingEvents = [],
+  config = paypalFixtureConfig,
+  now = () => OPEN_NOW,
+  transportOptions,
+  recordOperationalFailure,
+  triggerEmailOutbox
+}: {
+  orders?: ReturnType<typeof makeStoredPayPalOrder>[];
+  existingEvents?: Array<{ id: string; providerEventId: string; deliveryCount: number }>;
+  config?: typeof paypalFixtureConfig | typeof unconfiguredPayPalConfig;
+  now?: () => number;
+  transportOptions?: Parameters<typeof createMockPayPalTransport>[0];
+  recordOperationalFailure?: OperationalFailureRecorder;
+  triggerEmailOutbox?: EmailOutboxTrigger;
+} = {}) {
+  const memory = createInMemoryPayPalStore({ orders, existingEvents });
+  const mockTransport = createMockPayPalTransport(transportOptions);
+  const recordSpy = vi.fn<OperationalFailureRecorder>(
+    recordOperationalFailure ??
+      (async () => ({
+        status: 'recorded',
+        errorId: '76000000-0000-4000-8000-000000000001'
+      }))
   );
-});
+  const emailSpy = vi.fn<EmailOutboxTrigger>(
+    triggerEmailOutbox ??
+      (async () => ({
+        status: 'processed',
+        claimed: 1,
+        sent: 1,
+        retry: 0,
+        failed: 0
+      }))
+  );
+  const processor = createPayPalProcessor({
+    config,
+    store: memory.store,
+    transport: mockTransport.transport,
+    triggerEmailOutbox: emailSpy,
+    recordOperationalFailure: recordSpy,
+    log: () => {},
+    now
+  });
 
-describe('PayPal webhook verification contract', () => {
-  test('fixtures cover completed, declined, merchant mismatch, and amount mismatch cases', () => {
+  return {
+    processor,
+    memory,
+    transportCalls: mockTransport.calls,
+    recordOperationalFailure: recordSpy,
+    triggerEmailOutbox: emailSpy
+  };
+}
+
+describe('PayPal webhook processor contract', () => {
+  test('fixtures cover completed, declined, merchant mismatch, amount mismatch, currency mismatch, and refund cases', () => {
     expect(paypalFixtureEvents.map((event) => event.id)).toEqual([
       paypalCompletedCaptureEvent.id,
       paypalDeclinedCaptureEvent.id,
@@ -234,170 +106,41 @@ describe('PayPal webhook verification contract', () => {
       paypalPartialRefundEvent.id,
       paypalFullRefundEvent.id
     ]);
-    expect(paypalFixtureHeaders['paypal-transmission-sig']).toBe('fixture-signature-not-valid-for-production');
+    expect(paypalFixtureHeaders['paypal-transmission-sig']).toBe(
+      'fixture-signature-not-valid-for-production'
+    );
   });
 
-  test('completed fixture carries the provider order, merchant, amount, currency, local order, and order number facts', () => {
-    expect(paypalCompletedCaptureEvent.event_type).toBe('PAYMENT.CAPTURE.COMPLETED');
-    expect(paypalCompletedCaptureEvent.resource.amount).toEqual({currency_code: 'USD', value: '42.50'});
-    expect(paypalCompletedCaptureEvent.resource.payee.merchant_id).toBe('MERCHANT-TEST-ONLY');
-    expect(paypalCompletedCaptureEvent.resource.custom_id).toBe('11111111-1111-4111-8111-111111111111');
-    expect(paypalCompletedCaptureEvent.resource.invoice_id).toBe('ATB-20260615-0001');
-  });
+  test('verifies required headers, reads body once, hashes digest, delegates one verified transition, and triggers paid email', async () => {
+    const { processor, memory, transportCalls, triggerEmailOutbox } = createWebhookHarness();
+    const bodyText = rawBody(paypalCompletedCaptureEvent);
+    const readRawBody = vi.fn(async () => bodyText);
 
-  test('verifies required transmission headers with the exact parsed original event and records only a digest', async () => {
-    const verifier = verificationTransport('SUCCESS');
-    const body = rawBody(paypalCompletedCaptureEvent);
-
-    const result = await verifyPayPalWebhook({
-      rawBody: body,
-      headers: paypalFixtureHeaders,
-      config: configuredPayPal,
-      transport: verifier.transport
+    const outcome = await processor.handlePayPalWebhook({
+      headers: new Headers(paypalFixtureHeaders),
+      readRawBody
     });
 
-    expect(result.status).toBe('verified');
-    expect(result).toMatchObject({
-      eventId: paypalCompletedCaptureEvent.id,
-      eventType: paypalCompletedCaptureEvent.event_type
-    });
-    expect('rawBody' in result).toBe(false);
-    expect(result.status === 'verified' ? result.payloadDigest : '').toMatch(/^[a-f0-9]{64}$/);
+    expect(readRawBody).toHaveBeenCalledTimes(1);
+    expect(outcome).toMatchObject({ status: 'accepted', result: 'applied' });
+    expect(paypalWebhookResponse(outcome).status).toBe(200);
 
-    const verificationCall = verifier.calls.find((call) => call.url.endsWith('/v1/notifications/verify-webhook-signature'));
-    expect(JSON.parse(String(verificationCall?.init?.body))).toMatchObject({
+    const verifyCall = transportCalls.find(
+      (call) =>
+        call.method === 'POST' && call.url.endsWith('/v1/notifications/verify-webhook-signature')
+    );
+    expect(JSON.parse(String(verifyCall?.init?.body))).toMatchObject({
       auth_algo: paypalFixtureHeaders['paypal-auth-algo'],
       cert_url: paypalFixtureHeaders['paypal-cert-url'],
       transmission_id: paypalFixtureHeaders['paypal-transmission-id'],
       transmission_sig: paypalFixtureHeaders['paypal-transmission-sig'],
       transmission_time: paypalFixtureHeaders['paypal-transmission-time'],
-      webhook_id: configuredPayPal.webhookId,
+      webhook_id: paypalFixtureConfig.webhookId,
       webhook_event: paypalCompletedCaptureEvent
     });
-  });
 
-  test('rejects forged signatures, malformed JSON, missing headers, and oversized bodies', async () => {
-    await expect(
-      verifyPayPalWebhook({
-        rawBody: rawBody(paypalCompletedCaptureEvent),
-        headers: paypalFixtureHeaders,
-        config: configuredPayPal,
-        transport: verificationTransport('FAILURE').transport
-      })
-    ).resolves.toMatchObject({status: 'rejected', code: 'paypal_webhook_signature_rejected'});
-
-    await expect(
-      verifyPayPalWebhook({
-        rawBody: '{',
-        headers: paypalFixtureHeaders,
-        config: configuredPayPal,
-        transport: verificationTransport('SUCCESS').transport
-      })
-    ).resolves.toMatchObject({status: 'malformed', code: 'malformed_paypal_webhook'});
-
-    await expect(
-      verifyPayPalWebhook({
-        rawBody: rawBody(paypalCompletedCaptureEvent),
-        headers: {},
-        config: configuredPayPal,
-        transport: verificationTransport('SUCCESS').transport
-      })
-    ).resolves.toMatchObject({status: 'rejected', code: 'missing_paypal_webhook_headers'});
-
-    await expect(
-      verifyPayPalWebhook({
-        rawBody: 'x'.repeat(PAYPAL_WEBHOOK_BODY_LIMIT_BYTES + 1),
-        headers: paypalFixtureHeaders,
-        config: configuredPayPal,
-        transport: verificationTransport('SUCCESS').transport
-      })
-    ).resolves.toMatchObject({status: 'rejected', code: 'paypal_webhook_body_too_large'});
-  });
-
-  test('validates provider order mapping, merchant, amount, and currency before marking paid', () => {
-    expect(
-      reconcilePayPalEvent({event: paypalCompletedCaptureEvent, order, expectedMerchantId: paypalFixtureIds.merchantId})
-    ).toMatchObject({
-      status: 'transition',
-      targetStatus: 'paid',
-      providerEventId: paypalCompletedCaptureEvent.id,
-      amountMinor: 4250,
-      currencyCode: 'USD',
-      sanitizedFacts: {
-        providerOrderId: paypalFixtureIds.paypalOrderId,
-        providerCaptureId: paypalFixtureIds.paypalCaptureId,
-        merchantId: paypalFixtureIds.merchantId,
-        amountMinor: 4250,
-        currencyCode: 'USD'
-      }
-    });
-
-    expect(
-      reconcilePayPalEvent({event: paypalMismatchedMerchantEvent, order, expectedMerchantId: paypalFixtureIds.merchantId})
-    ).toMatchObject({status: 'rejected', code: 'paypal_merchant_mismatch'});
-    expect(reconcilePayPalEvent({event: paypalMismatchedAmountEvent, order, expectedMerchantId: paypalFixtureIds.merchantId})).toMatchObject({
-      status: 'rejected',
-      code: 'paypal_amount_mismatch'
-    });
-    expect(reconcilePayPalEvent({event: paypalMismatchedCurrencyEvent, order, expectedMerchantId: paypalFixtureIds.merchantId})).toMatchObject({
-      status: 'rejected',
-      code: 'paypal_currency_mismatch'
-    });
-  });
-
-  test('maps declined, pending, unsupported, duplicate, late, and refund events without unsafe paid effects', () => {
-    expect(reconcilePayPalEvent({event: paypalDeclinedCaptureEvent, order, expectedMerchantId: paypalFixtureIds.merchantId})).toMatchObject({
-      status: 'transition',
-      targetStatus: 'failed'
-    });
-    expect(reconcilePayPalEvent({event: paypalPendingCaptureEvent, order, expectedMerchantId: paypalFixtureIds.merchantId})).toMatchObject({
-      status: 'ignored',
-      code: 'paypal_capture_pending'
-    });
-    expect(
-      reconcilePayPalEvent({
-        event: {...paypalCompletedCaptureEvent, event_type: 'CHECKOUT.ORDER.APPROVED'},
-        order,
-        expectedMerchantId: paypalFixtureIds.merchantId
-      })
-    ).toMatchObject({status: 'ignored', code: 'unsupported_paypal_webhook_event'});
-    expect(
-      reconcilePayPalEvent({event: paypalCompletedCaptureEvent, order, expectedMerchantId: paypalFixtureIds.merchantId, alreadyProcessed: true})
-    ).toMatchObject({status: 'duplicate', providerEventId: paypalCompletedCaptureEvent.id});
-    expect(
-      reconcilePayPalEvent({event: paypalCompletedCaptureEvent, order, expectedMerchantId: paypalFixtureIds.merchantId, orderExpired: true})
-    ).toMatchObject({status: 'transition', targetStatus: 'paid', reviewReason: 'late_payment_detected'});
-    expect(reconcilePayPalEvent({event: paypalPartialRefundEvent, order, expectedMerchantId: paypalFixtureIds.merchantId})).toMatchObject({
-      status: 'refund_visibility',
-      refundStatus: 'partially_refunded',
-      refundedAmountMinor: 1250
-    });
-    expect(reconcilePayPalEvent({event: paypalFullRefundEvent, order, expectedMerchantId: paypalFixtureIds.merchantId})).toMatchObject({
-      status: 'refund_visibility',
-      refundStatus: 'refunded',
-      refundedAmountMinor: 4250
-    });
-  });
-});
-
-describe('PayPal webhook route contract', () => {
-  test('valid completed capture reads the body once and delegates one verified transition', async () => {
-    const state = createRouteClient();
-    routeMocks.adminClient = state.client;
-    const request = webhookRequest(paypalCompletedCaptureEvent);
-    const {POST} = await loadWebhookRoute();
-
-    const response = await POST(request);
-    const body = await response.json();
-
-    expect(request.text).toHaveBeenCalledTimes(1);
-    expect(response.status).toBe(200);
-    expect(body).toMatchObject({status: 'accepted', result: 'applied'});
-    expect(state.rpc).toHaveBeenCalledTimes(1);
-    const transitionCall = state.rpc.mock.calls[0];
-    expect(transitionCall?.[0]).toBe('apply_payment_transition');
-    const transitionPayload = transitionCall?.[1]?.p_payload;
-    expect(transitionPayload).toMatchObject({
+    expect(memory.transitions).toHaveLength(1);
+    expect(memory.transitions[0]).toMatchObject({
       source: 'paypal_webhook',
       targetStatus: 'paid',
       providerEventId: paypalCompletedCaptureEvent.id,
@@ -407,46 +150,61 @@ describe('PayPal webhook route contract', () => {
       currencyCode: 'USD',
       verificationStatus: 'verified'
     });
-    expect(routeMocks.triggerTransactionalEmailOutboxNow).toHaveBeenCalledWith({reason: 'paypal_webhook_paid'});
+    expect(memory.transitions[0]?.payloadDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(triggerEmailOutbox).toHaveBeenCalledWith({ reason: 'paypal_webhook_paid' });
   });
 
-  test('duplicate event increments delivery history and does not repeat transition effects', async () => {
-    const state = createRouteClient({existingEvent: true});
-    routeMocks.adminClient = state.client;
-    const {POST} = await loadWebhookRoute();
+  test('rejects forged signatures, malformed JSON, missing headers, oversized Content-Length, and network errors cleanly', async () => {
+    const oversizedRead = vi.fn(async () => 'never-read');
+    const contentLengthHarness = createWebhookHarness();
+    const tooLargeHeader = await contentLengthHarness.processor.handlePayPalWebhook({
+      headers: { ...paypalFixtureHeaders, 'content-length': String(PAYPAL_WEBHOOK_BODY_LIMIT_BYTES + 1) },
+      readRawBody: oversizedRead
+    });
+    expect(tooLargeHeader).toEqual({
+      status: 'rejected',
+      code: 'paypal_webhook_body_too_large'
+    });
+    expect(paypalWebhookResponse(tooLargeHeader).status).toBe(413);
+    expect(oversizedRead).not.toHaveBeenCalled();
 
-    const response = await POST(webhookRequest(paypalCompletedCaptureEvent));
-    const body = await response.json();
+    const tooLargeBody = await contentLengthHarness.processor.handlePayPalWebhook({
+      headers: paypalFixtureHeaders,
+      rawBody: 'x'.repeat(PAYPAL_WEBHOOK_BODY_LIMIT_BYTES + 1)
+    });
+    expect(tooLargeBody).toEqual({ status: 'rejected', code: 'paypal_webhook_body_too_large' });
 
-    expect(response.status).toBe(200);
-    expect(body).toMatchObject({status: 'duplicate'});
-    expect(state.rpc).not.toHaveBeenCalled();
-    expect(routeMocks.triggerTransactionalEmailOutboxNow).not.toHaveBeenCalled();
-    expect(state.updates).toEqual([
-      {
-        table: 'payment_events',
-        value: expect.objectContaining({last_received_at: expect.any(String), delivery_count: 2}),
-        filters: {id: '33333333-3333-4333-8333-333333333333'}
-      }
-    ]);
-  });
+    const missingHeaders = await contentLengthHarness.processor.handlePayPalWebhook({
+      headers: {},
+      rawBody: rawBody(paypalCompletedCaptureEvent)
+    });
+    expect(missingHeaders).toEqual({ status: 'rejected', code: 'missing_paypal_webhook_headers' });
+    expect(paypalWebhookResponse(missingHeaders).status).toBe(400);
 
-  test('forged signatures fail safely without receipt mutation or transition', async () => {
-    const state = createRouteClient();
-    routeMocks.adminClient = state.client;
-    routeMocks.paypalVerificationStatus = 'FAILURE';
-    const {POST} = await loadWebhookRoute();
+    const malformed = await contentLengthHarness.processor.handlePayPalWebhook({
+      headers: paypalFixtureHeaders,
+      rawBody: '{'
+    });
+    expect(malformed).toEqual({ status: 'malformed', code: 'malformed_paypal_webhook' });
+    expect(paypalWebhookResponse(malformed).status).toBe(400);
 
-    const response = await POST(webhookRequest(paypalCompletedCaptureEvent));
-
-    expect(response.status).toBe(400);
-    expect(state.inserts).toHaveLength(0);
-    expect(state.updates).toHaveLength(0);
-    expect(state.rpc).not.toHaveBeenCalled();
-    expect(routeMocks.triggerTransactionalEmailOutboxNow).not.toHaveBeenCalled();
-    expect(routeMocks.recordOperationalFailure).toHaveBeenCalledWith(
+    const forged = createWebhookHarness({
+      transportOptions: { webhookVerifyStatus: 'FAILURE' }
+    });
+    const forgedOutcome = await forged.processor.handlePayPalWebhook({
+      headers: new Headers(paypalFixtureHeaders),
+      rawBody: rawBody(paypalCompletedCaptureEvent)
+    });
+    expect(forgedOutcome).toEqual({
+      status: 'rejected',
+      code: 'paypal_webhook_signature_rejected'
+    });
+    expect(paypalWebhookResponse(forgedOutcome).status).toBe(400);
+    expect(forged.memory.receipts).toHaveLength(0);
+    expect(forged.memory.transitions).toHaveLength(0);
+    expect(forged.recordOperationalFailure).toHaveBeenCalledWith(
       expect.objectContaining({
-        area: 'payment',
+        action: 'paypal_webhook',
         severity: 'warning',
         errorCode: 'paypal_webhook_signature_rejected',
         summary: 'PayPal webhook verification failed',
@@ -456,53 +214,191 @@ describe('PayPal webhook route contract', () => {
         })
       })
     );
-    expect(JSON.stringify(routeMocks.recordOperationalFailure.mock.calls)).not.toMatch(/paypal-transmission-sig|rawBody|fixture-signature/i);
+    expect(JSON.stringify(forged.recordOperationalFailure.mock.calls)).not.toMatch(
+      /paypal-transmission-sig|rawBody|fixture-signature/i
+    );
+
+    const verifyTransportThrow = createWebhookHarness({
+      transportOptions: { webhookVerifyError: new Error('network reset') }
+    });
+    const providerErrOutcome = await verifyTransportThrow.processor.handlePayPalWebhook({
+      headers: paypalFixtureHeaders,
+      rawBody: rawBody(paypalCompletedCaptureEvent)
+    });
+    expect(providerErrOutcome).toEqual({ status: 'error', code: 'paypal_provider_error' });
+    expect(paypalWebhookResponse(providerErrOutcome).status).toBe(502);
+    expect(verifyTransportThrow.memory.transitions).toHaveLength(0);
+
+    const unconfigured = createWebhookHarness({ config: unconfiguredPayPalConfig });
+    const unconfiguredOutcome = await unconfigured.processor.handlePayPalWebhook({
+      headers: paypalFixtureHeaders,
+      rawBody: rawBody(paypalCompletedCaptureEvent)
+    });
+    expect(unconfiguredOutcome).toEqual({
+      status: 'unconfigured',
+      code: 'missing_paypal_server_config'
+    });
+    expect(paypalWebhookResponse(unconfiguredOutcome).status).toBe(503);
   });
 
   test('forged signatures keep rejection response stable when operational recording fails', async () => {
-    const state = createRouteClient();
-    routeMocks.adminClient = state.client;
-    routeMocks.paypalVerificationStatus = 'FAILURE';
-    routeMocks.recordOperationalFailure.mockRejectedValueOnce(new Error('operational table unavailable'));
-    const {POST} = await loadWebhookRoute();
+    const throwingRecorder = vi.fn(async () => {
+      throw new Error('operational table unavailable');
+    });
+    const { processor, memory } = createWebhookHarness({
+      transportOptions: { webhookVerifyStatus: 'FAILURE' },
+      recordOperationalFailure: throwingRecorder
+    });
 
-    const response = await POST(webhookRequest(paypalCompletedCaptureEvent));
+    const outcome = await processor.handlePayPalWebhook({
+      headers: paypalFixtureHeaders,
+      rawBody: rawBody(paypalCompletedCaptureEvent)
+    });
 
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
+    expect(outcome).toEqual({
       status: 'rejected',
       code: 'paypal_webhook_signature_rejected'
     });
-    expect(state.inserts).toHaveLength(0);
-    expect(state.updates).toHaveLength(0);
-    expect(state.rpc).not.toHaveBeenCalled();
+    expect(paypalWebhookResponse(outcome).status).toBe(400);
+    expect(memory.receipts).toHaveLength(0);
+    expect(memory.transitions).toHaveLength(0);
   });
 
-  test('pending out-of-order event records a verified no-op receipt without transition', async () => {
-    const state = createRouteClient({orderPaymentStatus: 'paid'});
-    routeMocks.adminClient = state.client;
-    const {POST} = await loadWebhookRoute();
+  test('duplicate event increments delivery history and skips repeated transition effects', async () => {
+    const { processor, memory, triggerEmailOutbox } = createWebhookHarness({
+      existingEvents: [
+        {
+          id: '33333333-3333-4333-8333-333333333333',
+          providerEventId: paypalCompletedCaptureEvent.id,
+          deliveryCount: 1
+        }
+      ]
+    });
 
-    const response = await POST(webhookRequest(paypalPendingCaptureEvent));
-    const body = await response.json();
+    const outcome = await processor.handlePayPalWebhook({
+      headers: paypalFixtureHeaders,
+      rawBody: rawBody(paypalCompletedCaptureEvent)
+    });
 
-    expect(response.status).toBe(200);
-    expect(body).toMatchObject({status: 'ignored', code: 'paypal_capture_pending'});
-    expect(state.rpc).not.toHaveBeenCalled();
-    expect(routeMocks.triggerTransactionalEmailOutboxNow).not.toHaveBeenCalled();
-    expect(state.inserts).toEqual([
-      {
-        table: 'payment_events',
-        value: expect.objectContaining({
-          payment_id: '22222222-2222-4222-8222-222222222222',
-          provider: 'paypal',
-          provider_event_id: paypalPendingCaptureEvent.id,
-          event_type: 'PAYMENT.CAPTURE.PENDING',
-          source: 'paypal_webhook',
-          verification_status: 'verified',
-          delivery_count: 1
+    expect(outcome).toEqual({ status: 'duplicate' });
+    expect(paypalWebhookResponse(outcome).status).toBe(200);
+    expect(memory.transitions).toHaveLength(0);
+    expect(triggerEmailOutbox).not.toHaveBeenCalled();
+    expect(memory.events.get(paypalCompletedCaptureEvent.id)?.deliveryCount).toBe(2);
+  });
+
+  test('validates merchant, amount, currency mismatches and routes to review_required receipt without paid transition', async () => {
+    for (const [event, expectedCode] of [
+      [paypalMismatchedMerchantEvent, 'paypal_merchant_mismatch'],
+      [paypalMismatchedAmountEvent, 'paypal_amount_mismatch'],
+      [paypalMismatchedCurrencyEvent, 'paypal_currency_mismatch']
+    ] as const) {
+      const { processor, memory, triggerEmailOutbox } = createWebhookHarness();
+      const outcome = await processor.handlePayPalWebhook({
+        headers: paypalFixtureHeaders,
+        rawBody: rawBody(event)
+      });
+
+      expect(outcome).toEqual({ status: 'review_required', code: expectedCode });
+      expect(paypalWebhookResponse(outcome).status).toBe(202);
+      expect(memory.transitions).toHaveLength(0);
+      expect(memory.receipts).toContainEqual(
+        expect.objectContaining({
+          providerEventId: event.id,
+          verificationStatus: 'rejected'
         })
-      }
-    ]);
+      );
+      expect(triggerEmailOutbox).not.toHaveBeenCalled();
+    }
+  });
+
+  test('routes declined, pending, unsupported, late settlement, unknown order, and refund visibility events accurately', async () => {
+    const declined = createWebhookHarness();
+    await expect(
+      declined.processor.handlePayPalWebhook({
+        headers: paypalFixtureHeaders,
+        rawBody: rawBody(paypalDeclinedCaptureEvent)
+      })
+    ).resolves.toMatchObject({ status: 'accepted', result: 'applied' });
+    expect(declined.memory.transitions[0]).toMatchObject({
+      targetStatus: 'failed',
+      releaseReason: 'paypal_capture_failed'
+    });
+
+    const pending = createWebhookHarness({
+      orders: [makeStoredPayPalOrder({ paymentStatus: 'paid' })]
+    });
+    await expect(
+      pending.processor.handlePayPalWebhook({
+        headers: paypalFixtureHeaders,
+        rawBody: rawBody(paypalPendingCaptureEvent)
+      })
+    ).resolves.toEqual({ status: 'ignored', code: 'paypal_capture_pending' });
+    expect(pending.memory.transitions).toHaveLength(0);
+    expect(pending.triggerEmailOutbox).not.toHaveBeenCalled();
+    expect(pending.memory.receipts[0]).toMatchObject({
+      providerEventId: paypalPendingCaptureEvent.id,
+      verificationStatus: 'verified'
+    });
+
+    const unsupported = createWebhookHarness();
+    await expect(
+      unsupported.processor.handlePayPalWebhook({
+        headers: paypalFixtureHeaders,
+        rawBody: rawBody({ ...paypalCompletedCaptureEvent, event_type: 'CHECKOUT.ORDER.APPROVED' })
+      })
+    ).resolves.toEqual({ status: 'ignored', code: 'unsupported_paypal_webhook_event' });
+
+    const late = createWebhookHarness({
+      orders: [makeStoredPayPalOrder({ reservationExpiresAt: '2026-06-15T04:00:00.000Z' })],
+      now: () => EXPIRED_NOW
+    });
+    await expect(
+      late.processor.handlePayPalWebhook({
+        headers: paypalFixtureHeaders,
+        rawBody: rawBody(paypalCompletedCaptureEvent)
+      })
+    ).resolves.toMatchObject({ status: 'accepted', result: 'applied' });
+    expect(late.memory.transitions[0]).toMatchObject({
+      targetStatus: 'paid',
+      reviewReason: 'late_payment_detected'
+    });
+
+    const partialRefund = createWebhookHarness({
+      orders: [makeStoredPayPalOrder({ paymentStatus: 'paid' })]
+    });
+    await expect(
+      partialRefund.processor.handlePayPalWebhook({
+        headers: paypalFixtureHeaders,
+        rawBody: rawBody(paypalPartialRefundEvent)
+      })
+    ).resolves.toEqual({ status: 'refund_visibility', refundStatus: 'partially_refunded' });
+    expect(partialRefund.memory.refundVisibilityRecords[0]).toMatchObject({
+      refundStatus: 'partially_refunded',
+      refundedAmountMinor: 1250
+    });
+    expect(partialRefund.memory.transitions).toHaveLength(0);
+
+    const fullRefund = createWebhookHarness({
+      orders: [makeStoredPayPalOrder({ paymentStatus: 'paid' })]
+    });
+    await expect(
+      fullRefund.processor.handlePayPalWebhook({
+        headers: paypalFixtureHeaders,
+        rawBody: rawBody(paypalFullRefundEvent)
+      })
+    ).resolves.toEqual({ status: 'refund_visibility', refundStatus: 'refunded' });
+    expect(fullRefund.memory.refundVisibilityRecords[0]).toMatchObject({
+      refundStatus: 'refunded',
+      refundedAmountMinor: 4250
+    });
+
+    const missingOrder = createWebhookHarness({ orders: [] });
+    const missingOutcome = await missingOrder.processor.handlePayPalWebhook({
+      headers: paypalFixtureHeaders,
+      rawBody: rawBody(paypalCompletedCaptureEvent)
+    });
+    expect(missingOutcome).toEqual({ status: 'ignored', code: 'paypal_order_not_found' });
+    expect(paypalWebhookResponse(missingOutcome).status).toBe(202);
   });
 });
