@@ -226,7 +226,31 @@ test('account purchase library delegates downloads through the app route without
   assert.match(source, /\/api\/downloads/);
   assert.doesNotMatch(
     source,
-    /createSignedUrl|signedUrl|token_hash|bucket_id|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
+    /createSignedUrl|signedUrl|token_hash|bucket_id|product_digital_assets|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
+  );
+
+  const nonQueryAccountSource = readExisting(
+    fulfillmentAccountFiles.filter(
+      (file) => file !== 'src/fulfillment/account-queries.ts'
+    )
+  );
+  assert.doesNotMatch(nonQueryAccountSource, /object_path/i);
+
+  const accountQueries = readFileSync('src/fulfillment/account-queries.ts', 'utf8');
+  const patternLibraryIndex = accountQueries.indexOf(
+    'export async function getCustomerPatternLibrary'
+  );
+  assert.notEqual(patternLibraryIndex, -1);
+
+  assert.doesNotMatch(accountQueries.slice(patternLibraryIndex), /object_path/i);
+
+  const orderHistorySource = accountQueries.slice(0, patternLibraryIndex);
+  const publicProductMediaBlock =
+    /\.from\('product_media'\)\s*\.select\('product_id,object_path,is_primary,display_order'\)\s*\.in\('product_id',\s*productIds\);(?:(?!\.from\()[\s\S])*?mediaByProduct\.set\(media\.product_id,\s*media\.object_path\);/;
+  assert.match(orderHistorySource, publicProductMediaBlock);
+  assert.doesNotMatch(
+    orderHistorySource.replace(publicProductMediaBlock, ''),
+    /object_path/i
   );
 });
 
