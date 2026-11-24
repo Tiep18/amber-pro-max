@@ -3,7 +3,7 @@
 import {Dialog as DialogPrimitive} from 'radix-ui';
 import {createTranslator} from 'next-intl';
 import {formatMoney} from '@/catalog/money';
-import type {MaterialQuoteChange} from '@/checkout/market-revalidation';
+import type {MaterialQuoteChange} from '@/checkout/checkout-session';
 import type {CartQuote} from '@/checkout/types';
 import type {Locale} from '@/i18n/routing';
 import enMessages from '@/messages/en.json';
@@ -91,7 +91,7 @@ export function QuoteDiffDialog({
 }: {
   locale: Locale;
   proposal: CartQuote;
-  changes: MaterialQuoteChange[];
+  changes: readonly MaterialQuoteChange[];
   onConfirm: () => void;
   onCancel: () => void;
 }) {

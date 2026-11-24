@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const checkoutFiles = [
   'src/components/checkout/checkout-page.tsx',
+  'src/checkout/checkout-session.ts',
   'src/components/checkout/approved-exception-page.tsx',
   'src/components/checkout/exception-request-form.tsx',
   'src/checkout/exceptions.ts',
@@ -87,6 +88,7 @@ test('guest retry recovery keeps raw credentials server-only and persists hashes
   );
   const action = readFileSync('src/checkout/actions.ts', 'utf8');
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  const session = readFileSync('src/checkout/checkout-session.ts', 'utf8');
   const submit = readFileSync('src/checkout/submit-checkout.ts', 'utf8');
 
   assert.match(migration, /attempt_id_hash text primary key/);
@@ -99,12 +101,14 @@ test('guest retry recovery keeps raw credentials server-only and persists hashes
   );
   assert.match(action, /prepareGuestCheckoutRecoveryFromServer/);
   assert.match(action, /setGuestOrderAccessCookieFromServer/);
-  assert.match(client, /await prepareGuestCheckoutRecoveryAction/);
+  assert.match(client, /prepareGuestRecovery:\s*prepareGuestCheckoutRecoveryAction/);
+  assert.match(session, /await ports\.prepareGuestRecovery\(/);
   // The invariant being protected is that guest recovery credentials live in
   // httpOnly cookies and never reach JS-readable storage. Credential names
   // stay banned outright, as does localStorage (long-lived and cross-tab —
   // nothing in checkout needs it).
   assert.doesNotMatch(client, /guestRecovery|attemptId|\bproof\b|localStorage/);
+  assert.doesNotMatch(session, /guestRecovery|attemptId|\bproof\b|localStorage/);
 
   // sessionStorage is confined to the reviewed idempotency and editable-draft
   // modules. Neither module may carry credentials or commerce authority.
@@ -176,21 +180,22 @@ test('destination authority and exact payment pairs are enforced before persiste
 test('checkout prefill uses authenticated server identity and deterministic destination defaults', () => {
   const route = readFileSync('src/app/[locale]/checkout/page.tsx', 'utf8');
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
-  const prefill = readFileSync('src/checkout/prefill.ts', 'utf8');
+  const session = readFileSync('src/checkout/checkout-session.ts', 'utf8');
 
   assert.match(route, /client\.auth\.getUser\(\)/);
   assert.match(route, /initialEmail=\{user\?\.email\?\.trim\(\) \?\? ''\}/);
   assert.doesNotMatch(client, /user_metadata|app_metadata|auth\.getUser/);
-  assert.match(prefill, /savedDestination/);
-  assert.match(prefill, /quotedDestination/);
-  assert.match(prefill, /market === 'vn'/);
-  assert.match(prefill, /countryCode: 'VN'/);
-  assert.match(prefill, /source !== 'prefill'/);
+  assert.match(session, /savedDestination/);
+  assert.match(session, /quotedDestination/);
+  assert.match(session, /market === 'vn'/);
+  assert.match(session, /countryCode: 'VN'/);
+  assert.match(session, /source === 'prefill'/);
 });
 
 test('checkout draft uses a server-only HMAC account scope without exposing raw identity', () => {
   const page = readFileSync('src/app/[locale]/checkout/page.tsx', 'utf8');
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  const session = readFileSync('src/checkout/checkout-session.ts', 'utf8');
   const draft = readFileSync('src/checkout/editable-draft.ts', 'utf8');
   const scopePath = 'src/checkout/editable-draft-scope.server.ts';
   const serverEnv = readFileSync('src/lib/env/server.ts', 'utf8');
@@ -200,8 +205,9 @@ test('checkout draft uses a server-only HMAC account scope without exposing raw 
   assert.match(page, /buildAuthenticatedCheckoutDraftScope\(user\.id\)/);
   assert.match(page, /CHECKOUT_GUEST_DRAFT_SCOPE/);
   assert.match(page, /draftScope=\{draftScope\}/);
-  assert.match(client, /readEditableDraft\(\{[\s\S]*scope:\s*draftScope/);
-  assert.match(client, /writeEditableDraft\(\{[\s\S]*scope:\s*draftScope/);
+  assert.match(client, /draftScope,/);
+  assert.match(session, /readEditableDraft\(\{[\s\S]*scope:\s*config\.draftScope/);
+  assert.match(session, /writeEditableDraft\(\{[\s\S]*scope:\s*config\.draftScope/);
   assert.match(draft, /scope_mismatch/);
   assert.match(draft, /atb_checkout_editable_draft_v2/);
   assert.doesNotMatch(draft, /buildCheckoutDraftScope|userId/);
@@ -232,49 +238,55 @@ test('checkout completion icons use the active-locale accessible name', () => {
 });
 
 test('checkout refreshes accepted commercial evidence immediately before submit', () => {
-  const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
-  const submitStart = client.indexOf('async function submit()');
-  const preflight = client.indexOf('const refreshedLifecycle = await requestQuote(', submitStart);
-  const recovery = client.indexOf('await prepareGuestCheckoutRecoveryAction(', submitStart);
-  const persistence = client.indexOf('await submitCheckoutAction(submitInput)', submitStart);
+  const session = readFileSync('src/checkout/checkout-session.ts', 'utf8');
+  const submitStart = session.indexOf('async submit()');
+  const placeStart = session.indexOf('async function placeOrderForQuote(');
+  const preflight = session.indexOf('await requestQuote(', submitStart);
+  const recovery = session.indexOf('await ports.prepareGuestRecovery(', placeStart);
+  const persistence = session.indexOf('await ports.submitOrder(submitInput)', placeStart);
 
   assert.ok(submitStart >= 0);
+  assert.ok(placeStart >= 0);
   assert.ok(preflight > submitStart);
-  assert.ok(recovery > preflight);
+  assert.ok(recovery > placeStart);
   assert.ok(persistence > recovery);
   assert.match(
-    client.slice(submitStart),
-    /prepareGuestCheckoutRecoveryAction\(\{\s*acceptedQuote:\s*refreshedQuote,/
+    session.slice(placeStart),
+    /ports\.prepareGuestRecovery\(\{\s*acceptedQuote:\s*refreshedQuote,/
   );
-  assert.match(client.slice(submitStart), /lines:\s*quoteIntentLines\(refreshedQuote\)/);
-  assert.match(client.slice(submitStart), /discountCode: activeDiscountCode\(refreshedQuote\)/);
+  assert.match(session.slice(placeStart), /lines:\s*quoteIntentLines\(refreshedQuote\)/);
+  assert.match(session.slice(placeStart), /discountCode:\s*activeDiscountCode\(refreshedQuote\)/);
 });
 
 test('checkout locks one editable region through truthful submit stages and navigates only after success', () => {
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
-  const submitStart = client.indexOf('async function submit()');
-  const successBranch = client.indexOf("if (result.status === 'success')", submitStart);
-  const successSource = client.slice(successBranch);
+  const session = readFileSync('src/checkout/checkout-session.ts', 'utf8');
+  const submitStart = session.indexOf('async submit()');
+  const placeStart = session.indexOf('async function placeOrderForQuote(');
+  const successBranch = session.indexOf("if (result.status === 'success')", placeStart);
+  const successSource = session.slice(successBranch);
 
   assert.ok(submitStart >= 0);
-  assert.ok(successBranch > submitStart);
-  assert.match(client, /type SubmitStage = 'idle' \| 'checking-total' \| 'creating-order'/);
-  assert.match(client, /const \[submitStage, setSubmitStage\] = useState<SubmitStage>\('idle'\)/);
-  assert.match(client.slice(submitStart, successBranch), /if \(submitInFlightRef\.current\) return/);
-  assert.match(client.slice(submitStart, successBranch), /submitInFlightRef\.current = true/);
-  assert.match(client.slice(submitStart, successBranch), /setSubmitStage\('checking-total'\)/);
-  assert.match(client.slice(submitStart, successBranch), /setSubmitStage\('creating-order'\)/);
-  assert.match(client, /aria-busy=\{submitStage !== 'idle'\}/);
-  assert.match(client, /disabled=\{controlsDisabled\}/);
-  assert.match(successSource, /clearEditableDraft\(checkoutSessionStorage\(\)\)/);
-  assert.match(successSource, /clearStoredIdempotency\(checkoutSessionStorage\(\)\)/);
-  assert.match(successSource, /completeOrder\(completedLines\)/);
-  assert.match(successSource, /router\.push\(result\.orderPath\)/);
+  assert.ok(placeStart >= 0);
+  assert.ok(successBranch > placeStart);
+  assert.match(session, /export type SubmitStage = 'idle' \| 'checking-total' \| 'creating-order'/);
+  assert.match(session.slice(submitStart), /if \(submitInFlight \|\| disposed\)/);
+  assert.match(session.slice(submitStart), /submitInFlight = true;/);
+  assert.match(session.slice(submitStart), /submitStage = 'checking-total';/);
+  assert.match(session.slice(placeStart, successBranch), /submitStage = 'creating-order';/);
+  assert.match(client, /aria-busy=\{snapshot\.submitStage !== 'idle'\}/);
+  assert.match(client, /disabled=\{snapshot\.controlsDisabled\}/);
+  assert.match(successSource, /clearEditableDraft\(storage\)/);
+  assert.match(successSource, /clearStoredIdempotency\(storage\)/);
+  assert.match(successSource, /ports\.onOrderCreated\(/);
+  assert.match(client, /completeOrder\(\[\.\.\.completedLines\]\)/);
+  assert.match(client, /router\.push\(orderPath\)/);
   assert.doesNotMatch(client, /window\.location\.assign/);
 });
 
 test('checkout separates retryable known failures from unknown order outcomes', () => {
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  const session = readFileSync('src/checkout/checkout-session.ts', 'utf8');
   const presentation = readFileSync('src/checkout/submit-error-copy.ts', 'utf8');
 
   assert.match(presentation, /outcome: 'known' \| 'unknown'/);
@@ -283,32 +295,33 @@ test('checkout separates retryable known failures from unknown order outcomes', 
     presentation,
     /messageKey: 'networkUnconfirmed'[\s\S]*outcome: 'unknown'[\s\S]*retryAllowed: false/
   );
-  assert.match(client, /presentation\.outcome === 'unknown'/);
+  assert.match(client, /snapshot\.submitError\.outcome === 'unknown'/);
   assert.match(client, /getAccountOrdersPath\(locale\)/);
   assert.match(client, /getGuestOrderPath\(locale\)/);
-  assert.match(client, /idempotencyRef\.current = null/);
-  const recoveryStart = client.indexOf("presentation.outcome === 'unknown'");
-  const recoveryEnd = client.indexOf('submitResult.errorId ?', recoveryStart);
+  assert.match(session, /idempotencyInMemory = null;/);
+  const recoveryStart = client.indexOf("snapshot.submitError.outcome === 'unknown'");
+  const recoveryEnd = client.indexOf('snapshot.submitResult.errorId', recoveryStart);
   assert.ok(recoveryEnd > recoveryStart);
   assert.doesNotMatch(client.slice(recoveryStart, recoveryEnd), /retryQuote|submit\(\)|Try again/);
 });
 
 test('checkout removes only final ordered quantities after successful order creation', () => {
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
-  const successBranch = client.indexOf("if (result.status === 'success')");
-  const completion = client.indexOf('completeOrder(', successBranch);
-  const navigation = client.indexOf('router.push(result.orderPath)', successBranch);
-  const priorSource = client.slice(0, successBranch);
-  const branchSource = client.slice(successBranch, navigation);
+  const session = readFileSync('src/checkout/checkout-session.ts', 'utf8');
+  const placeStart = session.indexOf('async function placeOrderForQuote(');
+  const successBranch = session.indexOf("if (result.status === 'success')", placeStart);
+  const notifyCall = session.indexOf('ports.onOrderCreated(', successBranch);
+  const priorSource = session.slice(0, successBranch);
+  const branchSource = session.slice(successBranch, notifyCall);
 
   assert.ok(successBranch >= 0);
-  assert.ok(completion > successBranch);
-  assert.ok(navigation > completion);
-  assert.doesNotMatch(priorSource, /completeOrder\(/);
+  assert.ok(notifyCall > successBranch);
+  assert.doesNotMatch(priorSource, /ports\.onOrderCreated\(/);
   assert.match(branchSource, /line\.status === 'ready'/);
   assert.match(branchSource, /line\.status === 'quantity_capped'/);
   assert.match(branchSource, /quantity:\s*line\.quantity/);
   assert.doesNotMatch(branchSource, /quantity:\s*line\.requestedQuantity/);
+  assert.match(client, /onOrderCreated:[\s\S]*completeOrder\(\[\.\.\.completedLines\]\)[\s\S]*router\.push\(orderPath\)/);
 });
 
 test('checkout address persistence derives identity server-side and cannot affect order success', () => {
@@ -396,28 +409,32 @@ test('ASVS L1 checkout authority matrix keeps browser state as intent and server
   assert.match(submit, /quoteMarket === 'intl' && currencyCode === 'USD' && input\.paymentIntent === 'paypal_intent'/);
   assert.match(submit, /quoteMarket === 'vn' && currencyCode === 'VND' && input\.paymentIntent === 'vietqr_intent'/);
 
-  const submitStart = client.indexOf('async function submit()');
-  const requote = client.indexOf('const refreshedLifecycle = await requestQuote(', submitStart);
-  const materialReview = client.indexOf('refreshedLifecycle.proposal', requote);
-  const persist = client.indexOf('await submitCheckoutAction(submitInput)', materialReview);
-  assert.ok(submitStart >= 0 && requote > submitStart && materialReview > requote && persist > materialReview);
+  const session = readFileSync('src/checkout/checkout-session.ts', 'utf8');
+  const submitStart = session.indexOf('async submit()');
+  const requote = session.indexOf('await requestQuote(', submitStart);
+  const materialReview = session.indexOf('if (proposal)', requote);
+  const placeOrderCall = session.indexOf('await placeOrderForQuote(', materialReview);
+  const placeOrderDef = session.indexOf('async function placeOrderForQuote(');
+  const persist = session.indexOf('await ports.submitOrder(submitInput)', placeOrderDef);
+  assert.ok(submitStart >= 0 && requote > submitStart && materialReview > requote && placeOrderCall > materialReview);
+  assert.ok(placeOrderDef >= 0 && persist > placeOrderDef);
 
   // A pay attempt interrupted by the material-change dialog resumes after the
   // customer accepts, so that second path must not become a way around the
   // gate: the order is still persisted from exactly one place, the interrupted
   // attempt returns without persisting anything, and the resume runs only from
   // an explicit acceptance and only after re-checking the submit preconditions.
-  assert.equal(client.split('await submitCheckoutAction(submitInput)').length - 1, 1);
-  assert.equal(client.split('await placeOrderForQuote(').length - 1, 2);
-  assert.match(client, /resumeSubmitAfterReviewRef\.current = true;[\s\S]{0,240}?return;/);
+  assert.equal(session.split('await ports.submitOrder(submitInput)').length - 1, 1);
+  assert.equal(session.split('await placeOrderForQuote(').length - 1, 2);
+  assert.match(session, /resumeSubmitAfterReview = true;[\s\S]{0,160}?return \{ status: 'needs_review' \};/);
   assert.match(
-    client,
-    /acceptQuoteProposal\(lifecycleRef\.current\)[\s\S]{0,600}?resumeSubmitAfterReviewRef\.current = false;[\s\S]{0,400}?continueSubmitWithReviewedQuote\(accepted\)/
+    session,
+    /async acceptProposalAndResume\(\)[\s\S]{0,600}?resumeSubmitAfterReview = false;[\s\S]{0,1200}?await placeOrderForQuote\(/
   );
-  assert.match(client, /!canSubmitAcceptedQuote\(reviewed,/);
+  assert.match(session, /!addressReady/);
   assert.match(
-    client,
-    /function reviewProposedDestination\(\) \{\s*resumeSubmitAfterReviewRef\.current = false;/
+    session,
+    /rejectProposal\(\) \{[\s\S]{0,120}?resumeSubmitAfterReview = false;/
   );
 
   assert.match(authoritativeSubmit, /private\.checkout_commercial_quote_is_current/);
