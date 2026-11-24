@@ -108,10 +108,10 @@ insert into public.checkout_orders(id,order_number,owner_user_id,guest_secret_ha
 ('05170000-0000-4000-8000-000000000021','ATB-DIGITAL-LIFECYCLE-UNPAID','05170000-0000-4000-8000-000000000001',repeat('u',64),'download-owner@example.test','en','intl','USD','pending_payment','paypal_intent',2500,0,0,2500,'digital-unpaid-quote','{}','[]','user:05170001','digital-unpaid-key',now()+interval '15 minutes'),
 ('05170000-0000-4000-8000-000000000022','ATB-DIGITAL-LIFECYCLE-REVIEW','05170000-0000-4000-8000-000000000001',repeat('r',64),'download-owner@example.test','en','intl','USD','pending_payment','paypal_intent',2500,0,0,2500,'digital-review-quote','{}','[]','user:05170002','digital-review-key',now()+interval '15 minutes');
 insert into public.checkout_order_lines(id,order_id,product_id,line_id,product_title,fulfillment_type,market,currency_code,quantity,unit_price_minor,line_subtotal_minor,quote_line_snapshot) values
-('05170000-0000-4000-8000-000000000030','05170000-0000-4000-8000-000000000020','50000000-0000-0000-0000-000000000001','paid-a','First pattern','digital','intl','USD',1,2500,2500,'{}'),
+('05170000-0000-4000-8000-000000000030','05170000-0000-4000-8000-000000000020','a16b23a8-88f8-4f77-b199-9783e5a7a7a8','paid-a','First pattern','digital','intl','USD',1,2500,2500,'{}'),
 ('05170000-0000-4000-8000-000000000031','05170000-0000-4000-8000-000000000020','05170000-0000-4000-8000-000000000010','paid-b','Second pattern','digital','intl','USD',1,2500,2500,'{}'),
-('05170000-0000-4000-8000-000000000032','05170000-0000-4000-8000-000000000021','50000000-0000-0000-0000-000000000001','unpaid-a','Unpaid pattern','digital','intl','USD',1,2500,2500,'{}'),
-('05170000-0000-4000-8000-000000000033','05170000-0000-4000-8000-000000000022','50000000-0000-0000-0000-000000000001','review-a','Review pattern','digital','intl','USD',1,2500,2500,'{}');
+('05170000-0000-4000-8000-000000000032','05170000-0000-4000-8000-000000000021','a16b23a8-88f8-4f77-b199-9783e5a7a7a8','unpaid-a','Unpaid pattern','digital','intl','USD',1,2500,2500,'{}'),
+('05170000-0000-4000-8000-000000000033','05170000-0000-4000-8000-000000000022','a16b23a8-88f8-4f77-b199-9783e5a7a7a8','review-a','Review pattern','digital','intl','USD',1,2500,2500,'{}');
 
 update public.payments
 set status='paid',paid_gate_opened_at=now(),paid_at=now()
@@ -184,14 +184,14 @@ select is(pg_temp.test_issue((select o.id from public.transactional_email_outbox
 reset role;
 
 set local role service_role;
-select is((select product_id from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','50000000-0000-0000-0000-000000000001','05170000-0000-4000-8000-000000000001',null,null)),'50000000-0000-0000-0000-000000000001'::uuid,'verified owner authorizes a product-scoped private asset');
-select is((select product_id from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID',null,null,repeat('c',64),null)),'50000000-0000-0000-0000-000000000001'::uuid,'valid email token self-scopes a no-product request');
+select is((select product_id from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','a16b23a8-88f8-4f77-b199-9783e5a7a7a8','05170000-0000-4000-8000-000000000001',null,null)),'a16b23a8-88f8-4f77-b199-9783e5a7a7a8'::uuid,'verified owner authorizes a product-scoped private asset');
+select is((select product_id from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID',null,null,repeat('c',64),null)),'a16b23a8-88f8-4f77-b199-9783e5a7a7a8'::uuid,'valid email token self-scopes a no-product request');
 select is((select product_id from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','05170000-0000-4000-8000-000000000010',null,null,repeat('f',64))),'05170000-0000-4000-8000-000000000010'::uuid,'valid guest order cookie authorizes a product-scoped private asset');
 select is((select count(*)::integer from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID',null,'05170000-0000-4000-8000-000000000001',null,null)),0,'owner no-product request is denied when distinct products are ambiguous');
 select is((select count(*)::integer from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID',null,null,null,repeat('f',64))),0,'guest-cookie no-product request is denied when distinct products are ambiguous');
 select is((select count(*)::integer from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','05170000-0000-4000-8000-000000000010',null,repeat('c',64),null)),0,'token cannot authorize a different product');
-select is((select count(*)::integer from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','50000000-0000-0000-0000-000000000001',null,repeat('e',64),null)),0,'unmatched token as sole proof is denied');
-select is((select concat_ws('|',bucket_id,object_path,file_name) from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','50000000-0000-0000-0000-000000000001','05170000-0000-4000-8000-000000000001',repeat('e',64),null)),'pattern-pdfs|seed/private/vn-pattern.pdf|vn-pattern.pdf','valid owner proof remains sufficient when email token is invalid');
+select is((select count(*)::integer from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','a16b23a8-88f8-4f77-b199-9783e5a7a7a8',null,repeat('e',64),null)),0,'unmatched token as sole proof is denied');
+select is((select concat_ws('|',bucket_id,object_path,file_name) from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','a16b23a8-88f8-4f77-b199-9783e5a7a7a8','05170000-0000-4000-8000-000000000001',repeat('e',64),null)),'pattern-pdfs|seed/private/vn-pattern.pdf|vn-pattern.pdf','valid owner proof remains sufficient when email token is invalid');
 reset role;
 
 insert into public.digital_access_tokens(entitlement_id,token_hash,status,expires_at,revoked_at)
@@ -224,12 +224,12 @@ set status='active',revoked_at=null,revoke_reason=null
 where order_line_id='05170000-0000-4000-8000-000000000031';
 
 insert into public.checkout_order_lines(id,order_id,product_id,line_id,product_title,fulfillment_type,market,currency_code,quantity,unit_price_minor,line_subtotal_minor,quote_line_snapshot)
-values('05170000-0000-4000-8000-000000000034','05170000-0000-4000-8000-000000000020','50000000-0000-0000-0000-000000000001','paid-a-duplicate','First pattern duplicate','digital','intl','USD',1,2500,2500,'{}');
+values('05170000-0000-4000-8000-000000000034','05170000-0000-4000-8000-000000000020','a16b23a8-88f8-4f77-b199-9783e5a7a7a8','paid-a-duplicate','First pattern duplicate','digital','intl','USD',1,2500,2500,'{}');
 insert into public.digital_entitlements(id,order_id,order_line_id,owner_user_id,contact_email,product_id,status,version)
-values('05170000-0000-4000-8000-000000000035','05170000-0000-4000-8000-000000000020','05170000-0000-4000-8000-000000000034','05170000-0000-4000-8000-000000000001','download-owner@example.test','50000000-0000-0000-0000-000000000001','active',1);
+values('05170000-0000-4000-8000-000000000035','05170000-0000-4000-8000-000000000020','05170000-0000-4000-8000-000000000034','05170000-0000-4000-8000-000000000001','download-owner@example.test','a16b23a8-88f8-4f77-b199-9783e5a7a7a8','active',1);
 set local role service_role;
 select is(
-  (select entitlement_id from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','50000000-0000-0000-0000-000000000001','05170000-0000-4000-8000-000000000001',null,null)),
+  (select entitlement_id from pg_temp.test_authorize('ATB-DIGITAL-LIFECYCLE-PAID','a16b23a8-88f8-4f77-b199-9783e5a7a7a8','05170000-0000-4000-8000-000000000001',null,null)),
   (select id from public.digital_entitlements where order_line_id='05170000-0000-4000-8000-000000000030'),
   'same-product duplicate authorization deterministically selects the earliest order line'
 );

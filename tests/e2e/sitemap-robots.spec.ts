@@ -63,7 +63,7 @@ test.beforeAll(async () => {
     method: 'POST',
     headers: { Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify({
-      product_id: '50000000-0000-0000-0000-000000000001',
+      product_id: 'a16b23a8-88f8-4f77-b199-9783e5a7a7a8',
       technique_id: techniqueId
     })
   });
@@ -85,7 +85,7 @@ test.beforeAll(async () => {
     method: 'POST',
     headers: { Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify({
-      product_id: '50000000-0000-0000-0000-000000000002',
+      product_id: 'c90377bd-042f-4d04-add5-8275549a9787',
       tag_id: tagId
     })
   });

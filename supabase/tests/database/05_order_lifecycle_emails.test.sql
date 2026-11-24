@@ -52,8 +52,8 @@ insert into public.checkout_order_lines (
   market, currency_code, quantity, unit_price_minor, line_subtotal_minor, quote_line_snapshot
 )
 values
-  ('00000000-0000-4000-8000-000000000901', '50000000-0000-0000-0000-000000000001', 'line-digital', 'VN bear pattern', 'digital', 'intl', 'USD', 1, 3000, 3000, '{}'::jsonb),
-  ('00000000-0000-4000-8000-000000000901', '50000000-0000-0000-0000-000000000002', 'line-physical', 'International bear', 'physical', 'intl', 'USD', 1, 3000, 3000, '{}'::jsonb);
+  ('00000000-0000-4000-8000-000000000901', 'a16b23a8-88f8-4f77-b199-9783e5a7a7a8', 'line-digital', 'VN bear pattern', 'digital', 'intl', 'USD', 1, 3000, 3000, '{}'::jsonb),
+  ('00000000-0000-4000-8000-000000000901', 'c90377bd-042f-4d04-add5-8275549a9787', 'line-physical', 'International bear', 'physical', 'intl', 'USD', 1, 3000, 3000, '{}'::jsonb);
 
 select results_eq(
   $$select count(*)::int from public.transactional_email_outbox

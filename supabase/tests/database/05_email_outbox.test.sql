@@ -523,19 +523,19 @@ insert into public.checkout_order_lines (
 (
   '85000000-0000-4000-8000-000000000040',
   '85000000-0000-4000-8000-000000000010',
-  '50000000-0000-0000-0000-000000000001', 'email-expired-line',
+  'a16b23a8-88f8-4f77-b199-9783e5a7a7a8', 'email-expired-line',
   'Expired capability pattern', 'digital', 'intl', 'USD', 1, 1000, 1000, '{}'::jsonb
 ),
 (
   '85000000-0000-4000-8000-000000000041',
   '85000000-0000-4000-8000-000000000010',
-  '50000000-0000-0000-0000-000000000001', 'email-resend-line',
+  'a16b23a8-88f8-4f77-b199-9783e5a7a7a8', 'email-resend-line',
   'Resend pattern', 'digital', 'intl', 'USD', 1, 1000, 1000, '{}'::jsonb
 ),
 (
   '85000000-0000-4000-8000-000000000042',
   '85000000-0000-4000-8000-000000000010',
-  '50000000-0000-0000-0000-000000000001', 'email-rollback-line',
+  'a16b23a8-88f8-4f77-b199-9783e5a7a7a8', 'email-rollback-line',
   'Rollback pattern', 'digital', 'intl', 'USD', 1, 1000, 1000, '{}'::jsonb
 );
 
@@ -546,19 +546,19 @@ insert into public.digital_entitlements (
   '85000000-0000-4000-8000-000000000050',
   '85000000-0000-4000-8000-000000000010',
   '85000000-0000-4000-8000-000000000040',
-  'guest-capability@example.test', '50000000-0000-0000-0000-000000000001', 'active', 1
+  'guest-capability@example.test', 'a16b23a8-88f8-4f77-b199-9783e5a7a7a8', 'active', 1
 ),
 (
   '85000000-0000-4000-8000-000000000051',
   '85000000-0000-4000-8000-000000000010',
   '85000000-0000-4000-8000-000000000041',
-  'guest-capability@example.test', '50000000-0000-0000-0000-000000000001', 'active', 1
+  'guest-capability@example.test', 'a16b23a8-88f8-4f77-b199-9783e5a7a7a8', 'active', 1
 ),
 (
   '85000000-0000-4000-8000-000000000052',
   '85000000-0000-4000-8000-000000000010',
   '85000000-0000-4000-8000-000000000042',
-  'guest-capability@example.test', '50000000-0000-0000-0000-000000000001', 'active', 1
+  'guest-capability@example.test', 'a16b23a8-88f8-4f77-b199-9783e5a7a7a8', 'active', 1
 );
 
 insert into public.transactional_email_outbox (
