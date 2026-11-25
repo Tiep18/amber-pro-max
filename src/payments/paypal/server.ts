@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { triggerTransactionalEmailOutboxNow } from '@/fulfillment/email-outbox.server';
 import { getServerEnv } from '@/lib/env/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
-import { runMonitoredAction } from '@/operations/monitoring';
+import { reportOperationalFailure } from '@/operations/monitoring';
 import { createServerOrderAccess } from '@/order-access/server';
 import { applyPaymentTransition } from '@/payments/transitions';
 import type { PaymentInternalStatus, PaymentTransitionInput } from '@/payments/types';
@@ -297,16 +297,14 @@ export function createServerPayPalOrderAccess(): PayPalOrderAccess {
 }
 
 function recordPayPalOperationalFailure(input: PayPalOperationalFailure) {
-  return runMonitoredAction({
+  return reportOperationalFailure({
     area: 'payment',
     action: input.action,
     severity: input.severity,
     errorCode: input.errorCode,
     summary: input.summary,
-    errorResult: { status: 'error', code: input.errorCode },
-    shouldRecordResult: () => true,
-    facts: input.facts,
-    operation: async () => ({ status: 'error', code: input.errorCode })
+    code: input.errorCode,
+    facts: input.facts
   });
 }
 

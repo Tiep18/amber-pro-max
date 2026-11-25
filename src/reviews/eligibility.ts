@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {reportOperationalFailure} from '@/operations/monitoring';
 
 type RpcClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
@@ -69,17 +69,15 @@ export function maskReviewIdentity(email: string) {
 export async function canReviewProduct({productId, client}: {productId: string; client: RpcClient}) {
   const {data, error} = await client.rpc('can_review_product', {p_product_id: productId});
   if (error) {
-    return runMonitoredAction({
+    return reportOperationalFailure({
       area: 'application',
       action: 'review_eligibility',
       errorCode: 'review_eligibility_failed',
       summary: 'Review eligibility check failed',
       errorResult: {status: 'error', code: 'review_eligibility_failed'} as const,
-      shouldRecordResult: () => true,
       facts: {
         productId
-      },
-      operation: async () => ({status: 'error', code: 'review_eligibility_failed'}) as const
+      }
     });
   }
   return data === true ? {status: 'eligible'} as const : {status: 'not_eligible'} as const;

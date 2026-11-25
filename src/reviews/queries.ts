@@ -1,6 +1,6 @@
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {createSupabasePublicClient} from '@/lib/supabase/public';
-import {runMonitoredAction, safeSupabaseErrorFacts} from '@/operations/monitoring';
+import {reportOperationalFailure} from '@/operations/monitoring';
 import {mapPublicReviewRows, type PublicProductReview} from '@/reviews/eligibility';
 
 type QueryClient = {
@@ -80,36 +80,32 @@ function mapAdminRows(rows: unknown[]): AdminProductReview[] {
 }
 
 async function publicReviewQueryError(productId: string, summary: string, error?: unknown) {
-  return runMonitoredAction({
+  return reportOperationalFailure({
     area: 'application',
     action: 'public_reviews',
     source: 'supabase.postgrest',
     errorCode: 'storefront.reviews.query_failed',
     summary,
     errorResult: {status: 'error', code: 'reviews_load_failed'} as const,
-    shouldRecordResult: () => true,
-    factsFromResult: () => safeSupabaseErrorFacts(error),
+    error,
     facts: {
       productId
-    },
-    operation: async () => ({status: 'error', code: 'reviews_load_failed'}) as const
+    }
   });
 }
 
 async function adminReviewQueryError(status: ReviewStatus | undefined, summary: string, error?: unknown) {
-  return runMonitoredAction({
+  return reportOperationalFailure({
     area: 'admin',
     action: 'admin_reviews',
     source: 'supabase.rpc',
     errorCode: 'admin_reviews_load_failed',
     summary,
     errorResult: {status: 'error', code: 'admin_reviews_load_failed'} as const,
-    shouldRecordResult: () => true,
-    factsFromResult: () => safeSupabaseErrorFacts(error),
+    error,
     facts: {
       status: status ?? null
-    },
-    operation: async () => ({status: 'error', code: 'admin_reviews_load_failed'}) as const
+    }
   });
 }
 

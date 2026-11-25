@@ -81,3 +81,13 @@ _Avoid_: Order link login, magic link
 **Order Claim**:
 Same-email transfer of an unowned guest **Order** to a signed-in customer account using an active `claim_order` token, revoking all prior guest access tokens for that **Order** and recording an append-only audit event.
 _Avoid_: Account merge, order transfer
+
+### Operations & Monitoring
+
+**Operational Monitoring**:
+Cross-domain server telemetry (`reportOperationalFailure`, `runMonitoredAction`, `runMonitoredQuery`, `runMonitoredThrowingQuery`) that captures sanitized diagnostics into `operational_errors` without altering customer-facing outcomes when storage fails.
+_Avoid_: Error wrapper, fake monitored action, log helper
+
+**Operational Redaction**:
+Allowlist-based filtering and pattern stripping (`sanitizeOperationalErrorInput`, `maskEmailForAdmin`, `sanitizeEmailFailureCode`) ensuring credentials, raw payloads, tokens, signatures, emails, addresses, and stack traces never persist to logs or admin queues.
+_Avoid_: Error cleaning, string masking

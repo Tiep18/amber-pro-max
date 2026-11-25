@@ -1,5 +1,5 @@
 import type {Locale} from '@/i18n/routing';
-import {runMonitoredAction, safeSupabaseErrorFacts} from '@/operations/monitoring';
+import {reportOperationalFailure} from '@/operations/monitoring';
 
 type QueryClient = {
   from: (table: string) => {
@@ -117,7 +117,7 @@ async function recordCustomerFulfillmentQueryFailure({
   authRole?: string | null;
   userPresent?: boolean;
 }) {
-  await runMonitoredAction({
+  await reportOperationalFailure({
     area: 'fulfillment',
     action,
     source: 'supabase.postgrest',
@@ -126,10 +126,8 @@ async function recordCustomerFulfillmentQueryFailure({
     userPresent,
     errorCode: `customer.${action}.query_failed`,
     summary,
-    errorResult: {status: 'error', code},
-    shouldRecordResult: () => true,
-    factsFromResult: () => safeSupabaseErrorFacts(error),
-    operation: async () => ({status: 'error', code})
+    code,
+    error
   });
 }
 

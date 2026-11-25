@@ -3,7 +3,7 @@
 import { useActionState } from 'react';
 import { PackageCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import { updatePhysicalFulfillmentServerAction } from '@/fulfillment/physical-server-actions';
+import { updatePhysicalFulfillmentAction } from '@/fulfillment/physical-actions';
 import type { PhysicalFulfillmentResult } from '@/fulfillment/physical';
 import { formatAdminDate, statusLabel } from '@/components/admin/orders/format';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ type PhysicalState = PhysicalFulfillmentResult | { status: 'idle' };
 const initialState: PhysicalState = { status: 'idle' };
 
 async function updateAction(_: PhysicalState, formData: FormData): Promise<PhysicalState> {
-  const result = await updatePhysicalFulfillmentServerAction(formData);
+  const result = await updatePhysicalFulfillmentAction(formData);
   if (result.status === 'updated') toast.success('Physical fulfillment status updated.');
   else if (result.status === 'stale')
     toast.warning('Fulfillment state changed. Refresh and try again.');

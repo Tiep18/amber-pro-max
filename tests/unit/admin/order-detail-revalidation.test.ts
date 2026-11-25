@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest';
 describe('admin order detail revalidation', () => {
   test.each([
     'src/payments/admin-actions.ts',
-    'src/fulfillment/physical.ts',
+    'src/fulfillment/physical-actions.ts',
     'src/fulfillment/admin-entitlement-actions.ts'
   ])('%s keeps list and exact order-number paths fresh', (sourcePath) => {
     const source = readFileSync(sourcePath, 'utf8');

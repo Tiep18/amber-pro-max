@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import {
   markOperationalErrorResolvedAction,
   type MarkOperationalErrorResolvedResult
-} from '@/operations/errors';
+} from '@/operations/admin-actions';
 import { Button } from '@/components/ui/button';
 
 type ResolveState = MarkOperationalErrorResolvedResult | { status: 'idle' };

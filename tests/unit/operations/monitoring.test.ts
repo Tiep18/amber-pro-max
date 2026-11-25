@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  reportOperationalFailure,
   runMonitoredAction,
   runMonitoredQuery,
   runMonitoredThrowingQuery,
@@ -351,5 +352,99 @@ describe('operational monitoring wrappers', () => {
       code: 'checkout_submit_failed',
       publicTraceCode: 'error-1'
     });
+  });
+
+  it('records direct failures without a wrapper action and extracts optional error diagnostics', async () => {
+    const recorder: OperationalFailureRecorder = vi.fn(() =>
+      Promise.resolve({ status: 'recorded', errorId: 'error-direct-1' })
+    );
+
+    await expect(
+      reportOperationalFailure({
+        area: 'fulfillment',
+        action: 'account_orders',
+        source: 'supabase.postgrest',
+        authState: 'required_user_present',
+        authRole: 'authenticated',
+        userPresent: true,
+        errorCode: 'customer.account_orders.query_failed',
+        summary: 'Account orders query failed',
+        code: 'account_orders_failed',
+        error: {
+          code: '42501',
+          message: 'permission denied',
+          status: 403
+        },
+        facts: {
+          orderNumber: 'ATB-1'
+        },
+        recordOperationalFailure: recorder
+      })
+    ).resolves.toEqual({ errorId: 'error-direct-1' });
+
+    expect(recorder).toHaveBeenCalledWith({
+      area: 'fulfillment',
+      severity: 'error',
+      errorCode: 'customer.account_orders.query_failed',
+      summary: 'Account orders query failed',
+      facts: {
+        orderNumber: 'ATB-1',
+        source: 'supabase.postgrest',
+        authState: 'required_user_present',
+        authRole: 'authenticated',
+        userPresent: true,
+        dbCode: '42501',
+        dbMessage: 'permission denied',
+        httpStatus: 403,
+        action: 'account_orders',
+        code: 'account_orders_failed'
+      }
+    });
+  });
+
+  it('attaches errorId on direct failure reporting with errorResult and survives recorder errors', async () => {
+    const okRecorder: OperationalFailureRecorder = vi.fn(() =>
+      Promise.resolve({ status: 'recorded', errorId: 'error-direct-2' })
+    );
+    await expect(
+      reportOperationalFailure({
+        area: 'payment',
+        action: 'apply_payment_transition',
+        errorCode: 'payment_transition_failed',
+        summary: 'Payment transition RPC failed',
+        errorResult: { status: 'error', code: 'payment_transition_failed' } as const,
+        recordOperationalFailure: okRecorder
+      })
+    ).resolves.toEqual({
+      status: 'error',
+      code: 'payment_transition_failed',
+      errorId: 'error-direct-2'
+    });
+
+    const failingRecorder: OperationalFailureRecorder = vi.fn(() =>
+      Promise.reject(new Error('operational table unavailable'))
+    );
+    await expect(
+      reportOperationalFailure({
+        area: 'payment',
+        action: 'apply_payment_transition',
+        errorCode: 'payment_transition_failed',
+        summary: 'Payment transition RPC failed',
+        errorResult: { status: 'error', code: 'payment_transition_failed' } as const,
+        recordOperationalFailure: failingRecorder
+      })
+    ).resolves.toEqual({
+      status: 'error',
+      code: 'payment_transition_failed'
+    });
+    await expect(
+      reportOperationalFailure({
+        area: 'email',
+        action: 'email_retry',
+        errorCode: 'admin_email_retry_failed',
+        summary: 'Admin email retry failed',
+        recordOperationalFailure: failingRecorder
+      })
+    ).resolves.toEqual({});
   });
 });

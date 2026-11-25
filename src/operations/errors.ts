@@ -1,4 +1,4 @@
-'use server';
+import 'server-only';
 
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/auth/guards';
@@ -102,14 +102,4 @@ export async function markOperationalErrorResolved(
 
   revalidatePath('/admin/operations');
   return { status: 'resolved', errorId };
-}
-
-export async function markOperationalErrorResolvedAction(
-  formData: FormData
-): Promise<MarkOperationalErrorResolvedResult> {
-  const errorId = formData.get('errorId');
-  if (typeof errorId !== 'string') {
-    return { status: 'invalid', code: 'invalid_error_id' };
-  }
-  return markOperationalErrorResolved(errorId);
 }

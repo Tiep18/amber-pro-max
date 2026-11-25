@@ -1,7 +1,7 @@
 import 'server-only';
 
 import {z} from 'zod';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {reportOperationalFailure} from '@/operations/monitoring';
 import {
   hashNewsletterUnsubscribeToken,
   normalizeNewsletterUnsubscribeToken
@@ -60,18 +60,16 @@ async function recordNewsletterFailure(
   if (!recorder) {
     return;
   }
-  await runMonitoredAction({
+  await reportOperationalFailure({
     area: 'application',
     action: input.action,
     errorCode: input.errorCode,
     summary: input.summary,
-    errorResult: {status: 'error', code: input.errorCode},
-    shouldRecordResult: () => true,
+    code: input.errorCode,
     facts: {
       market: input.market ?? null
     },
-    recordOperationalFailure: recorder,
-    operation: async () => ({status: 'error', code: input.errorCode})
+    recordOperationalFailure: recorder
   });
 }
 

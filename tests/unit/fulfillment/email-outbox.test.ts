@@ -7,7 +7,7 @@ import { POST } from '@/app/api/fulfillment/email-outbox/route';
 import {
   maskEmailForAdmin,
   sanitizeEmailFailureCode
-} from '@/fulfillment/admin-email-actions';
+} from '@/fulfillment/email-redaction';
 import {
   deriveTransactionalEmailToken,
   processTransactionalEmailBatch

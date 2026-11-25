@@ -5,6 +5,8 @@ import test from 'node:test';
 const operationsFiles = [
   'src/operations/redaction.ts',
   'src/operations/errors.ts',
+  'src/operations/monitoring.ts',
+  'src/operations/admin-actions.ts',
   'src/operations/admin-queries.ts',
   'src/app/admin/operations/page.tsx',
   'src/components/admin/operations/error-queue.tsx',
@@ -60,4 +62,20 @@ test('safe admin redirects allow operations inspection and no nested raw-log rou
 
   assert.match(source, /\/admin\/operations/);
   assert.doesNotMatch(source, /\/admin\/operations\/(?:raw|payload|secret|token|download)/i);
+});
+
+test('internal operational error recording stays server-only and never exposes an unauthenticated Server Action', () => {
+  const errors = readFileSync('src/operations/errors.ts', 'utf8');
+  const monitoring = readFileSync('src/operations/monitoring.ts', 'utf8');
+  const adminActions = readFileSync('src/operations/admin-actions.ts', 'utf8');
+
+  assert.match(errors, /import\s+['"]server-only['"]/);
+  assert.doesNotMatch(errors, /['"]use server['"]/);
+  assert.doesNotMatch(monitoring, /['"]use server['"]/);
+  assert.match(adminActions, /^['"]use server['"];/);
+  assert.match(adminActions, /markOperationalErrorResolved/);
+  assert.doesNotMatch(
+    adminActions,
+    /recordOperationalError|recordOperationalFailure|createSupabaseAdminClient/
+  );
 });

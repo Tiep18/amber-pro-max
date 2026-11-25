@@ -3,7 +3,7 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { runMonitoredAction } from '@/operations/monitoring';
+import { reportOperationalFailure } from '@/operations/monitoring';
 import { getAuthorizedOrderPayment } from '@/payments/queries';
 import {
   createOrderAccess,
@@ -327,22 +327,17 @@ export function createSupabaseOrderAccessStore(deps?: {
 function recordOrderAccessOperationalFailure(
   input: OrderAccessOperationalFailure
 ) {
-  return runMonitoredAction({
+  return reportOperationalFailure({
     area: 'fulfillment',
     action: input.action,
     errorCode: input.errorCode,
     summary: input.summary,
-    errorResult: { status: 'error', code: input.code ?? input.errorCode },
-    shouldRecordResult: () => true,
+    code: input.code ?? input.errorCode,
     facts: {
       orderNumber: input.orderNumber,
       referenceId: input.referenceId ?? null,
       status: input.status ?? null
-    },
-    operation: async () => ({
-      status: 'error',
-      code: input.code ?? input.errorCode
-    })
+    }
   });
 }
 

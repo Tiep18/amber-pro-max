@@ -1,6 +1,6 @@
 import {z} from 'zod';
 import {hashOrderAccessToken} from '@/order-access/order-access';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {reportOperationalFailure} from '@/operations/monitoring';
 import type {SafeOperationalFact} from '@/operations/redaction';
 
 export {hashOrderAccessToken as hashFulfillmentAccessToken};
@@ -71,16 +71,14 @@ async function recordDownloadFailure(
   if (!deps.operationalFailureRecorder) {
     return;
   }
-  await runMonitoredAction({
+  await reportOperationalFailure({
     area: 'fulfillment',
     action: 'download_authorize',
     errorCode: input.errorCode,
     summary: input.summary,
-    errorResult: {status: 'error', code: input.errorCode},
-    shouldRecordResult: () => true,
+    code: input.errorCode,
     facts: input.facts,
-    recordOperationalFailure: deps.operationalFailureRecorder,
-    operation: async () => ({status: 'error', code: input.errorCode})
+    recordOperationalFailure: deps.operationalFailureRecorder
   });
 }
 

@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import { requireAdmin } from '@/auth/guards';
 import { triggerTransactionalEmailOutboxNow } from '@/fulfillment/email-outbox.server';
-import { runMonitoredAction } from '@/operations/monitoring';
+import { reportOperationalFailure } from '@/operations/monitoring';
 import {
   createAdminOrderQueryClient,
   getAdminOrderDetail,
@@ -122,14 +122,13 @@ async function recordVietQrAdminFailure(input: {
   expected?: VietQrExpectedPayment | null;
   orderId?: string;
 }) {
-  await runMonitoredAction({
+  await reportOperationalFailure({
     area: 'payment',
     action: input.action,
     severity: input.severity ?? 'error',
     errorCode: input.code,
     summary: input.summary,
-    errorResult: { status: 'error', code: input.code },
-    shouldRecordResult: () => true,
+    code: input.code,
     facts: {
       provider: 'vietqr',
       orderId: input.expected?.orderId ?? input.orderId ?? null,
@@ -138,8 +137,7 @@ async function recordVietQrAdminFailure(input: {
       paymentStatus: input.expected?.paymentStatus ?? null,
       amountValue: input.expected?.amountMinor ?? null,
       currency: input.expected?.currencyCode ?? null
-    },
-    operation: async () => ({ status: 'error', code: input.code })
+    }
   });
 }
 

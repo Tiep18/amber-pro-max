@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {reportOperationalFailure} from '@/operations/monitoring';
 
 const entitlementActionSchema = z.object({
   entitlementId: z.uuid(),
@@ -73,18 +73,16 @@ async function recordEntitlementFailure(
   if (!recorder) {
     return;
   }
-  await runMonitoredAction({
+  await reportOperationalFailure({
     area: 'fulfillment',
     action: input.action,
     errorCode: 'entitlement_action_failed',
     summary: input.summary,
-    errorResult: {status: 'error', code: 'entitlement_action_failed'},
-    shouldRecordResult: () => true,
+    code: 'entitlement_action_failed',
     facts: {
       entitlementId: input.entitlementId
     },
-    recordOperationalFailure: recorder,
-    operation: async () => ({status: 'error', code: 'entitlement_action_failed'})
+    recordOperationalFailure: recorder
   });
 }
 

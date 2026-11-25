@@ -35,6 +35,7 @@ const fulfillmentCustomerTrackingFiles = [
 
 const fulfillmentPhysicalFiles = [
   'src/fulfillment/physical.ts',
+  'src/fulfillment/physical-actions.ts',
   'src/components/admin/fulfillment/physical-fulfillment-action-form.tsx',
   'src/components/admin/fulfillment/physical-fulfillment-form.tsx',
   'src/components/admin/orders/order-detail.tsx',
@@ -64,6 +65,7 @@ const fulfillmentEmailFiles = [
   'src/emails/transactional.ts',
   'src/fulfillment/email-outbox.ts',
   'src/fulfillment/email-outbox.server.ts',
+  'src/fulfillment/email-redaction.ts',
   'src/app/api/fulfillment/email-outbox/route.ts',
   'src/fulfillment/admin-email-actions.ts',
   'src/components/admin/fulfillment/failed-email-queue.tsx'
@@ -207,7 +209,7 @@ test('transactional email worker keeps tokens and provider secrets out of durabl
   assert.match(tokenMigration, /source_email_outbox_id/);
   assert.match(tokenMigration, /unique index/);
   const sanitizerPattern =
-    /export function sanitizeEmailFailureCode[\s\S]*?(?=function isRecord)/;
+    /export function sanitizeEmailFailureCode[\s\S]*?\n\}/;
   const sourceWithoutSanitizer = source.replace(
     sanitizerPattern,
     ''
@@ -384,6 +386,22 @@ test('admin entitlement actions keep revoke and reissue behind safe RPC and UI b
   assert.doesNotMatch(
     source,
     /createSignedUrl|signedUrl|rawToken|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
+  );
+});
+
+test('admin fulfillment action modules require admin auth and keep pure domain helpers separate', () => {
+  const emailActions = readFileSync('src/fulfillment/admin-email-actions.ts', 'utf8');
+  const physicalActions = readFileSync('src/fulfillment/physical-actions.ts', 'utf8');
+  const physicalDomain = readFileSync('src/fulfillment/physical.ts', 'utf8');
+
+  assert.match(emailActions, /^['"]use server['"];/);
+  assert.match(physicalActions, /^['"]use server['"];/);
+  assert.match(emailActions, /requireAdmin\(\)/);
+  assert.match(physicalActions, /requireAdmin\(\)/);
+  assert.doesNotMatch(physicalDomain, /['"]use server['"]/);
+  assert.doesNotMatch(
+    emailActions + physicalActions,
+    /createSignedUrl|signedUrl|raw_token|token_hash|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
   );
 });
 

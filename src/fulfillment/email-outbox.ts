@@ -4,7 +4,7 @@ import { createHmac } from 'node:crypto';
 import { renderTransactionalEmail, type TransactionalEmailRow } from '@/emails/transactional';
 import { isTransactionalEmailTokenSecretReady } from '@/fulfillment/email-token-secret';
 import { normalizeNewsletterUnsubscribeToken } from '@/newsletter/unsubscribe-token';
-import { runMonitoredAction } from '@/operations/monitoring';
+import { reportOperationalFailure } from '@/operations/monitoring';
 import { buildQuickLinkUrl, maskAccountNo } from '@/payments/vietqr/instructions';
 
 const DEFAULT_BATCH_SIZE = 10;
@@ -317,21 +317,19 @@ async function recordEmailFailure(
   if (!recorder) {
     return;
   }
-  await runMonitoredAction({
+  await reportOperationalFailure({
     area: 'email',
     action: 'transactional_email_send',
     severity: input.severity,
     errorCode: input.errorCode,
     summary: input.summary,
-    errorResult: { status: 'error', code: input.errorCode },
-    shouldRecordResult: () => true,
+    code: input.errorCode,
     facts: {
       emailType: row.eventType,
       orderId: row.orderId ?? null,
       entitlementId: row.entitlementId ?? null
     },
-    recordOperationalFailure: recorder,
-    operation: async () => ({ status: 'error', code: input.errorCode })
+    recordOperationalFailure: recorder
   });
 }
 

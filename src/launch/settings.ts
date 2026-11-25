@@ -3,7 +3,7 @@ import 'server-only';
 import { requireAdmin as requireAdminGuard } from '@/auth/guards';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Locale } from '@/i18n/routing';
-import { runMonitoredAction } from '@/operations/monitoring';
+import { reportOperationalFailure } from '@/operations/monitoring';
 import { PAYMENT_EXPIRY_FALLBACK_INTERVAL_MINUTES } from '@/payments/reservation';
 import {
   evaluateLaunchReadiness,
@@ -124,14 +124,12 @@ export async function getAdminLaunchReadiness({
   ]);
 
   if (settingsResult.error || policiesResult.error) {
-    return runMonitoredAction({
+    return reportOperationalFailure({
       area: 'admin',
       action: 'admin_launch_readiness_load',
       errorCode: 'admin_launch_load_failed',
       summary: 'Admin launch readiness load failed',
-      errorResult: { status: 'error', code: 'admin_launch_load_failed' },
-      shouldRecordResult: () => true,
-      operation: async () => ({ status: 'error', code: 'admin_launch_load_failed' })
+      errorResult: { status: 'error', code: 'admin_launch_load_failed' } as const
     });
   }
 
