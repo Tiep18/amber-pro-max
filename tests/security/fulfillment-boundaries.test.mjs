@@ -35,6 +35,7 @@ const fulfillmentCustomerTrackingFiles = [
 
 const fulfillmentPhysicalFiles = [
   'src/fulfillment/physical.ts',
+  'src/fulfillment/physical-actions.ts',
   'src/components/admin/fulfillment/physical-fulfillment-action-form.tsx',
   'src/components/admin/fulfillment/physical-fulfillment-form.tsx',
   'src/components/admin/orders/order-detail.tsx',
@@ -42,10 +43,10 @@ const fulfillmentPhysicalFiles = [
 ];
 
 const fulfillmentGuestClaimFiles = [
-  'src/fulfillment/order-claim.ts',
-  'src/fulfillment/guest-order-tokens.ts',
-  'src/fulfillment/order-reopen.ts',
-  'src/fulfillment/guest-access.ts',
+  'src/order-access/order-access.ts',
+  'src/order-access/server.ts',
+  'src/fulfillment/guest-order-actions.ts',
+  'src/fulfillment/order-claim-actions.ts',
   'src/components/fulfillment/guest-reopen-form.tsx',
   'src/components/fulfillment/order-claim-panel.tsx',
   'src/app/[locale]/guest-order/page.tsx',
@@ -64,6 +65,7 @@ const fulfillmentEmailFiles = [
   'src/emails/transactional.ts',
   'src/fulfillment/email-outbox.ts',
   'src/fulfillment/email-outbox.server.ts',
+  'src/fulfillment/email-redaction.ts',
   'src/app/api/fulfillment/email-outbox/route.ts',
   'src/fulfillment/admin-email-actions.ts',
   'src/components/admin/fulfillment/failed-email-queue.tsx'
@@ -181,7 +183,8 @@ test('download signed URL creation is isolated behind entitlement authorization'
   );
   assert.match(route, /authorizeDownloadWithSupabase/);
   assert.match(route, /hashFulfillmentAccessToken/);
-  assert.match(route, /auth\.getUser\(\)/);
+  assert.match(route, /resolveCredentials\(/);
+  assert.match(readFileSync('src/order-access/server.ts', 'utf8'), /auth\.getUser\(\)/);
   assert.match(route, /downloadTokenHash/);
   assert.match(route, /guestSecretHash/);
   assert.doesNotMatch(route, /rawGuestToken|guestTokenHash/);
@@ -206,7 +209,7 @@ test('transactional email worker keeps tokens and provider secrets out of durabl
   assert.match(tokenMigration, /source_email_outbox_id/);
   assert.match(tokenMigration, /unique index/);
   const sanitizerPattern =
-    /export function sanitizeEmailFailureCode[\s\S]*?(?=function isRecord)/;
+    /export function sanitizeEmailFailureCode[\s\S]*?\n\}/;
   const sourceWithoutSanitizer = source.replace(
     sanitizerPattern,
     ''
@@ -226,7 +229,31 @@ test('account purchase library delegates downloads through the app route without
   assert.match(source, /\/api\/downloads/);
   assert.doesNotMatch(
     source,
-    /createSignedUrl|signedUrl|token_hash|bucket_id|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
+    /createSignedUrl|signedUrl|token_hash|bucket_id|product_digital_assets|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
+  );
+
+  const nonQueryAccountSource = readExisting(
+    fulfillmentAccountFiles.filter(
+      (file) => file !== 'src/fulfillment/account-queries.ts'
+    )
+  );
+  assert.doesNotMatch(nonQueryAccountSource, /object_path/i);
+
+  const accountQueries = readFileSync('src/fulfillment/account-queries.ts', 'utf8');
+  const patternLibraryIndex = accountQueries.indexOf(
+    'export async function getCustomerPatternLibrary'
+  );
+  assert.notEqual(patternLibraryIndex, -1);
+
+  assert.doesNotMatch(accountQueries.slice(patternLibraryIndex), /object_path/i);
+
+  const orderHistorySource = accountQueries.slice(0, patternLibraryIndex);
+  const publicProductMediaBlock =
+    /\.from\('product_media'\)\s*\.select\('product_id,object_path,is_primary,display_order'\)\s*\.in\('product_id',\s*productIds\);(?:(?!\.from\()[\s\S])*?mediaByProduct\.set\(media\.product_id,\s*media\.object_path\);/;
+  assert.match(orderHistorySource, publicProductMediaBlock);
+  assert.doesNotMatch(
+    orderHistorySource.replace(publicProductMediaBlock, ''),
+    /object_path/i
   );
 });
 
@@ -276,7 +303,7 @@ test('guest reopen and order claim keep token material out of UI and durable pay
 
   assert.match(source, /guest_order_reopen/);
   assert.match(source, /guest_order_claim/);
-  assert.match(source, /hashGuestOrderAccessToken/);
+  assert.match(source, /hashOrderAccessToken/);
   assert.doesNotMatch(
     source,
     /console\.(log|error|warn)|rawToken.*payload|token_hash.*payload|signedUrl|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
@@ -289,17 +316,17 @@ test('public email requests use trusted HMAC identities and service-role-only at
   const evidence = readFileSync('src/operations/public-request-evidence.ts', 'utf8');
   const newsletterAction = readFileSync('src/newsletter/actions.ts', 'utf8');
   const guestActions = readFileSync('src/fulfillment/guest-order-actions.ts', 'utf8');
-  const orderClaim = readFileSync('src/fulfillment/order-claim.ts', 'utf8');
-  const guestRequests = orderClaim.slice(
-    orderClaim.indexOf('async function requestGuestOrderEmail'),
-    orderClaim.indexOf('export async function claimGuestOrder')
+  const orderAccessServer = readFileSync('src/order-access/server.ts', 'utf8');
+  const guestRequests = orderAccessServer.slice(
+    orderAccessServer.indexOf('async requestGuestOrderEmail('),
+    orderAccessServer.indexOf('async redeemReopenToken(')
   );
 
   assert.match(evidence, /createHmac\(['"]sha256['"],\s*secret\)/);
   assert.match(evidence, /public-email-rate-limit:v1:/);
   assert.doesNotMatch(evidence, /createHash\(|NEXT_PUBLIC_/);
   assert.match(newsletterAction, /createSupabaseAdminClient/);
-  assert.match(guestActions + orderClaim, /createSupabaseAdminClient/);
+  assert.match(guestActions + orderAccessServer, /createSupabaseAdminClient/);
   assert.match(newsletterAction + guestActions, /derivePublicEmailRequestEvidence/);
   assert.match(newsletterAction + guestActions, /x-forwarded-for|x-real-ip/i);
   assert.match(newsletterAction, /if\s*\(outcome\.emailQueued\)[\s\S]*triggerTransactionalEmailOutboxNow/);
@@ -340,7 +367,11 @@ test('guest order reopen redemption only redirects and never returns order data 
   const route = readFileSync('src/app/api/orders/access/route.ts', 'utf8');
 
   assert.match(route, /NextResponse\.redirect/);
-  assert.match(route, /redeemGuestOrderReopenToken/);
+  assert.match(route, /redeemOrderReopen/);
+  assert.match(
+    readFileSync('src/order-access/server.ts', 'utf8'),
+    /redeem_guest_order_reopen_token/
+  );
   assert.match(route, /no-referrer/i);
   assert.doesNotMatch(route, /NextResponse\.json/);
   assert.doesNotMatch(route, /console\.(log|error|warn)/);
@@ -355,6 +386,22 @@ test('admin entitlement actions keep revoke and reissue behind safe RPC and UI b
   assert.doesNotMatch(
     source,
     /createSignedUrl|signedUrl|rawToken|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
+  );
+});
+
+test('admin fulfillment action modules require admin auth and keep pure domain helpers separate', () => {
+  const emailActions = readFileSync('src/fulfillment/admin-email-actions.ts', 'utf8');
+  const physicalActions = readFileSync('src/fulfillment/physical-actions.ts', 'utf8');
+  const physicalDomain = readFileSync('src/fulfillment/physical.ts', 'utf8');
+
+  assert.match(emailActions, /^['"]use server['"];/);
+  assert.match(physicalActions, /^['"]use server['"];/);
+  assert.match(emailActions, /requireAdmin\(\)/);
+  assert.match(physicalActions, /requireAdmin\(\)/);
+  assert.doesNotMatch(physicalDomain, /['"]use server['"]/);
+  assert.doesNotMatch(
+    emailActions + physicalActions,
+    /createSignedUrl|signedUrl|raw_token|token_hash|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
   );
 });
 

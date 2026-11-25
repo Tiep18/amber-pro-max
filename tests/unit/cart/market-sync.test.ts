@@ -478,20 +478,31 @@ describe('CartProvider storefront context integration', () => {
       join(process.cwd(), 'src/components/cart/cart-provider.tsx'),
       'utf8'
     );
+    const storeSource = readFileSync(
+      join(process.cwd(), 'src/cart/cart-store.ts'),
+      'utf8'
+    );
 
     expect(layoutSource.indexOf('<StorefrontContextProvider')).toBeLessThan(
       layoutSource.indexOf('<CartProvider')
     );
     expect(providerSource).toContain('useStorefrontContext');
-    expect(providerSource).toContain('clearCartQuoteCache');
-    expect(providerSource).toContain('beginMarketRequote');
-    expect(providerSource).toContain('settleMarketRequote');
-    expect(providerSource).toContain('failMarketRequote');
+    expect(providerSource).toContain('createCartStore');
     expect(providerSource).toMatch(
-      /refreshCartQuoteAction\(\{\s*locale,\s*lines: begun\.request\.lines\s*\}\)/
+      /refreshCartQuoteAction\(\{\s*locale:\s*requestLocale,\s*lines\s*\}\)/
     );
     expect(providerSource).not.toMatch(
       /refreshCartQuoteAction\(\{[^}]*\b(?:market|contextVersion|price|fingerprint)\b/s
+    );
+    expect(storeSource).toContain('clearCartQuoteCache');
+    expect(storeSource).toContain('beginMarketRequote');
+    expect(storeSource).toContain('settleMarketRequote');
+    expect(storeSource).toContain('failMarketRequote');
+    expect(storeSource).toMatch(
+      /ports\.fetchQuote\(\{\s*locale:\s*identity\.locale,\s*lines:\s*begun\.request\.lines\s*\}\)/
+    );
+    expect(storeSource).not.toMatch(
+      /ports\.fetchQuote\(\{[^}]*\b(?:market|contextVersion|price|fingerprint)\b/s
     );
   });
 

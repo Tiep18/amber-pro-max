@@ -175,6 +175,43 @@ function withRecordedErrorId<T extends ActionResultWithStatus>(
   return {...result, errorId} as T;
 }
 
+export type ReportOperationalFailureInput = MonitoredBase & {
+  code?: string;
+  error?: unknown;
+};
+
+export type ReportOperationalFailureWithResultInput<TError extends ActionResultWithStatus> =
+  ReportOperationalFailureInput & {
+    errorResult: TError;
+  };
+
+/**
+ * Record an already-diagnosed operational failure safely and optionally
+ * attach its stored `errorId` onto an error result object.
+ */
+export async function reportOperationalFailure<TError extends ActionResultWithStatus>(
+  input: ReportOperationalFailureWithResultInput<TError>
+): Promise<TError>;
+export async function reportOperationalFailure(
+  input: ReportOperationalFailureInput
+): Promise<{ errorId?: string }>;
+export async function reportOperationalFailure<TError extends ActionResultWithStatus>(
+  input: ReportOperationalFailureInput & { errorResult?: TError }
+): Promise<TError | { errorId?: string }> {
+  const code = input.code ?? input.errorResult?.code ?? input.errorCode;
+  const diagnosticFacts = safeSupabaseErrorFacts(
+    input.error,
+    monitoredDiagnosticContext(input)
+  );
+  const recordResult = await safeRecordFailure(input, code, diagnosticFacts);
+
+  if (input.errorResult) {
+    return withRecordedErrorId(input.errorResult, recordResult);
+  }
+  const errorId = recordedErrorId(recordResult);
+  return errorId ? { errorId } : {};
+}
+
 export async function runMonitoredAction<
   TSuccess extends ActionResultWithStatus,
   TError extends ActionResultWithStatus

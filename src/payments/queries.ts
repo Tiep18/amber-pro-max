@@ -1,8 +1,8 @@
 ﻿import type {CustomerPaymentStatus, FulfillmentGateStatus, PaymentInternalStatus, PaymentProvider} from '@/payments/types';
 import {resolveVietQrActionWindow} from '@/payments/vietqr/evidence';
 import {shippingAddressSchema, type ShippingAddress} from '@/checkout/shipping-address';
-import {maskEmailForAdmin, sanitizeEmailFailureCode} from '@/fulfillment/admin-email-actions';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {maskEmailForAdmin, sanitizeEmailFailureCode} from '@/fulfillment/email-redaction';
+import {reportOperationalFailure} from '@/operations/monitoring';
 import type {Json} from '@/types/supabase';
 
 type RpcClient = {
@@ -304,18 +304,16 @@ async function monitoredOrderQueryFailure<TCode extends OrderQueryFailureCode>({
   orderId?: string | null;
 }): Promise<OrderQueryFailureResult<TCode>> {
   const errorResult = {status: 'error', code} as const satisfies OrderQueryFailureResult<TCode>;
-  return runMonitoredAction({
+  return reportOperationalFailure({
     area,
     action,
     errorCode,
     summary,
     errorResult,
-    shouldRecordResult: () => true,
     facts: {
       ...(orderNumber ? {orderNumber} : {}),
       ...(orderId ? {orderId} : {})
-    },
-    operation: async () => errorResult
+    }
   });
 }
 

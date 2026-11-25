@@ -13,9 +13,9 @@ insert into public.checkout_orders(id,order_number,guest_secret_hash,contact_ema
 values('05170100-0000-4000-8000-000000000010','ATB-REISSUE-RACE',repeat('q',64),'reissue-race@example.test','en','intl','USD','pending_payment','paypal_intent',2500,0,0,2500,'race-quote','{}','[]','guest','reissue-race-key',now()+interval '15 minutes','open');
 update public.payments set status='paid',paid_gate_opened_at=now(),paid_at=now() where order_id='05170100-0000-4000-8000-000000000010';
 insert into public.checkout_order_lines(id,order_id,product_id,line_id,product_title,fulfillment_type,market,currency_code,quantity,unit_price_minor,line_subtotal_minor,quote_line_snapshot)
-values('05170100-0000-4000-8000-000000000011','05170100-0000-4000-8000-000000000010','50000000-0000-0000-0000-000000000001','race-line','Race pattern','digital','intl','USD',1,2500,2500,'{}');
+values('05170100-0000-4000-8000-000000000011','05170100-0000-4000-8000-000000000010','a16b23a8-88f8-4f77-b199-9783e5a7a7a8','race-line','Race pattern','digital','intl','USD',1,2500,2500,'{}');
 insert into public.digital_entitlements(id,order_id,order_line_id,contact_email,product_id,status,version)
-values('05170100-0000-4000-8000-000000000020','05170100-0000-4000-8000-000000000010','05170100-0000-4000-8000-000000000011','reissue-race@example.test','50000000-0000-0000-0000-000000000001','active',1);
+values('05170100-0000-4000-8000-000000000020','05170100-0000-4000-8000-000000000010','05170100-0000-4000-8000-000000000011','reissue-race@example.test','a16b23a8-88f8-4f77-b199-9783e5a7a7a8','active',1);
 create or replace function public.test_reissue_race_call(p_entitlement_id uuid,p_expected_version integer)
 returns jsonb language plpgsql set search_path='' as $$
 declare result jsonb;

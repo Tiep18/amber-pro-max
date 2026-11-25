@@ -10,9 +10,9 @@ import {Alert} from '@/components/ui/alert';
 import {Button} from '@/components/ui/button';
 import {
   getOrderRecoveryAction,
+  type CustomerPaymentLifecycleStatus,
   type OrderSnapshotEligibility
-} from '@/payments/order-recovery';
-import type {CustomerPaymentLifecycleStatus} from '@/payments/status';
+} from '@/payments/status';
 
 type OrderRecoveryBannerLabels = {
   restore: string;

@@ -36,14 +36,14 @@ insert into public.checkout_order_lines (
   currency_code, quantity, unit_price_minor, line_subtotal_minor, quote_line_snapshot
 )
 select
-  lines.order_id, '50000000-0000-0000-0000-000000000003', lines.variant_id,
+  lines.order_id, 'f1d1b9fb-b691-48de-b482-5882a163d32a', lines.variant_id,
   lines.variant_id::text || '::variant', 'Late settlement fixture',
   'physical', 'vn', 'VND', lines.quantity, 125000, 125000 * lines.quantity, '{}'::jsonb
 from (values
-  ('00000000-0000-4000-8000-000000000911'::uuid, '54000000-0000-0000-0000-000000000001'::uuid, 2),
-  ('00000000-0000-4000-8000-000000000912'::uuid, '54000000-0000-0000-0000-000000000002'::uuid, 2),
-  ('00000000-0000-4000-8000-000000000913'::uuid, '54000000-0000-0000-0000-000000000001'::uuid, 1),
-  ('00000000-0000-4000-8000-000000000914'::uuid, '54000000-0000-0000-0000-000000000001'::uuid, 1)
+  ('00000000-0000-4000-8000-000000000911'::uuid, '95319842-4549-42a4-902b-17e5f8d177d9'::uuid, 2),
+  ('00000000-0000-4000-8000-000000000912'::uuid, '9260d631-ed2b-49c6-8397-2d1510b5c058'::uuid, 2),
+  ('00000000-0000-4000-8000-000000000913'::uuid, '95319842-4549-42a4-902b-17e5f8d177d9'::uuid, 1),
+  ('00000000-0000-4000-8000-000000000914'::uuid, '95319842-4549-42a4-902b-17e5f8d177d9'::uuid, 1)
 ) as lines(order_id, variant_id, quantity);
 
 -- The reservations are already terminal, so the normal reservation-backed
@@ -107,7 +107,7 @@ select results_eq(
 
 select results_eq(
   $$select quantity_on_hand from public.inventory_records
-    where variant_id = '54000000-0000-0000-0000-000000000001'$$,
+    where variant_id = '95319842-4549-42a4-902b-17e5f8d177d9'$$,
   $$values (2)$$,
   'late settlement decrements stock even though the reservation is long gone'
 );
@@ -146,7 +146,7 @@ select results_eq(
 
 select results_eq(
   $$select quantity_on_hand from public.inventory_records
-    where variant_id = '54000000-0000-0000-0000-000000000002'$$,
+    where variant_id = '9260d631-ed2b-49c6-8397-2d1510b5c058'$$,
   $$values (0)$$,
   'a blocked late settlement never drives stock negative'
 );
@@ -161,7 +161,7 @@ select results_eq(
 -- review_required used to be terminal: every paid attempt from it fell through
 -- to the deadline branch and produced review_required again, forever.
 update public.inventory_records set quantity_on_hand = 3
-where variant_id = '54000000-0000-0000-0000-000000000002';
+where variant_id = '9260d631-ed2b-49c6-8397-2d1510b5c058';
 
 create temporary table late_settle_recovered as
 select public.apply_payment_transition(jsonb_build_object(
@@ -188,7 +188,7 @@ select results_eq(
 
 select results_eq(
   $$select quantity_on_hand from public.inventory_records
-    where variant_id = '54000000-0000-0000-0000-000000000002'$$,
+    where variant_id = '9260d631-ed2b-49c6-8397-2d1510b5c058'$$,
   $$values (1)$$,
   'the rescued order takes its stock exactly once'
 );
@@ -219,7 +219,7 @@ select results_eq(
 
 select results_eq(
   $$select quantity_on_hand from public.inventory_records
-    where variant_id = '54000000-0000-0000-0000-000000000001'$$,
+    where variant_id = '95319842-4549-42a4-902b-17e5f8d177d9'$$,
   $$values (2)$$,
   'an out-of-window payment does not touch stock'
 );
@@ -265,8 +265,8 @@ insert into public.checkout_order_lines (
   quantity, unit_price_minor, line_subtotal_minor, quote_line_snapshot
 )
 values (
-  '00000000-0000-4000-8000-000000000915', '50000000-0000-0000-0000-000000000002',
-  '50000000-0000-0000-0000-000000000002::product', 'PayPal extend fixture',
+  '00000000-0000-4000-8000-000000000915', 'c90377bd-042f-4d04-add5-8275549a9787',
+  'c90377bd-042f-4d04-add5-8275549a9787::product', 'PayPal extend fixture',
   'physical', 'intl', 'USD', 1, 4250, 4250, '{}'::jsonb
 );
 
@@ -346,8 +346,8 @@ insert into public.checkout_order_lines (
   currency_code, quantity, unit_price_minor, line_subtotal_minor, quote_line_snapshot
 )
 select
-  ids.order_id, '50000000-0000-0000-0000-000000000003', '54000000-0000-0000-0000-000000000001',
-  '54000000-0000-0000-0000-000000000001::variant', 'Stale active fixture',
+  ids.order_id, 'f1d1b9fb-b691-48de-b482-5882a163d32a', '95319842-4549-42a4-902b-17e5f8d177d9',
+  '95319842-4549-42a4-902b-17e5f8d177d9::variant', 'Stale active fixture',
   'physical', 'vn', 'VND', 2, 125000, 250000, '{}'::jsonb
 from (values
   ('00000000-0000-4000-8000-000000000916'::uuid),
@@ -397,7 +397,7 @@ select results_eq(
 
 select results_eq(
   $$select quantity_on_hand from public.inventory_records
-    where variant_id = '54000000-0000-0000-0000-000000000001'$$,
+    where variant_id = '95319842-4549-42a4-902b-17e5f8d177d9'$$,
   $$values (2)$$,
   'the newer buyer keeps the units it reserved'
 );
@@ -424,8 +424,8 @@ insert into public.checkout_order_lines (
   currency_code, quantity, unit_price_minor, line_subtotal_minor, quote_line_snapshot
 )
 values (
-  '00000000-0000-4000-8000-000000000918', '50000000-0000-0000-0000-000000000003',
-  '54000000-0000-0000-0000-000000000002', '54000000-0000-0000-0000-000000000002::variant',
+  '00000000-0000-4000-8000-000000000918', 'f1d1b9fb-b691-48de-b482-5882a163d32a',
+  '9260d631-ed2b-49c6-8397-2d1510b5c058', '9260d631-ed2b-49c6-8397-2d1510b5c058::variant',
   'PayPal review fixture', 'physical', 'intl', 'USD', 1, 4250, 4250, '{}'::jsonb
 );
 
@@ -433,7 +433,7 @@ update public.payments set status = 'expired', terminal_at = now()
 where order_id = '00000000-0000-4000-8000-000000000918';
 
 update public.inventory_records set quantity_on_hand = 0
-where variant_id = '54000000-0000-0000-0000-000000000002';
+where variant_id = '9260d631-ed2b-49c6-8397-2d1510b5c058';
 
 create temporary table paypal_review_capture as
 select public.apply_payment_transition(jsonb_build_object(
@@ -453,7 +453,7 @@ select results_eq(
 );
 
 update public.inventory_records set quantity_on_hand = 4
-where variant_id = '54000000-0000-0000-0000-000000000002';
+where variant_id = '9260d631-ed2b-49c6-8397-2d1510b5c058';
 
 select results_eq(
   $$select public.apply_payment_transition(jsonb_build_object(
@@ -492,7 +492,7 @@ select results_eq(
 
 select results_eq(
   $$select quantity_on_hand from public.inventory_records
-    where variant_id = '54000000-0000-0000-0000-000000000002'$$,
+    where variant_id = '9260d631-ed2b-49c6-8397-2d1510b5c058'$$,
   $$values (3)$$,
   'the rescued PayPal order takes its stock exactly once'
 );

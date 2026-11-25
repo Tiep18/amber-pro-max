@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
+  describePayPalApprovalOutcome,
   resolveCaptureOutcome,
-  type PayPalCaptureOutcome
+  type PayPalApprovalOutcome
 } from '@/payments/paypal-capture-outcome';
 import { logPayPalStage } from '@/payments/paypal/logging';
 
@@ -27,12 +28,6 @@ type PayPalButtonLabels = {
   cancelled: string;
   checkStatus: string;
 };
-
-// What the buyer is told after they come back from PayPal. Before this existed
-// a failed capture only wrote to the console: the buyer had just approved a
-// payment, the page silently re-rendered as "awaiting payment", and nothing
-// explained whether their money had moved.
-type ApprovalOutcome = PayPalCaptureOutcome | 'cancelled' | 'sdk_error';
 
 type PayPalButtonsProps = {
   orderNumber: string;
@@ -85,11 +80,11 @@ export function PayPalButtons({ orderNumber, clientId, amountLabel, labels }: Pa
   const [scriptState, setScriptState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [showLoading, setShowLoading] = useState(false);
   const [pending, setPending] = useState(false);
-  const [outcome, setOutcome] = useState<ApprovalOutcome | null>(null);
+  const [outcome, setOutcome] = useState<PayPalApprovalOutcome | null>(null);
   const [refreshPending, startRefresh] = useTransition();
 
   const moveToVerifying = useCallback(
-    (nextOutcome: ApprovalOutcome | null) => {
+    (nextOutcome: PayPalApprovalOutcome | null) => {
       setPending(false);
       setOutcome(nextOutcome);
       startRefresh(() => router.refresh());
@@ -219,6 +214,7 @@ export function PayPalButtons({ orderNumber, clientId, amountLabel, labels }: Pa
     return () => {
       buttonsRef.current?.close?.();
       buttonsRef.current = null;
+      renderedRef.current = false;
     };
   }, [moveToVerifying, orderNumber, scriptState]);
 
@@ -233,39 +229,8 @@ export function PayPalButtons({ orderNumber, clientId, amountLabel, labels }: Pa
     );
   }
 
-  const outcomeMessage = outcome
-    ? {
-        verifying: labels.verifying,
-        capture_failed: labels.captureFailed,
-        capture_unreachable: labels.captureUnreachable,
-        capture_uncertain: labels.captureUncertain,
-        capture_reconciliation: labels.captureReconciliation,
-        capture_review: labels.captureReview,
-        cancelled: labels.cancelled,
-        sdk_error: labels.unavailable
-      }[outcome]
-    : null;
-  // "Check the order status" is the only safe next step whenever we cannot say
-  // where the money is, so both uncertain outcomes offer it.
-  const outcomeNeedsStatusCheck =
-    outcome === 'capture_failed' ||
-    outcome === 'capture_unreachable' ||
-    outcome === 'capture_uncertain' ||
-    outcome === 'capture_reconciliation';
-  // A buyer must not be able to start another PayPal attempt while the first
-  // capture may already have moved money or is awaiting manual review.
-  const paymentMayHaveMoved =
-    outcome === 'verifying' ||
-    outcome === 'capture_unreachable' ||
-    outcome === 'capture_uncertain' ||
-    outcome === 'capture_reconciliation' ||
-    outcome === 'capture_review';
-  const outcomeVariant =
-    outcome === 'capture_failed' || outcome === 'capture_unreachable' || outcome === 'sdk_error'
-      ? 'destructive'
-      : outcome === 'verifying'
-        ? 'success'
-        : 'warning';
+  const decision = outcome ? describePayPalApprovalOutcome(outcome) : null;
+  const hideButtons = decision?.hideButtons ?? false;
 
   return (
     <div className="grid gap-3" aria-busy={pending || refreshPending}>
@@ -273,10 +238,10 @@ export function PayPalButtons({ orderNumber, clientId, amountLabel, labels }: Pa
         <p className="text-lg font-semibold leading-tight">{labels.pay}</p>
         <p className="text-sm leading-6 text-[var(--muted-foreground)]">{amountLabel}</p>
       </div>
-      {outcomeMessage ? (
-        <Alert variant={outcomeVariant} className="grid gap-3 p-3 text-sm">
-          <p>{outcomeMessage}</p>
-          {outcomeNeedsStatusCheck ? (
+      {decision ? (
+        <Alert variant={decision.alertVariant} className="grid gap-3 p-3 text-sm">
+          <p>{labels[decision.labelKey]}</p>
+          {decision.allowStatusCheck ? (
             <Button
               type="button"
               variant="secondary"
@@ -289,14 +254,14 @@ export function PayPalButtons({ orderNumber, clientId, amountLabel, labels }: Pa
           ) : null}
         </Alert>
       ) : null}
-      {showLoading && scriptState === 'loading' && !paymentMayHaveMoved ? (
+      {showLoading && scriptState === 'loading' && !hideButtons ? (
         <div className="min-h-12 rounded-[var(--radius-control)] bg-[var(--surface-muted)]" />
       ) : null}
       <div
         ref={containerRef}
         className="min-h-12"
-        hidden={paymentMayHaveMoved}
-        aria-hidden={paymentMayHaveMoved}
+        hidden={hideButtons}
+        aria-hidden={hideButtons}
       />
       {pending || refreshPending ? (
         <p className="text-sm text-[var(--muted-foreground)]">{labels.connecting}</p>

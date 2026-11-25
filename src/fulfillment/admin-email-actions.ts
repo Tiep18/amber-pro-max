@@ -1,7 +1,9 @@
+'use server';
+
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { reissueDigitalEntitlement } from '@/fulfillment/entitlements';
-import { runMonitoredAction } from '@/operations/monitoring';
+import { reportOperationalFailure } from '@/operations/monitoring';
 
 const retryInputSchema = z.object({
   emailId: z.uuid(),
@@ -30,51 +32,25 @@ async function recordAdminEmailFailure(input: {
   entitlementId?: string;
   emailType?: string;
 }) {
-  await runMonitoredAction({
+  await reportOperationalFailure({
     area: 'email',
     action: input.action,
     errorCode: input.errorCode,
     summary: input.summary,
-    errorResult: { status: 'error', code: input.code },
-    shouldRecordResult: () => true,
+    code: input.code,
     facts: {
       referenceId: input.emailId ?? null,
       orderId: input.orderId ?? null,
       orderNumber: input.orderNumber ?? null,
       entitlementId: input.entitlementId ?? null,
       emailType: input.emailType ?? null
-    },
-    operation: async () => ({ status: 'error', code: input.code })
+    }
   });
 }
 
 function getFormString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === 'string' ? value : undefined;
-}
-
-export function maskEmailForAdmin(email: string) {
-  const [name, domain] = email.split('@');
-  if (!name || !domain) {
-    return 'masked';
-  }
-  if (name.length <= 2) {
-    return `${name[0] ?? '*'}***@${domain}`;
-  }
-  return `${name[0]}***${name[name.length - 1]}@${domain}`;
-}
-
-export function sanitizeEmailFailureCode(value: string | null | undefined) {
-  const normalized = (value ?? '').toLowerCase();
-  if (
-    !normalized ||
-    /(authorization|bearer|raw_token|signed_url|provider_payload|object_path|secret)/.test(
-      normalized
-    )
-  ) {
-    return 'provider_error';
-  }
-  return normalized.replace(/[^a-z0-9_:-]/g, '_').slice(0, 80) || 'provider_error';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -100,8 +76,6 @@ function mapRetryResult(data: unknown): AdminEmailActionResult {
 export async function retryTransactionalEmailAction(
   formData: FormData
 ): Promise<AdminEmailActionResult> {
-  'use server';
-
   const { requireAdmin } = await import('@/auth/guards');
   await requireAdmin();
   const parsed = retryInputSchema.safeParse({
@@ -154,8 +128,6 @@ export async function retryTransactionalEmailAction(
 export async function resendDownloadEmailAction(
   formData: FormData
 ): Promise<AdminEmailActionResult> {
-  'use server';
-
   const { requireAdmin } = await import('@/auth/guards');
   await requireAdmin();
   const parsed = resendInputSchema.safeParse({

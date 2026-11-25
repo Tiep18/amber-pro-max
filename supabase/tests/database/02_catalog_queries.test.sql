@@ -37,12 +37,12 @@ select has_function(
 
 delete from public.products
 where id in (
-  '50000000-0000-0000-0000-000000000001',
-  '50000000-0000-0000-0000-000000000002',
-  '50000000-0000-0000-0000-000000000003'
+  'a16b23a8-88f8-4f77-b199-9783e5a7a7a8',
+  'c90377bd-042f-4d04-add5-8275549a9787',
+  'f1d1b9fb-b691-48de-b482-5882a163d32a'
 );
-delete from public.categories where id = '51000000-0000-0000-0000-000000000001';
-delete from public.collections where id = '52000000-0000-0000-0000-000000000001';
+delete from public.categories where id = 'c0e579db-bb57-4b35-879e-11dfef9e822e';
+delete from public.collections where id = '73b2a0a8-5659-4cd9-8905-fd4a6338aec4';
 
 insert into public.categories (id)
 values ('41000000-0000-0000-0000-000000000001');

@@ -2,24 +2,15 @@ import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   getServerEnv: vi.fn(),
-  createSupabaseServerClient: vi.fn(),
-  getUser: vi.fn(),
-  getGuestOrderAccessHashFromServer: vi.fn(),
-  getAuthorizedOrderPayment: vi.fn(),
+  authorizeOrder: vi.fn(),
   buildQuickLinkUrl: vi.fn(),
   fetch: vi.fn()
 }));
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/env/server', () => ({getServerEnv: mocks.getServerEnv}));
-vi.mock('@/lib/supabase/server', () => ({
-  createSupabaseServerClient: mocks.createSupabaseServerClient
-}));
-vi.mock('@/payments/guest-access', () => ({
-  getGuestOrderAccessHashFromServer: mocks.getGuestOrderAccessHashFromServer
-}));
-vi.mock('@/payments/queries', () => ({
-  getAuthorizedOrderPayment: mocks.getAuthorizedOrderPayment
+vi.mock('@/order-access/server', () => ({
+  createServerOrderAccess: () => ({authorizeOrder: mocks.authorizeOrder})
 }));
 vi.mock('@/payments/vietqr/instructions', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/payments/vietqr/instructions')>();
@@ -52,10 +43,12 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
   vi.clearAllMocks();
-  mocks.createSupabaseServerClient.mockResolvedValue({auth: {getUser: mocks.getUser}});
-  mocks.getUser.mockResolvedValue({data: {user: {id: '76000000-0000-4000-8000-000000000001'}}});
-  mocks.getGuestOrderAccessHashFromServer.mockResolvedValue(null);
-  mocks.getAuthorizedOrderPayment.mockResolvedValue({status: 'found', order: eligibleOrder});
+  mocks.authorizeOrder.mockResolvedValue({
+    status: 'authorized',
+    order: eligibleOrder,
+    isSignedIn: true,
+    userId: '76000000-0000-4000-8000-000000000001'
+  });
   mocks.getServerEnv.mockReturnValue({
     vietqr: {
       status: 'configured',
@@ -80,15 +73,14 @@ afterEach(() => {
 });
 
 describe('VietQR download route deadline boundary', () => {
-  test('returns the same generic denial before order lookup when no principal is authorized', async () => {
-    mocks.getUser.mockResolvedValue({data: {user: null}});
-    mocks.getGuestOrderAccessHashFromServer.mockResolvedValue(null);
+  test('returns the same generic denial when order authorization is denied', async () => {
+    mocks.authorizeOrder.mockResolvedValue({status: 'not_found'});
 
     const response = await requestRoute();
 
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({status: 'not_found'});
-    expect(mocks.getAuthorizedOrderPayment).not.toHaveBeenCalled();
+    expect(mocks.authorizeOrder).toHaveBeenCalledWith(orderNumber);
     expect(mocks.buildQuickLinkUrl).not.toHaveBeenCalled();
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
@@ -99,16 +91,18 @@ describe('VietQR download route deadline boundary', () => {
     ['expired', '2026-06-16T08:59:59.999Z'],
     ['exact boundary', '2026-06-16T09:00:00.000Z']
   ])('denies an authorized order with a %s deadline before deriving or fetching QR', async (_name, deadline) => {
-    mocks.getAuthorizedOrderPayment.mockResolvedValue({
-      status: 'found',
-      order: {...eligibleOrder, reservationExpiresAt: deadline}
+    mocks.authorizeOrder.mockResolvedValue({
+      status: 'authorized',
+      order: {...eligibleOrder, reservationExpiresAt: deadline},
+      isSignedIn: true,
+      userId: '76000000-0000-4000-8000-000000000001'
     });
 
     const response = await requestRoute();
 
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({status: 'not_found'});
-    expect(mocks.getAuthorizedOrderPayment).toHaveBeenCalledOnce();
+    expect(mocks.authorizeOrder).toHaveBeenCalledOnce();
     expect(mocks.buildQuickLinkUrl).not.toHaveBeenCalled();
     expect(mocks.fetch).not.toHaveBeenCalled();
   });

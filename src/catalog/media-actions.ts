@@ -5,7 +5,7 @@ import {revalidatePath} from 'next/cache';
 import {requireAdmin} from '@/auth/guards';
 import {invalidateCatalogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {reportOperationalFailure} from '@/operations/monitoring';
 import {
   MAX_PATTERN_PDF_BYTES,
   MAX_PRODUCT_IMAGE_BYTES,
@@ -39,7 +39,7 @@ export type MediaActionCode =
 export type MediaActionResult =
   | {status: 'success'; message: string; warning?: 'cleanup_failed'}
   | {status: 'invalid'; code: MediaActionCode}
-  | {status: 'error'; code: MediaActionCode};
+  | {status: 'error'; code: MediaActionCode; errorId?: string};
 
 function fieldString(formData: FormData, name: string) {
   const value = formData.get(name);
@@ -66,19 +66,17 @@ async function monitoredMediaFailure(input: {
   code: MediaActionCode;
   severity?: 'warning' | 'error';
 }): Promise<MediaActionResult> {
-  return runMonitoredAction({
+  return reportOperationalFailure({
     area: 'admin',
     severity: input.severity ?? 'error',
     action: input.action,
     errorCode: input.errorCode,
     summary: input.summary,
     errorResult: {status: 'error', code: input.code} as const,
-    shouldRecordResult: () => true,
     facts: {
       productId: input.productId ?? null,
       referenceId: input.referenceId ?? null
-    },
-    operation: async () => ({status: 'error', code: input.code}) as const
+    }
   });
 }
 

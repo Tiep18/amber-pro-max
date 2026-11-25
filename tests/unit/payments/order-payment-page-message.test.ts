@@ -6,26 +6,16 @@ import en from '../../../src/messages/en.json';
 import viMessages from '../../../src/messages/vi.json';
 
 const mocks = vi.hoisted(() => ({
-  createSupabaseServerClient: vi.fn(),
-  getAuthorizedOrderPayment: vi.fn(),
-  getGuestOrderAccessHashFromServer: vi.fn(),
+  authorizeOrder: vi.fn(),
   getPublicSupportConfig: vi.fn(),
-  getRequestUser: vi.fn(),
   getServerEnv: vi.fn(),
   getTranslations: vi.fn()
 }));
 
 vi.mock('next-intl/server', () => ({ getTranslations: mocks.getTranslations }));
-vi.mock('@/auth/request-user', () => ({ getRequestUser: mocks.getRequestUser }));
 vi.mock('@/lib/env/server', () => ({ getServerEnv: mocks.getServerEnv }));
-vi.mock('@/lib/supabase/server', () => ({
-  createSupabaseServerClient: mocks.createSupabaseServerClient
-}));
-vi.mock('@/payments/guest-access', () => ({
-  getGuestOrderAccessHashFromServer: mocks.getGuestOrderAccessHashFromServer
-}));
-vi.mock('@/payments/queries', () => ({
-  getAuthorizedOrderPayment: mocks.getAuthorizedOrderPayment
+vi.mock('@/order-access/server', () => ({
+  createServerOrderAccess: () => ({ authorizeOrder: mocks.authorizeOrder })
 }));
 vi.mock('@/payments/vietqr/customer-actions', () => ({
   declareVietQrTransferAction: vi.fn()
@@ -108,19 +98,18 @@ describe('OrderPaymentPage rejected VietQR messages', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.createSupabaseServerClient.mockResolvedValue({});
-    mocks.getAuthorizedOrderPayment.mockResolvedValue({
-      status: 'found',
-      order: rejectedVietQrOrder
+    mocks.authorizeOrder.mockResolvedValue({
+      status: 'authorized',
+      order: rejectedVietQrOrder,
+      isSignedIn: true,
+      userId: 'customer-1'
     });
-    mocks.getGuestOrderAccessHashFromServer.mockResolvedValue(null);
     mocks.getPublicSupportConfig.mockReturnValue({
       emailHref: null,
       zaloHref: null,
       hasChannels: false,
       storeTimeZone: 'Asia/Ho_Chi_Minh'
     });
-    mocks.getRequestUser.mockResolvedValue({ id: 'customer-1' });
     mocks.getServerEnv.mockReturnValue({
       paypal: { status: 'unconfigured' },
       vietqr: { status: 'unconfigured', template: 'compact2' }

@@ -1,6 +1,5 @@
-import {revalidatePath} from 'next/cache';
 import {z} from 'zod';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {reportOperationalFailure} from '@/operations/monitoring';
 import {
   physicalFulfillmentStatusSchema,
   type PhysicalFulfillmentStatus
@@ -58,19 +57,17 @@ async function recordPhysicalFailure(
 ) {
   if (!recorder) return;
 
-  await runMonitoredAction({
+  await reportOperationalFailure({
     area: 'fulfillment',
     action: 'update',
     errorCode: 'physical_update_failed',
     summary: 'Atomic physical fulfillment update failed',
-    errorResult: {status: 'error', code: 'physical_update_failed'},
-    shouldRecordResult: () => true,
+    code: 'physical_update_failed',
     facts: {
       orderId: input.orderId,
       fulfillmentStatus: input.fulfillmentStatus
     },
-    recordOperationalFailure: recorder,
-    operation: async () => ({status: 'error', code: 'physical_update_failed'})
+    recordOperationalFailure: recorder
   });
 }
 
@@ -164,39 +161,5 @@ export async function updatePhysicalFulfillment(
       fulfillmentStatus: parsed.data.status
     });
   }
-  return result;
-}
-
-function formString(formData: FormData, key: string) {
-  const value = formData.get(key);
-  return typeof value === 'string' ? value : undefined;
-}
-
-export async function updatePhysicalFulfillmentAction(
-  formData: FormData
-): Promise<PhysicalFulfillmentResult> {
-  'use server';
-
-  const {requireAdmin} = await import('@/auth/guards');
-  await requireAdmin();
-  const {createSupabaseServerClient} = await import('@/lib/supabase/server');
-  const {recordOperationalFailure} = await import('@/operations/errors');
-  const orderNumber = formString(formData, 'orderNumber') ?? '';
-  const result = await updatePhysicalFulfillment(
-    {
-      orderId: formString(formData, 'orderId') ?? '',
-      expectedStatus: (formString(formData, 'expectedStatus') ?? '') as PhysicalFulfillmentStatus,
-      expectedVersion: formString(formData, 'expectedVersion') ?? '',
-      status: (formString(formData, 'status') ?? '') as PhysicalFulfillmentStatus,
-      carrier: formString(formData, 'carrier'),
-      trackingNumber: formString(formData, 'trackingNumber'),
-      trackingUrl: formString(formData, 'trackingUrl'),
-      note: formString(formData, 'note')
-    },
-    (await createSupabaseServerClient()) as unknown as RpcClient,
-    recordOperationalFailure
-  );
-  revalidatePath('/admin/orders');
-  if (orderNumber) revalidatePath(`/admin/orders/${encodeURIComponent(orderNumber)}`);
   return result;
 }

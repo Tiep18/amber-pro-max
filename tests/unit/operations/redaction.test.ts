@@ -19,6 +19,7 @@ vi.mock('@/lib/supabase/admin', () => ({
   createSupabaseAdminClient: vi.fn()
 }));
 
+import {markOperationalErrorResolvedAction} from '@/operations/admin-actions';
 import {markOperationalErrorResolved} from '@/operations/errors';
 import {sanitizeOperationalErrorFacts, sanitizeOperationalErrorInput, sanitizeOperationalErrorSummary} from '@/operations/redaction';
 
@@ -130,7 +131,28 @@ describe('OPS-03 D-12 operational error admin actions', () => {
     requireAdminMock.mockRejectedValue(new Error('forbidden'));
 
     await expect(markOperationalErrorResolved('76000000-0000-4000-8000-000000000001')).rejects.toThrow('forbidden');
+    const actionForm = new FormData();
+    actionForm.set('errorId', '76000000-0000-4000-8000-000000000001');
+    await expect(markOperationalErrorResolvedAction(actionForm)).rejects.toThrow('forbidden');
 
+    expect(createSupabaseServerClientMock).not.toHaveBeenCalled();
+  });
+
+  it('validates form input cleanly in the admin action adapter', async () => {
+    const missingIdForm = new FormData();
+    await expect(markOperationalErrorResolvedAction(missingIdForm)).resolves.toEqual({
+      status: 'invalid',
+      code: 'invalid_error_id'
+    });
+    expect(requireAdminMock).not.toHaveBeenCalled();
+
+    const invalidUuidForm = new FormData();
+    invalidUuidForm.set('errorId', 'not-a-uuid');
+    await expect(markOperationalErrorResolvedAction(invalidUuidForm)).resolves.toEqual({
+      status: 'invalid',
+      code: 'invalid_error_id'
+    });
+    expect(requireAdminMock).toHaveBeenCalledOnce();
     expect(createSupabaseServerClientMock).not.toHaveBeenCalled();
   });
 });

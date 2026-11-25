@@ -4,10 +4,10 @@ import { useActionState } from 'react';
 import { RefreshCcw, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  resendDownloadEmailServerAction,
-  retryTransactionalEmailServerAction
-} from '@/fulfillment/admin-email-server-actions';
-import type { AdminEmailActionResult } from '@/fulfillment/admin-email-actions';
+  resendDownloadEmailAction,
+  retryTransactionalEmailAction,
+  type AdminEmailActionResult
+} from '@/fulfillment/admin-email-actions';
 import { Button } from '@/components/ui/button';
 
 type EmailState = AdminEmailActionResult | { status: 'idle' };
@@ -26,13 +26,13 @@ function notifyEmailResult(result: AdminEmailActionResult, action: 'retry' | 're
 }
 
 async function retryAction(_: EmailState, formData: FormData): Promise<EmailState> {
-  const result = await retryTransactionalEmailServerAction(formData);
+  const result = await retryTransactionalEmailAction(formData);
   notifyEmailResult(result, 'retry');
   return result;
 }
 
 async function resendAction(_: EmailState, formData: FormData): Promise<EmailState> {
-  const result = await resendDownloadEmailServerAction(formData);
+  const result = await resendDownloadEmailAction(formData);
   notifyEmailResult(result, 'resend');
   return result;
 }

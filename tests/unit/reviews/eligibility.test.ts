@@ -17,7 +17,7 @@ import {
   removeReviewReply,
   submitProductReview,
   upsertReviewReply
-} from '@/reviews/actions';
+} from '@/reviews/mutations';
 import {getAdminProductReviews, getApprovedProductReviews} from '@/reviews/queries';
 import {recordOperationalFailure} from '@/operations/errors';
 

@@ -1,17 +1,18 @@
 import {beforeEach, describe, expect, test, vi} from 'vitest';
 
-const {createSupabaseServerClientMock, getGuestOrderAccessHashMock, recordOperationalFailureMock} = vi.hoisted(() => ({
+const {createSupabaseServerClientMock, readGuestSecretHashMock, recordOperationalFailureMock} = vi.hoisted(() => ({
   createSupabaseServerClientMock: vi.fn(),
-  getGuestOrderAccessHashMock: vi.fn(),
+  readGuestSecretHashMock: vi.fn(),
   recordOperationalFailureMock: vi.fn(async () => ({
     status: 'recorded',
     errorId: '76000000-0000-4000-8000-000000000001'
   }))
 }));
 
-vi.mock('next/headers', () => ({cookies: vi.fn()}));
 vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient: createSupabaseServerClientMock}));
-vi.mock('@/payments/guest-access', () => ({getGuestOrderAccessHashFromServer: getGuestOrderAccessHashMock}));
+vi.mock('@/order-access/server', () => ({
+  createServerOrderAccess: () => ({readGuestSecretHash: readGuestSecretHashMock})
+}));
 vi.mock('@/operations/errors', () => ({recordOperationalFailure: recordOperationalFailureMock}));
 
 import {declareVietQrTransferAction} from '@/payments/vietqr/customer-actions';
@@ -19,7 +20,7 @@ import {declareVietQrTransferAction} from '@/payments/vietqr/customer-actions';
 describe('declareVietQrTransferAction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getGuestOrderAccessHashMock.mockResolvedValue('guest-hash');
+    readGuestSecretHashMock.mockResolvedValue('guest-hash');
   });
 
   test('resolves the guest secret hash and forwards it to the RPC', async () => {

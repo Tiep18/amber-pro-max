@@ -10,13 +10,11 @@ import {
   type DiscountQuoteLine,
   type DiscountRule
 } from './discounts';
-import type { ShippingRuleQuote } from './shipping';
 import {resolverRegionCode} from './shipping-address';
 import {
   type CartQuote,
   type CartQuoteLine,
   type CartQuoteLineChange,
-  type CartQuoteLineStatus,
   type CartQuoteShippingAllocation,
   type CheckoutCatalogClient,
   type QuoteCartInput
@@ -31,7 +29,6 @@ export type QuoteCatalogVariant = {
   availableQuantity?: number | null;
   currencyCode: CurrencyCode | null;
   priceMinor: number | null;
-  shippingRule?: ShippingRuleQuote | null;
 };
 
 export type QuoteCatalogProduct = {
@@ -48,7 +45,6 @@ export type QuoteCatalogProduct = {
   categoryIds?: string[];
   collectionIds?: string[];
   variants: QuoteCatalogVariant[];
-  shippingRule?: ShippingRuleQuote | null;
 };
 
 type CatalogLoader = (
@@ -58,27 +54,8 @@ type CatalogLoader = (
 
 type QuoteCartInternalInput = QuoteCartInput & {
   catalog?: CatalogLoader;
-  shippingRules?: Map<string, ShippingRuleQuote>;
   now?: Date;
 };
-
-type QuoteDiff =
-  | {
-      type: 'price_changed';
-      lineId: string;
-      productId: string;
-      variantId: string | null;
-      previousPriceMinor: number;
-      currentPriceMinor: number;
-    }
-  | {
-      type: 'availability_changed';
-      lineId: string;
-      productId: string;
-      variantId: string | null;
-      previousStatus: CartQuoteLineStatus;
-      currentStatus: CartQuoteLineStatus;
-    };
 
 function stringRecord(value: Json): Record<string, string> {
   if (!value || Array.isArray(value) || typeof value !== 'object') {
@@ -730,36 +707,4 @@ export async function quoteCartIntent(input: QuoteCartInternalInput): Promise<Ca
     ...withShippingTotal,
     hash: quoteHash(withShippingTotal)
   };
-}
-
-export function diffCartQuotes(previous: CartQuote, current: CartQuote): QuoteDiff[] {
-  const currentByLine = new Map(current.lines.map((line) => [line.lineId, line]));
-  return previous.lines.flatMap((line) => {
-    const next = currentByLine.get(line.lineId);
-    if (!next) {
-      return [];
-    }
-    const changes: QuoteDiff[] = [];
-    if (line.unitPriceMinor !== next.unitPriceMinor) {
-      changes.push({
-        type: 'price_changed',
-        lineId: line.lineId,
-        productId: line.productId,
-        variantId: line.variantId,
-        previousPriceMinor: line.unitPriceMinor,
-        currentPriceMinor: next.unitPriceMinor
-      });
-    }
-    if (line.status !== next.status) {
-      changes.push({
-        type: 'availability_changed',
-        lineId: line.lineId,
-        productId: line.productId,
-        variantId: line.variantId,
-        previousStatus: line.status,
-        currentStatus: next.status
-      });
-    }
-    return changes;
-  });
 }

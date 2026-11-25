@@ -1,8 +1,7 @@
 import {NextRequest, NextResponse} from 'next/server';
 import {hashFulfillmentAccessToken} from '@/fulfillment/downloads';
 import {authorizeDownloadWithSupabase} from '@/fulfillment/downloads.server';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
+import {createServerOrderAccess} from '@/order-access/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,12 +11,6 @@ function genericDenied() {
 
 function safeLogReference(value: string | null) {
   return value && /^[A-Za-z0-9-]{1,64}$/.test(value) ? value : null;
-}
-
-async function currentUserId() {
-  const supabase = await createSupabaseServerClient();
-  const {data} = await supabase.auth.getUser();
-  return data.user?.id ?? null;
 }
 
 async function handleDownload(request: NextRequest) {
@@ -32,15 +25,15 @@ async function handleDownload(request: NextRequest) {
       rawDownloadToken && rawDownloadToken.length <= 512
         ? hashFulfillmentAccessToken(rawDownloadToken)
         : null;
-    const cookieHash = orderNumber ? await getGuestOrderAccessHashFromServer(orderNumber) : null;
-    const ownerUserId = await currentUserId();
+    const {ownerUserId, guestSecretHash} =
+      await createServerOrderAccess().resolveCredentials(orderNumber);
 
     const result = await authorizeDownloadWithSupabase({
       orderNumber,
       productId,
       ownerUserId,
       downloadTokenHash,
-      guestSecretHash: cookieHash
+      guestSecretHash
     });
 
     if (result.status !== 'authorized') {

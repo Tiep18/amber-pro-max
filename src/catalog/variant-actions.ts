@@ -5,7 +5,7 @@ import {z} from 'zod';
 import {requireAdmin} from '@/auth/guards';
 import {invalidateCatalogCache} from '@/lib/cache-invalidation';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {reportOperationalFailure, runMonitoredAction} from '@/operations/monitoring';
 import type {Json} from '@/types/supabase';
 import {
   inventoryAdjustmentSchema,
@@ -35,7 +35,7 @@ type VariantActionCode =
 export type VariantActionResult =
   | {status: 'success'; message: string}
   | {status: 'invalid'; code: VariantActionCode}
-  | {status: 'error'; code: VariantActionCode};
+  | {status: 'error'; code: VariantActionCode; errorId?: string};
 
 const variantShippingProfileSchema = z.object({
   variantId: z.uuid(),
@@ -45,7 +45,7 @@ const variantShippingProfileSchema = z.object({
 export type VariantShippingProfileResult =
   | {status: 'saved'}
   | {status: 'invalid'; code: 'invalid_shipping_assignment' | 'inactive_shipping_profile' | 'variant_not_found'}
-  | {status: 'error'; code: 'shipping_assignment_failed'};
+  | {status: 'error'; code: 'shipping_assignment_failed'; errorId?: string};
 
 function revalidateVariants(productId: string) {
   revalidatePath(`/admin/catalog/${productId}`);
@@ -75,18 +75,16 @@ async function monitoredVariantFailure({
   code: 'save_failed' | 'remove_failed';
   summary: string;
 }): Promise<VariantActionResult> {
-  return runMonitoredAction({
+  return reportOperationalFailure({
     area: 'admin',
     action,
     errorCode: `catalog_${action}_failed`,
     summary,
     errorResult: {status: 'error', code} as const,
-    shouldRecordResult: () => true,
     facts: {
       productId: productId ?? null,
       referenceId: referenceId ?? null
-    },
-    operation: async () => ({status: 'error', code}) as const
+    }
   });
 }
 

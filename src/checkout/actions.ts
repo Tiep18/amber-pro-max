@@ -5,16 +5,7 @@ import {triggerTransactionalEmailOutboxNow} from '@/fulfillment/email-outbox.ser
 import {getOrderPath} from '@/i18n/routing';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {runMonitoredAction} from '@/operations/monitoring';
-import {
-  acknowledgeGuestCheckoutRecoveryFromServer,
-  getGuestCheckoutRecoveryFromServer,
-  getGuestOrderAccessHashFromServer,
-  getGuestOrderAccessTokenFromServer,
-  hashGuestOrderAccessToken,
-  prepareGuestCheckoutRecoveryFromServer,
-  setGuestOrderAccessCookieFromServer
-} from '@/payments/guest-access';
-import {getAuthorizedOrderPayment} from '@/payments/queries';
+import {createServerOrderAccess} from '@/order-access/server';
 import {isKnownSubmitErrorCode} from './submit-error-copy';
 import type {CheckoutPaymentIntent} from './schemas';
 import {checkoutPaymentIntentForQuote} from './payment-method';
@@ -58,15 +49,15 @@ function canonicalCheckoutInput(input: Record<string, unknown>): CanonicalChecko
   return paymentIntent ? {...input, paymentIntent} : null;
 }
 
-export async function prepareGuestCheckoutRecoveryAction(input: unknown): Promise<{status: 'ready'} | {status: 'invalid'; code: string}> {
-  const inputRecord = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : {};
+export async function prepareGuestCheckoutRecoveryAction(
+  input: unknown
+): Promise<{status: 'ready'} | {status: 'invalid'; code: string}> {
+  const inputRecord =
+    input && typeof input === 'object' && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
   const canonicalInput = canonicalCheckoutInput(inputRecord);
   const intent = canonicalInput ? guestRecoveryIntent(canonicalInput) : null;
   if (!intent) return {status: 'invalid', code: 'invalid_guest_recovery_intent'};
-  const client = await createSupabaseServerClient();
-  const {data: {user}} = await client.auth.getUser();
-  if (user) return {status: 'ready'};
-  return prepareGuestCheckoutRecoveryFromServer(intent);
+  return createServerOrderAccess().prepareGuestRecovery(intent);
 }
 
 export async function refreshCheckoutQuoteAction(input: unknown): Promise<CheckoutQuoteActionState> {
@@ -110,7 +101,8 @@ export async function refreshCheckoutQuoteAction(input: unknown): Promise<Checko
 }
 
 export async function submitCheckoutAction(input: unknown): Promise<SubmitCheckoutActionState> {
-  const inputRecord = input && typeof input === 'object' && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
+  const inputRecord =
+    input && typeof input === 'object' && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
   const canonicalInput = canonicalCheckoutInput(inputRecord);
   if (!canonicalInput) {
     return {status: 'invalid', code: 'invalid_payment_method_for_market'};
@@ -134,21 +126,19 @@ export async function submitCheckoutAction(input: unknown): Promise<SubmitChecko
     shouldRecordResult: (result) =>
       result.status === 'error' || (result.status !== 'success' && !isKnownSubmitErrorCode(result.code)),
     operation: async () => {
-      const client = await createSupabaseServerClient();
-      const {
-        data: {user}
-      } = await client.auth.getUser();
-      const intent = guestRecoveryIntent(canonicalInput);
-      const recovery = user || !intent ? null : await getGuestCheckoutRecoveryFromServer(intent);
-      if (!user && !recovery) {
+      const orderAccess = createServerOrderAccess();
+      const actor = await orderAccess.resolveCheckoutActor(guestRecoveryIntent(canonicalInput));
+      if (actor.kind === 'guest_recovery_required') {
         return {status: 'invalid', code: 'guest_recovery_required'} as const;
       }
+
+      const client = await createSupabaseServerClient();
       const result = await submitCheckout(
         {
           ...canonicalInput,
-          userId: user?.id ?? null,
+          userId: actor.kind === 'account' ? actor.userId : null,
           guestCartId: null,
-          ...(recovery ? {guestRecovery: {attemptId: recovery.attemptId, proof: recovery.proof}} : {})
+          ...(actor.kind === 'guest' ? {guestRecovery: actor.guestRecovery} : {})
         } as never,
         client as never
       );
@@ -156,10 +146,9 @@ export async function submitCheckoutAction(input: unknown): Promise<SubmitChecko
         return result;
       }
 
-      if (recovery) {
-        await setGuestOrderAccessCookieFromServer({
+      if (actor.kind === 'guest') {
+        await actor.openOrderSession({
           orderNumber: result.orderNumber,
-          rawToken: recovery.proof,
           reservationExpiresAt: result.reservationExpiresAt
         });
       }
@@ -183,46 +172,14 @@ export async function submitCheckoutAction(input: unknown): Promise<SubmitChecko
   });
 }
 
-export async function refreshGuestOrderAccessCookieAction(orderNumber: string): Promise<{status: 'refreshed' | 'skipped'}> {
-  const normalizedOrderNumber = orderNumber.trim().toUpperCase();
-  if (!normalizedOrderNumber) return {status: 'skipped'};
-
-  const client = await createSupabaseServerClient();
-  const {
-    data: {user}
-  } = await client.auth.getUser();
-  if (user) return {status: 'skipped'};
-
-  const rawToken = await getGuestOrderAccessTokenFromServer(normalizedOrderNumber);
-  if (!rawToken) return {status: 'skipped'};
-
-  const guestSecretHash = await getGuestOrderAccessHashFromServer(normalizedOrderNumber);
-  const authorized = await getAuthorizedOrderPayment({orderNumber: normalizedOrderNumber, guestSecretHash, client: client as never});
-  // A refund does not revoke the customer's right to look at their own order —
-  // if anything they need it more. Match `isPaid` in `mapCustomerPaymentStatus`
-  // rather than the narrower literal 'paid', or a refunded guest silently
-  // drops back to the short-lived cookie and loses access.
-  const settledStatuses = ['paid', 'partially_refunded', 'refunded'];
-  if (
-    authorized.status !== 'found' ||
-    !settledStatuses.includes(authorized.order.customerPaymentStatus)
-  ) {
-    return {status: 'skipped'};
-  }
-
-  await setGuestOrderAccessCookieFromServer({orderNumber: normalizedOrderNumber, rawToken, paid: true});
-  return {status: 'refreshed'};
+export async function refreshGuestOrderAccessCookieAction(
+  orderNumber: string
+): Promise<{status: 'refreshed' | 'skipped'}> {
+  return createServerOrderAccess().refreshGuestOrderSession(orderNumber);
 }
 
-export async function acknowledgeGuestCheckoutRecoveryAction(orderNumber: string): Promise<{status: 'cleared' | 'kept'}> {
-  const normalizedOrderNumber = orderNumber.trim().toUpperCase();
-  if (!normalizedOrderNumber) return {status: 'kept'};
-  const recovery = await getGuestCheckoutRecoveryFromServer();
-  if (!recovery) return {status: 'kept'};
-  const guestSecretHash = await getGuestOrderAccessHashFromServer(normalizedOrderNumber);
-  if (guestSecretHash !== hashGuestOrderAccessToken(recovery.proof)) return {status: 'kept'};
-  const client = await createSupabaseServerClient();
-  const authorized = await getAuthorizedOrderPayment({orderNumber: normalizedOrderNumber, guestSecretHash, client: client as never});
-  if (authorized.status !== 'found') return {status: 'kept'};
-  return acknowledgeGuestCheckoutRecoveryFromServer(normalizedOrderNumber, recovery);
+export async function acknowledgeGuestCheckoutRecoveryAction(
+  orderNumber: string
+): Promise<{status: 'cleared' | 'kept'}> {
+  return createServerOrderAccess().acknowledgeGuestRecovery(orderNumber);
 }

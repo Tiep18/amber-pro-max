@@ -10,7 +10,7 @@ import {
   validateCheckoutShippingAddress
 } from '@/checkout/shipping-address-ui';
 import type {ShippingAddress} from '@/checkout/shipping-address';
-import type {CheckoutQuoteLifecycleState, QuoteDestination} from '@/checkout/quote-lifecycle';
+import type {DestinationQuoteStatus, QuoteDestination} from '@/checkout/checkout-session';
 import type {Locale} from '@/i18n/routing';
 import enMessages from '@/messages/en.json';
 import viMessages from '@/messages/vi.json';
@@ -23,7 +23,7 @@ type AddressField = keyof CheckoutShippingAddress;
 export function DestinationForm({
   locale,
   shippingAddress,
-  lifecycle,
+  quoteStatus,
   showValidation,
   disabled = false,
   onShippingAddressChange,
@@ -31,7 +31,7 @@ export function DestinationForm({
 }: {
   locale: Locale;
   shippingAddress: CheckoutShippingAddress;
-  lifecycle: CheckoutQuoteLifecycleState;
+  quoteStatus: DestinationQuoteStatus;
   showValidation: boolean;
   disabled?: boolean;
   onShippingAddressChange: (address: CheckoutShippingAddress) => void;
@@ -91,11 +91,11 @@ export function DestinationForm({
     return showValidation || touchedFields.has(field) ? errors[field] : null;
   }
 
-  const status = lifecycle.loadingMode === 'initial' ? t.calculating
-    : lifecycle.loadingMode === 'updating' ? t.updating
-      : lifecycle.issue?.kind === 'unsupported' ? t.unsupported
-        : lifecycle.issue?.kind === 'network' ? t.network
-          : lifecycle.issue?.kind === 'server' ? t.server
+  const status = quoteStatus.loadingMode === 'initial' ? t.calculating
+    : quoteStatus.loadingMode === 'updating' ? t.updating
+      : quoteStatus.issue?.kind === 'unsupported' ? t.unsupported
+        : quoteStatus.issue?.kind === 'network' ? t.network
+          : quoteStatus.issue?.kind === 'server' ? t.server
             : !shippingAddress.countryCode ? t.awaitingCountry
               : isUs && !shippingAddress.region ? t.awaitingRegion : t.ready;
 
@@ -128,7 +128,7 @@ export function DestinationForm({
       />
 
       <div role="status" aria-live="polite" className="flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] bg-[var(--surface-muted)]/55 px-3 py-2 text-xs font-medium leading-5 text-[var(--muted-foreground)]">
-        <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${lifecycle.issue ? 'bg-[var(--warning)]' : lifecycle.activeRequestId !== null ? 'animate-pulse motion-reduce:animate-none bg-[var(--accent)]' : 'bg-[var(--success)]'}`} />
+        <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${quoteStatus.issue ? 'bg-[var(--warning)]' : quoteStatus.isPending ? 'animate-pulse motion-reduce:animate-none bg-[var(--accent)]' : 'bg-[var(--success)]'}`} />
         <span className="min-w-0 break-words">{status}</span>
       </div>
 

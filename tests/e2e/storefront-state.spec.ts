@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { rest } from './fixtures/authenticated-users';
 
-const VARIANT_PRODUCT_ID = '50000000-0000-0000-0000-000000000003';
+const VARIANT_PRODUCT_ID = 'f1d1b9fb-b691-48de-b482-5882a163d32a';
 
 async function setVariantFixtureStatus(status: 'draft' | 'published') {
   await rest(`products?id=eq.${VARIANT_PRODUCT_ID}`, {

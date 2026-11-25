@@ -443,7 +443,7 @@ insert into public.checkout_order_lines (
   (
     '00000000-0000-4000-8000-000000000643',
     '00000000-0000-4000-8000-000000000641',
-    '50000000-0000-0000-0000-000000000003',
+    'f1d1b9fb-b691-48de-b482-5882a163d32a',
     'review-paid-line',
     'Both-market bear',
     'physical',
@@ -457,7 +457,7 @@ insert into public.checkout_order_lines (
   (
     '00000000-0000-4000-8000-000000000644',
     '00000000-0000-4000-8000-000000000642',
-    '50000000-0000-0000-0000-000000000003',
+    'f1d1b9fb-b691-48de-b482-5882a163d32a',
     'review-pending-line',
     'Both-market bear',
     'physical',
@@ -481,12 +481,12 @@ select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000601
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select is(
-  public.can_review_product('50000000-0000-0000-0000-000000000003'),
+  public.can_review_product('f1d1b9fb-b691-48de-b482-5882a163d32a'),
   true,
   'paid order-line owner can review purchased product'
 );
 select lives_ok(
-  $$select public.submit_product_review('50000000-0000-0000-0000-000000000003', 5, 'Sweet bear', 'Well made')$$,
+  $$select public.submit_product_review('f1d1b9fb-b691-48de-b482-5882a163d32a', 5, 'Sweet bear', 'Well made')$$,
   'eligible customer can submit a review'
 );
 select set_config(
@@ -495,13 +495,13 @@ select set_config(
   true
 );
 select throws_ok(
-  $$select public.submit_product_review('50000000-0000-0000-0000-000000000003', 6, 'Bad rating', 'Too high')$$,
+  $$select public.submit_product_review('f1d1b9fb-b691-48de-b482-5882a163d32a', 6, 'Bad rating', 'Too high')$$,
   '23514',
   null,
   'rating must be between one and five'
 );
 select is_empty(
-  $$select title from public.approved_product_reviews where product_id = '50000000-0000-0000-0000-000000000003'$$,
+  $$select title from public.approved_product_reviews where product_id = 'f1d1b9fb-b691-48de-b482-5882a163d32a'$$,
   'pending review is hidden from public approved projection'
 );
 
@@ -584,12 +584,12 @@ select is(
   'admin can approve a pending verified review'
 );
 select results_eq(
-  $$select title from public.approved_product_reviews where product_id = '50000000-0000-0000-0000-000000000003'$$,
+  $$select title from public.approved_product_reviews where product_id = 'f1d1b9fb-b691-48de-b482-5882a163d32a'$$,
   $$values ('Sweet bear'::text)$$,
   'approved review becomes public'
 );
 select results_eq(
-  $$select masked_author from public.approved_product_reviews where product_id = '50000000-0000-0000-0000-000000000003'$$,
+  $$select masked_author from public.approved_product_reviews where product_id = 'f1d1b9fb-b691-48de-b482-5882a163d32a'$$,
   $$values ('a***@example.test'::text)$$,
   'approved review stores only a masked author identity'
 );
@@ -620,7 +620,7 @@ select is(
   'shop reply upsert creates only one row per review'
 );
 select results_eq(
-  $$select shop_reply_body from public.approved_product_reviews where product_id = '50000000-0000-0000-0000-000000000003'$$,
+  $$select shop_reply_body from public.approved_product_reviews where product_id = 'f1d1b9fb-b691-48de-b482-5882a163d32a'$$,
   $$values ('Thank you for your review.'::text)$$,
   'approved public review includes the shop reply'
 );
@@ -656,7 +656,7 @@ select is(
   'admin can hide an approved review'
 );
 select is_empty(
-  $$select title from public.approved_product_reviews where product_id = '50000000-0000-0000-0000-000000000003'$$,
+  $$select title from public.approved_product_reviews where product_id = 'f1d1b9fb-b691-48de-b482-5882a163d32a'$$,
   'hidden review disappears from public display'
 );
 

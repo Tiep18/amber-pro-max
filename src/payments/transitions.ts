@@ -1,4 +1,4 @@
-import {runMonitoredAction} from '@/operations/monitoring';
+import {reportOperationalFailure} from '@/operations/monitoring';
 import {paymentTransitionInputSchema, paymentTransitionResultSchema} from './schemas';
 import type {PaymentTransitionInput, PaymentTransitionResult} from './types';
 
@@ -16,13 +16,12 @@ function mapPaymentTransitionResult(value: unknown): PaymentTransitionResult {
 }
 
 async function recordPaymentTransitionFailure(input: PaymentTransitionInput & {code: string}) {
-  return runMonitoredAction({
+  return reportOperationalFailure({
     area: 'payment',
     action: 'apply_payment_transition',
     errorCode: input.code,
     summary: 'Payment transition RPC failed',
     errorResult: {status: 'error', code: 'payment_transition_failed'} as const,
-    shouldRecordResult: () => true,
     facts: {
       transition: `${input.source}:${input.targetStatus}`,
       ...(input.paymentId ? {paymentId: input.paymentId} : {}),
@@ -30,8 +29,7 @@ async function recordPaymentTransitionFailure(input: PaymentTransitionInput & {c
       ...(input.providerEventId ? {providerEventId: input.providerEventId} : {}),
       ...(typeof input.amountMinor === 'number' ? {amountValue: input.amountMinor} : {}),
       ...(input.currencyCode ? {currency: input.currencyCode} : {})
-    },
-    operation: async () => ({status: 'error', code: 'payment_transition_failed'}) as const
+    }
   });
 }
 

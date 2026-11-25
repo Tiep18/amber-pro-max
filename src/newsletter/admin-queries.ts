@@ -1,7 +1,7 @@
 import 'server-only';
 
 import {createSupabaseAdminClient} from '@/lib/supabase/admin';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {reportOperationalFailure} from '@/operations/monitoring';
 
 type NewsletterStatus = 'subscribed' | 'unsubscribed';
 type NewsletterLocale = 'en' | 'vi';
@@ -97,19 +97,17 @@ async function recordAdminNewsletterFailure(
   if (!recorder) {
     return;
   }
-  await runMonitoredAction({
+  await reportOperationalFailure({
     area: 'admin',
     action: input.action,
     errorCode: 'admin_newsletter_lookup_failed',
     summary: input.summary,
-    errorResult: {status: 'error', code: 'admin_newsletter_lookup_failed'},
-    shouldRecordResult: () => true,
+    code: 'admin_newsletter_lookup_failed',
     facts: {
       status: input.status,
       market: input.market
     },
-    recordOperationalFailure: recorder,
-    operation: async () => ({status: 'error', code: 'admin_newsletter_lookup_failed'})
+    recordOperationalFailure: recorder
   });
 }
 

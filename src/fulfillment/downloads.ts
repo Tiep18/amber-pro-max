@@ -1,7 +1,9 @@
-import {createHash} from 'node:crypto';
 import {z} from 'zod';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {hashOrderAccessToken} from '@/order-access/order-access';
+import {reportOperationalFailure} from '@/operations/monitoring';
 import type {SafeOperationalFact} from '@/operations/redaction';
+
+export {hashOrderAccessToken as hashFulfillmentAccessToken};
 
 const SIGNED_URL_TTL_SECONDS = 300;
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -62,10 +64,6 @@ function denied(): DownloadAuthorizationResult {
   return {status: 'denied', code: 'download_not_available'};
 }
 
-export function hashFulfillmentAccessToken(rawToken: string) {
-  return createHash('sha256').update(rawToken, 'utf8').digest('hex');
-}
-
 async function recordDownloadFailure(
   deps: DownloadAuthorizationDeps,
   input: {errorCode: string; summary: string; facts: Record<string, SafeOperationalFact>}
@@ -73,16 +71,14 @@ async function recordDownloadFailure(
   if (!deps.operationalFailureRecorder) {
     return;
   }
-  await runMonitoredAction({
+  await reportOperationalFailure({
     area: 'fulfillment',
     action: 'download_authorize',
     errorCode: input.errorCode,
     summary: input.summary,
-    errorResult: {status: 'error', code: input.errorCode},
-    shouldRecordResult: () => true,
+    code: input.errorCode,
     facts: input.facts,
-    recordOperationalFailure: deps.operationalFailureRecorder,
-    operation: async () => ({status: 'error', code: input.errorCode})
+    recordOperationalFailure: deps.operationalFailureRecorder
   });
 }
 

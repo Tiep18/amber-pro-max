@@ -59,11 +59,22 @@ export type PaymentStatusPresentation = {
   primaryAction: {href: `/${Locale}${string}`; labelKey: string} | null;
 };
 
-const TERMINAL_NO_RETRY = new Set<CustomerPaymentLifecycleStatus>([
+export type OrderSnapshotEligibility = 'unknown' | 'eligible' | 'ineligible';
+
+export type OrderRecoveryAction =
+  | {kind: 'restore_cart'}
+  | {kind: 'browse_catalog'}
+  | null;
+
+const RECOVERABLE_TERMINAL_STATUSES = new Set<CustomerPaymentLifecycleStatus>([
   'failed',
   'cancelled',
   'rejected',
-  'expired',
+  'expired'
+]);
+
+const TERMINAL_NO_RETRY = new Set<CustomerPaymentLifecycleStatus>([
+  ...RECOVERABLE_TERMINAL_STATUSES,
   'partially_refunded',
   'refunded'
 ]);
@@ -140,18 +151,13 @@ export function mapCustomerPaymentStatus(input: CustomerPaymentStatusInput): Cus
 }
 
 export function getPaymentStatusPresentation(
-  status: CustomerPaymentLifecycleStatus,
-  _locale?: Locale,
-  _freshCheckoutPath?: `/${Locale}${string}`
+  status: CustomerPaymentLifecycleStatus
 ): PaymentStatusPresentation {
-  // Retain the legacy arguments while callers migrate away from checkout-link
-  // presentation. They never influence payment or recovery authority.
-  void _locale;
-  void _freshCheckoutPath;
+  const isRecoverable = RECOVERABLE_TERMINAL_STATUSES.has(status);
   const surface =
     status === 'paid'
       ? 'success'
-      : status === 'failed' || status === 'cancelled' || status === 'rejected' || status === 'expired'
+      : isRecoverable
         ? 'destructive'
         : status === 'refunded'
           ? 'default'
@@ -164,7 +170,7 @@ export function getPaymentStatusPresentation(
         ? 'recheck'
         : status === 'review_required'
           ? 'support'
-          : status === 'failed' || status === 'cancelled' || status === 'rejected' || status === 'expired'
+          : isRecoverable
             ? 'recovery'
             : null;
 
@@ -177,4 +183,20 @@ export function getPaymentStatusPresentation(
     showPendingDeadline: status === 'awaiting_payment' || status === 'verifying_payment',
     primaryAction: null
   };
+}
+
+export function getOrderRecoveryAction({
+  status,
+  snapshotEligibility
+}: {
+  status: CustomerPaymentLifecycleStatus;
+  snapshotEligibility: OrderSnapshotEligibility;
+}): OrderRecoveryAction {
+  if (!RECOVERABLE_TERMINAL_STATUSES.has(status) || snapshotEligibility === 'unknown') {
+    return null;
+  }
+
+  return snapshotEligibility === 'eligible'
+    ? {kind: 'restore_cart'}
+    : {kind: 'browse_catalog'};
 }

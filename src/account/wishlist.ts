@@ -2,7 +2,7 @@ import type {Json} from '@/types/supabase';
 import type {CurrencyCode} from '@/catalog/money';
 import type {MarketCode} from '@/catalog/market';
 import type {Locale} from '@/i18n/routing';
-import {runMonitoredAction} from '@/operations/monitoring';
+import {reportOperationalFailure} from '@/operations/monitoring';
 
 type RpcClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
@@ -43,7 +43,7 @@ export type CustomerWishlistItem = {
 
 export type CustomerWishlistResult =
   | {status: 'success'; items: CustomerWishlistItem[]}
-  | {status: 'error'; code: 'wishlist_load_failed'};
+  | {status: 'error'; code: 'wishlist_load_failed'; errorId?: string};
 
 type WishlistRpcRow = {
   wishlist_item_id: unknown;
@@ -288,17 +288,15 @@ export async function getCustomerWishlist({
     p_market: market
   });
   if (error || !Array.isArray(data)) {
-    return runMonitoredAction({
+    return reportOperationalFailure({
       area: 'application',
       action: 'wishlist_load',
       errorCode: 'account.wishlist.load_failed',
       summary: error ? 'Customer wishlist load failed' : 'Customer wishlist returned an unexpected result',
-      errorResult: {status: 'error', code: 'wishlist_load_failed'},
-      shouldRecordResult: () => true,
+      errorResult: {status: 'error', code: 'wishlist_load_failed'} as const,
       facts: {
         market
-      },
-      operation: async () => ({status: 'error', code: 'wishlist_load_failed'})
+      }
     });
   }
   return {status: 'success', items: mapWishlistRows(data, {locale, market})};

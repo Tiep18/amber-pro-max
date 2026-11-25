@@ -58,6 +58,7 @@ const nextConfig: NextConfig = {
     root: projectRoot
   },
   images: {
+    unoptimized: process.env.NODE_ENV === 'development',
     remotePatterns: supabaseUrl
       ? [
           {

@@ -22,6 +22,87 @@ export type PayPalCaptureResponse = {
   status?: string;
 };
 
+export type PayPalApprovalOutcome = PayPalCaptureOutcome | 'cancelled' | 'sdk_error';
+
+export type PayPalApprovalLabelKey =
+  | 'verifying'
+  | 'captureFailed'
+  | 'captureUnreachable'
+  | 'captureUncertain'
+  | 'captureReconciliation'
+  | 'captureReview'
+  | 'cancelled'
+  | 'unavailable';
+
+export type PayPalApprovalPresentation = {
+  outcome: PayPalApprovalOutcome;
+  labelKey: PayPalApprovalLabelKey;
+  alertVariant: 'success' | 'warning' | 'destructive';
+  /** True whenever money may already have moved or awaits human review, preventing double charges. */
+  hideButtons: boolean;
+  allowStatusCheck: boolean;
+};
+
+const APPROVAL_PRESENTATIONS: Record<PayPalApprovalOutcome, Omit<PayPalApprovalPresentation, 'outcome'>> = {
+  verifying: {
+    labelKey: 'verifying',
+    alertVariant: 'success',
+    hideButtons: true,
+    allowStatusCheck: false
+  },
+  capture_failed: {
+    labelKey: 'captureFailed',
+    alertVariant: 'destructive',
+    hideButtons: false,
+    allowStatusCheck: true
+  },
+  capture_unreachable: {
+    labelKey: 'captureUnreachable',
+    alertVariant: 'destructive',
+    hideButtons: true,
+    allowStatusCheck: true
+  },
+  capture_uncertain: {
+    labelKey: 'captureUncertain',
+    alertVariant: 'warning',
+    hideButtons: true,
+    allowStatusCheck: true
+  },
+  capture_reconciliation: {
+    labelKey: 'captureReconciliation',
+    alertVariant: 'warning',
+    hideButtons: true,
+    allowStatusCheck: true
+  },
+  capture_review: {
+    labelKey: 'captureReview',
+    alertVariant: 'warning',
+    hideButtons: true,
+    allowStatusCheck: false
+  },
+  cancelled: {
+    labelKey: 'cancelled',
+    alertVariant: 'warning',
+    hideButtons: false,
+    allowStatusCheck: false
+  },
+  sdk_error: {
+    labelKey: 'unavailable',
+    alertVariant: 'destructive',
+    hideButtons: false,
+    allowStatusCheck: false
+  }
+};
+
+export function describePayPalApprovalOutcome(
+  outcome: PayPalApprovalOutcome
+): PayPalApprovalPresentation {
+  return {
+    outcome,
+    ...APPROVAL_PRESENTATIONS[outcome]
+  };
+}
+
 export function resolveCaptureOutcome(response: PayPalCaptureResponse): PayPalCaptureOutcome {
   if (!response.reachable) {
     // We asked PayPal to take the money and never learned the answer. "Your
