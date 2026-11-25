@@ -10,7 +10,6 @@ import {
   type CustomerShippingAddress
 } from '@/account/addresses';
 import { saveCheckoutShippingAddressAction } from '@/account/address-actions';
-import { writeOrderSnapshot } from '@/cart/order-snapshot';
 import { formatMoney } from '@/catalog/money';
 import {
   prepareGuestCheckoutRecoveryAction,
@@ -276,9 +275,7 @@ export function CheckoutPage({
     }
   };
 
-  const { quote, cart, pending, completeOrder } = useCart();
-  const cartRef = useRef(cart);
-  cartRef.current = cart;
+  const { quote, cart, pending, commitPlacedOrder } = useCart();
 
   const savedAddress = useMemo(() => preferredAddress(savedAddresses), [savedAddresses]);
   const savedShippingAddress = useMemo(
@@ -315,18 +312,7 @@ export function CheckoutPage({
       saveShippingAddress: saveCheckoutShippingAddressAction,
       getStorage: checkoutSessionStorage,
       onOrderCreated: ({ orderNumber, orderPath, completedLines }: OrderCreatedEvent) => {
-        const snapshotLines = completedLines.flatMap((completed) => {
-          const intentLine = cartRef.current?.lines.find(
-            (candidate) =>
-              candidate.productId === completed.productId &&
-              (candidate.variantId ?? null) === completed.variantId
-          );
-          return intentLine ? [{ ...intentLine, quantity: completed.quantity }] : [];
-        });
-        if (snapshotLines.length > 0) {
-          writeOrderSnapshot({ orderNumber, lines: snapshotLines });
-        }
-        completeOrder([...completedLines]);
+        commitPlacedOrder({ orderNumber, completedLines });
         router.push(orderPath);
       }
     },

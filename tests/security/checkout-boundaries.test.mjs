@@ -285,7 +285,7 @@ test('checkout locks one editable region through truthful submit stages and navi
   assert.match(successSource, /clearEditableDraft\(storage\)/);
   assert.match(successSource, /clearStoredIdempotency\(storage\)/);
   assert.match(successSource, /ports\.onOrderCreated\(/);
-  assert.match(client, /completeOrder\(\[\.\.\.completedLines\]\)/);
+  assert.match(client, /commitPlacedOrder\(\{\s*orderNumber,\s*completedLines\s*\}\)/);
   assert.match(client, /router\.push\(orderPath\)/);
   assert.doesNotMatch(client, /window\.location\.assign/);
 });
@@ -313,6 +313,7 @@ test('checkout separates retryable known failures from unknown order outcomes', 
 
 test('checkout removes only final ordered quantities after successful order creation', () => {
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
+  const cartStore = readFileSync('src/cart/cart-store.ts', 'utf8');
   const session = readFileSync('src/checkout/checkout-session.ts', 'utf8');
   const placeStart = session.indexOf('async function placeOrderForQuote(');
   const successBranch = session.indexOf("if (result.status === 'success')", placeStart);
@@ -327,7 +328,14 @@ test('checkout removes only final ordered quantities after successful order crea
   assert.match(branchSource, /line\.status === 'quantity_capped'/);
   assert.match(branchSource, /quantity:\s*line\.quantity/);
   assert.doesNotMatch(branchSource, /quantity:\s*line\.requestedQuantity/);
-  assert.match(client, /onOrderCreated:[\s\S]*completeOrder\(\[\.\.\.completedLines\]\)[\s\S]*router\.push\(orderPath\)/);
+  assert.match(
+    client,
+    /onOrderCreated:[\s\S]*commitPlacedOrder\(\{\s*orderNumber,\s*completedLines\s*\}\)[\s\S]*router\.push\(orderPath\)/
+  );
+  assert.match(cartStore, /subtractCompletedOrderLines/);
+  assert.match(cartStore, /writeOrderSnapshot/);
+  assert.match(cartStore, /clearCartQuoteCache/);
+  assert.match(cartStore, /writeGuestCart/);
 });
 
 test('checkout address persistence derives identity server-side and cannot affect order success', () => {

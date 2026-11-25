@@ -58,8 +58,9 @@ describe('storefront performance boundaries', () => {
   });
 
   it('protects cart state from stale quote responses', async () => {
-    const [provider, marketSync] = await Promise.all([
+    const [provider, cartStore, marketSync] = await Promise.all([
       source('../../../src/components/cart/cart-provider.tsx'),
+      source('../../../src/cart/cart-store.ts'),
       source('../../../src/cart/market-sync.ts')
     ]);
 
@@ -67,12 +68,13 @@ describe('storefront performance boundaries', () => {
     expect(
       marketSync.match(/if \(requestId !== state\.activeRequestId\) \{\s*return state;\s*\}/g)
     ).toHaveLength(2);
-    expect(provider).toContain('beginMarketRequote');
-    expect(provider).toContain(
+    expect(provider).toContain('createCartStore');
+    expect(cartStore).toContain('beginMarketRequote');
+    expect(cartStore).toContain(
       'settleMarketRequote(active, begun.request.requestId, result.quote)'
     );
-    expect(provider).toMatch(/failMarketRequote\(active,\s*begun\.request\.requestId,\s*\{/);
-    expect(provider).toContain('if (settled === active) return;');
+    expect(cartStore).toMatch(/failMarketRequote\(active,\s*begun\.request\.requestId,\s*\{/);
+    expect(cartStore).toMatch(/if\s*\(settled === active\)\s*(?:\{\s*)?return;/);
   });
 
   it('marks editorial routes for five-minute ISR', async () => {

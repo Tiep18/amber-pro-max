@@ -10,6 +10,14 @@ Bilingual ecommerce storefront selling digital crochet patterns and handmade phy
 A customer's mutable shopping intent persisted before checkout, holding desired products, variants, and quantities.
 _Avoid_: Basket, bag, checkout draft
 
+**Cart Store**:
+The framework-free client state authority (`src/cart/cart-store.ts`) owning guest cart lines, session quote caching, market requote race guards, undo timers, and atomic post-order reconciliation behind a `useSyncExternalStore`-compatible snapshot interface.
+_Avoid_: Cart context logic, cart refs
+
+**Order Snapshot**:
+A 7-day `localStorage` record of ordered **Cart** intent lines keyed by normalized order number, saved atomically during `commitPlacedOrder` so failed, cancelled, or expired orders can restore cart intent without trusting browser pricing.
+_Avoid_: Recovery cart, backup cart
+
 **Quote**:
 A server-calculated, hashed commercial snapshot of prices, stock availability, discounts, shipping fees, and currency for a specific market and destination.
 _Avoid_: Estimate, pricing response, cart totals
