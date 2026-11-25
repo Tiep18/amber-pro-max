@@ -43,7 +43,7 @@ export type CustomerWishlistItem = {
 
 export type CustomerWishlistResult =
   | {status: 'success'; items: CustomerWishlistItem[]}
-  | {status: 'error'; code: 'wishlist_load_failed'};
+  | {status: 'error'; code: 'wishlist_load_failed'; errorId?: string};
 
 type WishlistRpcRow = {
   wishlist_item_id: unknown;

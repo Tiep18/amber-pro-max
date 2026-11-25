@@ -662,7 +662,7 @@ export function createOrderAccess(adapters: OrderAccessAdapters): OrderAccess {
       const nowIso = new Date(now()).toISOString();
       try {
         const outcome = await store.claimOrder({
-          orderNumber: parsed.data.orderNumber,
+          orderNumber: parsed.data.orderNumber.toUpperCase(),
           tokenHash: hashOrderAccessToken(parsed.data.rawToken),
           userId: parsed.data.user.id,
           userEmail: parsed.data.user.email,

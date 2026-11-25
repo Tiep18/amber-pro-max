@@ -39,7 +39,7 @@ export type MediaActionCode =
 export type MediaActionResult =
   | {status: 'success'; message: string; warning?: 'cleanup_failed'}
   | {status: 'invalid'; code: MediaActionCode}
-  | {status: 'error'; code: MediaActionCode};
+  | {status: 'error'; code: MediaActionCode; errorId?: string};
 
 function fieldString(formData: FormData, name: string) {
   const value = formData.get(name);

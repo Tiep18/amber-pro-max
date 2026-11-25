@@ -35,7 +35,7 @@ type VariantActionCode =
 export type VariantActionResult =
   | {status: 'success'; message: string}
   | {status: 'invalid'; code: VariantActionCode}
-  | {status: 'error'; code: VariantActionCode};
+  | {status: 'error'; code: VariantActionCode; errorId?: string};
 
 const variantShippingProfileSchema = z.object({
   variantId: z.uuid(),
@@ -45,7 +45,7 @@ const variantShippingProfileSchema = z.object({
 export type VariantShippingProfileResult =
   | {status: 'saved'}
   | {status: 'invalid'; code: 'invalid_shipping_assignment' | 'inactive_shipping_profile' | 'variant_not_found'}
-  | {status: 'error'; code: 'shipping_assignment_failed'};
+  | {status: 'error'; code: 'shipping_assignment_failed'; errorId?: string};
 
 function revalidateVariants(productId: string) {
   revalidatePath(`/admin/catalog/${productId}`);

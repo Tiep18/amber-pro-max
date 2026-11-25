@@ -531,4 +531,42 @@ describe('createCartStore', () => {
     store.hydrate();
     expect(listener).not.toHaveBeenCalled();
   });
+
+  it('settles runRequote to requote_failed and recovers on retry when fetchQuote rejects', async () => {
+    const localStorage = createMemoryStorage();
+    const sessionStorage = createMemoryStorage();
+    const initialQuote = makeQuote({ market: 'vn', locale: 'vi', subtotalMinor: 0 });
+    const recoveredQuote = makeQuote({ market: 'vn', locale: 'vi', subtotalMinor: 250_000 });
+    const fetchQuote = vi
+      .fn<
+        (input: { locale: 'vi' | 'en'; lines: CartIntentLine[] }) => Promise<CartQuoteActionState>
+      >()
+      .mockResolvedValueOnce({ status: 'success', quote: initialQuote })
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({
+        status: 'success',
+        quote: recoveredQuote
+      });
+
+    const store = createCartStore(vnReady, {
+      fetchQuote,
+      getLocalStorage: () => localStorage,
+      getSessionStorage: () => sessionStorage
+    });
+
+    store.hydrate();
+    await store.addLine({ productId: PRODUCT_A, quantity: 1, marketAtAdd: 'vn' });
+
+    const failedSnapshot = store.getSnapshot();
+    expect(failedSnapshot.pending).toBe(false);
+    expect(failedSnapshot.syncStatus).toBe('error');
+    expect(failedSnapshot.blockReason).toBe('requote_failed');
+
+    await store.retry();
+    const recoveredSnapshot = store.getSnapshot();
+    expect(recoveredSnapshot.pending).toBe(false);
+    expect(recoveredSnapshot.syncStatus).toBe('ready');
+    expect(recoveredSnapshot.blockReason).toBeNull();
+    expect(recoveredSnapshot.quote?.subtotalMinor).toBe(250_000);
+  });
 });

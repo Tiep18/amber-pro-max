@@ -214,6 +214,7 @@ export function PayPalButtons({ orderNumber, clientId, amountLabel, labels }: Pa
     return () => {
       buttonsRef.current?.close?.();
       buttonsRef.current = null;
+      renderedRef.current = false;
     };
   }, [moveToVerifying, orderNumber, scriptState]);
 

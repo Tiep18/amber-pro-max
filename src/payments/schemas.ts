@@ -115,5 +115,6 @@ export const paymentTransitionResultSchema = z.object({
   paymentStatus: paymentInternalStatusSchema.optional(),
   inventoryEffect: z.enum(['finalized', 'released', 'expired', 'none']).optional(),
   /** True when this settled money that arrived after the reservation lapsed. */
-  lateSettlement: z.boolean().optional()
+  lateSettlement: z.boolean().optional(),
+  errorId: z.string().optional()
 });

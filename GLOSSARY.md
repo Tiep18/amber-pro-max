@@ -57,7 +57,7 @@ Server-initiated settlement of an approved **PayPal Order**, reconciled against 
 _Avoid_: Charge, settlement call
 
 **Payment Transition**:
-An atomic, idempotent, audited state change executed exclusively through Postgres `apply_payment_transition` (`paid`, `failed`, `cancelled`, `rejected`, `expired`, `review_required`).
+An atomic, idempotent, audited state change executed exclusively through Postgres `apply_payment_transition` (`pending`, `paid`, `failed`, `cancelled`, `rejected`, `expired`, `review_required`).
 _Avoid_: Status update, payment patch
 
 **Late Settlement**:
@@ -107,5 +107,5 @@ Cross-domain server telemetry (`reportOperationalFailure`, `runMonitoredAction`,
 _Avoid_: Error wrapper, fake monitored action, log helper
 
 **Operational Redaction**:
-Allowlist-based filtering and pattern stripping (`sanitizeOperationalErrorInput`, `maskEmailForAdmin`, `sanitizeEmailFailureCode`) ensuring credentials, raw payloads, tokens, signatures, emails, addresses, and stack traces never persist to logs or admin queues.
+Allowlist-based filtering and pattern stripping (`sanitizeOperationalErrorInput` in `src/operations/redaction.ts`, plus `maskEmailForAdmin` and `sanitizeEmailFailureCode` in `src/fulfillment/email-redaction.ts`) ensuring credentials, raw payloads, tokens, signatures, emails, addresses, and stack traces never persist to logs or admin queues.
 _Avoid_: Error cleaning, string masking

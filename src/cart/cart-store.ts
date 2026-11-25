@@ -332,10 +332,15 @@ export function createCartStore(
     syncState = begun.state;
     emit();
 
-    const result = await ports.fetchQuote({
-      locale: identity.locale,
-      lines: begun.request.lines
-    });
+    let result: CartQuoteActionState | null = null;
+    try {
+      result = await ports.fetchQuote({
+        locale: identity.locale,
+        lines: begun.request.lines
+      });
+    } catch {
+      result = null;
+    }
     if (
       disposed ||
       context.status !== 'ready' ||
@@ -351,7 +356,7 @@ export function createCartStore(
       return;
     }
     const settled =
-      result.status === 'success'
+      result?.status === 'success'
         ? settleMarketRequote(active, begun.request.requestId, result.quote)
         : failMarketRequote(active, begun.request.requestId, {
             code: 'requote_failed'

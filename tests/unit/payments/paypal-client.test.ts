@@ -505,6 +505,40 @@ describe('PayPal payment module across its interface', () => {
     expect(paypalCaptureResponse(verifyingExpired).status).toBe(202);
   });
 
+  test('capture short-circuits already-paid, review_required, and closed terminal orders before any remote POST capture', async () => {
+    const alreadyPaid = createHarness({
+      orders: [makeStoredPayPalOrder({ paymentStatus: 'paid' })]
+    });
+    await expect(
+      alreadyPaid.processor.capturePayPalOrder({
+        paypalOrderId: paypalFixtureIds.paypalOrderId
+      })
+    ).resolves.toEqual({ status: 'paid', paymentStatus: 'paid' });
+    expect(alreadyPaid.transportCalls).toHaveLength(0);
+
+    const lockedForReview = createHarness({
+      orders: [makeStoredPayPalOrder({ paymentStatus: 'review_required' })]
+    });
+    await expect(
+      lockedForReview.processor.capturePayPalOrder({
+        paypalOrderId: paypalFixtureIds.paypalOrderId
+      })
+    ).resolves.toEqual({ status: 'review_required', code: 'paypal_order_review_required' });
+    expect(lockedForReview.transportCalls).toHaveLength(0);
+
+    for (const closedStatus of ['cancelled', 'failed', 'rejected', 'refunded'] as const) {
+      const closed = createHarness({
+        orders: [makeStoredPayPalOrder({ paymentStatus: closedStatus })]
+      });
+      await expect(
+        closed.processor.capturePayPalOrder({
+          paypalOrderId: paypalFixtureIds.paypalOrderId
+        })
+      ).resolves.toEqual({ status: 'invalid', code: 'paypal_order_not_eligible' });
+      expect(closed.transportCalls).toHaveLength(0);
+    }
+  });
+
   test('full create -> capture scenario works across one processor interface and handles unconfigured PayPal cleanly', async () => {
     const lifecycle = createHarness({
       orders: [makeStoredPayPalOrder({ providerOrderId: null })]

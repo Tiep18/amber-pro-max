@@ -12,7 +12,7 @@ type RequireAdmin = () => Promise<unknown>;
 
 export type AdminDashboardResult =
   | {status: 'success'; items: AdminDashboardItem[]; counts: AdminDashboardCounts}
-  | {status: 'error'; code: 'admin_dashboard_load_failed'};
+  | {status: 'error'; code: 'admin_dashboard_load_failed'; errorId?: string};
 
 type CountFilter = {
   column: string;

@@ -1470,6 +1470,26 @@ export function createPayPalProcessor(adapters: PayPalAdapters): PayPalProcessor
         providerOrderId: paypalOrderId
       };
 
+      if (order.paymentStatus === 'paid') {
+        return { status: 'paid', paymentStatus: 'paid' };
+      }
+      if (order.paymentStatus === 'review_required') {
+        return { status: 'review_required', code: 'paypal_order_review_required' };
+      }
+      if (order.paymentStatus !== 'expired' && !isOpenPayPalStatus(order.paymentStatus)) {
+        log(
+          'capture.order_not_open',
+          {
+            orderNumber: order.orderNumber,
+            orderId: order.orderId,
+            paypalOrderId,
+            paymentStatus: order.paymentStatus
+          },
+          'warn'
+        );
+        return { status: 'invalid', code: 'paypal_order_not_eligible' };
+      }
+
       const expired =
         order.paymentStatus === 'expired' || !isFutureDeadline(order.reservationExpiresAt, now());
       if (expired) {
