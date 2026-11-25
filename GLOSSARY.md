@@ -63,3 +63,21 @@ _Avoid_: Refund transition, refund sync
 **Webhook Verification**:
 Cryptographic validation of PayPal transmission headers and raw JSON payload via PayPal's signature verification endpoint before any persistence read, receipt write, or **Payment Transition**.
 _Avoid_: Signature check, webhook parse
+
+### Order Access
+
+**Order Access**:
+The cross-domain authority governing how signed-in customers and anonymous guests authenticate, read, reopen, or claim an **Order** across checkout, payment, and fulfillment.
+_Avoid_: Guest auth, order session helper, token helper
+
+**Guest Order Session**:
+An order-scoped, `HttpOnly` browser cookie (`atb_guest_order_<ORDER_NUMBER>`) holding a raw secret whose SHA-256 hash matches `checkout_orders.guest_secret_hash`, lasting at least 24 hours (or until the reservation deadline) while unpaid and 30 days once settled (`paid`, `partially_refunded`, or `refunded`).
+_Avoid_: Guest login, order cookie
+
+**Order Reopen**:
+Single-shot redemption of an emailed `reopen_order` link that atomically rotates `guest_secret_hash` via `redeem_guest_order_reopen_token` and mints a fresh **Guest Order Session** before redirecting with `Referrer-Policy: no-referrer`.
+_Avoid_: Order link login, magic link
+
+**Order Claim**:
+Same-email transfer of an unowned guest **Order** to a signed-in customer account using an active `claim_order` token, revoking all prior guest access tokens for that **Order** and recording an append-only audit event.
+_Avoid_: Account merge, order transfer

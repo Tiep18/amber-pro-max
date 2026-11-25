@@ -2,7 +2,7 @@
 
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {runMonitoredAction} from '@/operations/monitoring';
-import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
+import {createServerOrderAccess} from '@/order-access/server';
 
 export type DeclareVietQrTransferResult = {
   status: 'recorded' | 'unchanged' | 'not_eligible' | 'forbidden' | 'error';
@@ -32,7 +32,7 @@ export async function declareVietQrTransferAction(orderNumber: string): Promise<
     errorResult: {status: 'error', code: 'vietqr_declare_failed'} as const,
     operation: async () => {
       const client = (await createSupabaseServerClient()) as unknown as RpcClient;
-      const guestSecretHash = await getGuestOrderAccessHashFromServer(normalizedOrderNumber);
+      const guestSecretHash = await createServerOrderAccess().readGuestSecretHash(normalizedOrderNumber);
       const {data, error} = await client.rpc('declare_vietqr_transfer', {
         p_order_number: normalizedOrderNumber,
         p_guest_secret_hash: guestSecretHash

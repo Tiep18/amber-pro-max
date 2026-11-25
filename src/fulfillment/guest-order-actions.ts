@@ -1,13 +1,12 @@
 'use server';
 
 import {headers} from 'next/headers';
-import {
-  requestGuestOrderClaimEmailWithAdminClient,
-  requestGuestOrderReopenWithAdminClient,
-  type GuestReopenResult
-} from '@/fulfillment/order-claim';
 import {getServerEnv} from '@/lib/env/server';
 import {derivePublicEmailRequestEvidence} from '@/operations/public-request-evidence';
+import type {GuestOrderEmailResult} from '@/order-access/order-access';
+import {createServerOrderAccess} from '@/order-access/server';
+
+export type GuestReopenResult = GuestOrderEmailResult;
 
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -36,7 +35,8 @@ export async function requestGuestOrderReopenAction(formData: FormData): Promise
   if (!evidence) {
     return {status: 'sent'};
   }
-  return requestGuestOrderReopenWithAdminClient({
+  return createServerOrderAccess().requestGuestOrderEmail({
+    purpose: 'reopen_order',
     orderNumber,
     email,
     locale: formString(formData, 'locale') === 'vi' ? 'vi' : 'en',
@@ -52,7 +52,8 @@ export async function requestGuestOrderClaimEmailAction(formData: FormData): Pro
   if (!evidence) {
     return {status: 'sent'};
   }
-  return requestGuestOrderClaimEmailWithAdminClient({
+  return createServerOrderAccess().requestGuestOrderEmail({
+    purpose: 'claim_order',
     orderNumber,
     email,
     locale: formString(formData, 'locale') === 'vi' ? 'vi' : 'en',

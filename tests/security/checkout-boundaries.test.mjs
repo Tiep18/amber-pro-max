@@ -87,6 +87,7 @@ test('guest retry recovery keeps raw credentials server-only and persists hashes
     'utf8'
   );
   const action = readFileSync('src/checkout/actions.ts', 'utf8');
+  const orderAccess = readFileSync('src/order-access/order-access.ts', 'utf8');
   const client = readFileSync('src/components/checkout/checkout-page.tsx', 'utf8');
   const session = readFileSync('src/checkout/checkout-session.ts', 'utf8');
   const submit = readFileSync('src/checkout/submit-checkout.ts', 'utf8');
@@ -99,8 +100,13 @@ test('guest retry recovery keeps raw credentials server-only and persists hashes
     migration,
     /revoke all on table private\.checkout_guest_attempt_claims from public, anon, authenticated/
   );
-  assert.match(action, /prepareGuestCheckoutRecoveryFromServer/);
-  assert.match(action, /setGuestOrderAccessCookieFromServer/);
+  assert.match(action, /createServerOrderAccess/);
+  assert.match(action, /prepareGuestRecovery/);
+  assert.match(action, /resolveCheckoutActor/);
+  assert.match(action, /openOrderSession/);
+  assert.match(orderAccess, /httpOnly:\s*true/);
+  assert.match(orderAccess, /timingSafeEqual/);
+  assert.doesNotMatch(orderAccess, /localStorage|sessionStorage/);
   assert.match(client, /prepareGuestRecovery:\s*prepareGuestCheckoutRecoveryAction/);
   assert.match(session, /await ports\.prepareGuestRecovery\(/);
   // The invariant being protected is that guest recovery credentials live in

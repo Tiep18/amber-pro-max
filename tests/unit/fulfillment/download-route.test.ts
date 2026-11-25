@@ -4,20 +4,17 @@ import {hashFulfillmentAccessToken} from '@/fulfillment/downloads';
 
 const mocks = vi.hoisted(() => ({
   authorizeDownloadWithSupabase: vi.fn(),
-  createSupabaseServerClient: vi.fn(),
-  getUser: vi.fn(),
-  getGuestOrderAccessHashFromServer: vi.fn()
+  resolveCredentials: vi.fn()
 }));
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/fulfillment/downloads.server', () => ({
   authorizeDownloadWithSupabase: mocks.authorizeDownloadWithSupabase
 }));
-vi.mock('@/lib/supabase/server', () => ({
-  createSupabaseServerClient: mocks.createSupabaseServerClient
-}));
-vi.mock('@/payments/guest-access', () => ({
-  getGuestOrderAccessHashFromServer: mocks.getGuestOrderAccessHashFromServer
+vi.mock('@/order-access/server', () => ({
+  createServerOrderAccess: () => ({
+    resolveCredentials: mocks.resolveCredentials
+  })
 }));
 
 import {GET} from '@/app/api/downloads/route';
@@ -33,9 +30,10 @@ function request(query: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.createSupabaseServerClient.mockResolvedValue({auth: {getUser: mocks.getUser}});
-  mocks.getUser.mockResolvedValue({data: {user: {id: OWNER_ID}}});
-  mocks.getGuestOrderAccessHashFromServer.mockResolvedValue(GUEST_HASH);
+  mocks.resolveCredentials.mockResolvedValue({
+    ownerUserId: OWNER_ID,
+    guestSecretHash: GUEST_HASH
+  });
   mocks.authorizeDownloadWithSupabase.mockResolvedValue({
     status: 'authorized',
     url: 'https://signed.example.test/pattern.pdf',
@@ -49,8 +47,7 @@ describe('/api/downloads', () => {
       `orderNumber=${ORDER_NUMBER}&productId=${PRODUCT_ID}&token=email-download-token`
     );
 
-    expect(mocks.getUser).toHaveBeenCalledOnce();
-    expect(mocks.getGuestOrderAccessHashFromServer).toHaveBeenCalledWith(ORDER_NUMBER);
+    expect(mocks.resolveCredentials).toHaveBeenCalledWith(ORDER_NUMBER);
     expect(mocks.authorizeDownloadWithSupabase).toHaveBeenCalledWith({
       orderNumber: ORDER_NUMBER,
       productId: PRODUCT_ID,
@@ -66,8 +63,10 @@ describe('/api/downloads', () => {
   });
 
   test('preserves null product and proofs when optional access inputs are absent', async () => {
-    mocks.getUser.mockResolvedValue({data: {user: null}});
-    mocks.getGuestOrderAccessHashFromServer.mockResolvedValue(null);
+    mocks.resolveCredentials.mockResolvedValue({
+      ownerUserId: null,
+      guestSecretHash: null
+    });
 
     await request(`orderNumber=${ORDER_NUMBER}`);
 
@@ -95,14 +94,9 @@ describe('/api/downloads', () => {
 
   test.each([
     [
-      'guest-cookie lookup',
-      () => mocks.getGuestOrderAccessHashFromServer.mockRejectedValueOnce(new Error('guest cookie secret'))
+      'order-access credential resolution',
+      () => mocks.resolveCredentials.mockRejectedValueOnce(new Error('guest cookie secret'))
     ],
-    [
-      'authenticated client construction',
-      () => mocks.createSupabaseServerClient.mockRejectedValueOnce(new Error('server key detail'))
-    ],
-    ['authenticated user lookup', () => mocks.getUser.mockRejectedValueOnce(new Error('auth token detail'))],
     [
       'download authorization adapter',
       () => mocks.authorizeDownloadWithSupabase.mockRejectedValueOnce(new Error('storage path detail'))

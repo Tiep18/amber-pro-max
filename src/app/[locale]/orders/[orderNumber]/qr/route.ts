@@ -2,9 +2,7 @@ import {NextResponse} from 'next/server';
 import {z} from 'zod';
 import {locales} from '@/i18n/routing';
 import {getServerEnv} from '@/lib/env/server';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
-import {getGuestOrderAccessHashFromServer} from '@/payments/guest-access';
-import {getAuthorizedOrderPayment} from '@/payments/queries';
+import {createServerOrderAccess} from '@/order-access/server';
 import {
   buildQuickLinkUrl,
   buildVietQrDownloadFilename,
@@ -92,21 +90,8 @@ export async function GET(
   }
 
   const {orderNumber} = parsed.data;
-  const client = await createSupabaseServerClient();
-  const [{data: authData}, guestSecretHash] = await Promise.all([
-    client.auth.getUser(),
-    getGuestOrderAccessHashFromServer(orderNumber)
-  ]);
-  if (!authData.user && !guestSecretHash) {
-    return genericDenied();
-  }
-
-  const authorized = await getAuthorizedOrderPayment({
-    orderNumber,
-    guestSecretHash,
-    client: client as never
-  });
-  if (authorized.status !== 'found') {
+  const authorized = await createServerOrderAccess().authorizeOrder(orderNumber);
+  if (authorized.status !== 'authorized') {
     return genericDenied();
   }
 

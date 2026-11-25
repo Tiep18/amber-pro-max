@@ -1,7 +1,9 @@
-import {createHash} from 'node:crypto';
 import {z} from 'zod';
+import {hashOrderAccessToken} from '@/order-access/order-access';
 import {runMonitoredAction} from '@/operations/monitoring';
 import type {SafeOperationalFact} from '@/operations/redaction';
+
+export {hashOrderAccessToken as hashFulfillmentAccessToken};
 
 const SIGNED_URL_TTL_SECONDS = 300;
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -60,10 +62,6 @@ export type DownloadAuthorizationDeps = {
 
 function denied(): DownloadAuthorizationResult {
   return {status: 'denied', code: 'download_not_available'};
-}
-
-export function hashFulfillmentAccessToken(rawToken: string) {
-  return createHash('sha256').update(rawToken, 'utf8').digest('hex');
 }
 
 async function recordDownloadFailure(

@@ -1,9 +1,7 @@
 import {NextRequest, NextResponse} from 'next/server';
 import {z} from 'zod';
-import {redeemGuestOrderReopenToken} from '@/fulfillment/order-reopen';
 import {defaultLocale, getGuestOrderPath, getOrderPath, isLocale, type Locale} from '@/i18n/routing';
-import {createSupabaseAdminClient} from '@/lib/supabase/admin';
-import {setGuestOrderAccessCookieFromServer} from '@/payments/guest-access';
+import {createServerOrderAccess} from '@/order-access/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,23 +35,13 @@ export async function GET(request: NextRequest) {
   // which carries the raw token in its query string, and therefore in history
   // and in any error reporting. Always leave via a redirect instead.
   try {
-    const client = createSupabaseAdminClient() as unknown as {
-      rpc: (fn: string, args: Record<string, unknown>) => Promise<{data: unknown; error: unknown}>;
-    };
-    const result = await redeemGuestOrderReopenToken(
-      {orderNumber: parsed.data.orderNumber, rawToken: parsed.data.token},
-      client
-    );
+    const result = await createServerOrderAccess().redeemOrderReopen({
+      orderNumber: parsed.data.orderNumber,
+      rawToken: parsed.data.token
+    });
     if (result.status !== 'granted') {
       return deniedRedirect(request, locale);
     }
-
-    await setGuestOrderAccessCookieFromServer({
-      orderNumber: result.orderNumber,
-      rawToken: result.rawSecret,
-      reservationExpiresAt: result.reservationExpiresAt,
-      paid: result.paid
-    });
 
     const target = new URL(getOrderPath(locale, result.orderNumber), request.url);
     const response = NextResponse.redirect(target, {status: 303});

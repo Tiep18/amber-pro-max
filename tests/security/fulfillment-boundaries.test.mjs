@@ -42,10 +42,10 @@ const fulfillmentPhysicalFiles = [
 ];
 
 const fulfillmentGuestClaimFiles = [
-  'src/fulfillment/order-claim.ts',
-  'src/fulfillment/guest-order-tokens.ts',
-  'src/fulfillment/order-reopen.ts',
-  'src/fulfillment/guest-access.ts',
+  'src/order-access/order-access.ts',
+  'src/order-access/server.ts',
+  'src/fulfillment/guest-order-actions.ts',
+  'src/fulfillment/order-claim-actions.ts',
   'src/components/fulfillment/guest-reopen-form.tsx',
   'src/components/fulfillment/order-claim-panel.tsx',
   'src/app/[locale]/guest-order/page.tsx',
@@ -181,7 +181,8 @@ test('download signed URL creation is isolated behind entitlement authorization'
   );
   assert.match(route, /authorizeDownloadWithSupabase/);
   assert.match(route, /hashFulfillmentAccessToken/);
-  assert.match(route, /auth\.getUser\(\)/);
+  assert.match(route, /resolveCredentials\(/);
+  assert.match(readFileSync('src/order-access/server.ts', 'utf8'), /auth\.getUser\(\)/);
   assert.match(route, /downloadTokenHash/);
   assert.match(route, /guestSecretHash/);
   assert.doesNotMatch(route, /rawGuestToken|guestTokenHash/);
@@ -300,7 +301,7 @@ test('guest reopen and order claim keep token material out of UI and durable pay
 
   assert.match(source, /guest_order_reopen/);
   assert.match(source, /guest_order_claim/);
-  assert.match(source, /hashGuestOrderAccessToken/);
+  assert.match(source, /hashOrderAccessToken/);
   assert.doesNotMatch(
     source,
     /console\.(log|error|warn)|rawToken.*payload|token_hash.*payload|signedUrl|object_path|pattern-pdfs|SUPABASE_SERVICE_ROLE_KEY|service_role/i
@@ -313,17 +314,17 @@ test('public email requests use trusted HMAC identities and service-role-only at
   const evidence = readFileSync('src/operations/public-request-evidence.ts', 'utf8');
   const newsletterAction = readFileSync('src/newsletter/actions.ts', 'utf8');
   const guestActions = readFileSync('src/fulfillment/guest-order-actions.ts', 'utf8');
-  const orderClaim = readFileSync('src/fulfillment/order-claim.ts', 'utf8');
-  const guestRequests = orderClaim.slice(
-    orderClaim.indexOf('async function requestGuestOrderEmail'),
-    orderClaim.indexOf('export async function claimGuestOrder')
+  const orderAccessServer = readFileSync('src/order-access/server.ts', 'utf8');
+  const guestRequests = orderAccessServer.slice(
+    orderAccessServer.indexOf('async requestGuestOrderEmail('),
+    orderAccessServer.indexOf('async redeemReopenToken(')
   );
 
   assert.match(evidence, /createHmac\(['"]sha256['"],\s*secret\)/);
   assert.match(evidence, /public-email-rate-limit:v1:/);
   assert.doesNotMatch(evidence, /createHash\(|NEXT_PUBLIC_/);
   assert.match(newsletterAction, /createSupabaseAdminClient/);
-  assert.match(guestActions + orderClaim, /createSupabaseAdminClient/);
+  assert.match(guestActions + orderAccessServer, /createSupabaseAdminClient/);
   assert.match(newsletterAction + guestActions, /derivePublicEmailRequestEvidence/);
   assert.match(newsletterAction + guestActions, /x-forwarded-for|x-real-ip/i);
   assert.match(newsletterAction, /if\s*\(outcome\.emailQueued\)[\s\S]*triggerTransactionalEmailOutboxNow/);
@@ -364,7 +365,11 @@ test('guest order reopen redemption only redirects and never returns order data 
   const route = readFileSync('src/app/api/orders/access/route.ts', 'utf8');
 
   assert.match(route, /NextResponse\.redirect/);
-  assert.match(route, /redeemGuestOrderReopenToken/);
+  assert.match(route, /redeemOrderReopen/);
+  assert.match(
+    readFileSync('src/order-access/server.ts', 'utf8'),
+    /redeem_guest_order_reopen_token/
+  );
   assert.match(route, /no-referrer/i);
   assert.doesNotMatch(route, /NextResponse\.json/);
   assert.doesNotMatch(route, /console\.(log|error|warn)/);

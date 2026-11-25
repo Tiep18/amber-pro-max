@@ -34,7 +34,8 @@ const paymentSurfaceFiles = [
   'src/payments/types.ts',
   'src/payments/transitions.ts',
   'src/payments/queries.ts',
-  'src/payments/guest-access.ts',
+  'src/order-access/order-access.ts',
+  'src/order-access/server.ts',
   'src/lib/env/server.ts',
   'src/lib/supabase/admin.ts',
   'src/payments/paypal/processor.ts',
@@ -103,9 +104,12 @@ test('VietQR audit facts never persist the QR URL containing the full receiving 
 
 test('checkout handoff exchanges guest access server-side without returning raw tokens', () => {
   const actionSource = readFileSync('src/checkout/actions.ts', 'utf8');
+  const orderAccessSource = readFileSync('src/order-access/order-access.ts', 'utf8');
   const submitSource = readFileSync('src/checkout/submit-checkout.ts', 'utf8');
 
-  assert.match(actionSource, /setGuestOrderAccessCookieFromServer/);
+  assert.match(actionSource, /resolveCheckoutActor/);
+  assert.match(actionSource, /openOrderSession/);
+  assert.match(orderAccessSource, /httpOnly:\s*true/);
   assert.doesNotMatch(actionSource, /SubmitCheckoutActionState\s*=\s*SubmitCheckoutResult/);
   assert.doesNotMatch(actionSource, /localStorage|sessionStorage|console\.(log|info|warn|error)\([^)]*guestAccessToken/s);
   assert.match(submitSource, /invalid_payment_method_for_market/);
@@ -155,7 +159,7 @@ test('the customer order surface never renders a raw, unmasked contact email', (
 
 test('missing and unauthorized orders share generic guest recovery without enumeration', () => {
   const source = readFileSync('src/components/payments/order-payment-page.tsx', 'utf8');
-  const denialStart = source.indexOf("if (result.status !== 'found')");
+  const denialStart = source.indexOf("if (result.status !== 'authorized')");
   const denialEnd = source.indexOf('const status = mapCustomerPaymentStatus', denialStart);
   const denial = source.slice(denialStart, denialEnd);
 
@@ -214,7 +218,9 @@ test('paid, refund, and terminal composition does not render provider controls o
 test('VietQR attachment authorizes the localized order before deriving or fetching the fixed upstream', () => {
   assert.ok(existsSync(vietQrDownloadRoute));
   const source = readFileSync(vietQrDownloadRoute, 'utf8');
-  const authorizedLookup = source.lastIndexOf('getAuthorizedOrderPayment(');
+  const orderAccess = readFileSync('src/order-access/order-access.ts', 'utf8');
+  const orderAccessServer = readFileSync('src/order-access/server.ts', 'utf8');
+  const authorizedLookup = source.lastIndexOf('authorizeOrder(');
   const paymentWindowCheck = source.lastIndexOf('isVietQrPaymentWindowOpen(');
   const quickLink = source.lastIndexOf('buildQuickLinkUrl(');
   const externalFetch = source.indexOf('fetch(');
@@ -223,8 +229,12 @@ test('VietQR attachment authorizes the localized order before deriving or fetchi
   assert.ok(paymentWindowCheck > authorizedLookup);
   assert.ok(quickLink > paymentWindowCheck);
   assert.ok(externalFetch > quickLink);
-  assert.match(source, /getGuestOrderAccessHashFromServer\(orderNumber\)/);
-  assert.match(source, /auth\.getUser\(\)/);
+  assert.match(orderAccess, /store\.getCurrentUser\(\)/);
+  assert.match(orderAccess, /readGuestSecretHash\(/);
+  assert.match(orderAccess, /hashOrderAccessToken\(/);
+  assert.match(orderAccess, /!user && !guestSecretHash/);
+  assert.match(orderAccessServer, /auth\.getUser\(\)/);
+  assert.match(orderAccessServer, /getAuthorizedOrderPayment/);
   assert.match(source, /order\.market\s*!==\s*'vn'/);
   assert.match(source, /order\.currencyCode\s*!==\s*'VND'/);
   assert.match(source, /order\.paymentIntent\s*!==\s*'vietqr_intent'/);
@@ -283,7 +293,8 @@ test('paid downloads keep the existing entitlement-authorized private route unch
   assert.match(pageSource, /<DownloadPanel[\s\S]*orderNumber=\{result\.order\.orderNumber\}/);
   assert.doesNotMatch(pageSource, /createSignedUrl|signedUrl|\/storage\/v1\/object|token=/);
   assert.match(downloadRoute, /authorizeDownloadWithSupabase/);
-  assert.match(downloadRoute, /getGuestOrderAccessHashFromServer/);
+  assert.match(downloadRoute, /resolveCredentials/);
+  assert.match(readFileSync('src/order-access/order-access.ts', 'utf8'), /hashOrderAccessToken\(/);
   assert.match(downloadRoute, /result\.status !== 'authorized'/);
   assert.match(downloadRoute, /NextResponse\.redirect\(result\.url, \{status: 303\}\)/);
 });
@@ -302,7 +313,8 @@ test('ASVS L1 payment authority matrix preserves verified transitions, inventory
   );
   const download = readFileSync('src/fulfillment/downloads.ts', 'utf8');
   const downloadServer = readFileSync('src/fulfillment/downloads.server.ts', 'utf8');
-  const guestTokens = readFileSync('src/fulfillment/guest-order-tokens.ts', 'utf8');
+  const orderAccess = readFileSync('src/order-access/order-access.ts', 'utf8');
+  const orderAccessServer = readFileSync('src/order-access/server.ts', 'utf8');
   const qrRoute = readFileSync(vietQrDownloadRoute, 'utf8');
 
   assert.match(webhookRoute, /createSystemPayPalProcessor/);
@@ -341,9 +353,11 @@ test('ASVS L1 payment authority matrix preserves verified transitions, inventory
     downloadServer,
     /client\.storage[\s\S]{0,80}\.from\(bucketId\)[\s\S]{0,80}\.createSignedUrl\(objectPath, expiresInSeconds\)/
   );
-  assert.match(guestTokens, /hashGuestOrderAccessToken\(rawToken\)/);
+  assert.match(orderAccess, /hashOrderAccessToken\(/);
+  assert.match(orderAccessServer, /\.eq\('token_hash', input\.tokenHash\)/);
 
-  assert.match(qrRoute, /getAuthorizedOrderPayment/);
+  assert.match(qrRoute, /authorizeOrder\(/);
+  assert.match(orderAccessServer, /getAuthorizedOrderPayment/);
   assert.match(qrRoute, /redirect:\s*'error'/);
   assert.match(qrRoute, /Cache-Control['"]?\s*:\s*'private, no-store'/);
   assert.doesNotMatch(qrRoute, /applyPaymentTransition|declareVietQrTransferAction|createSignedUrl/);

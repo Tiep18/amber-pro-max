@@ -5,10 +5,8 @@ import { NextResponse } from 'next/server';
 import { triggerTransactionalEmailOutboxNow } from '@/fulfillment/email-outbox.server';
 import { getServerEnv } from '@/lib/env/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { runMonitoredAction } from '@/operations/monitoring';
-import { getGuestOrderAccessHashFromServer } from '@/payments/guest-access';
-import { getAuthorizedOrderPayment } from '@/payments/queries';
+import { createServerOrderAccess } from '@/order-access/server';
 import { applyPaymentTransition } from '@/payments/transitions';
 import type { PaymentInternalStatus, PaymentTransitionInput } from '@/payments/types';
 import {
@@ -292,24 +290,10 @@ export function createSupabasePayPalStore(client: AdminQueryClient): PayPalStore
 }
 
 /**
- * Isolated buyer authorization adapter (replaceable by a future Order Access module).
+ * Buyer authorization adapter backed by the cross-domain Order Access module.
  */
 export function createServerPayPalOrderAccess(): PayPalOrderAccess {
-  return {
-    async authorizeOrder(orderNumber) {
-      const authClient = (await createSupabaseServerClient()) as unknown as AdminQueryClient;
-      const guestSecretHash = await getGuestOrderAccessHashFromServer(orderNumber);
-      const authorized = await getAuthorizedOrderPayment({
-        orderNumber,
-        guestSecretHash,
-        client: authClient as unknown as Parameters<typeof getAuthorizedOrderPayment>[0]['client']
-      });
-      if (authorized.status === 'found') {
-        return { status: 'authorized' };
-      }
-      return { status: authorized.status };
-    }
-  };
+  return createServerOrderAccess();
 }
 
 function recordPayPalOperationalFailure(input: PayPalOperationalFailure) {

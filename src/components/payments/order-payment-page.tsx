@@ -4,7 +4,6 @@ import { ArrowLeft, CircleCheck, HelpCircle, Mail, MapPin, MessageCircle, Packag
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMoney } from '@/catalog/money';
-import { getRequestUser } from '@/auth/request-user';
 import { CheckoutStepper } from '@/components/checkout/checkout-stepper';
 import { SupportLinks } from '@/components/support/support-links';
 import { DownloadPanel } from '@/components/fulfillment/download-panel';
@@ -21,11 +20,9 @@ import {
   getOrderQrDownloadPath
 } from '@/i18n/routing';
 import { getServerEnv } from '@/lib/env/server';
+import { createServerOrderAccess } from '@/order-access/server';
 import { getPublicSupportConfig } from '@/support/config';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { formatPaymentDateTime } from '@/payments/format';
-import { getGuestOrderAccessHashFromServer } from '@/payments/guest-access';
-import { getAuthorizedOrderPayment } from '@/payments/queries';
 import { declareVietQrTransferAction } from '@/payments/vietqr/customer-actions';
 import { getPaymentStatusPresentation, mapCustomerPaymentStatus } from '@/payments/status';
 import {
@@ -61,16 +58,11 @@ export async function OrderPaymentPage({ locale, orderNumber }: OrderPaymentPage
   const t = await getTranslations({ locale, namespace: 'orders' });
   const paypalT = await getTranslations({ locale, namespace: 'payments.paypal' });
   const vietqrT = await getTranslations({ locale, namespace: 'payments.vietqr' });
-  const client = await createSupabaseServerClient();
-  const guestSecretHash = await getGuestOrderAccessHashFromServer(orderNumber);
-  const [result, requestUser] = await Promise.all([
-    getAuthorizedOrderPayment({ orderNumber, guestSecretHash, client: client as never }),
-    getRequestUser()
-  ]);
-  const isSignedIn = Boolean(requestUser);
+  const result = await createServerOrderAccess().authorizeOrder(orderNumber);
+  const isSignedIn = result.status === 'authorized' && result.isSignedIn;
   const publicSupportConfig = getPublicSupportConfig();
 
-  if (result.status !== 'found') {
+  if (result.status !== 'authorized') {
     return (
       <main className="mx-auto grid w-full max-w-[900px] gap-6 px-4 py-10 sm:px-6">
         <Alert variant="destructive">
