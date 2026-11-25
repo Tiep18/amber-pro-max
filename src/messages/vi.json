@@ -372,14 +372,17 @@
       "handmadeBody": "Sản phẩm handmade số lượng giới hạn, được đan móc cẩn thận, đóng gói tại studio và giao theo thị trường của bạn.",
       "handmadeImageAlt": "Bộ sưu tập thú bông và búp bê đan móc thủ công",
       "patternTitle": "Pattern cho dự án tiếp theo",
-      "patternBody": "Hướng dẫn móc len rõ ràng với quyền tải riêng tư sau khi toàn bộ đơn hàng được xác nhận thanh toán.",
-      "patternImageAlt": "Pattern đan móc, len và sản phẩm đang thực hiện trên bàn làm việc"
+      "patternBody": "Khám phá mẫu móc PDF và chọn hướng dẫn phù hợp với dự án tiếp theo của bạn.",
+      "patternImageAlt": "Pattern đan móc, len và sản phẩm đang thực hiện trên bàn làm việc",
+      "handmadeCta": "Khám phá đồ handmade",
+      "patternCta": "Khám phá pattern PDF",
+      "patternAssurance": "Pattern PDF được giao qua liên kết riêng tư sau khi toàn bộ đơn hàng được xác nhận thanh toán."
     },
     "featured": {
       "handmadeTitle": "Những người bạn handmade mới từ studio",
       "handmadeBody": "Các sản phẩm số lượng nhỏ, hiển thị theo thị trường, tồn kho và điều kiện giao hàng của bạn.",
-      "patternTitle": "Gợi ý khởi đầu cho người thích móc len",
-      "patternBody": "Pattern PDF được bảo vệ đến khi thanh toán được xác nhận, sau đó mở qua quyền tải riêng tư.",
+      "patternTitle": "Pattern PDF mới từ studio",
+      "patternBody": "Mỗi mẫu có độ khó riêng; xem chi tiết để chọn dự án phù hợp với kỹ năng của bạn.",
       "viewHandmade": "Xem tất cả đồ handmade",
       "viewPatterns": "Xem tất cả pattern"
     },

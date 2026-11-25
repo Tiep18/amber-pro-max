@@ -284,7 +284,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
         />
 
         {/* Warm gradient overlay — left-heavy for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#f6f0e6]/95 via-[#f6f0e6]/70 to-transparent lg:via-[#f6f0e6]/45" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#f6f0e6]/95 via-[#f6f0e6]/90 to-[#f6f0e6]/75 sm:via-[#f6f0e6]/70 sm:to-transparent lg:via-[#f6f0e6]/45" />
 
         {/* Content */}
         <div className="container relative z-10 flex min-h-[inherit] items-center py-16 sm:py-20">
@@ -306,11 +306,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
             </p>
 
             <div className="flex flex-col items-stretch gap-3 min-[420px]:flex-row min-[420px]:items-center">
-              <ArrowLink href="#shop-path-handmade" testId="hero-handmade-cta">
+              <ArrowLink href={handmadePath} testId="hero-handmade-cta">
                 {t('hero.handmadeCta')}
               </ArrowLink>
               <Link
-                href="#shop-path-patterns"
+                href={patternPath}
                 data-testid="hero-patterns-cta"
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--foreground)]/12 bg-white/70 px-5 py-3 text-sm font-semibold text-[var(--foreground)] backdrop-blur-sm transition duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 hover:border-[var(--foreground)]/25 hover:bg-white hover:shadow-md active:translate-y-0 active:scale-[0.98] sm:text-base"
               >
@@ -327,7 +327,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
           <section aria-labelledby="shop-paths-title" className="grid gap-10 sm:gap-14">
             <div className="mx-auto grid max-w-xl gap-3 text-center">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">
-                {locale === 'vi' ? 'Khám phá cửa hàng' : 'Explore the Shop'}
+                {t('paths.eyebrow')}
               </p>
               <h2
                 id="shop-paths-title"
@@ -364,7 +364,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
                     {t('paths.handmadeBody')}
                   </p>
                   <span className="mt-4 inline-flex items-center gap-2 text-[15px] font-semibold text-[#e8b4a2] transition-colors duration-300 group-hover:text-white">
-                    {t('hero.handmadeCta')}
+                    {t('paths.handmadeCta')}
                     <ArrowRight aria-hidden="true" className="size-4 transition-transform duration-300 group-hover:translate-x-0.5" />
                   </span>
                 </div>
@@ -395,12 +395,16 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
                     {t('paths.patternBody')}
                   </p>
                   <span className="mt-4 inline-flex items-center gap-2 text-[15px] font-semibold text-[#e8b4a2] transition-colors duration-300 group-hover:text-white">
-                    {t('hero.patternCta')}
+                    {t('paths.patternCta')}
                     <ArrowRight aria-hidden="true" className="size-4 transition-transform duration-300 group-hover:translate-x-0.5" />
                   </span>
                 </div>
               </Link>
             </div>
+            <p className="flex items-center justify-center gap-2 text-center text-sm font-medium text-[var(--muted-foreground)]">
+              <ShieldCheck aria-hidden="true" className="size-4 shrink-0 text-[var(--trust-accent)]" />
+              {t('paths.patternAssurance')}
+            </p>
           </section>
         </div>
       </section>

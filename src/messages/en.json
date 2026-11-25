@@ -372,14 +372,17 @@
       "handmadeBody": "Limited handmade pieces crocheted with care, packed by the studio, and shipped according to your market.",
       "handmadeImageAlt": "Collection of handmade crochet animals and dolls",
       "patternTitle": "A pattern for your next project",
-      "patternBody": "Clear crochet instructions with private download access after the full order payment is confirmed.",
-      "patternImageAlt": "Crochet pattern pages, yarn and a work in progress on a studio table"
+      "patternBody": "Explore PDF crochet patterns and find a guide for your next project.",
+      "patternImageAlt": "Crochet pattern pages, yarn and a work in progress on a studio table",
+      "handmadeCta": "Explore handmade goods",
+      "patternCta": "Explore PDF patterns",
+      "patternAssurance": "PDF patterns are delivered through private links after the full order payment is confirmed."
     },
     "featured": {
       "handmadeTitle": "New handmade friends from the studio",
       "handmadeBody": "Small-batch pieces shown according to your selected market, stock, and shipping eligibility.",
-      "patternTitle": "Project starters for makers",
-      "patternBody": "PDF patterns stay protected until payment is confirmed, then open through private download access.",
+      "patternTitle": "Fresh PDF patterns from the studio",
+      "patternBody": "Each pattern has its own difficulty level; check the details to find a project that fits your skills.",
       "viewHandmade": "View all handmade goods",
       "viewPatterns": "View all patterns"
     },

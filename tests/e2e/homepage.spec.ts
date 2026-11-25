@@ -34,11 +34,15 @@ test.describe('Ambertinybear homepage', () => {
     ).toBe(true);
   });
 
-  test('handmade hero action reaches its shopping path', async ({ page }) => {
+  test('hero actions open their filtered catalog paths', async ({ page }) => {
     await page.goto('/vi');
     await page.getByTestId('hero-handmade-cta').click();
 
-    await expect(page).toHaveURL(/\/vi#shop-path-handmade$/);
-    await expect(page.getByTestId('shop-path-handmade')).toBeInViewport();
+    await expect(page).toHaveURL(/\/vi\/cua-hang\?type=physical_finished$/);
+
+    await page.goto('/vi');
+    await page.getByTestId('hero-patterns-cta').click();
+
+    await expect(page).toHaveURL(/\/vi\/cua-hang\?type=pdf_pattern$/);
   });
 });
