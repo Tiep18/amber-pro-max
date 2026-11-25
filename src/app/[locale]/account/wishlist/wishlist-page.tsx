@@ -1,6 +1,6 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { getRequestMarket } from '@/catalog/page-context';
-import { getCustomerWishlist } from '@/account/wishlist';
+import { getCustomerWishlist } from '@/account/wishlist.server';
 import { requireUser } from '@/auth/guards';
 import { WishlistPage } from '@/components/account/wishlist-page';
 import type { Locale } from '@/i18n/routing';

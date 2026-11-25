@@ -9,7 +9,7 @@ import {
 import {
   selectionAfterWishlistResult,
   wishlistFeedbackAfterResult
-} from '@/account/wishlist-client-state';
+} from '@/account/wishlist';
 import type { Locale } from '@/i18n/routing';
 import { Toggle } from '@/components/ui/toggle';
 import { useWishlistProduct } from '@/components/wishlist-context';

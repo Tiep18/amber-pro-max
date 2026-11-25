@@ -1,5 +1,5 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { getCustomerShippingAddresses } from '@/account/addresses';
+import { getCustomerShippingAddresses } from '@/account/addresses.server';
 import { requireUser } from '@/auth/guards';
 import { AddressBook } from '@/components/account/address-book';
 import type { Locale } from '@/i18n/routing';

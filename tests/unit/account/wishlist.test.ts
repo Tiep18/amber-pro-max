@@ -9,11 +9,11 @@ vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient: vi.fn()}));
 vi.mock('@/operations/errors', () => ({recordOperationalFailure: vi.fn()}));
 
 import {
-  getCustomerWishlist,
   mapWishlistRows,
   wishlistItemCanCheckout,
   type WishlistHydrationRow
 } from '@/account/wishlist';
+import {getCustomerWishlist} from '@/account/wishlist.server';
 import {wishlistSignInPath} from '@/auth/redirect';
 import {
   addCustomerWishlistItem,

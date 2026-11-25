@@ -8,10 +8,10 @@ vi.mock('@/operations/errors', () => ({recordOperationalFailure: vi.fn()}));
 
 import {
   customerAddressToShippingAddress,
-  getCustomerShippingAddresses,
   mapCustomerShippingAddressRow,
   parseCustomerShippingAddressInput
 } from '@/account/addresses';
+import {getCustomerShippingAddresses} from '@/account/addresses.server';
 import {
   deleteCustomerShippingAddress,
   saveCheckoutShippingAddressAction,

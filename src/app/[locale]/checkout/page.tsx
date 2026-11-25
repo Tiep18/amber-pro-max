@@ -1,5 +1,5 @@
 import type { Locale } from '@/i18n/routing';
-import { getCustomerShippingAddresses } from '@/account/addresses';
+import { getCustomerShippingAddresses } from '@/account/addresses.server';
 import { CheckoutPage } from '@/components/checkout/checkout-page';
 import {CHECKOUT_GUEST_DRAFT_SCOPE} from '@/checkout/editable-draft';
 import {buildAuthenticatedCheckoutDraftScope} from '@/checkout/editable-draft-scope.server';

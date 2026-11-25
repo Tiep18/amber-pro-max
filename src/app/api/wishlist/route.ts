@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getCustomerWishlist } from '@/account/wishlist';
-import { parseWishlistProductIds } from '@/account/wishlist-client-state';
+import { parseWishlistProductIds } from '@/account/wishlist';
+import { getCustomerWishlist } from '@/account/wishlist.server';
 import { getRequestMarket } from '@/catalog/page-context';
 import { getRequestUser } from '@/auth/request-user';
 import { routing, type Locale } from '@/i18n/routing';

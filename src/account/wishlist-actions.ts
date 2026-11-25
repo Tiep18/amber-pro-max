@@ -1,8 +1,8 @@
 'use server';
 
-import {getCustomerWishlist, type CustomerWishlistItem} from '@/account/wishlist';
+import {isPostgresUuid, type CustomerWishlistItem} from '@/account/wishlist';
+import {getCustomerWishlist} from '@/account/wishlist.server';
 import {requireUser} from '@/auth/guards';
-import {isPostgresUuid} from '@/account/wishlist-client-state';
 import {getRequestMarket} from '@/catalog/page-context';
 import type {MarketCode} from '@/catalog/market';
 import type {Locale} from '@/i18n/routing';
