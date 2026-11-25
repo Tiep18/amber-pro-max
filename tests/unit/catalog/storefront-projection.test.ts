@@ -153,13 +153,17 @@ describe('storefront catalog projection contracts', () => {
 
   it('active-market products and facets replace the SEO shell atomically', async () => {
     const { projectCatalog } = await projectionModules();
-    const loadProducts = vi.fn(async ({ market }: { market: 'vn' | 'intl' }) =>
-      market === 'vn'
-        ? [vnOnlyProduct, bothMarketProduct]
-        : [intlOnlyProduct, { ...bothMarketProduct, currencyCode: 'USD', priceMinor: 500 }]
+    const loadProducts = vi.fn(
+      async ({ market }: { market: 'vn' | 'intl' }): Promise<
+        readonly { productId: string; [key: string]: unknown }[]
+      > =>
+        market === 'vn'
+          ? [vnOnlyProduct, bothMarketProduct]
+          : [intlOnlyProduct, { ...bothMarketProduct, currencyCode: 'USD', priceMinor: 500 }]
     );
-    const loadFacets = vi.fn(async ({ market }: { market: 'vn' | 'intl' }) =>
-      market === 'vn' ? vnFacets : intlFacets
+    const loadFacets = vi.fn(
+      async ({ market }: { market: 'vn' | 'intl' }): Promise<readonly Record<string, unknown>[]> =>
+        market === 'vn' ? vnFacets : intlFacets
     );
 
     const seoDefaultShell = { products: [vnOnlyProduct, bothMarketProduct], facets: vnFacets };
@@ -216,19 +220,38 @@ describe('storefront catalog projection contracts', () => {
       offset: 0,
       limit: 24
     } as const;
-    const loadProducts = vi.fn(async (input: typeof base) => {
+    const taxonomyFacets = [
+      { facet_type: 'technique', id: 'tech-crochet', slug: 'crochet', label: 'Crochet', product_count: 2 },
+      { facet_type: 'technique', id: 'tech-knit', slug: 'knit', label: 'Knit', product_count: 1 },
+      { facet_type: 'tag', id: 'tag-gift', slug: 'gift', label: 'Gift', product_count: 2 },
+      { facet_type: 'tag', id: 'tag-beginner', slug: 'beginner', label: 'Beginner', product_count: 1 }
+    ] as const;
+    const loadProducts = vi.fn(async (input: Record<string, unknown>) => {
       void input;
       return [];
     });
-    const loadFacets = vi.fn(async (input: typeof base) => {
+    const loadFacets = vi.fn(async (input: Record<string, unknown>) => {
       void input;
-      return [];
+      return taxonomyFacets;
     });
 
     await projectCatalog(base, { loadProducts, loadFacets });
 
-    expect(loadProducts).toHaveBeenCalledWith(base);
+    expect(loadProducts).toHaveBeenCalledWith({
+      ...base,
+      techniqueId: 'tech-crochet',
+      tagId: 'tag-gift'
+    });
     expect(loadFacets).toHaveBeenCalledWith(base);
+    expect(loadFacets).toHaveBeenCalledWith({
+      ...base,
+      search: null,
+      productType: null,
+      categorySlug: null,
+      collectionSlug: null,
+      techniqueSlug: null,
+      tagSlug: null
+    });
 
     const variants = [
       { ...base, locale: 'vi' },
@@ -249,12 +272,69 @@ describe('storefront catalog projection contracts', () => {
       await projectCatalog(variant, { loadProducts, loadFacets });
     }
 
+    const contextualFacetCalls = loadFacets.mock.calls.filter(([input]) => input.search !== null);
     expect(new Set(loadProducts.mock.calls.map(([input]) => JSON.stringify(input))).size).toBe(13);
-    expect(new Set(loadFacets.mock.calls.map(([input]) => JSON.stringify(input))).size).toBe(13);
+    expect(new Set(contextualFacetCalls.map(([input]) => JSON.stringify(input))).size).toBe(13);
 
     await projectCatalog({ ...base, search: '  bear  ' }, { loadProducts, loadFacets });
-    expect(loadProducts.mock.calls.at(-1)?.[0]).toEqual(base);
+    expect(loadProducts.mock.calls.at(-1)?.[0]).toEqual({
+      ...base,
+      techniqueId: 'tech-crochet',
+      tagId: 'tag-gift'
+    });
     expect(loadFacets.mock.calls.at(-1)?.[0]).toEqual(base);
+  });
+
+  it('orchestrates unfiltered facets, taxonomy short-circuit, pagination slicing, and exact totalCount', async () => {
+    const { projectCatalog } = await projectionModules();
+    const loadFacets = vi.fn(async () => [
+      { facet_type: 'technique', id: 'tech-crochet', slug: 'crochet', label: 'Crochet', product_count: 3 }
+    ]);
+    const loadProducts = vi.fn(async () => [vnOnlyProduct, intlOnlyProduct, bothMarketProduct]);
+
+    const unfiltered = await projectCatalog(
+      {
+        locale: 'en',
+        market: 'intl',
+        surface: 'catalog',
+        search: null,
+        productType: null,
+        categorySlug: null,
+        collectionSlug: null,
+        techniqueSlug: null,
+        tagSlug: null,
+        sort: 'newest',
+        offset: 1,
+        limit: 1
+      },
+      { loadProducts, loadFacets }
+    );
+
+    expect(loadFacets).toHaveBeenCalledTimes(1);
+    expect(unfiltered.products).toEqual([intlOnlyProduct]);
+    expect(unfiltered.totalCount).toBe(3);
+
+    const unresolved = await projectCatalog(
+      {
+        locale: 'en',
+        market: 'intl',
+        surface: 'tag',
+        search: null,
+        productType: null,
+        categorySlug: null,
+        collectionSlug: null,
+        techniqueSlug: null,
+        tagSlug: 'does-not-exist',
+        sort: 'newest',
+        offset: 0,
+        limit: 24
+      },
+      { loadProducts, loadFacets }
+    );
+
+    expect(loadProducts).toHaveBeenCalledTimes(1);
+    expect(unresolved.products).toEqual([]);
+    expect(unresolved.totalCount).toBe(0);
   });
 
   it('commits matching products and facets as one ready snapshot', async () => {
@@ -466,9 +546,8 @@ describe('storefront catalog projection contracts', () => {
     ).toEqual([]);
   });
 
-  it('keeps the market facet universe stable when contextual responses omit alternatives', async () => {
+  it('keeps the market facet universe stable when contextual responses omit or add facets', async () => {
     const { mergeStableCatalogFacets } = await projectionModules();
-    const { mergeCatalogFacetSnapshots } = await catalogCommerceModule();
     const master = [
       {
         facet_type: 'category',
@@ -486,14 +565,19 @@ describe('storefront catalog projection contracts', () => {
       }
     ];
     const narrowed = [{ ...master[0], product_count: 2 }];
+    const extra = {
+      facet_type: 'tag',
+      id: 'tag-new',
+      slug: 'new',
+      label: 'New',
+      product_count: 1
+    };
 
-    expect(mergeStableCatalogFacets(master, narrowed)).toEqual([
+    expect(mergeStableCatalogFacets([], narrowed)).toEqual(narrowed);
+    expect(mergeStableCatalogFacets(master, [...narrowed, extra])).toEqual([
       { ...master[0], product_count: 2 },
-      master[1]
-    ]);
-    expect(mergeCatalogFacetSnapshots(master, narrowed)).toEqual([
-      { ...master[0], product_count: 2 },
-      master[1]
+      master[1],
+      extra
     ]);
   });
 

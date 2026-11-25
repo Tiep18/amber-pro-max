@@ -1,5 +1,5 @@
 import {describe, expect, test} from 'vitest';
-import {getOrderRecoveryAction} from '@/payments/order-recovery';
+import {getOrderRecoveryAction} from '@/payments/status';
 
 describe('terminal order recovery', () => {
   test.each(['failed', 'cancelled', 'rejected', 'expired'] as const)(

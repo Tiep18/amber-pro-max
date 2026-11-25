@@ -68,9 +68,19 @@ _Avoid_: Late capture, grace period
 Read-only recording of PayPal `PAYMENT.CAPTURE.REFUNDED` events (`partially_refunded` or `refunded`, plus refunded minor amount) surfaced to customers and admins without altering fulfillment authority.
 _Avoid_: Refund transition, refund sync
 
+**Approval Outcome**:
+The post-approval PayPal decision model (`resolveCaptureOutcome`, `describePayPalApprovalOutcome`) translating capture responses, cancellations, and SDK errors into buyer alerts, order-status recheck prompts, and button-hiding rules that prevent double charges whenever money may have moved.
+_Avoid_: Button error flags, inline capture switch
+
 **Webhook Verification**:
 Cryptographic validation of PayPal transmission headers and raw JSON payload via PayPal's signature verification endpoint before any persistence read, receipt write, or **Payment Transition**.
 _Avoid_: Signature check, webhook parse
+
+### Catalog
+
+**Catalog Projection**:
+The market- and locale-scoped read model (`projectCatalog`, `mergeStableCatalogFacets`) that resolves taxonomy filters, merges master and contextual facet counts without collapsing unselected filter options, slices paginated products, and exposes exact `totalCount` behind `src/catalog/public-cache.ts`.
+_Avoid_: Cache query wrapper, facet snapshot merge
 
 ### Order Access
 

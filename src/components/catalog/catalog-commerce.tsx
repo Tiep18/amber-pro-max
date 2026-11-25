@@ -12,7 +12,11 @@ import {
   type CatalogListState
 } from '@/catalog/list-state';
 import type { CatalogFacet, CatalogProduct, CatalogProductType } from '@/catalog/queries';
-import type { CatalogProjection, CatalogProjectionInput } from '@/catalog/projections';
+import {
+  mergeStableCatalogFacets,
+  type CatalogProjection,
+  type CatalogProjectionInput
+} from '@/catalog/projections';
 import type { MarketCode } from '@/catalog/market';
 import type { Locale } from '@/i18n/routing';
 import {
@@ -162,28 +166,6 @@ function sameIdentity(left: CatalogCommerceIdentity | null, right: CatalogCommer
   );
 }
 
-export function mergeCatalogFacetSnapshots(
-  previousFacets: readonly CatalogFacet[],
-  incomingFacets: readonly CatalogFacet[]
-) {
-  if (previousFacets.length === 0) return [...incomingFacets];
-
-  const incomingByIdentity = new Map(
-    incomingFacets.map((facet) => [`${facet.facet_type}:${facet.id}`, facet])
-  );
-  const previousIdentities = new Set(
-    previousFacets.map((facet) => `${facet.facet_type}:${facet.id}`)
-  );
-
-  return [
-    ...previousFacets.map((facet) => {
-      const incoming = incomingByIdentity.get(`${facet.facet_type}:${facet.id}`);
-      return incoming ? { ...facet, product_count: incoming.product_count } : facet;
-    }),
-    ...incomingFacets.filter((facet) => !previousIdentities.has(`${facet.facet_type}:${facet.id}`))
-  ];
-}
-
 export function settleCatalogCommerceRequest(
   state: CatalogCommerceState,
   request: CatalogCommerceRequest,
@@ -205,7 +187,7 @@ export function settleCatalogCommerceRequest(
     products: projection.products,
     facets:
       state.facets.every(isCatalogFacet) && projection.facets.every(isCatalogFacet)
-        ? mergeCatalogFacetSnapshots(state.facets, projection.facets)
+        ? mergeStableCatalogFacets(state.facets, projection.facets)
         : projection.facets,
     totalCount: projection.totalCount,
     activeGeneration: null,

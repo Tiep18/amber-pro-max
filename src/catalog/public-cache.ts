@@ -16,7 +16,6 @@ import {
   type CatalogListInput
 } from './queries';
 import {
-  mergeStableCatalogFacets,
   projectAuthoritativeProductCommerce,
   projectCatalog,
   type CatalogProjectionInput
@@ -44,62 +43,24 @@ async function catalogCollection(locale: Locale, market: MarketCode, slug: strin
 
 async function catalogProjection(input: CatalogProjectionInput) {
   const client = createSupabasePublicClient();
-  const masterFacetInput = {
-    ...input,
-    search: null,
-    productType: null,
-    categorySlug: null,
-    collectionSlug: null,
-    techniqueSlug: null,
-    tagSlug: null
-  };
-  const hasActiveFacetFilter =
-    input.search !== null ||
-    input.productType !== null ||
-    input.categorySlug !== null ||
-    input.collectionSlug !== null ||
-    input.techniqueSlug !== null ||
-    input.tagSlug !== null;
-  const [masterFacets, contextualFacets] = await Promise.all([
-    listCatalogFacetsFiltered(masterFacetInput, client),
-    hasActiveFacetFilter ? listCatalogFacetsFiltered(input, client) : Promise.resolve(null)
-  ]);
-  const facets =
-    contextualFacets === null
-      ? masterFacets
-      : mergeStableCatalogFacets(masterFacets, contextualFacets);
-  const techniqueId = input.techniqueSlug
-    ? facets.find((facet) => facet.facet_type === 'technique' && facet.slug === input.techniqueSlug)
-        ?.id
-    : undefined;
-  const tagId = input.tagSlug
-    ? facets.find((facet) => facet.facet_type === 'tag' && facet.slug === input.tagSlug)?.id
-    : undefined;
-  const unresolvedTaxonomy =
-    (input.techniqueSlug !== null && techniqueId === undefined) ||
-    (input.tagSlug !== null && tagId === undefined);
-  const allProducts = unresolvedTaxonomy
-    ? []
-    : await listCatalogProducts(
+  return projectCatalog(input, {
+    loadFacets: (facetQuery) => listCatalogFacetsFiltered(facetQuery, client),
+    loadProducts: (productQuery) =>
+      listCatalogProducts(
         {
-          locale: input.locale,
-          market: input.market,
-          search: input.search,
-          productType: input.productType,
-          categorySlug: input.categorySlug,
-          collectionSlug: input.collectionSlug,
-          techniqueId,
-          tagId,
-          sort: input.sort
+          locale: productQuery.locale,
+          market: productQuery.market,
+          search: productQuery.search,
+          productType: productQuery.productType,
+          categorySlug: productQuery.categorySlug,
+          collectionSlug: productQuery.collectionSlug,
+          techniqueId: productQuery.techniqueId,
+          tagId: productQuery.tagId,
+          sort: productQuery.sort
         },
         client
-      );
-  const products = allProducts.slice(input.offset, input.offset + input.limit);
-  const projection = await projectCatalog(input, {
-    loadProducts: async () => products,
-    loadFacets: async () => facets
+      )
   });
-  return { ...projection, totalCount: allProducts.length };
 }
 
 async function productCommerce(locale: Locale, market: MarketCode, slug: string) {

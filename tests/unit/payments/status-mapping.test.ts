@@ -1,5 +1,5 @@
 import {describe, expect, test} from 'vitest';
-import {getCheckoutPath, getOrderPath} from '@/i18n/routing';
+import {getOrderPath} from '@/i18n/routing';
 import {
   getPaymentStatusPresentation,
   mapCustomerPaymentStatus,
@@ -63,7 +63,7 @@ describe('Phase 4 customer payment status contract', () => {
       provider: 'paypal',
       reservationExpiresAt: new Date(Date.now() - 1000).toISOString()
     });
-    const presentation = getPaymentStatusPresentation(status.status, 'en', getCheckoutPath('en'));
+    const presentation = getPaymentStatusPresentation(status.status);
 
     expect(status.status).toBe('expired');
     expect(status.isTerminal).toBe(true);
@@ -101,7 +101,7 @@ describe('Phase 4 customer payment status contract', () => {
     ] as const;
 
     for (const [customerStatus, nextAction, showPendingDeadline] of cases) {
-      const presentation = getPaymentStatusPresentation(customerStatus, 'en', getCheckoutPath('en'));
+      const presentation = getPaymentStatusPresentation(customerStatus);
 
       expect(presentation.nextAction, customerStatus).toBe(nextAction);
       expect(presentation.showPendingDeadline, customerStatus).toBe(showPendingDeadline);
@@ -123,7 +123,7 @@ describe('Phase 4 customer payment status contract', () => {
         fulfillmentGateStatus: 'locked',
         provider: 'paypal'
       });
-      const presentation = getPaymentStatusPresentation(status.status, 'en', getCheckoutPath('en'));
+      const presentation = getPaymentStatusPresentation(status.status);
 
       expect(status.status).toBe(expected);
       expect(status.sameOrderRetryAllowed).toBe(false);
@@ -156,7 +156,7 @@ describe('Phase 4 customer payment status contract', () => {
       reviewReason: 'late_payment_detected',
       reservationExpiresAt: new Date(Date.now() + 60_000).toISOString()
     });
-    const presentation = getPaymentStatusPresentation(status.status, 'en', getCheckoutPath('en'));
+    const presentation = getPaymentStatusPresentation(status.status);
 
     expect(status.status).toBe('review_required');
     expect(status.isPaid).toBe(false);
@@ -172,7 +172,7 @@ describe('Phase 4 customer payment status contract', () => {
         fulfillmentGateStatus: 'eligible',
         provider: 'paypal'
       });
-      const presentation = getPaymentStatusPresentation(status.status, 'en', getCheckoutPath('en'));
+      const presentation = getPaymentStatusPresentation(status.status);
 
       expect(status.isTerminal).toBe(true);
       expect(status.sameOrderRetryAllowed).toBe(false);

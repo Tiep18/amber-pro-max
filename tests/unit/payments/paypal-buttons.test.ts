@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 
-import { resolveCaptureOutcome } from '@/payments/paypal-capture-outcome';
+import {
+  describePayPalApprovalOutcome,
+  resolveCaptureOutcome,
+  type PayPalApprovalOutcome
+} from '@/payments/paypal-capture-outcome';
 
 const sourcePath = 'src/components/payments/paypal-buttons.tsx';
 const recheckSourcePath = 'src/components/payments/payment-status-recheck.tsx';
@@ -21,16 +25,40 @@ describe('PayPal customer button boundary', () => {
     expect(source).not.toContain('localStorage');
   });
 
-  test('never leaves a capture failure to the console alone', () => {
+  test('delegates approval outcomes and double-charge guard decisions to paypal-capture-outcome', () => {
     const source = readFileSync(sourcePath, 'utf8');
 
     // The capture call must be able to reject without escaping onApprove, and
-    // every branch must end in an outcome the buyer can read.
+    // UI rendering must follow the outcome module's button-hiding decision.
     expect(source).toContain('try {');
     expect(source).toContain('resolveCaptureOutcome');
-    expect(source).toContain('captureUnreachable');
-    expect(source).toContain('paymentMayHaveMoved');
+    expect(source).toContain('describePayPalApprovalOutcome');
+    expect(source).toContain('hidden={hideButtons}');
   });
+});
+
+describe('PayPal approval outcome presentation and double-charge guard', () => {
+  test.each([
+    ['verifying', 'verifying', 'success', true, false],
+    ['capture_failed', 'captureFailed', 'destructive', false, true],
+    ['capture_unreachable', 'captureUnreachable', 'destructive', true, true],
+    ['capture_uncertain', 'captureUncertain', 'warning', true, true],
+    ['capture_reconciliation', 'captureReconciliation', 'warning', true, true],
+    ['capture_review', 'captureReview', 'warning', true, false],
+    ['cancelled', 'cancelled', 'warning', false, false],
+    ['sdk_error', 'unavailable', 'destructive', false, false]
+  ] satisfies Array<[PayPalApprovalOutcome, string, string, boolean, boolean]>)(
+    '%s -> labelKey=%s alertVariant=%s hideButtons=%s allowStatusCheck=%s',
+    (outcome, labelKey, alertVariant, hideButtons, allowStatusCheck) => {
+      expect(describePayPalApprovalOutcome(outcome)).toEqual({
+        outcome,
+        labelKey,
+        alertVariant,
+        hideButtons,
+        allowStatusCheck
+      });
+    }
+  );
 });
 
 describe('PayPal capture outcome for the buyer', () => {

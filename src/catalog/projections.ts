@@ -35,25 +35,41 @@ export type CatalogProjection<TProduct = CatalogProduct, TFacet = CatalogFacet> 
   totalCount: number;
 };
 
+export type CatalogProjectionProductsQuery = CatalogProjectionInput & {
+  techniqueId?: string;
+  tagId?: string;
+};
+
+export type CatalogProjectionDependencies<TProduct = CatalogProduct, TFacet = CatalogFacet> = {
+  loadProducts: (query: CatalogProjectionProductsQuery) => Promise<readonly TProduct[]>;
+  loadFacets: (query: CatalogProjectionInput) => Promise<readonly TFacet[]>;
+};
+
 export function mergeStableCatalogFacets(
   masterFacets: readonly CatalogFacet[],
   contextualFacets: readonly CatalogFacet[]
 ): CatalogFacet[] {
+  if (masterFacets.length === 0) {
+    return [...contextualFacets];
+  }
+
   const contextualByIdentity = new Map(
     contextualFacets.map((facet) => [`${facet.facet_type}:${facet.id}`, facet])
   );
+  const masterIdentities = new Set(
+    masterFacets.map((facet) => `${facet.facet_type}:${facet.id}`)
+  );
 
-  return masterFacets.map((masterFacet) => {
-    const contextualFacet = contextualByIdentity.get(`${masterFacet.facet_type}:${masterFacet.id}`);
-    return {
-      ...masterFacet,
-      product_count: contextualFacet?.product_count ?? masterFacet.product_count
-    };
-  });
+  return [
+    ...masterFacets.map((masterFacet) => {
+      const contextualFacet = contextualByIdentity.get(`${masterFacet.facet_type}:${masterFacet.id}`);
+      return contextualFacet
+        ? { ...masterFacet, product_count: contextualFacet.product_count }
+        : masterFacet;
+    }),
+    ...contextualFacets.filter((facet) => !masterIdentities.has(`${facet.facet_type}:${facet.id}`))
+  ];
 }
-
-type ProjectionLoader = (...args: never[]) => Promise<readonly unknown[]>;
-type ProjectionLoaderItem<TLoader extends ProjectionLoader> = Awaited<ReturnType<TLoader>>[number];
 
 function normalizeNullable(value: string | null) {
   const normalized = value?.trim();
@@ -79,23 +95,83 @@ function normalizeCatalogProjectionInput(
   };
 }
 
-export async function projectCatalog<
-  TProductsLoader extends ProjectionLoader,
-  TFacetsLoader extends ProjectionLoader
->(
+function hasActiveCatalogFilter(input: CatalogProjectionInput) {
+  return (
+    input.search !== null ||
+    input.productType !== null ||
+    input.categorySlug !== null ||
+    input.collectionSlug !== null ||
+    input.techniqueSlug !== null ||
+    input.tagSlug !== null
+  );
+}
+
+function findTaxonomyFacetId(
+  facets: readonly unknown[],
+  facetType: 'technique' | 'tag',
+  slug: string
+): string | undefined {
+  for (const facet of facets) {
+    if (
+      facet !== null &&
+      typeof facet === 'object' &&
+      'facet_type' in facet &&
+      'slug' in facet &&
+      'id' in facet &&
+      facet.facet_type === facetType &&
+      facet.slug === slug &&
+      typeof facet.id === 'string'
+    ) {
+      return facet.id;
+    }
+  }
+  return undefined;
+}
+
+export async function projectCatalog<TProduct = CatalogProduct, TFacet = CatalogFacet>(
   input: CatalogProjectionCallInput,
-  dependencies: { loadProducts: TProductsLoader; loadFacets: TFacetsLoader }
-): Promise<
-  CatalogProjection<ProjectionLoaderItem<TProductsLoader>, ProjectionLoaderItem<TFacetsLoader>>
-> {
+  dependencies: CatalogProjectionDependencies<TProduct, TFacet>
+): Promise<CatalogProjection<TProduct, TFacet>> {
   const normalized = normalizeCatalogProjectionInput(input);
-  const loadProducts = dependencies.loadProducts as unknown as (
-    input: CatalogProjectionInput
-  ) => ReturnType<TProductsLoader>;
-  const loadFacets = dependencies.loadFacets as unknown as (
-    input: CatalogProjectionInput
-  ) => ReturnType<TFacetsLoader>;
-  const [products, facets] = await Promise.all([loadProducts(normalized), loadFacets(normalized)]);
+  const masterFacetInput: CatalogProjectionInput = {
+    ...normalized,
+    search: null,
+    productType: null,
+    categorySlug: null,
+    collectionSlug: null,
+    techniqueSlug: null,
+    tagSlug: null
+  };
+  const [masterFacets, contextualFacets] = await Promise.all([
+    dependencies.loadFacets(masterFacetInput),
+    hasActiveCatalogFilter(normalized) ? dependencies.loadFacets(normalized) : Promise.resolve(null)
+  ]);
+  const facets =
+    contextualFacets === null
+      ? masterFacets
+      : (mergeStableCatalogFacets(
+          masterFacets as readonly CatalogFacet[],
+          contextualFacets as readonly CatalogFacet[]
+        ) as unknown as readonly TFacet[]);
+
+  const techniqueId = normalized.techniqueSlug
+    ? findTaxonomyFacetId(facets, 'technique', normalized.techniqueSlug)
+    : undefined;
+  const tagId = normalized.tagSlug
+    ? findTaxonomyFacetId(facets, 'tag', normalized.tagSlug)
+    : undefined;
+  const unresolvedTaxonomy =
+    (normalized.techniqueSlug !== null && techniqueId === undefined) ||
+    (normalized.tagSlug !== null && tagId === undefined);
+
+  const allProducts = unresolvedTaxonomy
+    ? []
+    : await dependencies.loadProducts({
+        ...normalized,
+        techniqueId,
+        tagId
+      });
+  const products = allProducts.slice(normalized.offset, normalized.offset + normalized.limit);
 
   return {
     locale: normalized.locale,
@@ -103,7 +179,7 @@ export async function projectCatalog<
     surface: normalized.surface,
     products,
     facets,
-    totalCount: products.length
+    totalCount: allProducts.length
   };
 }
 
